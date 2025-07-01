@@ -6,3 +6,176 @@ description: Configuration options for the Fern Typescript SDK.
 # Typescript Configuration
 
 Discover how to configure the Fern Typescript SDK for your project. 
+
+
+
+You can customize the behavior of generators in `generators.yml`:
+
+```yml
+default-group: local
+groups:
+  local:
+    generators:
+      - name: fernapi/fern-typescript-node-sdk
+        version: 0.7.1
+        config:
+          useBrandedStringAliases: true
+```
+
+### SDK Configuration
+
+The SDK generator support the following parameters:
+
+
+<ParamField path="useBrandedStringAliases" type="boolean" default="false">
+  When enabled, string aliases are generated as branded strings. This makes each alias feel like its own type and improves compile-time safety.
+
+  ```yaml
+  # fern definition
+
+  types:
+  	MyString: string
+  	OtherString: string
+```
+
+```typescript
+// generated code
+
+export type MyString = string & { __MyString: void };
+export const MyString = (value: string): MyString => value as MyString;
+
+export type OtherString = string & { __OtherString: void };
+export const OtherString = (value: string): OtherString => value as OtherString;
+```
+
+```typescript
+// consuming the generated type
+
+function printMyString(s: MyString): void {
+  console.log("MyString: " + s);
+}
+
+// doesn't compile, "foo" is not assignable to MyString
+printMyString("foo");
+
+const otherString = OtherString("other-string");
+// doesn't compile, otherString is not assignable to MyString
+printMyString(otherString);
+
+// compiles
+const myString = MyString("my-string");
+printMyString(myString);
+```
+
+When `useBrandedStringAliases` is disabled (the default), string aliases are generated as
+normal TypeScript aliases:
+
+```typescript
+// generated code
+
+export type MyString = string;
+
+export type OtherString = string;
+```
+</ParamField>
+
+<ParamField path="neverThrowErrors" type="boolean" default="false">
+  When enabled, the client doesn't throw errors when a non-200 response is received from the server. Instead, the response is wrapped in an [`ApiResponse`](packages/core-utilities/fetcher/src/APIResponse.ts).
+
+  ```typescript
+  const response = await client.callEndpoint(...);
+  if (response.ok) {
+    console.log(response.body)
+  } else {
+    console.error(respons.error)
+  }
+  ```
+</ParamField>
+
+<ParamField path="namespaceExport" type="string">
+  Customizes the exported namespace and client names. By default, names are based on the organization and API names in the Fern Definition.
+</ParamField>
+
+<ParamField path="outputEsm" type="boolean" default="false">
+  By default, the generated TypeScript targets CommonJS. Set to `true` to target `esnext` instead.
+</ParamField>
+
+<ParamField path="outputSourceFiles" type="boolean" default="false">
+  When enabled, the generator outputs raw TypeScript files. When disabled (the default), outputs .js and d.ts files. This only applies when dumping code locally. This configuration is ignored when publishing to Github or npm._ When enabled, the generator outputs raw TypeScript files. When disabled (the default), the generator outputs `.js` and `d.ts` files.
+</ParamField>
+
+<ParamField path="includeCredentialsOnCrossOriginRequests" type="boolean" default="false">
+  When enabled, [`withCredentials`](https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/withCredentials) is set to true when making network requests.
+</ParamField>
+
+<ParamField path="allowCustomFetcher" type="boolean" default="false">
+  When enabled, the generated client allows the end user to specify a custom fetcher implementation.
+
+  ```typescript
+const acme = new AcmeClient({
+  fetcher: (args) => {
+    ...
+  },
+});
+```
+</ParamField>
+
+<ParamField path="requireDefaultEnvironment" type="boolean" default="false">
+  When enabled, the generated client doesn't allow the user to specify a server URL. When disabled (the default), the generated client includes an option to override the server URL:
+
+	```typescript
+	const acme = new AcmeClient({
+	  environment: "localhost:8080"
+	});
+	```
+</ParamField>
+
+<ParamField path="defaultTimeoutInSeconds" type="number" default="60">
+  The default timeout for network requests. In the generated client, this can be overridden at the request level.
+</ParamField>
+
+<ParamField path="skipResponseValidation" type="boolean" default="false">
+  By default, the client will throw an error if the response from the server
+doesn't match the expected type (based on how the response is modeled in the
+Fern Definition).
+
+If `skipResponseValidation` is enabled, the client will never throw if the response is misshapen. Rather, the client
+will log the issue using `console.warn` and return the data (casted to the expected response type).
+
+</ParamField>
+
+<ParamField path="extraDependencies" type="object" default="{}">
+  Specify extra dependencies in the generated package.json. Useful when utilizing .fernignore to supplement the generated client with custom code. Note: Only applies when publishing to Github.
+</ParamField>
+
+<ParamField path="extraDevDependencies" type="object" default="{}">
+  Specify extra dev dependencies in the generated package.json. Note: Only applies when publishing to Github.
+
+  This is useful
+when you utilize [`.fernignore`](https://buildwithfern.com/learn/sdks/capabilities/custom-code) to
+supplement the generated client with custom code.
+
+```yaml
+# generators.yml
+config:
+  extraDependencies:
+    lodash: "3.0.2"
+```
+</ParamField>
+
+<ParamField path="treatUnknownAsAny" type="boolean" default="false">
+  When enabled, unknown types from Fern are generated into TypeScript using any instead of the unknown type.
+</ParamField>
+
+<ParamField path="noSerdeLayer" type="boolean" default="false">
+  When enabled, no serialization/deserialization code is generated. The client uses JSON.parse() and JSON.stringify() instead of the default serde layer that provides validation and complex type support.
+</ParamField>
+
+<ParamField path="noOptionalProperties" type="boolean" default="false">
+  When enabled, optional properties are generated with | undefined instead of optional TypeScript properties (using ?).
+</ParamField>
+
+<ParamField path="retainOriginalCasing" type="boolean" default="false">
+  When enabled, property names in the generated code will retain their original casing from the API definition instead of being converted to camelCase.
+</ParamField>
+
