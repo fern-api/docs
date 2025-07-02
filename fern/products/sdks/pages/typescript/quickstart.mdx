@@ -1,8 +1,210 @@
 ---
-title: Typescript Quickstart
+title: TypeScript Quickstart
 description: Get started quickly with the Fern Typescript SDK.
 ---
 
-# Typescript Quickstart
+<Warning title='Schedule a Demo'>
+  Generating SDKs often requires understanding the state of your OpenAPI Specification as well as 
+  your specific requirements. For the ideal experience, we **strongly recommend** scheduling a 
+  [demo](https://buildwithfern.com/contact) or [emailing us](mailto:support@buildwithfern.com) to get started. 
+</Warning>
 
-Follow these steps to quickly get up and running with the Fern Typescript SDK. 
+Generate a TypeScript SDK by following the instructions on this page. 
+
+<Steps>
+  ### Install the Fern CLI
+
+  Run the following command to install the CLI tool or update it to the latest version:
+
+  ```bash
+  npm install -g fern-api
+  ```
+
+  ### Initialize the Fern Folder
+
+  You can use either the OpenAPI definition, AsyncAPI definition, or Fern Definition to generate your SDK.
+
+  <AccordionGroup>
+  <Accordion title="Option 1: OpenAPI">
+      Initialize the Fern folder using your OpenAPI Specification. Run one of the following commands based on your spec's location.
+
+      <Tip>
+      Fern can handle both JSON and YML formats for OpenAPI specifications, and the --openapi flag accepts either format, so you can use whichever format your API spec is available in.
+      </Tip>
+
+      <Info>
+     `--organization <YourOrganization>` configures your organization name in `fern.config.json`. This is required in order to successfully generate your SDK. 
+      </Info>
+
+     <CodeBlocks>
+
+    <CodeBlock title="Local file">
+      ```bash
+      fern init --openapi path/to/openapi.yml --organization <YourOrganization>
+      ```
+    </CodeBlock>
+
+    <CodeBlock title="Web-hosted file">
+      ```bash
+      fern init --openapi https://api.example.com/openapi.yml --organization <YourOrganization>
+      ```
+    </CodeBlock>
+
+    </CodeBlocks>
+
+      This creates a `fern` folder in your current directory with the OpenAPI Specification. The exact folder structure might look different depending on your initial input files. 
+
+      ```bash
+      fern/
+        ├─ fern.config.json # root-level configuration
+        └─ api/ # your API
+          ├─ generators.yml # generators you're using
+          └─ openapi/
+            ├─ openapi.yml  # API-level configuration
+      ```
+    </Accordion>
+    <Accordion title="Option 2: AsyncAPI">
+      Initialize the Fern folder using your AsyncAPI Specification. Run one of the following commands based on your spec's location.
+
+      <Tip>
+      Fern can handle both JSON and YML formats for AsyncAPI specifications, and the --openapi flag accepts either format, so you can use whichever format your API spec is available in.
+      </Tip>
+
+      <Info>
+     `--organization <YourOrganization>` configures your organization name in `fern.config.json`. This is required in order to successfully generate your SDK. 
+      </Info>
+
+     <CodeBlocks>
+
+    <CodeBlock title="Local file">
+      ```bash
+      fern init --asyncapi path/to/asyncapi.yml --organization <YourOrganization>
+      ```
+    </CodeBlock>
+
+    <CodeBlock title="Web-hosted file">
+      ```bash
+      fern init --asyncapi https://api.example.com/asyncapi.yml --organization <YourOrganization>
+      ```
+    </CodeBlock>
+
+  	</CodeBlocks>
+
+      This creates a `fern` folder in your current directory with the AsyncAPI Specification. The exact folder structure might look different depending on your initial input files. 
+
+      ```bash
+      fern/
+        ├─ fern.config.json # root-level configuration
+        └─ api/ # your API
+          ├─ generators.yml # generators you're using
+          └─ openapi/
+            ├─ openapi.yml  # API-level configuration
+      ```
+    </Accordion>
+    <Accordion title="Option 3: Fern Definition">
+
+      1.    Initialize the Fern folder using the Fern Definition by running the following command:
+
+            ```bash
+            fern init --organization <YourOrganization>
+            ```
+
+            <Info>
+            `--organization <YourOrganization>` configures your organization name in `fern.config.json`. This is required in order to successfully generate your SDK.
+            </Info>
+
+            This creates a `fern` folder in your current directory with the Fern Definition.
+
+            ```bash
+            fern/
+              ├─ fern.config.json # root-level configuration
+              ├─ generators.yml # generators you're using
+              └─ definition/
+                ├─ api.yml  # API-level configuration
+                └─ imdb.yml # endpoints, types, and errors
+            ```
+
+            <Note>
+            `imdb.yml` contains an example movies API.  If you’re just generating an SDK for test purposes, you can leave this file as it is. To generate an SDK for your own API instead of the example movies API, replace `imdb.yml` with your own endpoints, types, and errors before proceeding with the rest of this page. 
+            </Note>
+
+            {/* TODO: show want generators.yml looks like, link out to configuration.md */}
+
+      1.    Add the config option `outputSourceFiles: true` to `generators.yml`. This ensures your  SDK contains `.ts` files instead of compiled output. 
+
+            ```yaml {11-12}
+            # yaml-language-server: $schema=https://schema.buildwithfern.dev/generators-yml.json
+            default-group: local
+            groups:
+              local:
+                generators:
+                  - name: fernapi/fern-typescript-node-sdk
+                    output:
+                      location: local-file-system
+                      path: ../sdks/typescript
+                    version: 1.10.1
+                    config: 
+                      outputSourceFiles: true
+            ```
+
+
+
+
+    </Accordion>
+  </AccordionGroup>
+
+  ### Pass `fern check`
+
+  Run `fern check` to ensure that your API Definition is valid. If there are any errors,
+  fix them before proceeding.
+
+  <Note>
+    If you're using an OpenAPI Specification, check out all of our 
+    [supported extensions](/learn/api-definition/openapi/extensions).
+  </Note>
+
+  ### Add the SDK generator
+
+  Add the TypeScript SDK generator:
+
+  ```bash
+  fern add fern-typescript-node-sdk --group sdk
+  ```
+
+  This command adds the following to `generators.yml`:
+
+    ```yaml
+    sdk:
+      generators:
+        - name: fernapi/fern-typescript-node-sdk
+          version: 1.10.1
+          output:
+            location: local-file-system
+            path: ../sdks/typescript
+    ```
+  ### Generate the SDK
+
+  Generate the SDK:
+
+  ```bash
+  fern generate --group sdk
+  ```
+
+  This creates a `sdks` folder in your current directory. The resulting folder structure looks like this:
+
+
+  ```bash
+  fern/ # created in step 1
+  sdks/ # created by fern generate --group sdk
+    ├─ typescript
+        ├─ cjs/
+          	├─ api/
+          	├─ core/
+          	└─ errors/
+        └─ esm/
+          	├─ api/
+          	├─ core/
+          	└─ errors/
+  ```
+  
+</Steps>
