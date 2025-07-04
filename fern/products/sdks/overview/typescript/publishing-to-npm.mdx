@@ -1,8 +1,225 @@
 ---
 title: Publishing to NPM
-description: How to publish the Fern Typescript SDK to NPM.
+description: How to publish the Fern Typescript SDK to npm.
 ---
 
-# Publishing to NPM
+Publish your public-facing Fern Typescript SDK to the [npm registry](https://www.npmjs.com/). Once you've followed the steps on this page to connect your npm account to your SDK, Fern will automatically publish the latest version of your SDK.  
 
-Learn how to publish your Fern Typescript SDK to the NPM registry. 
+<Info>This guide assumes that you already have an initialized `fern` folder on your local machine. If you don’t, run `fern init`. See [TypeScript Quickstart](quickstart.mdx) for more details.</Info>
+
+## Set up your GitHub integration
+
+  1.   Create a new GitHub repository called `company-typescript` (or something similar) for your SDK, if you haven't done so already.
+  1.   Install the [Fern GitHub App](https://github.com/apps/fern-api): Select **Configure**, then scroll down to **Repository Access**. Select **Only select repositories** and in the dropdown select the repository for your SDK. Click **Save**. 
+  
+
+## Configure `generators.yml`
+
+<Steps>
+
+	<Step title="Run `fern add <generator>`">
+
+	  Navigate to your `generators.yml` on your local machine. Your `generators.yml` lives inside of your `fern` folder and contains all the configuration for your Fern generators. 
+
+	  In order to generate the SDK, add the generator to your `generators.yml` using the `fern <add>` command:
+
+
+	    ```bash
+	    fern add fern-typescript-node-sdk --group ts-sdk
+	    ```
+
+	  Once the command completes, you'll see a new group created in your `generators.yml`:
+	  
+	  ```yaml {2-7}
+	    groups: 
+	    ...
+	      ts-sdk:
+	        generators:
+	          - name: fernapi/fern-typescript-node-sdk
+	            version: <Markdown src="/snippets/version-number.mdx"/>
+	            output:
+	              location: local-file-system
+	              path: ../sdks/typescript
+	    ```
+
+	  </Step>
+
+	  <Step title="Configure `output` location">
+
+		Next, change the output location in `generators.yml` from `local-file-system` (the default) to `npm` to indicate that Fern should publish your package directly to the npm registry:
+
+	    ```yaml title="TypeScript" {6-7}
+	    groups: 
+	      ts-sdk:
+	        generators:
+	          - name: fernapi/fern-typescript-node-sdk
+	            version: <Markdown src="/snippets/version-number.mdx"/>
+	            output:
+	              location: npm
+
+	    ```
+	  </Step>
+
+	  <Step title="Add a unique package name">
+
+	     Your package name must be unique in the npm repository, otherwise publishing your SDK to npm will fail. Update your package name if you haven't done so already:
+
+
+```yaml title="TypeScript" {8}
+groups: 
+  ts-sdk:
+    generators:
+      - name: fernapi/fern-typescript-node-sdk
+        version: <Markdown src="/snippets/version-number.mdx"/>
+        output:
+          location: npm
+          package-name: your-package-name
+```
+	    
+	  </Step>
+
+	<Step title="Configure `namespaceExport`">
+
+	     The `namespaceExport` option controls the name of the generated client. This is the name customers use to import your SDK (`import { your-client-name } from 'your-package-name';`). 
+
+
+```yaml title="TypeScript" {9-10}
+groups: 
+  ts-sdk:
+    generators:
+      - name: fernapi/fern-typescript-node-sdk
+        version: <Markdown src="/snippets/version-number.mdx"/>
+        output:
+          location: npm
+          package-name: your-package-name
+        config:
+          namespaceExport: your-client-name
+```
+	    
+	  </Step>
+
+	  <Step title="Add repository location">
+
+	  Add the path to your GitHub repository to `generators.yml`: 
+
+```yaml title="TypeScript" {11-12}
+groups: 
+ts-sdk:
+  generators:
+    - name: fernapi/fern-typescript-node-sdk
+      version: <Markdown src="/snippets/version-number.mdx"/>
+      output:
+        location: npm
+        package-name: your-package-name
+      config:
+          namespaceExport: your-client-name
+      github: 
+        repository: your-org/company-typescript
+```
+	  
+	  </Step>
+  </Steps>
+
+## Set up npm publishing authentication
+
+<Steps>
+
+	<Step title="Log into npm">
+
+	Log into [npm](https://www.npmjs.com/) or create a new account. 
+
+	</Step>
+
+	<Step title="Navigate to Access Tokens">
+
+	1.    Click on your profile picture. 
+	1.    Select **Edit Profile**.
+	1.    Select **Access Tokens**. 
+
+	</Step>
+
+	<Step title="Generate Token">
+
+	Click on **Generate New Token**, then choose the appropriate token type. For more information on access tokens and which type to choose, see npm's [About access tokens](https://docs.npmjs.com/about-access-tokens) documentation. 
+
+	<AccordionGroup>
+  <Accordion title="Option 1: Classic Token">
+
+  	1.    Select **Classic Token**
+  	1.    Name your token and select **Automation** as the token type. 
+
+	<Frame>
+	<img src="assets/npm-automation-token.png" alt="Creating NPM Automation Token" />
+	</Frame>
+
+	Once finished, click **Generate Token**.
+
+	<Warning>When you click **Generate Token**, you’ll be returned to the **Access Tokens** dashboard. A box on the top of the dashboard will confirm that you successfully created a new token and prompt you to copy your token id. Make sure you save this id, as you'll need to add it to your GitHub repository and `generators.yml` later on.</Warning>
+
+  </Accordion>
+  <Accordion title="Option 2: Granular Access Token">
+	1.    Select **Granular Access Token**. 
+	1.    Name your token.
+	1.    Set an expiration.
+	1.    Configure your token's access to packages and scopes.
+	1.    Configure your token's access to organizations. In order to fill this out, you must have at least one organization already configured in npm. See [Creating an organization](https://docs.npmjs.com/creating-an-organization) for more information.
+	1.    Optionally fill out additional permissions according to your organization's requirements. 
+
+	<Frame>
+	<img src="assets/granular-access-token.png" alt="Creating Granular Access Token" />
+	</Frame>
+
+	</Accordion>
+	</AccordionGroup>
+	
+	</Step>
+
+	<Step title="Configure npm authentication token">
+
+	Add `token: ${NPM_TOKEN}` to `generators.yml` to tell Fern to use the `NPM_TOKEN` environment variable for authentication when publishing to the npm registry.
+
+```yaml title="TypeScript" {9}
+groups: 
+ts-sdk:
+  generators:
+    - name: fernapi/fern-typescript-node-sdk
+      version: <Markdown src="/snippets/version-number.mdx"/>
+      output:
+        location: npm
+        package-name: name-of-your-package
+        token: ${NPM_TOKEN}
+      github: 
+        repository: your-org/your-repository
+```
+	</Step>
+
+</Steps>
+
+## Release your SDK to NPM
+
+  At this point, you're ready to generate a release for your SDK.
+
+<Steps>
+ 
+	<Step title="Set npm environment variable">
+
+	Set the `NPM_TOKEN` environment variable on your local machine:
+
+	```bash
+	export NPM_TOKEN=your-actual-npm-token
+	```
+
+	</Step>
+
+	<Step title="Generate your release">
+
+	Regenerate your SDK and publish it on npm:
+
+	```bash
+	fern generate --version <version>
+	```
+	Local machine output will verify that the release is pushed to your repository and tagged with the version you specified. You'll receive an email from npm notifying you that a new version of your package has been successfully published!
+
+	</Step>
+
+</Steps>
