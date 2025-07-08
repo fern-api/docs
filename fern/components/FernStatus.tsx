@@ -128,47 +128,54 @@ export const FernStatusWidget = () => {
   };
 
   return (
-    <div id="fern-status-widget" style={{ display: 'flex', alignItems: 'center' }}>
-      <div 
-        className={`footer_badge-dot ${status.dotClass}`}
-        style={{
-          width: '10px',
-          height: '10px',
-          borderRadius: '50%',
-          marginRight: '8px',
-          position: 'relative',
-          display: 'inline-block',
-          backgroundColor: getBackgroundColor(),
-        }}
-      />
-      <span id="fern-status-text">{status.statusMessage}</span>
-      
-      <style jsx>{`
-        .footer_badge-dot::after {
-          content: '';
-          position: absolute;
-          top: -4px;
-          left: -4px;
-          right: -4px;
-          bottom: -4px;
-          border-radius: 50%;
-          background: radial-gradient(circle, transparent 0%, currentColor 70%, currentColor 100%);
-          opacity: 0.4;
-          animation: pulse-expand 2s infinite ease-out;
-        }
+    <a 
+      href="https://status.buildwithfern.com" 
+      target="_blank" 
+      rel="noopener noreferrer"
+      style={{ textDecoration: 'none', color: 'inherit' }}
+    >
+      <div id="fern-status-widget" style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+        <div 
+          className={`footer_badge-dot ${status.dotClass}`}
+          style={{
+            width: '10px',
+            height: '10px',
+            borderRadius: '50%',
+            marginRight: '8px',
+            position: 'relative',
+            display: 'inline-block',
+            backgroundColor: getBackgroundColor(),
+          }}
+        />
+        <span id="fern-status-text">{status.statusMessage}</span>
         
-        .footer_badge-dot.is-green::after { color: #00c853; }
-        .footer_badge-dot.is-red::after { color: #f44336; }
-        .footer_badge-dot.is-orange::after { color: #ff9800; }
-        .footer_badge-dot.is-blue::after { color: #2196f3; }
-        .footer_badge-dot.is-yellow::after { color: #ffc107; }
-        .footer_badge-dot.is-loading::after { color: #cccccc; }
-        
-        @keyframes pulse-expand {
-          0% { transform: scale(0.6); opacity: 0.5; }
-          100% { transform: scale(1.5); opacity: 0; }
-        }
-      `}</style>
-    </div>
+        <style jsx>{`
+          .footer_badge-dot::after {
+            content: '';
+            position: absolute;
+            top: -4px;
+            left: -4px;
+            right: -4px;
+            bottom: -4px;
+            border-radius: 50%;
+            background: radial-gradient(circle, transparent 0%, currentColor 70%, currentColor 100%);
+            opacity: 0.4;
+            animation: pulse-expand 2s infinite ease-out;
+          }
+          
+          .footer_badge-dot.is-green::after { color: #00c853; }
+          .footer_badge-dot.is-red::after { color: #f44336; }
+          .footer_badge-dot.is-orange::after { color: #ff9800; }
+          .footer_badge-dot.is-blue::after { color: #2196f3; }
+          .footer_badge-dot.is-yellow::after { color: #ffc107; }
+          .footer_badge-dot.is-loading::after { color: #cccccc; }
+          
+          @keyframes pulse-expand {
+            0% { transform: scale(0.6); opacity: 0.5; }
+            100% { transform: scale(1.5); opacity: 0; }
+          }
+        `}</style>
+      </div>
+    </a>
   );
 };
