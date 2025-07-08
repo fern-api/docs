@@ -134,7 +134,7 @@ export const FernStatusWidget = () => {
       rel="noopener noreferrer"
       style={{ textDecoration: 'none', color: 'inherit' }}
     >
-      <div id="fern-status-widget" style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+      <div id="fern-status-widget" className="fern-status-widget">
         <div 
           className={`footer_badge-dot ${status.dotClass}`}
           style={{
@@ -147,9 +147,39 @@ export const FernStatusWidget = () => {
             backgroundColor: getBackgroundColor(),
           }}
         />
-        <span id="fern-status-text">{status.statusMessage}</span>
+        <span id="fern-status-text" className="fern-status-text">{status.statusMessage}</span>
         
         <style jsx>{`
+          .fern-status-widget {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            border-radius: 9999px;
+            padding: 0.25rem 0.75rem;
+            align-self: flex-start;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background-color 150ms ease, color 150ms ease;
+          }
+
+          .fern-status-widget svg {
+            display: none !important;
+          }
+
+          .fern-status-widget:hover {
+            background-color: var(--grayscale-a4);
+          }
+
+          .fern-status-widget:hover .fern-status-text {
+            color: var(--grayscale-12);
+          }
+
+          .fern-status-text {
+            font-size: 0.875rem;
+            color: var(--grayscale-10);
+            font-weight: 400;
+          }
+
           .footer_badge-dot::after {
             content: '';
             position: absolute;
