@@ -1,17 +1,23 @@
 import React from 'react';
 import { FernStatusWidget } from './FernStatus';
 
+import builtwithfernLight from './images/builtwithfern-light.svg';
+import builtwithfernDark from './images/builtwithfern-dark.svg';
+import builtwithfernFrameLight from './images/builtwithfern-frame-light.svg';
+import builtwithfernFrameDark from './images/builtwithfern-frame-dark.svg';
+import soc2 from './images/soc2.svg';
+
 export const FernFooter = () => {
   return (
     <footer className="footer">
       <div className="footer-top">
         {/* Left Column - Logo and Status */}
         <a className="footer-logo" href="https://buildwithfern.com">
-          <img src="./images/builtwithfern-light.svg" alt="Fern" className="footer-logo-img dark:hidden" noZoom />
-          <img src="./images/builtwithfern-dark.svg" alt="Fern" className="footer-logo-img hidden dark:block" noZoom />
+          <img src={builtwithfernLight} alt="Fern" className="footer-logo-img dark:hidden" />
+          <img src={builtwithfernDark} alt="Fern" className="footer-logo-img hidden dark:block" />
 
-          <img src="./images/builtwithfern-frame-light.svg" alt="Fern" className="footer-logo-frame dark:hidden" noZoom />
-          <img src="./images/builtwithfern-frame-dark.svg" alt="Fern" className="footer-logo-frame hidden dark:block" noZoom />
+          <img src={builtwithfernFrameLight} alt="Fern" className="footer-logo-frame dark:hidden" />
+          <img src={builtwithfernFrameDark} alt="Fern" className="footer-logo-frame hidden dark:block" />
         </a>
         
         <div className="footer-status">
@@ -22,7 +28,7 @@ export const FernFooter = () => {
           <FernStatusWidget />
           
           <a className="soc2-badge" href="https://security.buildwithfern.com/">
-            <img src="./images/soc2.svg" alt="Soc 2 Type II" className="soc2-badge-img" noZoom />
+            <img src={soc2} alt="Soc 2 Type II" className="soc2-badge-img" />
             <span className="status-text">Soc 2 Type II</span>
           </a>
         </div>
