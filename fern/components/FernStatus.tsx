@@ -16,7 +16,7 @@ interface StatusState {
 }
 
 export const FernStatusWidget = () => {
-  const [status, setStatus] = React.useState<StatusState>({
+  const [status, setStatus] = useState<StatusState>({
     dotClass: 'is-loading',
     statusMessage: 'Checking status...'
   });
@@ -109,7 +109,7 @@ export const FernStatusWidget = () => {
     }
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     fetchStatus();
     const interval = setInterval(fetchStatus, refreshInterval);
     return () => clearInterval(interval);
