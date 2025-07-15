@@ -12,10 +12,10 @@ const render = async () => {
   const footerId = document.getElementById('footer')
 
   if (!footerId) {
-    // Create ada footer wrapper with a data attribute to help with hydration
-    const adaFooterWrapper = document.createElement('div')
-    adaFooterWrapper.setAttribute('id', 'ada-footer')
-    adaFooterWrapper.setAttribute('data-react-component', 'true')
+    // Create fern footer wrapper with a data attribute to help with hydration
+    const fernFooterWrapper = document.createElement('div')
+    fernFooterWrapper.setAttribute('id', 'fern-footer-wrapper')
+    fernFooterWrapper.setAttribute('data-react-component', 'true')
 
     // Get or create fern-footer container
     let fernFooterContainer = document.getElementById(FERN_FOOTER_CONTAINER_ID)
@@ -26,13 +26,13 @@ const render = async () => {
     }
 
     fernFooterContainer.insertBefore(
-      adaFooterWrapper,
+      fernFooterWrapper,
       fernFooterContainer.firstChild,
     )
 
 
     // Use createRoot instead of render for React 18+ compatibility
-    const root = createRoot(adaFooterWrapper)
+    const root = createRoot(fernFooterWrapper)
     root.render(
       <React.StrictMode>
         <FernFooter />
@@ -53,7 +53,7 @@ window.addEventListener('load', async () => {
     const shouldRender = mutations.some(
       (mutation) =>
         mutation.type === 'childList' &&
-        !document.getElementById('ada-footer'),
+        !document.getElementById('fern-footer-wrapper'),
     )
     if (shouldRender) {
       await render()
