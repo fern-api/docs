@@ -1,5 +1,3 @@
-import React from 'react';
-
 interface BuiltWithFernDarkProps {
   width?: number;
   height?: number;

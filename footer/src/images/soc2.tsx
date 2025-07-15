@@ -1,5 +1,3 @@
-import React from 'react';
-
 interface Soc2LogoProps {
   width?: number;
   height?: number;

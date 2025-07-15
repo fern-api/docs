@@ -4,7 +4,7 @@ import './main.css'
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 
-import { CustomFooter } from './Footer.js'
+import { FernFooter } from './FernFooter.js'
 
 const FERN_FOOTER_CONTAINER_ID = 'fern-footer'
 
@@ -35,7 +35,7 @@ const render = async () => {
     const root = createRoot(adaFooterWrapper)
     root.render(
       <React.StrictMode>
-        <CustomFooter />
+        <FernFooter />
       </React.StrictMode>,
     )
 
