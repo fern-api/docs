@@ -7,6 +7,8 @@ import { BuiltWithFernFrameLight } from './images/builtwithfern-frame-light';
 import { BuiltWithFernFrameDark } from './images/builtwithfern-frame-dark';
 import { Soc2Logo } from './images/soc2';
 
+import './main.css';
+
 export const FernFooter: React.FC = () => {
   return (
     <>      
