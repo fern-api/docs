@@ -3,6 +3,230 @@ title: Publishing to Maven Central
 description: How to publish the Fern Java SDK to Maven Central.
 ---
 
-Learn how to publish your Fern Java SDK to the Maven Central registry. 
+Publish your public-facing Fern Java SDK to the [Maven Central
+registry](https://pypi.org/). After following the steps on this page,
+you'll have a versioned package published on Maven Central.
 
-<Warning>This page is a WIP, please refer to our previous [documentation](https://buildwithfern.com/learn/sdks/guides/publish-a-public-facing-sdk).</Warning> 
+<Info>This guide assumes that you already have an initialized `fern` folder on your local machine. If you don’t, run `fern init`. See [Java Quickstart](quickstart.mdx) for more details.</Info>
+
+## Set up your GitHub integration
+
+  1.   Create a new GitHub repository called `company-java` (or something similar) for your SDK, if you haven't done so already.
+  1.   Install the [Fern GitHub App](https://github.com/apps/fern-api): Select **Configure**, then scroll down to **Repository Access**. Select **Only select repositories** and in the dropdown select the repository for your SDK. Click **Save**. 
+  
+
+## Configure `generators.yml`
+
+<Steps>
+
+	<Step title="Run `fern add <generator>`">
+
+	  Navigate to your `generators.yml` on your local machine. Your `generators.yml` lives inside of your `fern` folder and contains all the configuration for your Fern generators. 
+
+	  Add a new generator to `generators.yml`:
+
+
+	    ```bash
+	    fern add fern-java-sdk --group java-sdk
+	    ```
+
+	  Once the command completes, you'll see a new group created in your `generators.yml`:
+
+	  ```yaml {2-8}
+	    groups:
+	      java-sdk:
+	        generators:
+	          - name: fernapi/fern-java-sdk
+	            version: <Markdown src="/snippets/version-number.mdx"/>
+	            output:
+	              location: local-file-system
+	              path: ../sdks/java/src/main/java/
+	    ```
+
+	  </Step>
+
+	  <Step title="Configure `output` location">
+
+		Next, change the output location in `generators.yml` from `local-file-system` (the default) to `maven` to indicate that Fern should publish your package directly to the Maven Central registry:
+
+	    ```yaml {6-7}
+	    groups: 
+	      java-sdk:
+	        generators:
+	          - name: fernapi/fern-java-sdk
+	            version: <Markdown src="/snippets/version-number.mdx"/>
+	            output:
+	              location: maven
+
+	    ```
+	  </Step>
+
+	  <Step title="Configure Maven Coordinate">
+
+         Add the `coordinate: groupId:artifactId` field to specify how your Java
+         SDK will be published and referenced in the Central Maven respository. 
+
+```yaml {8}
+groups: 
+  java-sdk:
+    generators:
+      - name: fernapi/fern-java-sdk
+        version: <Markdown src="/snippets/version-number.mdx"/>
+        output:
+          location: maven
+          coordinate: com.company:sdk-name #<company name in reverse domain name format>:<SDK name>
+```
+	    
+	  </Step>
+
+
+	  <Step title="Add repository location">
+
+	  Add the path to your GitHub repository to `generators.yml`: 
+
+```yaml {9-10}
+groups: 
+  java-sdk:
+    generators:
+      - name: fernapi/fern-java-sdk
+        version: <Markdown src="/snippets/version-number.mdx"/>
+        output:
+          location: maven
+          coordinate: com.company:sdk-name
+        github: 
+          repository: your-org/company-java
+```
+	  
+	  </Step>
+  </Steps>
+
+## Set up Maven Central publishing authentication via the Central Portal
+
+<Steps>
+
+	<Step title="Log into Maven Central">
+
+	Log into [Maven Central](https://pypi.org/) or create a new account. 
+
+	</Step>
+
+	<Step title="Generate user tokens">
+
+	1. Click on your username, then select **View Account**
+    1. Click on **Generate User Token**, then click **Ok** to confirm
+       generation. This will invalidate any existing token.
+
+       <Warning>Save your username and password tokens –  they won’t be displayed after you leave the page.</Warning>
+
+	</Step>
+
+
+	<Step title="Configure Maven Central authentication token">
+
+	Add `username: ${MAVEN_USERNAME}` and `password: ${MAVEN_PASSWORD}` to `generators.yml` to tell Fern to use the `MAVEN_USERNAME` and `MAVEN_PASSWORD` environment variable for authentication when publishing to the Maven Central registry.
+
+```yaml {9-10}
+groups: 
+  java-sdk:
+    generators:
+      - name: fernapi/fern-java-sdk
+        version: <Markdown src="/snippets/version-number.mdx"/>
+        output:
+          location: maven
+          coordinate: com.company:sdk-name
+          username: ${MAVEN_USERNAME}
+          password: ${MAVEN_PASSWORD}
+        github: 
+          repository: your-org/company-java
+```
+	</Step>
+
+    <Step title="Generate GPG Signature">
+
+    Next, set up code signing credentials by generating or identifying a GPG key ID, password, and secret key.  Maven Central requires all artifacts to be digitally signed with PGP/GPG keys.
+
+<Info>If you don't have gpg installed, you can download the binary from [https://gnupg.org/download/index.html](https://gnupg.org/download/index.html), or install it via package manager.</Info>
+
+1. Find your key
+    * If you already have a GPG key, you can list your keys:
+
+        ```sh
+        gpg --list-secret-keys --keyid-format LONG
+        ```
+
+    * If you don't have a GPG key, you can generate a new one:
+
+        ```sh
+        gpg --gen-key
+        ```
+        
+        You'll be prompted to create a new username and passphrase. 
+
+1. To export your secret key, run:
+
+    ```sh
+    gpg --export-secret-keys --armor KEY_ID
+    ```
+
+    Be sure to replace `KEY_ID` with the key ID of the key you want to export.
+
+    <Info>More information is available on [Maven Central's GPG validation page](https://central.sonatype.org/publish/requirements/gpg/).</Info>
+</Step>
+<Step title="Configure GPG Signature">
+
+Add the `keyId`, `password`, and `secretKey` from the previous step to `generators.yml`:
+
+```yaml {11-14}
+groups: 
+  java-sdk:
+    generators:
+      - name: fernapi/fern-java-sdk
+        version: <Markdown src="/snippets/version-number.mdx"/>
+        output:
+          location: maven
+          coordinate: com.company:sdk-name
+          username: ${MAVEN_USERNAME}
+          password: ${MAVEN_PASSWORD}
+          signature:
+            keyId: ${MAVEN_CENTRAL_SECRET_KEY_KEY_ID}
+            password: ${MAVEN_CENTRAL_SECRET_KEY_PASSWORD}
+            secretKey: ${MAVEN_CENTRAL_SECRET_KEY}
+        github: 
+          repository: your-org/company-java
+```
+</Step>
+</Steps>
+
+## Release your SDK to Maven Central
+
+  At this point, you're ready to generate a release for your SDK.
+
+<Steps>
+ 
+	<Step title="Set Maven environment variables">
+
+	On your local machine, set the the following environment variable to the various tokens you generated in previous steps:
+
+	```bash
+	export MAVEN_USERNAME=your-maven-username
+    export MAVEN_PASSWORD=your-maven-password
+    export MAVEN_CENTRAL_SECRET_KEY_KEY_ID=your-gpg-key-id
+    export MAVEN_CENTRAL_SECRET_KEY_PASSWORD=your-gpg-passphrase
+    export MAVEN_CENTRAL_SECRET_KEY=your-gpg-secret-key
+	```
+
+	</Step>
+
+	<Step title="Generate your release">
+
+	Regenerate your SDK and publish it on Maven Central:
+
+	```bash
+	fern generate --group java-sdk --version <version>
+	```
+    Local machine output will verify that the release is pushed to your
+    repository and tagged with the version you specified. Log back into Maven Central and
+    navigate to **View Deployments** to see your new release. 
+    </Step>
+
+</Steps>
