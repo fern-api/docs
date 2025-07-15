@@ -5,7 +5,7 @@ import { defineConfig } from 'vite'
 export default defineConfig({
   plugins: [react()],
   build: {
-    outDir: '../fern/dist',
+    outDir: '../fern/footer-dist',
     rollupOptions: {
       output: {
         entryFileNames: `output.js`,
