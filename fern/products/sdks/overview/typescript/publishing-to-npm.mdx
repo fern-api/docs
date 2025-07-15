@@ -1,14 +1,14 @@
 ---
-title: Publishing to NPM
-description: How to publish the Fern Typescript SDK to npm.
+title: Publishing to npm
+description: How to publish the Fern TypeScript SDK to npm.
 ---
 
-Publish your public-facing Fern Typescript SDK to the [npm
+Publish your public-facing Fern TypeScript SDK to the [npm
 registry](https://www.npmjs.com/). After following the steps on this page,
 you'll have a versioned package published on npm.
 
 <Frame>
-	<img src="assets/npm-packages.png" alt="Creating NPM Automation Token" />
+	<img src="assets/npm-packages.png" alt="Versioned package published on npm" />
 </Frame>
 
 <Info>This guide assumes that you already have an initialized `fern` folder on your local machine. If you don’t, run `fern init`. See [TypeScript Quickstart](quickstart.mdx) for more details.</Info>
@@ -31,18 +31,17 @@ you'll have a versioned package published on npm.
 
 
 	    ```bash
-	    fern add fern-typescript-node-sdk --group ts-sdk
+	    fern add fern-typescript-sdk --group ts-sdk
 	    ```
 
 	  Once the command completes, you'll see a new group created in your `generators.yml`:
 
-	  ```yaml {2-7}
+	  ```yaml {3-9}
 	    groups:
-		  local: 
 	    ...
 	      ts-sdk:
 	        generators:
-	          - name: fernapi/fern-typescript-node-sdk
+	          - name: fernapi/fern-typescript-sdk
 	            version: <Markdown src="/snippets/version-number.mdx"/>
 	            output:
 	              location: local-file-system
@@ -55,11 +54,11 @@ you'll have a versioned package published on npm.
 
 		Next, change the output location in `generators.yml` from `local-file-system` (the default) to `npm` to indicate that Fern should publish your package directly to the npm registry:
 
-	    ```yaml title="TypeScript" {6-7}
+	    ```yaml {6-7}
 	    groups: 
 	      ts-sdk:
 	        generators:
-	          - name: fernapi/fern-typescript-node-sdk
+	          - name: fernapi/fern-typescript-sdk
 	            version: <Markdown src="/snippets/version-number.mdx"/>
 	            output:
 	              location: npm
@@ -72,11 +71,11 @@ you'll have a versioned package published on npm.
 	     Your package name must be unique in the npm repository, otherwise publishing your SDK to npm will fail. Update your package name if you haven't done so already:
 
 
-```yaml title="TypeScript" {8}
+```yaml {8}
 groups: 
   ts-sdk:
     generators:
-      - name: fernapi/fern-typescript-node-sdk
+      - name: fernapi/fern-typescript-sdk
         version: <Markdown src="/snippets/version-number.mdx"/>
         output:
           location: npm
@@ -90,17 +89,17 @@ groups:
 	     The `namespaceExport` option controls the name of the generated client. This is the name customers use to import your SDK (`import { your-client-name } from 'your-package-name';`). 
 
 
-```yaml title="TypeScript" {9-10}
+```yaml {9-10}
 groups: 
   ts-sdk:
     generators:
-      - name: fernapi/fern-typescript-node-sdk
+      - name: fernapi/fern-typescript-sdk
         version: <Markdown src="/snippets/version-number.mdx"/>
         output:
           location: npm
           package-name: your-package-name
         config:
-          namespaceExport: YourClientName # must be a valid JavaScript/TypeScript identifier
+          namespaceExport: YourClientName # must be PascalCase
 ```
 	    
 	  </Step>
@@ -109,19 +108,19 @@ groups:
 
 	  Add the path to your GitHub repository to `generators.yml`: 
 
-```yaml title="TypeScript" {11-12}
+```yaml {11-12}
 groups: 
-ts-sdk:
-  generators:
-    - name: fernapi/fern-typescript-node-sdk
-      version: <Markdown src="/snippets/version-number.mdx"/>
-      output:
-        location: npm
-        package-name: your-package-name
-      config:
-          namespaceExport: your-client-name
-      github: 
-        repository: your-org/company-typescript
+  ts-sdk:
+    generators:
+      - name: fernapi/fern-typescript-sdk
+        version: <Markdown src="/snippets/version-number.mdx"/>
+        output:
+          location: npm
+          package-name: your-package-name
+        config:
+           namespaceExport: your-client-name
+        github: 
+          repository: your-org/company-typescript
 ```
 	  
 	  </Step>
@@ -147,21 +146,22 @@ ts-sdk:
 
 	<Step title="Generate Token">
 
-	Click on **Generate New Token**, then choose the appropriate token type. For more information on access tokens and which type to choose, see npm's [About access tokens](https://docs.npmjs.com/about-access-tokens) documentation. 
+	Click on **Generate New Token**, then choose the appropriate token type. 
+	
+	<Info>For more information on access tokens and which type to choose, see npm's [About access tokens](https://docs.npmjs.com/about-access-tokens) documentation. </Info>
 
 	<AccordionGroup>
   <Accordion title="Option 1: Classic Token">
 
   	1.    Select **Classic Token**
   	1.    Name your token and select **Automation** as the token type. 
+	1.    Click **Generate Token**.
+
+	<Warning>Save your new token –  it won’t be displayed after you leave the page.</Warning>
 
 	<Frame>
 	<img src="assets/npm-automation-token.png" alt="Creating NPM Automation Token" />
 	</Frame>
-
-	Once finished, click **Generate Token**.
-
-	<Warning>When you click **Generate Token**, you’ll be returned to the **Access Tokens** dashboard. A box on the top of the dashboard will confirm that you successfully created a new token and prompt you to copy your token id. Make sure you save this id, as you'll need to add it to your GitHub repository and `generators.yml` later on.</Warning>
 
   </Accordion>
   <Accordion title="Option 2: Granular Access Token">
@@ -171,6 +171,9 @@ ts-sdk:
 	1.    Configure your token's access to packages and scopes.
 	1.    Configure your token's access to organizations. In order to fill this out, you must have at least one organization already configured in npm. See [Creating an organization](https://docs.npmjs.com/creating-an-organization) for more information.
 	1.    Optionally fill out additional permissions according to your organization's requirements. 
+	1.    Click **Generate Token**.
+
+	<Warning>Save your new token –  it won’t be displayed after you leave the page.</Warning>
 
 	<Frame>
 	<img src="assets/granular-access-token.png" alt="Creating Granular Access Token" />
@@ -185,18 +188,20 @@ ts-sdk:
 
 	Add `token: ${NPM_TOKEN}` to `generators.yml` to tell Fern to use the `NPM_TOKEN` environment variable for authentication when publishing to the npm registry.
 
-```yaml title="TypeScript" {9}
+```yaml {9}
 groups: 
-ts-sdk:
-  generators:
-    - name: fernapi/fern-typescript-node-sdk
-      version: <Markdown src="/snippets/version-number.mdx"/>
-      output:
-        location: npm
-        package-name: name-of-your-package
-        token: ${NPM_TOKEN}
-      github: 
-        repository: your-org/your-repository
+  ts-sdk:
+    generators:
+      - name: fernapi/fern-typescript-sdk
+        version: <Markdown src="/snippets/version-number.mdx"/>
+        output:
+          location: npm
+          package-name: name-of-your-package
+          token: ${NPM_TOKEN}
+        config:
+          namespaceExport: your-client-name
+        github: 
+          repository: your-org/your-repository
 ```
 	</Step>
 
@@ -225,7 +230,9 @@ ts-sdk:
 	```bash
 	fern generate --group ts-sdk --version <version>
 	```
-	Local machine output will verify that the release is pushed to your repository and tagged with the version you specified. You'll receive an email from npm notifying you that a new version of your package has been successfully published!
+	Local machine output will verify that the release is pushed to your
+    repository and tagged with the version you specified. Log back into npm and
+    navigate to **Packages** to see your new release. 
 
 	</Step>
 
