@@ -160,6 +160,7 @@ export const FernStatusWidget = () => {
             cursor: pointer;
             text-decoration: none;
             transition: background-color 150ms ease, color 150ms ease;
+            height: 2rem;
           }
 
           .fern-status-widget svg {

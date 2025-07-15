@@ -1,11 +1,11 @@
 import React from 'react';
 import { FernStatusWidget } from './FernStatus';
 
-import builtwithfernLight from './images/builtwithfern-light.svg';
-import builtwithfernDark from './images/builtwithfern-dark.svg';
-import builtwithfernFrameLight from './images/builtwithfern-frame-light.svg';
-import builtwithfernFrameDark from './images/builtwithfern-frame-dark.svg';
-import soc2 from './images/soc2.svg';
+import { BuiltWithFernLight } from './images/builtwithfern-light';
+import { BuiltWithFernDark } from './images/builtwithfern-dark';
+import { BuiltWithFernFrameLight } from './images/builtwithfern-frame-light';
+import { BuiltWithFernFrameDark } from './images/builtwithfern-frame-dark';
+import { Soc2Logo } from './images/soc2';
 
 export const FernFooter = () => {
   return (
@@ -13,11 +13,11 @@ export const FernFooter = () => {
       <div className="footer-top">
         {/* Left Column - Logo and Status */}
         <a className="footer-logo" href="https://buildwithfern.com">
-          <img src={builtwithfernLight} alt="Fern" className="footer-logo-img dark:hidden" />
-          <img src={builtwithfernDark} alt="Fern" className="footer-logo-img hidden dark:block" />
+          <BuiltWithFernLight className="footer-logo-img dark:hidden" />
+          <BuiltWithFernDark className="footer-logo-img hidden dark:block" />
 
-          <img src={builtwithfernFrameLight} alt="Fern" className="footer-logo-frame dark:hidden" />
-          <img src={builtwithfernFrameDark} alt="Fern" className="footer-logo-frame hidden dark:block" />
+          <BuiltWithFernFrameLight className="footer-logo-frame dark:hidden" />
+          <BuiltWithFernFrameDark className="footer-logo-frame hidden dark:block" /> 
         </a>
         
         <div className="footer-status">
@@ -28,7 +28,7 @@ export const FernFooter = () => {
           <FernStatusWidget />
           
           <a className="soc2-badge" href="https://security.buildwithfern.com/">
-            <img src={soc2} alt="Soc 2 Type II" className="soc2-badge-img" />
+            <Soc2Logo className="soc2-badge-img" />
             <span className="status-text">Soc 2 Type II</span>
           </a>
         </div>
