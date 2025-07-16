@@ -4,7 +4,10 @@ interface StatusData {
   ongoing_incidents?: Array<{
     current_worst_impact: string;
   }>;
-  in_progress_maintenances?: Array<any>;
+  in_progress_maintenances?: Array<{
+    id: string;
+    status: string;
+  }>;
   scheduled_maintenances?: Array<{
     starts_at: string;
   }>;
@@ -15,7 +18,7 @@ interface StatusState {
   statusMessage: string;
 }
 
-export const FernStatusWidget = () => {
+export const FernStatusWidget: React.FC = () => {
   const [status, setStatus] = useState<StatusState>({
     dotClass: 'is-loading',
     statusMessage: 'Checking status...'
@@ -149,7 +152,7 @@ export const FernStatusWidget = () => {
         />
         <span id="fern-status-text" className="fern-status-text">{status.statusMessage}</span>
         
-        <style jsx>{`
+        <style>{`
           .fern-status-widget {
             display: flex;
             align-items: center;
