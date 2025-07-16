@@ -16,9 +16,9 @@ export const FernFooter: React.FC = () => {
         }
 
         .footer {
-          padding: 3rem 0rem;
+          padding: 3rem 2rem;
           width: 100%;
-          max-width: var(--page-width,88rem);
+          max-width: calc(var(--page-width,88rem) + 4rem);
           margin: 0 auto;
         }
 
