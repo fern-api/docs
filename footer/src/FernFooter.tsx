@@ -7,11 +7,207 @@ import { BuiltWithFernFrameLight } from './images/builtwithfern-frame-light';
 import { BuiltWithFernFrameDark } from './images/builtwithfern-frame-dark';
 import { Soc2Logo } from './images/soc2';
 
-import './main.css';
-
 export const FernFooter: React.FC = () => {
   return (
-    <>      
+    <>
+      <style>{`
+        .footer {
+          padding: 3rem 2rem;
+        }
+
+        .footer-top {
+          display: flex;
+          justify-content: space-between;
+          gap: 2rem;
+          margin-bottom: 3rem;
+          position: relative;
+        }
+
+        .footer-logo {
+          display: flex;
+          align-items: center;
+          gap: 0.25rem;
+        }
+
+        .footer-logo svg {
+          transition: filter 150ms ease;
+        }
+
+        .footer-logo:hover svg {
+          filter: saturate(1) opacity(1);
+        }
+
+        .footer-logo-img {
+          height: 1rem;
+          margin: 0;
+          filter: saturate(0) opacity(0.7);
+        }
+
+        .footer-logo-frame {
+          position: absolute;
+          top: 50%;
+          left: 0;
+          transform: translate(-32px, calc(-50% - 4px));
+          filter: saturate(0) opacity(0.7);
+        }
+
+        .footer-status {
+          display: flex;
+          flex-direction: row;
+          gap: 1rem;
+        }
+
+        .status-text {
+          font-size: 0.875rem;
+          color: var(--grayscale-10);
+          font-weight: 400;
+        }
+
+        .soc2-badge {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          border-radius: 9999px;
+          padding: 0.25rem 0.75rem 0.25rem 0.25rem;
+          align-self: flex-start;
+          text-decoration: none;
+          transition: background-color 150ms ease, color 150ms ease;
+        }
+
+        .soc2-badge:hover {
+          background-color: var(--grayscale-a4);
+        }
+
+        .soc2-badge:hover .status-text {
+          color: var(--grayscale-12);
+        }
+
+        .soc2-badge-img {
+          width: 1.5rem;
+          height: 1.5rem;
+          background-color: #62636C;
+          border-radius: 1000px;
+        }
+
+        .footer-links {
+          display: flex;
+          gap: 2rem;
+          padding-top: 2rem;
+          align-items: flex-end;
+          justify-content: space-between;
+        }
+
+        .footer-columns {
+          display: flex;
+          gap: 2rem;
+        }
+
+        .footer-column {
+          display: flex;
+          flex-direction: column;
+          gap: 1rem;
+          width: 170px;
+        }
+
+        .footer-column-title {
+          font-size: 0.875rem;
+          font-weight: 400;
+          color: var(--grayscale-9);
+          letter-spacing: -0.025em;
+        }
+
+        .footer-column-links {
+          display: flex;
+          flex-direction: column;
+          gap: 1rem;
+        }
+
+        .footer-link {
+          font-weight: 400;
+          font-size: 0.875rem;
+          color: var(--grayscale-11);
+          text-decoration: none;
+          transition: color 0.15s ease-in-out;
+        }
+
+        .footer-link svg {
+          display: none !important;
+        }
+
+        .footer-link:hover {
+          color: var(--grayscale-12);
+        }
+
+        .footer-bottom-text {
+          font-weight: 400;
+          font-size: 0.875rem;
+          color: var(--grayscale-10);
+          text-decoration: none;
+          transition: color 0.15s ease-in-out;
+        }
+
+        /* Responsive Design - Mobile */
+        @media (max-width: 640px) {
+          .footer {
+            padding: 2rem 1.5rem;
+          }
+
+          .footer-top {
+            flex-direction: column;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+          }
+
+          .footer-logo-frame {
+            transform: translate(-32px, calc(-50% - 68px));
+          }
+
+          .footer-status {
+            flex-direction: column;
+            gap: 0.75rem;
+            padding-top: 2rem;
+          }
+
+          .footer-links {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+            align-items: flex-start;
+            padding-top: 1rem;
+          }
+
+          .footer-columns {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 2rem;
+            width: 100%;
+            order: 1;
+          }
+
+          .footer-column {
+            width: 100%;
+          }
+
+          .footer-bottom-text {
+            order: 2;
+          }
+        }
+
+        /* Tablet breakpoint */
+        @media (max-width: 720px) and (min-width: 481px) {
+          .footer-columns {
+            flex-direction: row;
+            flex-wrap: wrap;
+            justify-content: center;
+          }
+
+          .footer-column {
+            width: calc(50% - 1rem);
+            min-width: 200px;
+          }
+        }
+      `}</style>
+      
       <footer className="footer">
         <div className="footer-top">
           {/* Left Column - Logo and Status */}
