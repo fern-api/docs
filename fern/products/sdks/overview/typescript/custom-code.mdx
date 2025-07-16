@@ -3,6 +3,136 @@ title: Adding custom code
 description: Augment your TypeScript SDK with custom utilities
 ---
 
-Learn how to extend your Fern TypeScript SDK with custom code and utilities.
+Fern-generated SDKs are designed to be extended with custom code. Your custom
+code can add additional functionality to the SDK and live in harmony with the
+generated code. This page explains how to configure custom logic using a
+`.fernignore` file, create custom SDK methods, and add additional dependencies to your SDK.
 
-<Warning>This page is a WIP, please refer to our previous [documentation](https://buildwithfern.com/learn/sdks/capabilities/custom-code).</Warning>
+## Adding custom logic
+
+If you want your SDK to do more than just make basic API calls (like combining
+multiple calls, processing data, adding utilities), you can use `.fernignore` to
+protect your custom code from being overwritten during regeneration.
+
+Simply add your custom files to the SDK repository and  list them out in `.fernignore`. Fern
+won't override any files that you add in `.fernignore`.
+
+To get started adding custom code:
+
+<Steps>
+    
+    ### Create a new file and add your custom logic
+
+    <CodeBlock title="src/helper.ts">
+    ```typescript 
+    export function myHelper(): void {
+    return console.log("Hello world!");
+    }
+    ```
+    </CodeBlock>
+
+    ### Add your file to `.fernignore`
+
+    <Tip>A `.fernignore` file is automatically created in your SDK repository when you use GitHub publishing.</Tip>
+
+    <CodeBlock title=".fernignore">
+    ```yaml {3}
+    # Specify files that shouldn't be modified by Fern
+
+    src/helper.ts
+    ```
+
+    </CodeBlock>
+
+    ### Consume the helper
+
+    Now your users can consume the helper function by importing it from the SDK:
+
+    ```typescript
+    import { myHelper } from "sdk/helper";
+
+    myHelper();
+    ```
+</Steps>
+
+    ## Custom SDK methods
+
+    Fern also allows you to add custom methods to the SDK itself (e.g.
+    `client.my_method()` ). by inheriting the Fern generated client and then
+    extending it.
+
+    <Note>
+      See an example from Flatfile using this process in their [TypeScript SDK](https://github.com/FlatFilers/flatfile-node)
+    </Note>
+
+    <Steps>
+      ### Import and extend the generated client
+
+      First, import the Fern generated client from `../client` and alias it to `FernClient`.
+      Next, extend `FernClient` and add whatever methods you want.
+
+      ```typescript title="src/wrapper/MyClient.ts"
+      import { MyClient as FernClient } from "../client"; // alias the Fern generated client
+
+      export class MyClient extends FernClient { // extend the Fern generated client
+
+        public myHelper(): void {
+          console.log("Hello world!");
+        }
+
+      }
+      ```
+
+      <Note>
+      See an example from Flatfile doing this in their [FlatfileClient](https://github.com/FlatFilers/flatfile-node/blob/main/src/wrapper/FlatfileClient.ts)
+    </Note>
+
+      ### Export the extended client
+
+      Update your `index.ts` file to export the **extended client** instead of the generated client. 
+
+        ```typescript title="src/index.ts"
+        export { MyClient } from src/wrapper/MyClient; // instead of `src/Client`
+        ```
+
+      <Note>
+      See an example [index.ts](https://github.com/FlatFilers/flatfile-node/blob/main/src/index.ts) from Flatline
+    </Note>
+
+      ### Update `.fernignore`
+
+      Add both the `wrapper` directory and `index.ts` to `.fernignore`.
+
+        ```diff title=".fernignore"
+        + src/wrapper
+        + src/index.ts
+        ```
+
+        <Note>
+      See an example [.fernignore](https://github.com/FlatFilers/flatfile-node/blob/main/.fernignore) from Flatline
+    </Note>
+
+
+      ### Consume the method
+
+      Now your users can consume the helper function by importing it from the SDK:
+
+      ```typescript
+      client.myHelper()
+      ```
+    </Steps>
+  
+
+## Custom dependencies
+
+To add packages that your custom code requires, update your `generators.yml`.
+
+      ```yaml {4-7} title="generators.yml"
+      - name: fernapi/fern-typescript-sdk
+        version: "..."
+        config:
+          extraDependencies:
+            lodash-es: '1.0.0'
+          extraDevDependencies:
+            "@types/lodash-es": '1.0.0'
+      ```
