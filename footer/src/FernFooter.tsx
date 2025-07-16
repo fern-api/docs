@@ -11,12 +11,15 @@ export const FernFooter: React.FC = () => {
   return (
     <>
       <style>{`
+        #fern-footer-wrapper {
+          border-top: 1px solid var(--border);
+        }
+
         .footer {
           padding: 3rem 2rem;
           width: 100%;
           max-width: var(--page-width,88rem);
           margin: 0 auto;
-          border-top: 1px solid var(--border);
         }
 
         .footer-top {
