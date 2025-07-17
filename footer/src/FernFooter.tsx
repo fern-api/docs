@@ -129,6 +129,26 @@ export const FernFooter: React.FC = () => {
           gap: 1rem;
         }
 
+        .footer-column-socials {
+          display: flex;
+          flex-direction: column;
+          gap: 1rem;
+        }
+
+        .footer-social-icon {
+          width: 1.5rem;
+          height: 1.5rem;
+          border-radius: 0.25rem;
+
+          &:hover {
+            background-color: var(--grayscale-a4);
+
+            img {
+              fill: var(--grayscale-a12);
+            }
+          }
+        }
+
         .footer-link {
           font-weight: 400;
           font-size: 0.875rem;
@@ -282,6 +302,21 @@ export const FernFooter: React.FC = () => {
                 <a href="https://buildwithfern.com/privacy-policy" className="footer-link">Privacy Policy</a>
                 <a href="https://buildwithfern.com/terms-of-service" className="footer-link">Terms of Service</a>
               </div>
+            </div>
+
+            <div className="footer-column-socials">
+              <a href="https://github.com/fern-api/fern" className="footer-link">
+                <img src="/images/github-light.svg" alt="YouTube" className="footer-social-icon dark:hidden" />
+                <img src="/images/github-dark.svg" alt="YouTube" className="footer-social-icon hidden dark:block" />
+              </a>
+              <a href="https://www.youtube.com/@buildwithfern" className="footer-link">
+                <img src="/images/x-light.svg" alt="X" className="footer-social-icon dark:hidden" />
+                <img src="/images/x-dark.svg" alt="X" className="footer-social-icon hidden dark:block" />
+              </a>
+              <a href="https://www.linkedin.com/company/buildwithfern" className="footer-link">
+                <img src="/images/linkedin-light.svg" alt="LinkedIn" className="footer-social-icon dark:hidden" />
+                <img src="/images/linkedin-dark.svg" alt="LinkedIn" className="footer-social-icon hidden dark:block" />
+              </a>
             </div>
           </div>
         </div>
