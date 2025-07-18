@@ -294,7 +294,7 @@ export const FernFooter: React.FC = () => {
               <h4 className="footer-column-title">Resources</h4>
               <div className="footer-column-links">
                 <a href="https://buildwithfern.com/blog" className="footer-link">Blog</a>
-                <a href="/learn/v2/home#help" className="footer-link">Support</a>
+                <a href="https://buildwithfern.com/learn/v2/home#help" className="footer-link">Support</a>
                 <a href="https://buildwithfern.com/pricing" className="footer-link">Pricing</a>
                 <a href="https://buildwithfern.com/slack" className="footer-link">Slack</a>
               </div>
@@ -304,7 +304,6 @@ export const FernFooter: React.FC = () => {
               <h4 className="footer-column-title">Company</h4>
               <div className="footer-column-links">
                 <a href="https://brandfetch.com/buildwithfern.com" className="footer-link">Brand Kit</a>
-                <a href="https://github.com/fern-api/fern" className="footer-link">Github</a>
                 <a href="https://buildwithfern.com/privacy-policy" className="footer-link">Privacy Policy</a>
                 <a href="https://buildwithfern.com/terms-of-service" className="footer-link">Terms of Service</a>
               </div>
