@@ -284,9 +284,9 @@ export const FernFooter: React.FC = () => {
             <div className="footer-column">
               <h4 className="footer-column-title">Documentation</h4>
               <div className="footer-column-links">
-                <a href="/api-definition/introduction/what-is-an-api-definition" className="footer-link">API Definition</a>
-                <a href="/sdks/overview/introduction" className="footer-link">SDKs</a>
-                <a href="/docs/getting-started/overview" className="footer-link">Docs</a>
+                <a href="https://buildwithfern.com/learn/v2/api-definition/introduction/what-is-an-api-definition" className="footer-link">API Definition</a>
+                <a href="https://buildwithfern.com/learn/v2/sdks/overview/introduction" className="footer-link">SDKs</a>
+                <a href="https://buildwithfern.com/learn/v2/docs/getting-started/overview" className="footer-link">Docs</a>
               </div>
             </div>
 
