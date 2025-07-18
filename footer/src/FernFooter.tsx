@@ -17,6 +17,10 @@ export const FernFooter: React.FC = () => {
   return (
     <>
       <style>{`
+        #fern-footer {
+          position: relative;
+        }
+
         #fern-footer-wrapper {
           border-top: 1px solid var(--border);
         }
