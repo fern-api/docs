@@ -5,6 +5,12 @@ import { BuiltWithFernLight } from './images/builtwithfern-light';
 import { BuiltWithFernDark } from './images/builtwithfern-dark';
 import { BuiltWithFernFrameLight } from './images/builtwithfern-frame-light';
 import { BuiltWithFernFrameDark } from './images/builtwithfern-frame-dark';
+import { GitHubLight } from './images/github-light';
+import { GitHubDark } from './images/github-dark';
+import { XLight } from './images/x-light';
+import { XDark } from './images/x-dark';
+import { LinkedInLight } from './images/linkedin-light';
+import { LinkedInDark } from './images/linkedin-dark';
 import { Soc2Logo } from './images/soc2';
 
 export const FernFooter: React.FC = () => {
@@ -157,10 +163,6 @@ export const FernFooter: React.FC = () => {
           transition: color 0.15s ease-in-out;
         }
 
-        .footer-link svg {
-          display: none !important;
-        }
-
         .footer-link:hover {
           color: var(--grayscale-12);
         }
@@ -288,7 +290,7 @@ export const FernFooter: React.FC = () => {
               <h4 className="footer-column-title">Resources</h4>
               <div className="footer-column-links">
                 <a href="https://buildwithfern.com/blog" className="footer-link">Blog</a>
-                <a href="#support" className="footer-link">Support</a>
+                <a href="/learn/v2/home#help" className="footer-link">Support</a>
                 <a href="https://buildwithfern.com/pricing" className="footer-link">Pricing</a>
                 <a href="https://buildwithfern.com/slack" className="footer-link">Slack</a>
               </div>
@@ -306,16 +308,16 @@ export const FernFooter: React.FC = () => {
 
             <div className="footer-column-socials">
               <a href="https://github.com/fern-api/fern" className="footer-link">
-                <img src="/images/github-light.svg" alt="YouTube" className="footer-social-icon dark:hidden" />
-                <img src="/images/github-dark.svg" alt="YouTube" className="footer-social-icon hidden dark:block" />
+                <GitHubLight className="footer-social-icon dark:hidden" />
+                <GitHubDark className="footer-social-icon hidden dark:block" />
               </a>
-              <a href="https://www.youtube.com/@buildwithfern" className="footer-link">
-                <img src="/images/x-light.svg" alt="X" className="footer-social-icon dark:hidden" />
-                <img src="/images/x-dark.svg" alt="X" className="footer-social-icon hidden dark:block" />
+              <a href="https://x.com/buildwithfern" className="footer-link">
+                <XLight className="footer-social-icon dark:hidden" />
+                <XDark className="footer-social-icon hidden dark:block" />
               </a>
               <a href="https://www.linkedin.com/company/buildwithfern" className="footer-link">
-                <img src="/images/linkedin-light.svg" alt="LinkedIn" className="footer-social-icon dark:hidden" />
-                <img src="/images/linkedin-dark.svg" alt="LinkedIn" className="footer-social-icon hidden dark:block" />
+                <LinkedInLight className="footer-social-icon dark:hidden" />
+                <LinkedInDark className="footer-social-icon hidden dark:block" />
               </a>
             </div>
           </div>
