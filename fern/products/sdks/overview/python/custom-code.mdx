@@ -1,8 +1,144 @@
 ---
 title: Adding custom code
-description: Augment your TypeScript SDK with custom utilities
+description: Augment your Python SDK with custom utilities
 ---
 
-Learn how to extend your Fern Python SDK with custom code and utilities.
+Fern-generated SDKs are designed to be extended with custom code. Your custom
+code can add additional functionality to the SDK and live in harmony with the
+generated code. This page explains how to configure custom logic using a
+`.fernignore` file, create custom SDK methods, and add additional dependencies to your Python SDK.
 
-<Warning>This page is a WIP, please refer to our previous [documentation](https://buildwithfern.com/learn/sdks/capabilities/custom-code).</Warning>
+## Adding custom logic
+
+If you want your SDK to do more than just make basic API calls (like combining
+multiple calls, processing data, adding utilities), you can use `.fernignore` to
+protect your custom code from being overwritten during regeneration.
+
+Simply add your custom files to the SDK repository and  list them out in `.fernignore`. Fern
+won't override any files that you add in `.fernignore`.
+
+To get started adding custom code:
+
+<Steps>
+
+    ### Create a new file and add your custom logic
+    
+
+    ```python title="src/<package>/helper.py"
+    def my_helper() -> None:
+      print "Hello World!"
+    ```
+
+    ### Add your file to `.fernignore`
+
+    <Tip>A `.fernignore` file is automatically created in your SDK repository when you use GitHub publishing.</Tip>
+
+
+    ```yaml {3} title=".fernignore"
+    # Specify files that shouldn't be modified by Fern
+
+    src/<package>/helper.py
+    ```
+
+    ### Consume the helper
+
+    Now your users can consume the helper function by importing it from the SDK:
+
+    ```python
+    from package.helper import my_helper
+
+    my_helper()
+    ```
+</Steps>
+
+    ## Adding custom SDK methods
+
+    Fern also allows you to add custom methods to the SDK itself (e.g.
+    `client.my_method()` ) by inheriting the Fern generated client and then
+    extending it.
+
+    <Note>
+      See an example from ElevenLabs using this process in their [Python SDK](https://github.com/elevenlabs/elevenlabs-python/blob/main/src/elevenlabs/client.py).
+    </Note>
+
+    <Steps>
+      ### Update `generators.yml` configuration
+
+      To add a custom method to the Python SDK, you will need to configure the
+      generator to output the client in a file called `base_client.py`. Then, you can
+      extend the base client and add whatever methods you want.
+
+      ```yaml {4-8} title="generators.yml"
+      - name: fernapi/fern-python-sdk
+        version: "..."
+        config:
+          client:
+            class_name: BaseClient        # The name of the generated client you will extend
+            filename: base_client.py      # The name of the file the generated client will live in
+            exported_class_name: YourClient   # The name of the class you will be creating that extends the generated client
+            exported_filename: client.py
+      ```
+      ### Generate the SDK
+
+      Trigger SDK generation by running `fern generate`:
+
+      ```bash
+      fern generate --group sdk
+      ```
+
+      ### Import and extend the generated client
+
+      First, import the Fern generated base clients from `.base_client.py` and extend them to create your custom clients. Then, add whatever methods you want.
+
+      ```python title="src/<package>/client.py"
+      from .base_client import \
+        BaseClient
+
+      class YourClient(BaseClient):
+
+        def my_helper(self) -> None
+          print("Hello World")
+
+      ```
+
+      <Note>
+      See an example [client.py](https://github.com/elevenlabs/elevenlabs-python/blob/main/src/elevenlabs/client.py) from ElevenLabs.
+    </Note>
+
+
+      ### Update `.fernignore`
+
+      Add the `client.py` to `.fernignore`.
+
+        ```diff title=".fernignore"
+        + src/<package>/client.py
+        ```
+
+        <Note>
+      See an example [.fernignore](https://github.com/elevenlabs/elevenlabs-python/blob/main/.fernignore) from ElevenLabs.
+    </Note>
+
+
+      ### Consume the method
+
+      Now your users can consume the helper function by importing it from the SDK:
+
+      ```python
+      client.my_helper()
+      ```
+    </Steps>
+
+
+## Adding custom dependencies
+
+To add packages that your custom code requires, update your `generators.yml`.
+
+      ```yaml {4-7} title="generators.yml"
+      - name: fernapi/fern-python-sdk
+        version: "..."
+        config:
+          extra_dependencies:
+            numpy: '1.2.0'
+          extra_dev_dependencies:
+            requests_mock: '1.12.1'
+      ```

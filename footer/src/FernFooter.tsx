@@ -5,6 +5,12 @@ import { BuiltWithFernLight } from './images/builtwithfern-light';
 import { BuiltWithFernDark } from './images/builtwithfern-dark';
 import { BuiltWithFernFrameLight } from './images/builtwithfern-frame-light';
 import { BuiltWithFernFrameDark } from './images/builtwithfern-frame-dark';
+import { GitHubLight } from './images/github-light';
+import { GitHubDark } from './images/github-dark';
+import { XLight } from './images/x-light';
+import { XDark } from './images/x-dark';
+import { LinkedInLight } from './images/linkedin-light';
+import { LinkedInDark } from './images/linkedin-dark';
 import { Soc2Logo } from './images/soc2';
 
 export const FernFooter: React.FC = () => {
@@ -129,16 +135,32 @@ export const FernFooter: React.FC = () => {
           gap: 1rem;
         }
 
+        .footer-column-socials {
+          display: flex;
+          flex-direction: column;
+          gap: 1rem;
+        }
+
+        .footer-social-icon {
+          width: 1.5rem;
+          height: 1.5rem;
+          border-radius: 0.25rem;
+
+          &:hover {
+            background-color: var(--grayscale-a4);
+
+            img {
+              fill: var(--grayscale-a12);
+            }
+          }
+        }
+
         .footer-link {
           font-weight: 400;
           font-size: 0.875rem;
           color: var(--grayscale-11);
           text-decoration: none;
           transition: color 0.15s ease-in-out;
-        }
-
-        .footer-link svg {
-          display: none !important;
         }
 
         .footer-link:hover {
@@ -258,9 +280,9 @@ export const FernFooter: React.FC = () => {
             <div className="footer-column">
               <h4 className="footer-column-title">Documentation</h4>
               <div className="footer-column-links">
-                <a href="/openapi/getting-started/overview" className="footer-link">OpenAPI Compatibility</a>
+                <a href="/api-definition/introduction/what-is-an-api-definition" className="footer-link">API Definition</a>
                 <a href="/sdks/overview/introduction" className="footer-link">SDKs</a>
-                <a href="docs/getting-started/overview" className="footer-link">Docs</a>
+                <a href="/docs/getting-started/overview" className="footer-link">Docs</a>
               </div>
             </div>
 
@@ -268,7 +290,7 @@ export const FernFooter: React.FC = () => {
               <h4 className="footer-column-title">Resources</h4>
               <div className="footer-column-links">
                 <a href="https://buildwithfern.com/blog" className="footer-link">Blog</a>
-                <a href="#support" className="footer-link">Support</a>
+                <a href="/learn/v2/home#help" className="footer-link">Support</a>
                 <a href="https://buildwithfern.com/pricing" className="footer-link">Pricing</a>
                 <a href="https://buildwithfern.com/slack" className="footer-link">Slack</a>
               </div>
@@ -282,6 +304,21 @@ export const FernFooter: React.FC = () => {
                 <a href="https://buildwithfern.com/privacy-policy" className="footer-link">Privacy Policy</a>
                 <a href="https://buildwithfern.com/terms-of-service" className="footer-link">Terms of Service</a>
               </div>
+            </div>
+
+            <div className="footer-column-socials">
+              <a href="https://github.com/fern-api/fern" className="footer-link">
+                <GitHubLight className="footer-social-icon dark:hidden" />
+                <GitHubDark className="footer-social-icon hidden dark:block" />
+              </a>
+              <a href="https://x.com/buildwithfern" className="footer-link">
+                <XLight className="footer-social-icon dark:hidden" />
+                <XDark className="footer-social-icon hidden dark:block" />
+              </a>
+              <a href="https://www.linkedin.com/company/buildwithfern" className="footer-link">
+                <LinkedInLight className="footer-social-icon dark:hidden" />
+                <LinkedInDark className="footer-social-icon hidden dark:block" />
+              </a>
             </div>
           </div>
         </div>
