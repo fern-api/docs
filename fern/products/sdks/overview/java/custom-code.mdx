@@ -3,6 +3,117 @@ title: Adding custom code
 description: Augment your Java SDK with custom utilities
 ---
 
-Learn how to extend your Fern Java SDK with custom code and utilities.
+<Markdown src="/products/sdks/snippets/custom-code-intro.mdx"/>
 
-<Warning>This page is a WIP, please refer to our previous [documentation](https://buildwithfern.com/learn/sdks/capabilities/custom-code).</Warning>
+## Adding custom logic
+
+<Markdown src="/products/sdks/snippets/custom-logic-intro.mdx"/>
+
+<Steps>
+
+    ### Create a new file and add your custom logic
+    
+    ```java title="src/main/java/<package>/Helper.java"
+    package com.example.helper;
+
+    public class Helper {
+
+    public static void myHelper() {
+        System.out.println("Hello World!");
+    }
+
+    }
+    ```
+
+    ### Add your file to `.fernignore`
+
+    <Tip>A `.fernignore` file is automatically created in your SDK repository when you use GitHub publishing.</Tip>
+
+
+    ```yaml {3} title=".fernignore"
+    # Specify files that shouldn't be modified by Fern
+
+    src/main/java/<package>/Helper.java
+    ```
+
+    ### Consume the helper
+
+    <Markdown src="/products/sdks/snippets/consume-method.mdx"/>
+
+    ```java
+    import com.example.helper.Helper;
+
+    public class Main {
+
+    public static void main(String[] args) {
+        Helper.myHelper();
+    }
+
+    }
+    ```
+</Steps>
+
+    ## Adding custom SDK methods
+
+    <Markdown src="/products/sdks/snippets/custom-sdk-methods-intro.mdx"/>
+
+    <Steps>
+      ### Update `generators.yml` configuration
+      Name your Fern-generated client something like `BaseClient` to reflect that this client will be extended.
+
+      ```yml {4} title="generators.yml"
+      - name: fernapi/fern-java-sdk
+          version: "..."
+          config:
+            client-class-name: BaseClient
+      ```
+
+      ### Import and extend the generated client
+
+      First, import the Fern generated base client and extend it. Then, add whatever methods you want.
+
+      ```java title="src/main/java/com/example/MyClient.java"
+      package com.example;
+
+      import com.example.client.BaseClient;
+
+      public class MyClient extends BaseClient { // extend the Fern generated client
+
+        public void myHelper() {
+          System.out.println("Hello World!");
+        }
+
+      }
+      ```
+
+      ### Update `.fernignore`
+
+      Add the `MyClient.java` to `.fernignore`.
+
+        ```diff title=".fernignore"
+        + src/main/java/com/example/MyClient.java
+        ```
+
+      ### Consume the method
+
+      <Markdown src="/products/sdks/snippets/consume-method.mdx"/>
+
+      ```java
+      client.myHelper();
+      ```
+    </Steps>
+
+
+## Adding custom dependencies
+
+To add packages that your custom code requires, update your `generators.yml`.
+
+      ```yaml {4-7} title="generators.yml"
+      - name: fernapi/fern-java-sdk
+        version: "..."
+        config:
+          custom-dependencies:
+            - org.apache.commons:commons-lang3:3.12.0
+            - org.slf4j:slf4j-api:2.0.7
+
+      ```

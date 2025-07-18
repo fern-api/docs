@@ -5,4 +5,642 @@ description: "Key design decisions behind our TypeScript SDK generator"
 
 Learn about the design principles and philosophy behind the Fern Typescript SDK. 
 
-<Warning>This page is a WIP, please refer to our previous [documentation](https://buildwithfern.com/learn/sdks/introduction/overview).</Warning>
+<CardGroup cols={3}>
+  <Card title="Dependency Free" icon="fa-duotone fa-leaf" href="#dependency-free">
+    Zero external dependencies in the final SDK.
+  </Card>
+
+  <Card title="Isomorphic" icon="fa-duotone fa-globe" href="#isomorphic">
+    Works seamlessly in both Node.js and browser environments.
+  </Card>
+
+  <Card title="Strongly Typed" icon="fa-duotone fa-shield-check" href="#strongly-typed">
+    Full type safety with TypeScript's static type checking.
+
+  </Card>
+
+  <Card title="Auto-pagination" icon="fa-duotone fa-forward-step" href="#auto-pagination">
+    Handle paginated responses with built-in iterators.
+
+  </Card>
+
+  <Card title="Forward Compatibility" icon="fa-duotone fa-arrow-trend-up" href="#forward-compatibility">
+    Designed to fail gracefully as your API evolves.
+  </Card>
+
+  <Card title="Full Spec Support" icon="fa-duotone fa-layer-group" href="#full-spec-support">
+    Supports OpenAPI, AsyncAPI, OpenRPC, gRPC, and Fern Definition.
+  </Card>
+</CardGroup>
+
+
+
+## Dependency Free
+
+Fern generates TypeScript SDKs with zero external dependencies, delivering clean output that minimizes bundle size, avoids version conflicts, and drastically reduces security risk.
+
+The dependency-free design is part of Fern's broader commitment to generating idiomatic, zero-dependency TypeScript SDKs from OpenAPI, AsyncAPI, gRPC, and other common specifications, ensuring that you can integrate Fern-generated SDKs into any project without introducing additional complexity or maintenance overhead.
+
+### Key Benefits
+
+**Security** – By eliminating external dependencies, there are no third-party packages that could introduce vulnerabilities or become unmaintained over time. This removes supply chain attack vectors and the need to constantly monitor transitive dependencies for security patches.
+
+**Performance** - Zero dependencies result in smaller bundle sizes, leading to faster load times and better performance across all deployment targets - particularly important for browser applications, edge computing environments, and mobile applications.
+
+**Compatibility** - Zero dependencies prevent conflicts, especially in monorepos or apps with overlapping libraries. This eliminates version conflicts when different parts of an application require different versions of the same dependency, making integration seamless regardless of the existing dependency graph.
+
+## Isomorphic
+
+Fern-generated TypeScript SDKs work seamlessly across all JavaScript environments without requiring modifications, polyfills, or environment-specific code. Key features:
+
+- **Platform-native APIs** - Uses `ReadableStream`, `FormData`, and Fetch API in browsers/Deno; `Readable` and `fs.ReadStream` in Node.js for optimal performance without adapters
+- **Module format support** - Includes both ESM and CommonJS outputs for compatibility across different module systems and bundling tools
+
+### Supported Environments
+
+| Server-Side | Client-Side |
+|-------------|-------------|
+| Node.js (including older LTS versions) | Modern browsers |
+| Deno, Bun | React Native |
+| Edge runtimes (Cloudflare Workers, Vercel Edge Functions) | WebWorkers and ServiceWorkers |
+
+## Strongly Typed
+
+Fern generated SDKs are optimized for great autocompletion in 
+code editors. Developers will receive compile errors when they forget to 
+specify required fields or attempt to access fields that do not exist. 
+
+  TypeScript SDKs are published with type declarations (i.e. `.d.ts` files). This
+  ensures that TypeScript consumers can leverage compile-time safety and 
+  intellisense when using the SDK. 
+  
+  Each SDK method is annotated with request and response types.  
+
+  ```typescript maxLines=0 {10}
+  import { Genre } from "../genre";
+
+  export interface MovieClient {
+
+    /**
+     * Creates a movie
+     * @param request the movie to create
+     * @returns the created Movie
+     */
+    create(request: CreateMovieRequest): Promise<Movie>; 
+  }
+
+  export interface CreateMovieRequest {
+    name: string;
+    genre: Genre; 
+  }
+
+  export interface Movie {
+    /* Generated ID for the movie */
+    id: string;
+    name: string;
+    genre: Genre; 
+  }
+  ```
+
+## Auto-pagination
+
+Instead of forcing SDK users to learn the intricacies of your pagination system, Fern SDKs will return an iterator so that users can simply loop through all the results.
+
+  When pagination for an endpoint is configured, the TypeScript SDK method 
+  will return a `Page<T>` where `T` is the underlying data type. The `Page<T>`
+  will implement the `AsyncIterable` interface, allowing you to use it in a
+  `for await` loop.
+
+  Below is an example method signature for a list endpoint: 
+  ```typescript UsersClient.ts {10-13}
+  import core from "../core";
+
+  export interface UsersClient {
+
+    /**
+     * List all users
+     * @param props 
+     * @returns A page of users
+     */
+    list(
+      request: ListUsersRequest = {}, 
+      requestOptions: core.RequestOptions = {}
+    ): core.Page<User>;
+  }
+  ```
+
+  And here is an example of how a user would use the `list` method:
+  ```typescript
+  const response = await client.users.list();
+  for await (const user of response) {
+    console.log(user);
+  }
+  ```
+  
+
+### Supported pagination types
+
+Fern supports the following pagination schemes:
+
+| Pagination Scheme | Supported                                        |
+|-------------------|--------------------------------------------------|
+| Offset-based      | <Icon icon="check" color="var(--accent-a11)" />            |
+| Cursor-based      | <Icon icon="check" color="var(--accent-a11)" />            |
+| Link-based        |                                                  |
+
+#### Configuration
+
+Annotate the desired paginated endpoint with the `x-fern-pagination` extension.
+For these fields, you can simply specify the dot-access path to the related request or response property.
+
+For example, should the results of the following object be found in the subfield `inner_list`, you would specify `results: $response.my_nested_object.inner_list`.
+
+```yaml
+MyResponseObject:
+  type: object
+  properties:
+    my_nested_object:
+      type: object
+      properties:
+        inner_list:
+          type: array
+          items:
+            $ref: '#/components/schemas/MyObject'
+```
+
+
+<Tabs>
+<Tab title="OpenAPI">
+<CodeBlocks>
+```yaml Offset
+...
+paths:
+  /path/to/my/endpoint:
+    x-fern-pagination:
+      offset: $request.page_number
+      results: $response.results
+...
+```
+
+```yaml Cursor
+...
+paths:
+  /path/to/my/endpoint:
+    get:
+      x-fern-pagination:
+        cursor: $request.cursor
+        next_cursor: $response.next
+        results: $response.results
+...
+```
+</CodeBlocks>
+</Tab>
+
+<Tab title="Fern Definition">
+<CodeBlocks>
+
+```yaml Offset
+service:
+  endpoints:
+    listWithOffsetPagination:
+      pagination: 
+        offset: $request.page
+        results: $response.data
+```
+
+```yaml Cursor
+service:
+  endpoints:
+    listWithCursorPagination:
+      pagination: 
+        cursor: $request.starting_after
+        next_cursor: $response.page.next.starting_after
+        results: $response.data
+```
+
+</CodeBlocks>
+</Tab>
+</Tabs>
+
+
+
+## Forward Compatibility
+
+
+Fern SDKs are designed so that you can evolve your API without breaking users on 
+legacy SDKs. You can safely add additional response properties, enum values, and union variants. 
+The legacy SDKs will safely handle deserializing extra information. 
+
+  ### Additional Response Properties
+  As you make new response properties available, 
+  the legacy SDKs will continue to work. For example, let's say you 
+  generated an SDK that had the following `Movie` object: 
+  ```ts
+  export interface Movie {
+    name: string;
+    id: string;
+  }
+  ```
+
+  If you decided to add a new `genre` property on your server, the SDK will 
+  simply pass the extra property back. Users would also be able to access
+  the property by doing
+
+  ```ts
+  const genre = movie['genre'];
+  ```
+
+  ### Additional Enum values
+  As you add additional enum properties on your server, the 
+  legacy SDKs will continue to work. For example, let's say your generated SDK 
+  had the following `Genre` type: 
+
+  ```ts
+  export type Genre =
+    | "horror"
+    | "action"
+    | "thriller"
+    | "drama";
+  ```
+
+  If you decided to add a new enum value `comedy`, the SDK will simply pass 
+  the string value back to the user. The consumer can then handle this case
+  in the default case of a switch statement.
+
+  ```ts {6-7}
+  switch(genre) {
+    case "horror": 
+    case "action": 
+    case "thriller": 
+    case "drama": 
+    default: 
+      console.log(genre); // prints out comedy
+  }
+  ```
+
+  ### Additional union variants
+  Similar to additional enum properties, if you add additional union types 
+  on your server, the legacy SDKs will continue to work. For example, let's say your 
+  generated SDK had the following `Shape` type: 
+
+  ```ts
+  export type Shape = Square | Circle;
+
+  export interface Circle {
+    type: "circle",
+    radius: number
+  }
+
+  export interface Square {
+    type: "square",
+    side: number
+  }
+  ```
+
+  If you decided to add an additional union type called `Triangle` 
+
+  ```ts
+  + export type Shape = Square | Circle | Triangle;
+
+  + export interface Triangle {
+  +   type: "triangle",
+  +   a: number
+  +   b: number
+  +   c: number
+  + }
+  ```
+  
+  then the user could simply handle the unknown case in their legacy SDK. 
+  ```ts {6-7}
+  switch (type) {
+    case "circle": 
+      ...
+    case "square": 
+      ...
+    default: 
+      console.log(type); // prints out triangle
+  }
+  ```
+
+## Full Spec Support
+
+Fern's TypeScript SDK generator provides comprehensive support across several
+API specification formats, ensuring broad compatibility with existing API
+ecosystems and tooling. 
+
+Once you have an API definition, Fern will use it as an input to generate artifacts 
+like SDKs and API Reference documentation. Every time you update the API definition,
+you can regenerate these artifacts and ensure they are always up-to-date.
+
+Fern integrates with the following API definition formats:
+
+<AccordionGroup>
+  <Accordion
+    title="OpenAPI (REST & Webhook APIs)"
+  >
+    Formerly known as Swagger, [OpenAPI](https://swagger.io/specification/) is the most popular API definition format.
+    OpenAPI can be used to document RESTful APIs and is defined in a YAML or JSON file.
+
+    Check out an example OpenAPI Specification for the Petstore API [here](https://github.com/swagger-api/swagger-petstore/blob/master/src/main/resources/openapi.yaml)
+
+    ```yaml maxLines={0}
+    openapi: 3.0.2
+    tags:
+      - name: pet
+        description: Everything about your Pets
+    paths:
+      /pet:
+        post:
+          tags:
+            - pet
+          summary: Add a new pet to the store
+          description: Add a new pet to the store
+          operationId: addPet
+          requestBody:
+            description: Create a new pet in the store
+            required: true
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/Pet'
+              application/xml:
+                schema:
+                  $ref: '#/components/schemas/Pet'
+              application/x-www-form-urlencoded:
+                schema:
+                  $ref: '#/components/schemas/Pet'
+          responses:
+            '200':
+              description: Successful operation
+              content:
+                application/xml:
+                  schema:
+                    $ref: '#/components/schemas/Pet'
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/Pet'
+            '405':
+              description: Invalid input
+        components:
+          schemas:
+            Pet:
+              required:
+                - name
+                - photoUrls
+              properties:
+                id:
+                  type: integer
+                  format: int64
+                  example: 10
+                name:
+                  type: string
+                  example: doggie
+                category:
+                  $ref: '#/components/schemas/Category'
+                photoUrls:
+                  type: array
+                  xml:
+                    wrapped: true
+                  items:
+                    type: string
+                    xml:
+                      name: photoUrl
+                tags:
+                  type: array
+                  xml:
+                    wrapped: true
+                  items:
+                    $ref: '#/components/schemas/Tag'
+                    xml:
+                      name: tag
+                status:
+                  type: string
+                  description: pet status in the store
+                  enum:
+                    - available
+                    - pending
+                    - sold
+              xml:
+                name: pet
+              type: object
+    ```
+  
+  </Accordion>
+  <Accordion
+    title="AsyncAPI (WebSocket APIs)"
+  >
+    [AsyncAPI](https://v2.asyncapi.com/docs) is a specification for defining event-driven APIs. It is used to document APIs that use 
+    WebSockets, MQTT, and other messaging protocols.
+
+    Check out an example AsyncAPI spec for a chat application below: 
+
+    ```yaml maxLines={0}
+    asyncapi: 2.0.0
+    info:
+      title: Chat server
+      version: 1.0.0
+
+    servers:
+      Production:
+        url: chat.com
+        protocol: ws
+
+    channels:
+      "/application":
+        bindings:
+          ws:
+            query:
+              type: object
+              properties:
+                apiKey:
+                  type: string
+                  description: The API key for the client
+                  minimum: 1
+            bindingVersion: 0.1.0
+        subscribe:
+          operationId: sendMessage
+          message:
+            $ref: '#/components/messages/SendMessage'
+        publish:
+          operationId: receiveMessage
+          message:
+            $ref: '#/components/messages/ReceiveMessage'
+
+    components:
+      messages:
+        SendMessage:
+          payload:
+            message: string
+        ReceiveMessage:
+          payload:
+            message: string
+            from: 
+              type: string
+              description: The userId for the sender of the message
+  ```
+    
+  </Accordion>
+  
+  <Accordion
+    title="OpenRPC (JSON-RPC APIs)"
+  >
+    [OpenRPC](https://open-rpc.org/) is a spec for describing JSON-RPC 2.0 APIs. It enables interactive docs and code generation tooling to the JSON-RPC ecosystem.
+
+    Check out an example OpenRPC Specification for a crypto wallet service below:
+
+    ```yaml maxLines=0
+    # yaml-language-server: $schema=https://meta.open-rpc.org/
+    $schema: https://meta.open-rpc.org/
+    openrpc: 1.2.4
+    info:
+      title: Basic Wallet API JSON-RPC Specification
+      description: A simple JSON-RPC API for querying wallet balances.
+      version: 0.0.1
+    servers:
+      - url: https://wallet.example.com/json-rpc
+        name: Mainnet
+    methods:
+      - name: getBalance
+        description: Get the balance of a wallet address.
+        params:
+          - name: address
+            required: true
+            description: The wallet address to query.
+            schema:
+              type: string
+        result:
+          name: balance
+          description: The balance of the wallet address.
+          schema:
+            type: number
+        examples:
+          - name: getBalance example
+            params:
+              - name: address
+                value: "0x1234567890abcdef1234567890abcdef12345678"
+            result:
+              name: balance
+              value: 42.5
+    ```
+  </Accordion>
+  <Accordion
+  title="gRPC (Binary Protocol APIs)"
+>
+  [gRPC](https://grpc.io/) is a modern, high-performance RPC framework that uses Protocol Buffers as its Interface Definition Language (IDL). gRPC enables efficient communication between services with features like streaming, deadlines, and built-in authentication.
+
+  Check out an example gRPC service definition for a user management API below:
+
+  ```proto maxLines={0}
+  syntax = "proto3";
+
+  package user;
+
+  // The user service definition
+  service UserService {
+    // Gets a single user by ID
+    rpc GetUser (GetUserRequest) returns (User);
+    
+    // Creates a new user
+    rpc CreateUser (CreateUserRequest) returns (User);
+    
+    // Server streaming: Get real-time user activity updates
+    rpc StreamUserActivity (User) returns (stream UserActivity);
+    
+    // Bidirectional streaming: Live chat between users
+    rpc ChatWithUser (stream ChatMessage) returns (stream ChatMessage);
+  }
+
+  // Message definitions
+  message User {
+    string id = 1;
+    string username = 2;
+    string email = 3;
+    int64 created_at = 4;
+  }
+
+  message GetUserRequest {
+    string user_id = 1;
+  }
+
+  message CreateUserRequest {
+    string username = 1;
+    string email = 2;
+  }
+
+  message UserActivity {
+    string user_id = 1;
+    string activity_type = 2;
+    int64 timestamp = 3;
+  }
+
+  message ChatMessage {
+    string from_user_id = 1;
+    string to_user_id = 2;
+    string message = 3;
+    int64 timestamp = 4;
+  }
+  ```
+  </Accordion>
+
+  <Accordion
+    title="Fern Definition (REST, Webhook, & WebSocket APIs)"
+  >
+    The Fern Definition is our take on a simpler API definition format. It is designed with **best-practices**, 
+    supports **both RESTful and event-driven APIs**, and is optimized for **SDK generation**. 
+
+    <Note>
+      The Fern Definition is inspired from internal API Definition formats built at companies like 
+      [Amazon](https://smithy.io/2.0/index.html), [Google](https://grpc.io/), [Palantir](https://blog.palantir.com/introducing-conjure-palantirs-toolchain-for-http-json-apis-2175ec172d32), 
+      Twilio and Stripe. These companies **rejected** OpenAPI and built their own version. 
+    </Note>
+
+    Check out an example Fern Definition below: 
+
+    ```yaml maxLines={0}
+    types:
+      MovieId: string
+
+      Movie:
+        properties:
+          id: MovieId
+          title: string
+          rating:
+            type: double
+            docs: The rating scale is one to five stars
+
+      CreateMovieRequest:
+        properties:
+          title: string
+          rating: double
+
+    service:
+      auth: false
+      base-path: /movies
+      endpoints:
+        createMovie:
+          docs: Add a movie to the database
+          method: POST
+          path: /create-movie
+          request: CreateMovieRequest
+          response: MovieId
+
+        getMovie:
+          method: GET
+          path: /{movieId}
+          path-parameters:
+            movieId: MovieId
+          response: Movie
+          errors:
+            - MovieDoesNotExistError
+
+    errors:
+      MovieDoesNotExistError:
+        status-code: 404
+        type: MovieId
+    ```
+
+  </Accordion>
+  
+</AccordionGroup>
+
+
