@@ -3,11 +3,11 @@ title: Customize Method Names
 description: Fine-tune SDK resources and method names
 ---
 
-You can fine-tune your SDK method and group names to create intuitive, readable
+You can fine-tune your SDK method and group names to create intuitive, user-friendly
 code that matches your API's purpose. 
 
 For example, instead of `client.postUsers`
-you can configure the SDK to read `client.users.create()`.
+you can configure your SDK to read `client.users.create()`.
 
 <CodeBlocks>
   <CodeBlock title="TypeScript">
@@ -33,6 +33,8 @@ you can configure the SDK to read `client.users.create()`.
     ```
   </CodeBlock>
 </CodeBlocks>
+
+## Nesting groups
 
 Groups can also be arbitrarily nested. For example, if you want to nest the `users`
 endpoints under an `admin` group, the SDK would then read:
@@ -62,6 +64,7 @@ endpoints under an `admin` group, the SDK would then read:
   </CodeBlock>
 </CodeBlocks>
 
+
 <Note>
 See how merge.dev uses nested groups [here](https://github.com/merge-api/merge-node-client?tab=readme-ov-file#create-link-token).
 </Note>
@@ -69,22 +72,28 @@ See how merge.dev uses nested groups [here](https://github.com/merge-api/merge-n
 <Tabs>
 <Tab title="Fern Definition">
 
-Directly specify the method names within your service structure.
+## Configure custom method names in `api.yml`
 
-```yaml title="api.yaml"
+ For a Fern Definition, the method name comes from the endpoint directly.
+ You can specify group and method names directly within your service structure.
+
+In the example below, Fern will generate a method called `client.users.create()`:
+
+```yaml title="api.yaml" {4, 6}
 services:
   http:
-    UsersService:
-      base-path: /users # specify the base path
+    UsersService: # specify the group
+      base-path: /users # HTTP path
       endpoints:
         create: # configure SDK method name
           method: POST
           path: ""
 ```
 
-produces the same client.users.create() method
 </Tab>
 <Tab title="OpenAPI">
+
+## Configure custom method names in `openapi.yaml`
 
 You can customize your SDK method names in two ways:
 
@@ -94,14 +103,14 @@ You can customize your SDK method names in two ways:
   generate `users.get()`. If your operation ID doesn't start with a tag, Fern
   uses it directly as the method name.
 
-* **Use the `x-fern-sdk-group-name` and `x-fern-sdk-method-name`extensions to
-  explicitly define your method name and grouping (e.g.,
-  `x-fern-sdk-method-name: users.get`).
+* **Use the `x-fern-sdk-group-name` and `x-fern-sdk-method-name` extensions
+  (manual)** to explicitly define your method name and grouping.
 
+To manually configure your method name, use the `x-fern-sdk-group-name` and
+`x-fern-sdk-method-name` extensions. In the example below, Fern will generate a
+method called `client.users.create()` for the `POST /users` endpoint.
 
-In the example below, Fern will generate a method called `client.users.create()` for the `POST /users` endpoint.
-
-```yaml title="openapi.yml"
+```yaml title="openapi.yml" {4-5}
 paths:
   /users:
     post:
@@ -111,10 +120,11 @@ paths:
 
 ## Top level methods
 
-If you omit the `x-fern-sdk-group-name` extension, then the generated SDK method will live at the root.
+If you omit the `x-fern-sdk-group-name` extension, then the generated SDK method
+will live at the root of the client rather than nested under a resource group.
 In the example below, Fern will generate a method called `client.send()`:
 
-```yaml title="openapi.yaml"
+```yaml title="openapi.yaml" {4}
 paths:
   /send:
     post:
@@ -140,12 +150,9 @@ paths:
 </Tab>
 </Tabs>
 
-If you're using an OpenAPI Specification, you'll need to leverage the [`x-fern-sdk-method-name`](/learn/api-definition/openapi/extensions#sdk-method-names)
-extension. If you're using the fern definition, then the method name comes from the endpoint directly.
+## Casing is automatically configured
 
-## Casing
-
-Fern handles choosing the appropriate casing for each SDK
+Fern automatically handles choosing the appropriate casing for each SDK
 language: `snake_case` in python, `camelCase` in TypeScript and `PascalCase` in
   Go, etc. Because of this, you define the endpoint structure once and get
   properly formatted methods across all generated SDKs.
