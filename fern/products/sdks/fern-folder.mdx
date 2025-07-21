@@ -1,0 +1,115 @@
+---
+title: Overview of the Fern Folder
+description: Describes the Fern folder structure
+---
+
+Configuring Fern starts with the `fern` folder, the root directory that contains
+your API definitions, generators, and your CLI version. 
+
+After you configure your `fern` folder, you'll be ready to start generating SDKs
+in different languages. 
+
+## Directory structure
+
+You can initialize your Fern folder with either a Fern Definition or OpenAPI specification.
+
+<Info>
+  You can always convert a Fern Definition to OpenAPI or OpenAPI to a Fern Definition later on.
+</Info>
+
+The `fern` directory is initialized with:
+* A `fern.config.json` file
+* A `generators.yml` file
+* Either a `definition/` (for a Fern Definition spec) or `openapi/` (for an OpenAPI spec) directory that contains your API specification files.
+
+<AccordionGroup>
+<Accordion title="Initializing with the Fern Definition">
+When you run `fern init`, your Fern folder will be initialized with the following files:
+```bash
+fern/
+  ├─ fern.config.json
+  ├─ generators.yml
+  └─ definition/
+    ├─ api.yml
+    └─ imdb.yml
+```
+</Accordion>
+<Accordion title="Initializing with OpenAPI">
+If you want to initialize Fern with an OpenAPI Specification, run `fern init --openapi path/to/openapi` instead.
+```yaml
+fern/
+  ├─ fern.config.json
+  ├─ generators.yml # required on Fern version 0.41.0 and above
+  └─ openapi/
+    ├─ openapi.yml
+```
+</Accordion>
+</AccordionGroup>
+
+### `fern.config.json`
+
+Every fern folder has a single `fern.config.json` file. This file stores the organization and
+the version of the Fern CLI that you are using. 
+
+```json
+{
+    "organization": "imdb",
+    "version": "0.31.2"
+}
+```
+
+Every time you run a fern CLI command, the CLI downloads itself at the correct version to ensure 
+determinism. 
+
+<Note>To upgrade the CLI, run `fern upgrade`. This will update the version field in `fern.config.json` </Note>
+
+### `generators.yml`
+
+The `generators.yml` file specifies which SDKs Fern should generate from your
+API specification. For each generator, it specifies where the package is
+published and configures customizations like package metadata, output locations,
+and generation settings.
+
+## Configuring Multiple APIs
+
+The Fern folder can house multiple API definitions. Instead of placing your API
+definitions at the top level, you can nest them within an `apis` folder. Be sure
+to include a `generators.yml` file within each API folder that specifies the
+location of the API definition. 
+
+<Tabs>
+<Tab title="OpenAPI Definition">
+```bash
+fern/
+  ├─ fern.config.json
+  ├─ generators.yml
+  └─ apis/
+    └─ imdb/
+        ├─ generators.yml
+        └─ openapi/
+          ├─ openapi.yml
+    └─ disney/
+        ├─ generators.yml
+        └─ openapi/
+          ├─ openapi.yml
+```
+</Tab>
+<Tab title="Fern Definition">
+```bash
+fern/
+  ├─ fern.config.json
+  ├─ generators.yml
+  └─ apis/
+    └─ imdb/
+        ├─ generators.yml
+        └─ definition/
+          ├─ api.yml
+          └─ imdb.yml
+    └─ disney/
+        ├─ generators.yml
+        └─ definition/
+          ├─ api.yml
+          └─ disney.yml
+```
+</Tab>
+</Tabs>
