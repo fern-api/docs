@@ -3,19 +3,99 @@ title: Configure Auto Pagination
 description: Paginate through API responses easily with offset, cursor, and link-based pagination.
 ---
 
-<Markdown src="/snippets/pro-callout.mdx" />
+Fern's auto pagination supports offset-based and cursor-based pagination schemes,
+providing SDK users with simple iterators to loop through all results instead of
+managing pagination complexity manually.
 
-Instead of forcing SDK users to learn the intricacies of your pagination system, Fern SDKs will return an iterator so that users can simply loop through all the results.
+This page describes how to configure auto pagination for your API endpoints.
 
+## Setting up auto pagination
+
+To configure auto pagination, specify the dot-access path to the related request
+or response property in the `x-fern-pagination extension` (OpenAPI) or `pagination`
+field (Fern Definition).
+
+For example, if results of `my_nested_object` are located in the subfield
+`inner_list`, the dot-access path would be `results:
+$response.my_nested_object.inner_list`.
+
+```yaml {7-10}
+MyResponseObject:
+  type: object
+  properties:
+    my_nested_object:
+      type: object
+      properties:
+        inner_list: # location of results
+          type: array
+          items:
+            $ref: '#/components/schemas/MyObject'
+```
+
+
+<Tabs>
+<Tab title="OpenAPI">
+<CodeBlocks>
+```yaml Offset {6}
+...
+paths:
+  /path/to/my/endpoint:
+    x-fern-pagination:
+      offset: $request.page_number
+      results: $response.results
+...
+```
+
+```yaml Cursor {8}
+...
+paths:
+  /path/to/my/endpoint:
+    get:
+      x-fern-pagination:
+        cursor: $request.cursor
+        next_cursor: $response.next
+        results: $response.results
+...
+```
+</CodeBlocks>
+</Tab>
+
+<Tab title="Fern Definition">
+<CodeBlocks>
+
+```yaml Offset {6}
+service:
+  endpoints:
+    listWithOffsetPagination:
+      pagination: 
+        offset: $request.page
+        results: $response.data
+```
+
+```yaml Cursor {7}
+service:
+  endpoints:
+    listWithCursorPagination:
+      pagination: 
+        cursor: $request.starting_after
+        next_cursor: $response.page.next.starting_after
+        results: $response.data
+```
+
+</CodeBlocks>
+</Tab>
+</Tabs>
+
+## Generated SDK Usage
 <Tabs>
 <Tab title="TypeScript" language="typescript">
 
-  When pagination for an endpoint is configured, the TypeScript SDK method 
-  will return a `Page<T>` where `T` is the underlying data type. The `Page<T>`
-  will implement the `AsyncIterable` interface, allowing you to use it in a
-  `for await` loop.
+  Once you've configured pagination for an endpoint, Fern generates a TypeScript
+  SDK method that returns a `Page<T>` where `T` is the underlying data type. The
+  `Page<T>` will implement the `AsyncIterable` interface, allowing your users to
+  use it in a `for await` loop.
 
-  Below is an example method signature for a list endpoint: 
+  Example generated method signature:
   ```typescript UsersClient.ts {10-13}
   import core from "../core";
 
@@ -33,7 +113,7 @@ Instead of forcing SDK users to learn the intricacies of your pagination system,
   }
   ```
 
-  And here is an example of how a user would use the `list` method:
+    Example of how users would call the `list` method:
   ```typescript
   const response = await client.users.list();
   for await (const user of response) {
@@ -44,12 +124,12 @@ Instead of forcing SDK users to learn the intricacies of your pagination system,
 </Tab>
 <Tab title="Python" language="python">
 
-  When pagination for an endpoint is configured, the Python SDK method 
-  will return a `Pager[T]` (specifically a `SyncPager[T]` or an `AsyncPager[T]`) where `T` is the underlying data type. The `Pager[T]`
-  will implement the `Generator` interface, allowing you to use it in a
-  `for ... in` loop.
+  Once you've configured pagination for an endpoint, Fern generates a Python SDK
+  method that returns a `Pager[T]` where `T` is the underlying data type. The
+  `Pager[T]` will implement the `Generator` interface, allowing your users to
+  use it in a `for ... in` loop.
 
-  Below is an example method signature for a list endpoint: 
+  Example generated method signature:
   ```python client.py {3-9}
   class UsersClient:
 
@@ -63,7 +143,7 @@ Instead of forcing SDK users to learn the intricacies of your pagination system,
       ...
   ```
 
-  And here is an example of how a user would use the `list` method:
+  Example of how users would call the `list` method:
   ```python
   for user in client.users.list(page=1, page_size=10):
     print(user)
@@ -76,90 +156,4 @@ Instead of forcing SDK users to learn the intricacies of your pagination system,
   ```
 </Tab>
 </Tabs>
-
-### Supported pagination types
-
-Fern supports the following pagination schemes:
-
-| Pagination Scheme | Supported                                        |
-|-------------------|--------------------------------------------------|
-| Offset-based      | <Icon icon="check" color="#84B060" />            |
-| Cursor-based      | <Icon icon="check" color="#84B060" />            |
-| Link-based        |                                                  |
-
-#### Configuration
-
-Annotate the desired paginated endpoint with the `x-fern-pagination` extension.
-For these fields, you can simply specify the dot-access path to the related request or response property.
-
-For example, should the results of the following object be found in the subfield `inner_list`, you would specify `results: $response.my_nested_object.inner_list`.
-
-```yaml
-MyResponseObject:
-  type: object
-  properties:
-    my_nested_object:
-      type: object
-      properties:
-        inner_list:
-          type: array
-          items:
-            $ref: '#/components/schemas/MyObject'
-```
-
-
-<Tabs>
-<Tab title="OpenAPI">
-<CodeBlocks>
-```yaml Offset
-...
-paths:
-  /path/to/my/endpoint:
-    x-fern-pagination:
-      offset: $request.page_number
-      results: $response.results
-...
-```
-
-```yaml Cursor
-...
-paths:
-  /path/to/my/endpoint:
-    get:
-      x-fern-pagination:
-        cursor: $request.cursor
-        next_cursor: $response.next
-        results: $response.results
-...
-```
-</CodeBlocks>
-</Tab>
-
-<Tab title="Fern Definition">
-<CodeBlocks>
-
-```yaml Offset
-service:
-  endpoints:
-    listWithOffsetPagination:
-      pagination: 
-        offset: $request.page
-        results: $response.data
-```
-
-```yaml Cursor
-service:
-  endpoints:
-    listWithCursorPagination:
-      pagination: 
-        cursor: $request.starting_after
-        next_cursor: $response.page.next.starting_after
-        results: $response.data
-```
-
-</CodeBlocks>
-</Tab>
-</Tabs>
-
-
 
