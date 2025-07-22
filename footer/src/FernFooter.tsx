@@ -112,18 +112,21 @@ export const FernFooter: React.FC = () => {
           padding-top: 2rem;
           align-items: flex-end;
           justify-content: space-between;
+          width: 100%;
         }
 
         .footer-columns {
           display: flex;
           gap: 2rem;
+          flex: 1;
         }
 
         .footer-column {
           display: flex;
           flex-direction: column;
           gap: 1rem;
-          width: 170px;
+          flex: 1;
+          min-width: 120px;
         }
 
         .footer-column-title {
@@ -177,6 +180,7 @@ export const FernFooter: React.FC = () => {
           color: var(--grayscale-10);
           text-decoration: none;
           transition: color 0.15s ease-in-out;
+          width: fit-content;
         }
 
         /* Responsive Design - Mobile */
@@ -211,14 +215,10 @@ export const FernFooter: React.FC = () => {
 
           .footer-columns {
             display: grid;
-            grid-template-columns: 1fr;
+            grid-template-columns: 2fr;
             gap: 2rem;
             width: 100%;
             order: 1;
-          }
-
-          .footer-column {
-            width: 100%;
           }
 
           .footer-bottom-text {
@@ -253,10 +253,6 @@ export const FernFooter: React.FC = () => {
           </a>
           
           <div className="footer-status">
-            {/* <a className="status-badge" href="https://status.buildwithfern.com">
-              <div className="status-indicator"></div>
-              <span className="status-text">All systems operational</span>
-            </a> */}
             <FernStatusWidget />
             
             <a className="soc2-badge" href="https://security.buildwithfern.com/">
@@ -284,9 +280,11 @@ export const FernFooter: React.FC = () => {
             <div className="footer-column">
               <h4 className="footer-column-title">Documentation</h4>
               <div className="footer-column-links">
-                <a href="https://buildwithfern.com/learn/v2/api-definition/introduction/what-is-an-api-definition" className="footer-link">API Definition</a>
-                <a href="https://buildwithfern.com/learn/v2/sdks/overview/introduction" className="footer-link">SDKs</a>
-                <a href="https://buildwithfern.com/learn/v2/docs/getting-started/overview" className="footer-link">Docs</a>
+                <a href="/learn/v2/sdks/overview/introduction" className="footer-link">SDKs</a>
+                <a href="/learn/v2/docs/getting-started/overview" className="footer-link">Docs</a>
+                <a href="/learn/v2/ask-fern" className="footer-link">Ask Fern</a>
+                <a href="/learn/v2/api-definition/introduction/what-is-an-api-definition" className="footer-link">API Definition</a>
+                
               </div>
             </div>
 
