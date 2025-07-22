@@ -3,9 +3,109 @@ title: Customize Method Names
 description: Fine-tune SDK resources and method names
 ---
 
-Fern allows you to fine-tune your SDK method and group names so that
-your SDK reads exactly how you want it to. For example, instead of
-`client.postUsers` you can configure the SDK to read `client.users.create()`.
+You can fine-tune your SDK method and group names to create intuitive, user-friendly
+code that matches your API's purpose. 
+
+For example, instead of `client.postUsers`
+you can configure your SDK to read `client.users.create()`.
+
+This page covers how to customize method and group names using Fern Definition and OpenAPI specs.
+
+<Tabs>
+<Tab title="Fern Definition">
+
+## Configure custom method names in `api.yml`
+
+ For a Fern Definition, the method name comes from the endpoint directly.
+ You can specify group and method names directly within your service structure.
+
+In the example below, Fern will generate a method called `client.users.create()`:
+
+```yaml title="api.yaml" {4, 6}
+services:
+  http:
+    UsersService: # specify the group
+      base-path: /users # HTTP path
+      endpoints:
+        create: # configure SDK method name
+          method: POST
+          path: ""
+```
+
+</Tab>
+<Tab title="OpenAPI">
+
+## Configure custom method names in `openapi.yaml`
+
+You can customize your SDK method names in two ways:
+
+* **Let Fern parse `operationId` (automatic):** By default, Fern uses your
+  operation ID to generate method names. Format your operation IDs like
+  `{tag_name}_{operation_name}` (e.g., `users_get`) and Fern will automatically
+  generate `users.get()`. If your operation ID doesn't start with a tag, Fern
+  uses it directly as the method name.
+
+* **Use the `x-fern-sdk-group-name` and `x-fern-sdk-method-name` extensions
+  (manual)** to explicitly define your method name and grouping.
+
+To manually configure your method name, use the `x-fern-sdk-group-name` and
+`x-fern-sdk-method-name` extensions. In the example below, Fern will generate a
+method called `client.users.create()` for the `POST /users` endpoint.
+
+```yaml title="openapi.yml" {4-5}
+paths:
+  /users:
+    post:
+      x-fern-sdk-group-name: users
+      x-fern-sdk-method-name: create
+```
+
+## Top level methods
+
+If you omit the `x-fern-sdk-group-name` extension, then the generated SDK method
+will live at the root of the client rather than nested under a resource group.
+In the example below, Fern will generate a method called `client.send()`:
+
+```yaml title="openapi.yaml" {4}
+paths:
+  /send:
+    post:
+      x-fern-sdk-method-name: send
+```
+
+## Multiple levels of nesting
+
+<Note>
+See how merge.dev uses nested groups [here](https://github.com/merge-api/merge-node-client?tab=readme-ov-file#create-link-token).
+</Note>
+
+If you add more than one `x-fern-sdk-group-name` extension, then the generated SDK will nest group names.
+The order of the group names is preserved in the generated SDK method.
+
+In the example below, Fern will generate a method called `client.users.notifications.send()`:
+
+```yaml title="openapi.yaml"
+paths:
+  /users/notifications:
+    post:
+      x-fern-sdk-group-name:
+        - users
+        - notifications
+      x-fern-sdk-method-name: send
+```
+</Tab>
+</Tabs>
+
+## Casing is automatically configured
+
+Fern automatically handles choosing the appropriate casing for each SDK
+language: `snake_case` in python, `camelCase` in TypeScript and `PascalCase` in
+  Go, etc. Because of this, you define the endpoint structure once and get
+  properly formatted methods across all generated SDKs.
+
+## Generated SDK examples
+
+Here's how developers using your generated SDK would call the customized method names in their applications:
 
 <CodeBlocks>
   <CodeBlock title="TypeScript">
@@ -32,8 +132,7 @@ your SDK reads exactly how you want it to. For example, instead of
   </CodeBlock>
 </CodeBlocks>
 
-Groups can also be arbitrarily nested. For example, if you want to nest the `users`
-endpoints under an `admin` group, the SDK would then read:
+Here's how users would call nested groups:
 
 <CodeBlocks>
   <CodeBlock title="TypeScript">
@@ -59,15 +158,3 @@ endpoints under an `admin` group, the SDK would then read:
     ```
   </CodeBlock>
 </CodeBlocks>
-
-<Note>
-See how merge.dev uses nested groups [here](https://github.com/merge-api/merge-node-client?tab=readme-ov-file#create-link-token).
-</Note>
-
-If you're using an OpenAPI Specification, you'll need to leverage the [`x-fern-sdk-method-name`](/learn/api-definition/openapi/extensions#sdk-method-names)
-extension. If you're using the fern definition, then the method name comes from the endpoint directly.
-
-## Casing
-
-Additionally, Fern handles choosing the appropriate casing for each SDK
-language: `snake_case` in python, `camelCase` in TypeScript and `PascalCase` in Go, etc.
