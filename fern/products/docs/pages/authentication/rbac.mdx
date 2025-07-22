@@ -6,9 +6,11 @@ description: Learn how to restrict access to your documentation using role-based
 
 <Note>RBAC is part of the pro plan.</Note>
 
+## Introduction
+
 Fern allows you to restrict parts of your navigation to individuals with specific roles. RBAC enables you to create different levels of access for different user types within your documentation.
 
-## Use cases
+### Use cases
 
 Role-based access control is helpful for scenarios such as:
 
@@ -18,11 +20,49 @@ Role-based access control is helpful for scenarios such as:
 - **Tiered access**: Offer different documentation levels based on subscription tiers
 - **Customer-specific content**: Show different documentation based on customer type or plan
 
-## How it works
+### How it works
 
 If a user visits content not marked as visible to the `everyone` role, Fern will check for an authentication cookie to indicate what roles that user has. If the user does not have a role matching the viewers of the page, we will redirect them to the URL you provided during setup.
 
 Below, we walk through each of the steps required to configure RBAC.
+
+### Architecture diagram
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant F as Fern Docs
+    participant R as Redirect URL
+    participant A as Auth System
+
+    U->>F: Visit restricted page
+    F->>F: Check fern_token cookie
+    
+    alt Cookie exists
+        F->>F: Decode JWT with secret key
+        F->>F: Extract roles from JWT
+        F->>F: Check if user has required role
+        
+        alt User has required role
+            F->>U: Show restricted content
+        else User lacks required role
+            F->>R: Redirect to login page
+            R->>A: Authenticate user
+        end
+    else No cookie
+        F->>R: Redirect to login page
+        R->>A: Authenticate user
+    end
+    
+    Note over A: User logs in
+    
+    A->>A: Generate JWT with roles
+    A->>F: Set fern_token cookie
+    F->>F: Validate JWT and roles
+    F->>U: Show restricted content
+```
+
+## Set up RBAC
 
 <Steps>
 ### Define all the `roles` in your docs.yml
@@ -41,7 +81,33 @@ roles:
 The `everyone` role is special. Every user has this role (including unauthenticated users).
 </Info>
 
-### Define viewers on parts of the navigation
+### Configure authentication via a `fern_token`
+
+In this step, we will configure authentication so that Fern can understand what roles a particular user has. Fern expects the user's
+browser session to have a cookie called `fern_token`. If the cookie is not present, the user will be redirected to your company's
+login page.
+
+**You are responsible for creating and setting the `fern_token` cookie in your authentication system.** Upon login, you must set a JWT for the user using a secret key that we will provide. The JWT must have a `fern` claim with a key called `roles`.
+
+```json
+{
+  "fern": {
+    "roles": ["partners"]
+  }
+}
+```
+
+### Contact Fern for setup
+
+When you're ready to implement RBAC, **contact support@buildwithfern.com** to receive your secret key for JWT signing.
+
+You'll also need to provide the URL where Fern should send unauthenticated users to log in.
+
+<Note>Optional: If you'd like restricted pages to be visible but locked to unauthenticated users (rather than completely hidden), let us know during this step.</Note>
+
+</Steps>
+
+### Access control within navigation
 
 You can designate viewers on the following navigation items:
 - `products`
@@ -76,28 +142,34 @@ navigation:
 
 Viewership is inherited. For example, if a section can only be viewed by `admins`, then all its pages and nested sections can also only be viewed by admins.
 
-### Configure authentication via a `fern_token`
+### Access control within MDX pages
 
-In this step, we will configure authentication so that Fern can understand what roles a particular user has. Fern expects the user's
-browser session to have a cookie called `fern_token`. If the cookie is not present, the user will be redirected to your company's
-login page.
+You can restrict specific content within your MDX pages to users with certain roles. This allows you to show different content to different user types on the same page.
 
-**You are responsible for creating and setting the `fern_token` cookie in your authentication system.** Upon login, you must set a JWT for the user using a secret key that we will provide. The JWT must have a `fern` claim with a key called `roles`.
+#### Basic usage
 
-```json
-{
-  "fern": {
-    "roles": ["partners"]
-  }
-}
+Use the `<If />` component to conditionally render content based on user roles:
+
+```mdx
+<If roles={["beta-users"]}>
+  <Callout>
+    This callout is only visible to beta users.
+  </Callout>
+</If>
 ```
 
-### Contact Fern for setup
+#### Multiple roles
 
-When you're ready to implement RBAC, **contact support@buildwithfern.com** to receive your secret key for JWT signing.
+You can specify multiple roles. Content will be visible to users who have **any** of the specified roles:
 
-You'll also need to provide the URL where Fern should send unauthenticated users to log in.
+```mdx
+<If roles={["partners", "admins"]}>
+  <Callout>
+    This content is visible to both partners and admins.
+  </Callout>
+</If>
+```
 
-<Note>Optional: If you'd like restricted pages to be visible but locked to unauthenticated users (rather than completely hidden), let us know during this step.</Note>
-
-</Steps>
+<Note>
+The `<If>` component respects the same role inheritance rules as navigation items. If a user has access to a page, they can see all content on that page that matches their roles.
+</Note>
