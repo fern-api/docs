@@ -119,6 +119,7 @@ export const FernFooter: React.FC = () => {
           display: flex;
           gap: 2rem;
           flex: 1;
+          max-width: 40rem;
         }
 
         .footer-column {
