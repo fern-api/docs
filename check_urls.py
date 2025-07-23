@@ -82,27 +82,17 @@ class URLChecker:
                 # Make request without following redirects automatically
                 response = self.session.get(current_url, timeout=self.timeout, allow_redirects=False)
                 
-                # Check if this step leads to home page
-                if self.is_home_page(current_url):
-                    return {
-                        'status_code': response.status_code,
-                        'final_url': current_url,
-                        'redirect_chain': redirect_chain,
-                        'redirect_count': redirect_count,
-                        'leads_to_home': True,
-                        'home_at_step': redirect_count,
-                        'error': None
-                    }
-                
-                # If not a redirect, we're done
+                # If not a redirect, we're done - check final destination for home page
                 if response.status_code not in [301, 302, 303, 307, 308]:
+                    # Check if final destination is home page
+                    is_home = self.is_home_page(current_url)
                     return {
                         'status_code': response.status_code,
                         'final_url': current_url,
                         'redirect_chain': redirect_chain,
                         'redirect_count': redirect_count,
-                        'leads_to_home': False,
-                        'home_at_step': None,
+                        'leads_to_home': is_home,
+                        'home_at_step': redirect_count if is_home else None,
                         'error': None
                     }
                 
@@ -142,26 +132,41 @@ class URLChecker:
                         'home_at_step': None,
                         'error': f'Redirect loop detected at step {redirect_count}'
                     }
+                
+                # Check if this intermediate redirect step leads to home page
+                if self.is_home_page(current_url):
+                    return {
+                        'status_code': response.status_code,
+                        'final_url': current_url,
+                        'redirect_chain': redirect_chain,
+                        'redirect_count': redirect_count,
+                        'leads_to_home': True,
+                        'home_at_step': redirect_count,
+                        'error': None
+                    }
             
-            # Too many redirects
+            # Too many redirects - check if final URL is home page anyway
+            is_home = self.is_home_page(current_url)
             return {
                 'status_code': None,
                 'final_url': current_url,
                 'redirect_chain': redirect_chain,
                 'redirect_count': redirect_count,
-                'leads_to_home': False,
-                'home_at_step': None,
+                'leads_to_home': is_home,
+                'home_at_step': redirect_count if is_home else None,
                 'error': f'Too many redirects (>{self.max_redirects})'
             }
             
         except requests.exceptions.RequestException as e:
+            # Check if we ended up at home page even with an error
+            is_home = self.is_home_page(current_url)
             return {
                 'status_code': None,
                 'final_url': current_url,
                 'redirect_chain': redirect_chain,
                 'redirect_count': redirect_count,
-                'leads_to_home': False,
-                'home_at_step': None,
+                'leads_to_home': is_home,
+                'home_at_step': redirect_count if is_home else None,
                 'error': str(e)
             }
 
