@@ -5,6 +5,235 @@ description: Guide to filtering your API endpoints using audiences.
 
 <Markdown src="/snippets/pro-callout.mdx"/>
 
+Use audiences to generate tailored SDKs for different groups of API consumers. Common examples of audiences include:
+- Internal consumers (e.g., frontend developers who use the API)
+- Beta testers
+- Customers
+
 Learn how to use audiences to filter which endpoints are included in your SDKs and documentation.
 
-<Warning>Docs are coming soon for this page.<br/><br/>Please [book a demo](https://buildwithfern.com/book-demo) or [reach out to us](https://buildwithfern.com/book-demo) to get set up with this feature. </Warning> 
+
+## Configuring audiences
+
+For both the Fern Definition and OpenAPI spec, configuring audiences involves:
+1. Marking your API elements with audience tags.
+1. Applying filters in `generators.yml`. Without filtering configuration, all endpoints will
+be included in your SDK regardless of their audience tags. 
+
+
+<AccordionGroup>
+<Accordion title="Fern Definition">
+
+Configuring audiences in a Fern Definition involves:
+
+1. Explicitly defining audiences in `api.yml`.
+1. Configuring audiences for specific endpoints, types, and properties.
+1. Apply audience filters to your SDK so only certain endpoints are passed to the generators.
+
+<Steps>
+### Defining audiences
+
+Audiences are explicitly declared in Fern Definition.
+To use audiences in your Fern Definition, add them to `api.yml`. 
+
+In the example below, we have created audiences for `internal`, `beta`, and `customer` groups:
+
+```yaml title='api.yml' {2-5}
+name: api 
+audiences: 
+  - internal 
+  - beta 
+  - customers
+```
+### Apply audiences to your endpoints, types, and properties
+
+Once you've defined audiences, mark endpoints, types, or properties for a
+particular consumer by adding an `audience` with the relevant groups. 
+
+<AccordionGroup>
+<Accordion title="Endpoints">
+
+In this example, the `sendEmail` endpoint is only available to internal consumers:
+
+```yaml title='user.yml' {6-7}
+service:
+  base-path: /users
+  auth: true
+  endpoints:
+    sendEmail:
+      audiences:
+        - internal
+      path: /send-email
+      ...
+```
+</Accordion>
+<Accordion title="Types">
+
+Types can also be marked for different audiences. 
+
+In this example, the `Email` type is available to internal and beta consumers:
+
+```yaml title='user.yml' {5-7}
+Email: 
+  properties:
+    subject: string
+    body: optional<string>
+  audiences: 
+    - internal
+    - beta
+```
+</Accordion>
+<Accordion title="Properties">
+In this example, the `to` property is available to beta consumers only:
+
+```yaml title='user.yml' {8-9}
+Email: 
+  properties:
+    subject: string
+    body: optional<string>
+    to: 
+      type: string
+      docs: The recipient of the email
+      audiences: 
+        - beta
+```
+</Accordion>
+</AccordionGroup>
+
+### Set up SDK filters in `generators.yml`
+
+In `generators.yml`, you can apply audience filters so that only certain
+endpoints are passed to the generators. 
+
+The following example configures the SDKs to filter for `customers`:
+
+```yaml title='generators.yml' {3-4}
+groups:
+  external:
+    audiences:
+      - customers
+    generators: 
+    ...
+```
+### Generate your SDK
+
+  ```bash
+  fern generate --group sdk
+  ```
+</Steps>
+</Accordion>
+<Accordion title="OpenAPI">
+
+Configuring audiences in an OpenAPI spec involves:
+
+1. Configuring audience extensions for specific servers, endpoints, schemas, and properties.
+1. Apply audience filters to your SDK so only certain endpoints are passed to the generators.
+
+<Note>
+    Unlike the Fern Definition, OpenAPI doesn't have a central audience declaration. 
+</Note>
+
+<Steps>
+### Define audiences
+
+OpenAPI uses `x-fern-audiences` to filter to servers, endpoints, schemas and properties.
+
+<AccordionGroup>
+<Accordion title="Servers">
+To mark a server with a particular audience, add the `x-fern-server-name` and `x-fern-audiences` extension to the relevant server.
+
+In the example below, the `Production` server is only available to public consumers:
+
+```yaml title="openapi.yml" {3-5}
+servers:
+  - url: https://api.com
+    x-fern-server-name: Production
+    x-fern-audiences:
+      - public
+```
+</Accordion>
+<Accordion title="Endpoints">
+To mark an endpoint with a particular audience, add the `x-fern-audiences` extension to the relevant endpoint.
+
+In the example below, the `POST /users/sendEmail` endpoint is only available to public consumers:
+
+```yaml title="openapi.yml" {4-5}
+paths:
+  /users/sendEmail:
+    post:
+      x-fern-audiences:
+        - public
+      operationId: send_email
+```
+</Accordion>
+<Accordion title="Schemas">
+Schemas can be marked for different audiences, as well.
+
+In this example, the `Email` type is available to both public and beta customers.
+
+```yaml title="openapi.yml" {13-15}
+components:
+  schemas:
+    Email:
+      title: Email
+      type: object
+      properties:
+        subject:
+          type: string
+        body:
+          type: string
+        to:
+          type: string
+      x-fern-audiences:
+        - public
+        - beta
+```
+</Accordion>
+<Accordion title="Properties">
+In this example, the `to` property is available to beta customers only.
+
+```yaml title="openapi.yml" {13-17}
+components:
+  schemas:
+    Email:
+      title: Email
+      type: object
+      properties:
+        subject:
+          type: string
+        body:
+          type: string
+        to:
+          type: string
+          x-fern-audiences:
+            - beta
+```
+</Accordion>
+
+</AccordionGroup>
+
+### Set up SDK filters in `generators.yml`
+
+In `generators.yml`, you can apply audience filters so that only certain
+endpoints are passed to the generators. 
+
+The following example configures the SDK to filter to the `public` audience:
+
+```yaml title="generators.yml" {3-4}
+groups:
+  sdks:
+    audiences:
+      - public
+    generators:
+    ...
+```
+
+### Generate your SDK
+
+  ```bash
+  fern generate --group sdk
+  ```
+
+</Steps>
+</Accordion>
+</AccordionGroup>
