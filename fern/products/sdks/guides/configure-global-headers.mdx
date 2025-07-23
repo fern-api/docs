@@ -3,6 +3,99 @@ title: Configure Global Headers
 description: Guide to configuring global headers in your SDKs.
 ---
 
-Learn how to configure global headers for all requests made by your SDKs. 
+Your API may leverage certain headers for every endpoint or most endpoints.
+These are called **global headers**.
 
-<Warning>Docs are coming soon for this page.<br/><br/>Please [book a demo](https://buildwithfern.com/book-demo) or [reach out to us](https://buildwithfern.com/book-demo) to get set up with this feature. </Warning> 
+## How it works for SDK users
+
+Once you configure a global header (either automatically detected or manually
+specified), Fern generates an SDK that accepts this as a constructor parameter.
+Users can then provide the value once, and the generated SDK automatically
+includes the header in all their API calls:
+
+```python
+import os
+
+class Client:
+
+  def __init__(self, *, apiKey: str):
+```
+
+## Specifying global headers
+
+Fern automatically identifies headers that are used in every request, or the
+majority of requests, and marks them as global. You can manually configure additional
+global headers in either `api.yml` (Fern Definition) or `openapi.yml`.
+
+<AccordionGroup>
+<Accordion title="Fern Definition">
+
+To specify headers that are meant to be included on every request:
+
+<CodeBlock title="api.yml">
+```yaml {3}
+name: api
+headers:
+  X-App-Id: string
+```
+</CodeBlock>
+
+### Global path parameters
+You can also specify path parameters that are meant to be included on every request:
+
+<CodeBlock title="api.yml">
+```yaml
+name: api
+base-path: /{userId}/{orgId}
+path-parameters:
+  userId: string
+  orgId: string
+```
+</CodeBlock>
+
+#### Overriding the base path
+
+If you have certain endpoints that do not live at the configured `base-path`, you can 
+override the `base-path` at the endpoint level. 
+
+```yml imdb.yml {5}
+service: 
+  endpoints: 
+    getMovie: 
+      method: POST
+      base-path: "override/{arg}"
+      path: "movies/{movieId}"
+      path-parameters: 
+        arg: string
+```
+
+<Note>
+  You cannot yet specify query parameters that are meant to be included on every request.
+If you'd like to see this feature, please upvote [this issue](https://github.com/fern-api/fern/issues/2930).
+</Note>
+
+</Accordion>
+<Accordion title="OpenAPI">
+
+Use the `x-fern-global-headers` extension to label additional headers as global
+or to alias the names of global headers:
+
+```yaml title="openapi.yml"
+x-fern-global-headers:
+  - header: custom_api_key
+    name: api_key
+  - header: userpool_id
+    optional: true
+```
+
+This configuration yields the following client:
+
+```python
+import os
+
+class Client:
+
+  def __init__(self, *, apiKey: str, userpoolId: typing.Optional[str])
+```
+</Accordion>
+</AccordionGroup>
