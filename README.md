@@ -1,6 +1,6 @@
 # Fern Documentation
 
-Welcome to the Fern documentation! This repository contains the source code for Fern's comprehensive documentation site, currently live at [fern-v2.docs.buildwithfern.com](https://fern-v2.docs.buildwithfern.com).
+Welcome to the Fern documentation! This repository contains the source code for Fern's comprehensive documentation site, currently live at [fern-api.docs.buildwithfern.com/learn/home](https://fern-api.docs.buildwithfern.com/learn/home).
 
 ## 🚀 Quick Start
 
