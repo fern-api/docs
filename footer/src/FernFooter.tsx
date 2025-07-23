@@ -284,8 +284,8 @@ export const FernFooter: React.FC = () => {
                 <a href="/learn/sdks/overview/introduction" className="footer-link">SDKs</a>
                 <a href="/learn/docs/getting-started/overview" className="footer-link">Docs</a>
                 <a href="/learn/ask-fern" className="footer-link">Ask Fern</a>
-                <a href="/learn/openapi/overview" className="footer-link">OpenAPI</a>
-                <a href="/learn/fern-def/overview" className="footer-link">Fern Definition</a>
+                <a href="/learn/openapi-definition/overview" className="footer-link">OpenAPI</a>
+                <a href="/learn/fern-definition/overview" className="footer-link">Fern Definition</a>
                 <a href="/learn/cli-api-reference/cli-reference/overview" className="footer-link">CLI Reference</a>
                 <a href="/learn/cli-api-reference/api-reference/overview" className="footer-link">API Reference</a>
               </div>
@@ -295,7 +295,7 @@ export const FernFooter: React.FC = () => {
               <h4 className="footer-column-title">Resources</h4>
               <div className="footer-column-links">
                 <a href="https://buildwithfern.com/blog" className="footer-link">Blog</a>
-                <a href="https://buildwithfern.com/learn/v2/home#help" className="footer-link">Support</a>
+                <a href="learn/home#help" className="footer-link">Support</a>
                 <a href="https://buildwithfern.com/pricing" className="footer-link">Pricing</a>
                 <a href="https://buildwithfern.com/slack" className="footer-link">Slack</a>
               </div>
