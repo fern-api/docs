@@ -117,43 +117,6 @@ with the relevant elements in your `go.mod` path. In this case, the generated Go
 <ParamField path="clientName" type="string" required={false}>
 </ParamField>
 
-<ParamField path="enableExplicitNull" type="boolean" required={false}>
-By default, it's impossible to send an explicit JSON `null` for optional parameters. `enableExplicitNull: true` opts in to generating a generic `Optional[T]` type that can be used to distinguish between a `nil` value (nothing is sent), a non-`nil` value (the value is sent), and an explicit null (a `null` value is sent). This is particularly useful for `PATCH` endpoints.
-
-The `Optional` and `Null` constructor functions will be included at the root of your module and can be
-used like so:
-
-```go
-client := acmeclient.NewClient()
-updatedFoo, err := client.Foo.Update(
-  context.TODO(),
-  &acme.UpdateFooRequest{
-    Name: acme.Optional("example"),
-    Tag:  acme.Null[string](),
-  },
-  // Serialized as {"name":"example","tag":null}
-)
-```
-
-An example configuration:
-
-```yaml {7-8}
-default-group: local
-groups:
-  local:
-    generators:
-      - name: fernapi/fern-go-sdk
-        version: 0.13.0
-        config:
-          enableExplicitNull: true
-        output:
-          location: local-file-system
-          path: ../generated/go
-```
-
-<Note>This feature requires generics, so the generated `go.mod` will be upgraded to `1.18` (as opposed to `1.13`).</Note>
-</ParamField>
-
 <ParamField path="exportedClientName" type="string" required={false}>
 </ParamField>
 
