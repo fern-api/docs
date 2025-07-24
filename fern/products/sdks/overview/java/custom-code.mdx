@@ -104,6 +104,45 @@ description: Augment your Java SDK with custom utilities
     </Steps>
 
 
+## Extending builders
+
+For advanced use cases requiring request transformation or dynamic configuration, you can extend the generated builder classes.
+
+<Steps>
+
+### Override buildClientOptions() to transform configuration
+
+```java title="src/main/java/com/example/CustomClientBuilder.java"
+public class CustomClientBuilder extends BaseClientBuilder {
+    @Override
+    protected ClientOptions buildClientOptions() {
+        ClientOptions base = super.buildClientOptions();
+        
+        // Transform configuration as needed
+        String transformedUrl = transformEnvironmentVariables(
+            base.environment().getUrl()
+        );
+        
+        return ClientOptions.builder()
+            .from(base)
+            .environment(Environment.custom(transformedUrl))
+            .build();
+    }
+}
+```
+
+### Update .fernignore
+
+```diff title=".fernignore"
++ src/main/java/com/example/CustomClientBuilder.java
+```
+
+</Steps>
+
+<Callout type="info">
+For authentication customization, override the `build()` method instead of `buildClientOptions()`.
+</Callout>
+
 ## Adding custom dependencies
 
 <Markdown src="/snippets/pro-callout.mdx"/>
