@@ -104,6 +104,78 @@ description: Augment your Java SDK with custom utilities
     </Steps>
 
 
+## Adding custom client configuration
+
+When you need to intercept and transform client configuration before the SDK client is created, you can extend the generated builder classes. This allows you to add custom code and logic during the client initialization process.
+
+Common use cases include:
+- **Dynamic URL construction**: Replace placeholders with runtime values (e.g., `https://api.${DEV_NAMESPACE}.example.com`)
+- **Custom authentication**: Implement complex auth flows beyond basic token authentication
+- **Request transformation**: Add custom headers or modify requests globally
+
+<Steps>
+
+### Create a custom client that extends the base client
+
+This client will serve as the entry point for your customized SDK.
+
+```java title="src/main/java/com/example/MyClient.java"
+package com.example;
+
+import com.example.client.BaseClient;
+import com.example.client.ClientOptions;
+
+public class MyClient extends BaseClient {
+    public MyClient(ClientOptions clientOptions) {
+        super(clientOptions);
+    }
+    
+    public static MyClientBuilder builder() {
+        return new MyClientBuilder();
+    }
+}
+```
+
+### Create a custom builder with your transformation logic
+
+Override the `buildClientOptions()` method to intercept and modify the configuration before the client is created.
+
+```java title="src/main/java/com/example/MyClientBuilder.java" {10}
+package com.example;
+
+import com.example.client.BaseClient.BaseClientBuilder;
+import com.example.client.ClientOptions;
+import com.example.environment.Environment;
+
+public class MyClientBuilder extends BaseClientBuilder {
+    @Override
+    protected ClientOptions buildClientOptions() {
+        ClientOptions base = super.buildClientOptions();
+        
+        // Transform configuration as needed
+        String transformedUrl = transformEnvironmentVariables(
+            base.environment().getUrl()
+        );
+        
+        return ClientOptions.builder()
+            .from(base)
+            .environment(Environment.custom(transformedUrl))
+            .build();
+    }
+}
+```
+
+### Update `.fernignore`
+
+Add the `MyClient.java` and `MyClientBuilder.java` to `.fernignore`.
+
+```diff title=".fernignore"
++ src/main/java/com/example/MyClient.java
++ src/main/java/com/example/MyClientBuilder.java
+```
+
+</Steps>
+
 ## Adding custom dependencies
 
 <Markdown src="/snippets/pro-callout.mdx"/>
