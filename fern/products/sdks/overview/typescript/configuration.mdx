@@ -18,185 +18,15 @@ groups:
 
 ## SDK configuration options
 
-<ParamField path="outputSourceFiles" type="boolean" default="true" toc={true}>
-  When enabled, the generator outputs raw TypeScript files. When disabled (the default), outputs `.js` and `d.ts` files. 
-
-  <Note>This only applies when dumping code locally. This configuration is ignored when publishing to Github or npm.</Note>
-</ParamField>
-
-<ParamField path="includeCredentialsOnCrossOriginRequests" type="boolean" default="false" toc={true}>
-  When enabled, [`withCredentials`](https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/withCredentials) is set to `true` when making network requests.
+<ParamField path="allowExtraFields" type="boolean" toc={true}>
+Allow fields that are not defined in object schemas. This only applies to serde.
 </ParamField>
 
 <ParamField path="bundle" type="boolean" toc={true}>
 </ParamField>
 
-<ParamField path="shouldGenerateWebsocketClients" type="boolean" toc={true}>
-	Generate WebSocket clients from your AsyncAPI specs.
-</ParamField>
-
 <ParamField path="defaultTimeoutInSeconds" type="number | 'infinity'" toc={true}>
 The default timeout for network requests. In the generated client, this can be overridden at the request level.
-</ParamField>
-
-<ParamField path="skipResponseValidation" type="boolean" default="false" toc={true}>
- By default, the client will throw an error if the response from the server
-doesn't match the expected type (based on how the response is modeled in the
-Fern Definition).
-
-If `skipResponseValidation` is set to `true`, the client will never throw if the response is misshapen. Instead, the client will log the issue using `console.warn` and return the data (casted to the expected response type).
-
-<Warning>Response validation only occurs when the Serde layer is enabled (`noSerdeLayer: false`). The Serde layer is disabled by default (`noSerdeLayer: true`).</Warning>
-
-</ParamField>
-
-<ParamField path="extraDependencies" type="object" default="{}" toc={true}>
-  Specify extra dependencies in the generated `package.json`. This is useful
-when you utilize [`.fernignore`](https://buildwithfern.com/learn/sdks/capabilities/custom-code) to
-supplement the generated client with custom code. 
-
-```yaml
-# generators.yml
-config:
-  extraDependencies:
-    lodash: "3.0.2"
-```
-
-</ParamField>
-
-<ParamField path="extraDevDependencies" type="object" default="{}" toc={true}>
-  Specify extra dev dependencies in the generated `package.json`. 
-
-```yaml
-# generators.yml
-config:
-  extraDevDependencies:
-    jest: "29.0.7"
-```
-
-<Note>Only applies when publishing to Github.</Note>
-</ParamField>
-
-<ParamField path="extraPeerDependencies" type="object" toc={true}>
-Specify extra peer dependencies in the generated `package.json`:
-
-```yaml
-# generators.yml
-config:
-  extraPeerDependencies:
-    react: ">=16.8.0 <19.0.0"
-    "react-dom": ">=16.8.0 <19.0.0"
-```
-</ParamField>
-
-<ParamField path="extraPeerDependenciesMeta" type="object" toc={true}>
-Specify extra peer dependencies meta fields in the generated `package.json`:
-
-```yaml
-# generators.yml
-config:
-  extraPeerDependencies:
-    react: ">=16.8.0 <19.0.0"
-    "react-dom": ">=16.8.0 <19.0.0"
-```
-</ParamField>
-
-<ParamField path="treatUnknownAsAny" type="boolean" default="false" toc={true}>
-  When `treatUnknownAsAny` is enabled, [unknown types from Fern are generated into TypeScript using `any` instead of the `unknown` type](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-0.html#new-unknown-top-type).
-</ParamField>
-
-<ParamField path="noOptionalProperties" type="boolean" default="false" toc={true}>
-  By default, Fern's `optional<>` properties will translate to optional TypeScript properties:
-
-	```yaml {4}
-	Person:
-	  properties:
-	    name: string
-	    age: optional<integer>
-	```
-
-	```typescript {3}
-	interface Person {
-	  name: string;
-	  age?: number;
-	}
-	```
-
-	When `noOptionalProperties` is enabled, the generated properties are never optional. Instead, the type is generated with `| undefined`. As a result, users must explicitly set the property to a value or `undefined`.
-
-	```typescript {3}
-	interface Person {
-	  name: string;
-	  age: number | undefined;
-	}
-	```
-</ParamField>
-
-<ParamField path="packageJson" type="object" toc={true}>
-When you specify an object in `packageJson`, it will be merged into the `package.json` file.
-
-```yaml
-# generators.yml
-config:
-  packageJson:
-    description: The SDK for Acme Corp's API.
-    author:
-      name: Acme Corp
-      url: https://developer.acmecorp.com
-      email: developers@acmecorp.com
-    bugs:
-      url: https://developer.acmecorp.com
-      email: developers@acmecorp.com
-```
-</ParamField>
-
-<ParamField path="publishToJsr" type="boolean" toc={true}>
-Publish your SDK to [JSR](https://jsr.io/). When enabled, the generator will
-generate a `jsr.json` as well as a GitHub workflow to publish to JSR.
-</ParamField>
-
-<ParamField path="streamType" type="'wrapper' | 'web'" toc={true}>
-Change the type of stream that is used in the generated SDK.
-
-*    `wrapper`: The streams use a wrapper with multiple underlying implementations to support versions of Node.js before Node.js 18.
-*    `web`: The streams use the web standard `ReadableStream`.
-
-The default is `web`.
-</ParamField>
-
-<ParamField path="fileResponseType" type="'stream' | 'binary-response'" toc={true}>
-Change the type of response returned to the user for a binary HTTP response:
-
-*    `stream`: Returns a stream. See `streamType`, which controls the type of stream returned.
-*    `binary-response`: Returns the `BinaryResponse` type, which allows the user to choose how to consume the binary HTTP response.
-Here's how your users can interact with the `BinaryResponse`:
-
-```typescript
-const response = await client.getFile(...);
-const stream = response.stream();
-// const arrayBuffer = await response.arrayBuffer();
-// const blob = await response.blob();
-// const bytes = await response.bytes();
-const bodyUsed = response.bodyUsed;
-```
-</ParamField>
-
-<ParamField path="formDataSupport" type="'Node16' | 'Node18'" toc={true}>
-Choose whether you want to support Node.js 16 and above (`Node16`), or Node.js 18 and above (`Node18`).
-
-*    `Node16` uses multiple dependencies to support multipart forms, including `form-data`, `formdata-node`, and `form-data-encoder`.
-*    `Node18` uses the native FormData API, and accepts a wider range of types for file uploads, such as `Buffer`, `File`, `Blob`, `Readable`, `ReadableStream`, `ArrayBuffer`, and `Uint8Array`
-</ParamField>
-<ParamField path="fetchSupport" type="'node-fetch' | 'native'" toc={true}>
-Choose whether you want to include `node-fetch` to support Node.js versions before Node.js 18, or choose `native` to use the native `fetch` API available in Node.js 18 and later.
-</ParamField>
-
-<ParamField path="packagePath" type="string" toc={true}>
-Specify the path where the source files for the generated SDK should be placed.
-</ParamField>
-
-<ParamField path="allowExtraFields" type="boolean" toc={true}>
-Allow fields that are not defined in object schemas. This only applies to serde.
 </ParamField>
 
 <ParamField path="enableInlineTypes" type="boolean" default="true" toc={true}>
@@ -253,6 +83,110 @@ import { MyRootType } from MySdk;
 
 const bar: MyRootType.Foo.Bar = {};
 ```
+</ParamField>
+
+<ParamField path="extraDependencies" type="object" default="{}" toc={true}>
+  Specify extra dependencies in the generated `package.json`. This is useful
+when you utilize [`.fernignore`](https://buildwithfern.com/learn/sdks/capabilities/custom-code) to
+supplement the generated client with custom code. 
+
+```yaml
+# generators.yml
+config:
+  extraDependencies:
+    lodash: "3.0.2"
+```
+
+</ParamField>
+
+<ParamField path="extraDevDependencies" type="object" default="{}" toc={true}>
+  Specify extra dev dependencies in the generated `package.json`. 
+
+```yaml
+# generators.yml
+config:
+  extraDevDependencies:
+    jest: "29.0.7"
+```
+
+<Note>Only applies when publishing to Github.</Note>
+</ParamField>
+
+<ParamField path="extraPeerDependencies" type="object" toc={true}>
+Specify extra peer dependencies in the generated `package.json`:
+
+```yaml
+# generators.yml
+config:
+  extraPeerDependencies:
+    react: ">=16.8.0 <19.0.0"
+    "react-dom": ">=16.8.0 <19.0.0"
+```
+</ParamField>
+
+<ParamField path="extraPeerDependenciesMeta" type="object" toc={true}>
+Specify extra peer dependencies meta fields in the generated `package.json`:
+
+```yaml
+# generators.yml
+config:
+  extraPeerDependencies:
+    react: ">=16.8.0 <19.0.0"
+    "react-dom": ">=16.8.0 <19.0.0"
+```
+</ParamField>
+
+<ParamField path="fetchSupport" type="'node-fetch' | 'native'" toc={true}>
+Choose whether you want to include `node-fetch` to support Node.js versions before Node.js 18, or choose `native` to use the native `fetch` API available in Node.js 18 and later.
+</ParamField>
+
+<ParamField path="fileResponseType" type="'stream' | 'binary-response'" toc={true}>
+Change the type of response returned to the user for a binary HTTP response:
+
+*    `stream`: Returns a stream. See `streamType`, which controls the type of stream returned.
+*    `binary-response`: Returns the `BinaryResponse` type, which allows the user to choose how to consume the binary HTTP response.
+Here's how your users can interact with the `BinaryResponse`:
+
+```typescript
+const response = await client.getFile(...);
+const stream = response.stream();
+// const arrayBuffer = await response.arrayBuffer();
+// const blob = await response.blob();
+// const bytes = await response.bytes();
+const bodyUsed = response.bodyUsed;
+```
+</ParamField>
+
+<ParamField path="formDataSupport" type="'Node16' | 'Node18'" toc={true}>
+Choose whether you want to support Node.js 16 and above (`Node16`), or Node.js 18 and above (`Node18`).
+
+*    `Node16` uses multiple dependencies to support multipart forms, including `form-data`, `formdata-node`, and `form-data-encoder`.
+*    `Node18` uses the native FormData API, and accepts a wider range of types for file uploads, such as `Buffer`, `File`, `Blob`, `Readable`, `ReadableStream`, `ArrayBuffer`, and `Uint8Array`
+</ParamField>
+
+<ParamField path="includeContentHeadersOnFileDownloadResponse" type="boolean" toc={true}>
+
+Includes the content type and content length from binary responses. The user will receive an object of the following type:
+
+```typescript
+{
+    data: <BINARY_RESPONSE_TYPE>;
+    contentLengthInBytes?: number;
+    contentType?: string;
+}
+```
+
+`<BINARY_RESPONSE_TYPE>` is `core.BinaryResponse` or a stream, depending on `fileResponseType` setting.
+</ParamField>
+
+<ParamField path="includeCredentialsOnCrossOriginRequests" type="boolean" default="false" toc={true}>
+  When enabled, [`withCredentials`](https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/withCredentials) is set to `true` when making network requests.
+</ParamField>
+
+<ParamField path="includeOtherInUnionTypes" type="boolean" toc={true}>
+</ParamField>
+
+<ParamField path="includeUtilsOnUnionMembers" type="boolean" toc={true}>
 </ParamField>
 
 <ParamField path="inlineFileProperties" type="boolean" default="true" toc={true}>
@@ -344,6 +278,50 @@ By default, names are based on the organization and API names in the Fern Defini
 
 </ParamField>
 
+<ParamField path="neverThrowErrors" type="boolean" default="false" toc={true}>
+  When enabled, the client doesn't throw errors when a non-200 response is received from the server. Instead, the response is wrapped in an [`ApiResponse`](packages/core-utilities/fetcher/src/APIResponse.ts).
+
+  ```typescript
+  const response = await client.callEndpoint(...);
+  if (response.ok) {
+    console.log(response.body)
+  } else {
+    console.error(respons.error)
+  }
+  ```
+</ParamField>
+
+<ParamField path="noOptionalProperties" type="boolean" default="false" toc={true}>
+  By default, Fern's `optional<>` properties will translate to optional TypeScript properties:
+
+	```yaml {4}
+	Person:
+	  properties:
+	    name: string
+	    age: optional<integer>
+	```
+
+	```typescript {3}
+	interface Person {
+	  name: string;
+	  age?: number;
+	}
+	```
+
+	When `noOptionalProperties` is enabled, the generated properties are never optional. Instead, the type is generated with `| undefined`. As a result, users must explicitly set the property to a value or `undefined`.
+
+	```typescript {3}
+	interface Person {
+	  name: string;
+	  age: number | undefined;
+	}
+	```
+</ParamField>
+
+<ParamField path="noScripts" type="boolean" toc={true}>
+Prevent the generator from running any scripts such as `yarn format` or `yarn install`. If any of the scripts cause errors, toggling this option will allow you to receive the generated code.
+</ParamField>
+
 <ParamField path="noSerdeLayer" type="boolean" default="true" toc={true}>
 
 No serialization/deserialization code is generated by default. The client uses `JSON.parse()` and `JSON.stringify()` instead of the default Serde layer. 
@@ -357,6 +335,39 @@ No serialization/deserialization code is generated by default. The client uses `
 	1. The generated types can stray from the wire/JSON representation to be more
 	   idiomatic. For example, when the Serde layer is enabled (`noSerdeLayer: false`), all properties are `camelCase`, even if the server is expecting `snake_case`.
 
+</ParamField>
+
+<ParamField path="outputSourceFiles" type="boolean" default="true" toc={true}>
+  When enabled, the generator outputs raw TypeScript files. When disabled (the default), outputs `.js` and `d.ts` files. 
+
+  <Note>This only applies when dumping code locally. This configuration is ignored when publishing to Github or npm.</Note>
+</ParamField>
+
+<ParamField path="packageJson" type="object" toc={true}>
+When you specify an object in `packageJson`, it will be merged into the `package.json` file.
+
+```yaml
+# generators.yml
+config:
+  packageJson:
+    description: The SDK for Acme Corp's API.
+    author:
+      name: Acme Corp
+      url: https://developer.acmecorp.com
+      email: developers@acmecorp.com
+    bugs:
+      url: https://developer.acmecorp.com
+      email: developers@acmecorp.com
+```
+</ParamField>
+
+<ParamField path="packagePath" type="string" toc={true}>
+Specify the path where the source files for the generated SDK should be placed.
+</ParamField>
+
+<ParamField path="publishToJsr" type="boolean" toc={true}>
+Publish your SDK to [JSR](https://jsr.io/). When enabled, the generator will
+generate a `jsr.json` as well as a GitHub workflow to publish to JSR.
 </ParamField>
 
 <ParamField path="retainOriginalCasing" type="boolean" default="false" toc={true}>
@@ -398,6 +409,34 @@ No serialization/deserialization code is generated by default. The client uses `
 	}
 	```
 
+</ParamField>
+
+<ParamField path="shouldGenerateWebsocketClients" type="boolean" toc={true}>
+	Generate WebSocket clients from your AsyncAPI specs.
+</ParamField>
+
+<ParamField path="skipResponseValidation" type="boolean" default="false" toc={true}>
+ By default, the client will throw an error if the response from the server
+doesn't match the expected type (based on how the response is modeled in the
+Fern Definition).
+
+If `skipResponseValidation` is set to `true`, the client will never throw if the response is misshapen. Instead, the client will log the issue using `console.warn` and return the data (casted to the expected response type).
+
+<Warning>Response validation only occurs when the Serde layer is enabled (`noSerdeLayer: false`). The Serde layer is disabled by default (`noSerdeLayer: true`).</Warning>
+
+</ParamField>
+
+<ParamField path="streamType" type="'wrapper' | 'web'" toc={true}>
+Change the type of stream that is used in the generated SDK.
+
+*    `wrapper`: The streams use a wrapper with multiple underlying implementations to support versions of Node.js before Node.js 18.
+*    `web`: The streams use the web standard `ReadableStream`.
+
+The default is `web`.
+</ParamField>
+
+<ParamField path="treatUnknownAsAny" type="boolean" default="false" toc={true}>
+  When `treatUnknownAsAny` is enabled, [unknown types from Fern are generated into TypeScript using `any` instead of the `unknown` type](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-0.html#new-unknown-top-type).
 </ParamField>
 
 <ParamField path="useBigInt" type="boolean" default="false" toc={true}>
@@ -503,44 +542,3 @@ interface ObjectWithLongAndBigInt {
 	```
 
 </ParamField>
-
-<ParamField path="neverThrowErrors" type="boolean" default="false" toc={true}>
-  When enabled, the client doesn't throw errors when a non-200 response is received from the server. Instead, the response is wrapped in an [`ApiResponse`](packages/core-utilities/fetcher/src/APIResponse.ts).
-
-  ```typescript
-  const response = await client.callEndpoint(...);
-  if (response.ok) {
-    console.log(response.body)
-  } else {
-    console.error(respons.error)
-  }
-  ```
-</ParamField>
-
-### Beta options
-
-<ParamField path="includeContentHeadersOnFileDownloadResponse" type="boolean" toc={true}>
-
-Includes the content type and content length from binary responses. The user will receive an object of the following type:
-
-```typescript
-{
-    data: <BINARY_RESPONSE_TYPE>;
-    contentLengthInBytes?: number;
-    contentType?: string;
-}
-```
-
-`<BINARY_RESPONSE_TYPE>` is `core.BinaryResponse` or a stream, depending on `fileResponseType` setting.
-</ParamField>
-
-<ParamField path="includeUtilsOnUnionMembers" type="boolean" toc={true}>
-</ParamField>
-
-<ParamField path="includeOtherInUnionTypes" type="boolean" toc={true}>
-</ParamField>
-
-<ParamField path="noScripts" type="boolean" toc={true}>
-Prevent the generator from running any scripts such as `yarn format` or `yarn install`. If any of the scripts cause errors, toggling this option will allow you to receive the generated code.
-</ParamField>
-
