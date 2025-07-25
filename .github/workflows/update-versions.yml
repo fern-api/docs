@@ -1,0 +1,40 @@
+name: Update Versions
+
+on:
+  schedule:
+    - cron: "* */6 * * *"
+  workflow_dispatch:
+
+jobs:
+  update-versions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: update-csharp-version
+        run: curl -s "https://registry.hub.docker.com/v2/repositories/fernapi/fern-csharp-sdk/tags" | jq -r -j '[.results[] | select(.name != "latest")] | .[0].name' > fern/snippets/version-number-csharp.mdx
+      - name: update-go-version
+        run: curl -s "https://registry.hub.docker.com/v2/repositories/fernapi/fern-go-sdk/tags" | jq -r -j '[.results[] | select(.name != "latest")] | .[0].name' > fern/snippets/version-number-go.mdx
+      - name: update-java-version
+        run: curl -s "https://registry.hub.docker.com/v2/repositories/fernapi/fern-java-sdk/tags" | jq -r -j '[.results[] | select(.name != "latest")] | .[0].name' > fern/snippets/version-number-java.mdx
+      - name: update-php-version
+        run: curl -s "https://registry.hub.docker.com/v2/repositories/fernapi/fern-php-sdk/tags" | jq -r -j '[.results[] | select(.name != "latest")] | .[0].name' > fern/snippets/version-number-php.mdx
+      - name: update-python-version
+        run: curl -s "https://registry.hub.docker.com/v2/repositories/fernapi/fern-python-sdk/tags" | jq -r -j '[.results[] | select(.name != "latest")] | .[0].name' > fern/snippets/version-number-python.mdx
+      - name: update-ruby-version
+        run: curl -s "https://registry.hub.docker.com/v2/repositories/fernapi/fern-ruby-sdk/tags" | jq -r -j '[.results[] | select(.name != "latest")] | .[0].name' > fern/snippets/version-number-ruby.mdx
+      - name: update-ts-version
+        run: curl -s "https://registry.hub.docker.com/v2/repositories/fernapi/fern-typescript-sdk/tags" | jq -r -j '[.results[] | select(.name != "latest")] | .[0].name' > fern/snippets/version-number-ts.mdx
+      - name: create PR
+        id: cpr
+        uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: "update versions from docker hub"
+          title: "Update versions from docker hub"
+          branch: update-versions
+          delete-branch: true
+      - name: Enable Pull Request Automerge
+        if: steps.cpr.outputs.pull-request-operation == 'created'
+        uses: peter-evans/enable-pull-request-automerge@v3
+        with:
+          pull-request-number: ${{ steps.cpr.outputs.pull-request-number }}
+          merge-method: squash
