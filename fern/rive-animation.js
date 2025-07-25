@@ -276,7 +276,7 @@
         // AI Animation with custom event handling
         createRiveAnimation({
             canvasSelector: '#ai-rive-canvas',
-            riveUrl: 'https://cdn.prod.website-files.com/67880ff570cdb1a85eee946f/68825e97fd6225e1c8a7488c_b8d233d3b43c3da6eff8cc65874d7b49_ai_animation.riv',
+            riveUrl: 'https://cdn.prod.website-files.com/67880ff570cdb1a85eee946f/68825e97fd6225e1c8a7488c_c2966309b38902c92adfe24c2dc8ba5a_ai_animation.riv',
             aspectRatio: 371/99,
             stateMachine: "State Machine 1",
             fallbackImages: [

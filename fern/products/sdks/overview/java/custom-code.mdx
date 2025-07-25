@@ -106,68 +106,92 @@ description: Augment your Java SDK with custom utilities
 
 ## Adding custom client configuration
 
-When you need to intercept and transform client configuration before the SDK client is created, you can extend the generated builder classes. This allows you to add custom code and logic during the client initialization process.
+The Java SDK generator supports builder extensibility through a template method pattern. By extending the generated builder classes and overriding protected methods, you can customize how your SDK client is configured without modifying generated code.
 
 Common use cases include:
 - **Dynamic URL construction**: Replace placeholders with runtime values (e.g., `https://api.${DEV_NAMESPACE}.example.com`)
 - **Custom authentication**: Implement complex auth flows beyond basic token authentication
 - **Request transformation**: Add custom headers or modify requests globally
 
+### How it works
+
+Generated builders use protected methods that can be overridden:
+
+```java
+public class BaseApiClientBuilder {
+    protected ClientOptions buildClientOptions() {
+        ClientOptions.Builder builder = ClientOptions.builder();
+        setEnvironment(builder);
+        setAuthentication(builder);    // Only if API has auth
+        setCustomHeaders(builder);     // Only if API defines headers
+        setVariables(builder);         // Only if API has variables
+        setHttpClient(builder);
+        setTimeouts(builder);
+        setRetries(builder);
+        setAdditional(builder);         
+        return builder.build();
+    }
+}
+```
+
 <Steps>
 
-### Create a custom client that extends the base client
+### Create a custom client class
 
-This client will serve as the entry point for your customized SDK.
+Extend the generated base client:
 
 ```java title="src/main/java/com/example/MyClient.java"
 package com.example;
 
-import com.example.client.BaseClient;
-import com.example.client.ClientOptions;
+import com.example.api.BaseClient;
+import com.example.api.core.ClientOptions;
 
 public class MyClient extends BaseClient {
     public MyClient(ClientOptions clientOptions) {
         super(clientOptions);
     }
-    
+
     public static MyClientBuilder builder() {
         return new MyClientBuilder();
     }
 }
 ```
 
-### Create a custom builder with your transformation logic
+### Create a custom builder class
 
-Override the `buildClientOptions()` method to intercept and modify the configuration before the client is created.
+Override methods to customize behavior:
 
-```java title="src/main/java/com/example/MyClientBuilder.java" {10}
+```java title="src/main/java/com/example/MyClientBuilder.java"
 package com.example;
 
-import com.example.client.BaseClient.BaseClientBuilder;
-import com.example.client.ClientOptions;
-import com.example.environment.Environment;
+import com.example.api.BaseClient.BaseClientBuilder;
+import com.example.api.core.ClientOptions;
+import com.example.api.core.Environment;
 
 public class MyClientBuilder extends BaseClientBuilder {
+
     @Override
-    protected ClientOptions buildClientOptions() {
-        ClientOptions base = super.buildClientOptions();
-        
-        // Transform configuration as needed
-        String transformedUrl = transformEnvironmentVariables(
-            base.environment().getUrl()
-        );
-        
-        return ClientOptions.builder()
-            .from(base)
-            .environment(Environment.custom(transformedUrl))
-            .build();
+    protected void setEnvironment(ClientOptions.Builder builder) {
+        String url = this.environment.getUrl();
+        String expandedUrl = expandEnvironmentVariables(url);
+        builder.environment(Environment.custom(expandedUrl));
+    }
+
+    @Override
+    protected void setAdditional(ClientOptions.Builder builder) {
+        builder.addHeader("X-Request-ID", () -> UUID.randomUUID().toString());
+    }
+
+    @Override
+    public MyClient build() {
+        return new MyClient(buildClientOptions());
     }
 }
 ```
 
 ### Update `.fernignore`
 
-Add the `MyClient.java` and `MyClientBuilder.java` to `.fernignore`.
+By adding these two files to `.fernignore`, fern will not update them on new generations.
 
 ```diff title=".fernignore"
 + src/main/java/com/example/MyClient.java
@@ -175,6 +199,82 @@ Add the `MyClient.java` and `MyClientBuilder.java` to `.fernignore`.
 ```
 
 </Steps>
+
+### Method reference
+
+Each method serves a specific purpose and is only generated when needed:
+
+| Method | Purpose | Available When |
+|--------|---------|----------------|
+| `setEnvironment(builder)` | Customize environment/URL configuration | Always |
+| `setAuthentication(builder)` | Modify or add authentication | Only if API has auth |
+| `setCustomHeaders(builder)` | Add custom headers defined in API spec | Only if API defines headers |
+| `setVariables(builder)` | Configure API variables | Only if API has variables |
+| `setHttpClient(builder)` | Customize OkHttp client | Always |
+| `setTimeouts(builder)` | Modify timeout settings | Always |
+| `setRetries(builder)` | Modify retry settings | Always |
+| `setAdditional(builder)` | Final extension point for any custom configuration | Always |
+| `validateConfiguration()` | Add custom validation logic | Always |
+| `buildClientOptions()` | Orchestrates all configuration methods (rarely need to override) | Always |
+
+### Common patterns
+
+<Accordion title="Multi-tenant URLs">
+```java
+@Override
+protected void setEnvironment(ClientOptions.Builder builder) {
+    String baseUrl = this.environment.getUrl();
+    String tenantUrl = baseUrl.replace("/api/", "/tenants/" + tenantId + "/");
+    builder.environment(Environment.custom(tenantUrl));
+}
+```
+</Accordion>
+
+<Accordion title="Dynamic authentication">
+```java
+@Override
+protected void setAuthentication(ClientOptions.Builder builder) {
+    builder.addHeader("Authorization", () -> 
+        "Bearer " + tokenProvider.getAccessToken()
+    );
+}
+```
+</Accordion>
+
+<Accordion title="Request tracking and monitoring">
+```java
+@Override
+protected void setAdditional(ClientOptions.Builder builder) {
+    // Add request tracking
+    builder.addHeader("X-Request-ID", () -> UUID.randomUUID().toString());
+    builder.addHeader("X-Client-Version", "1.0.0");
+    
+    // Add feature flags
+    if (FeatureFlags.isEnabled("new-algorithm")) {
+        builder.addHeader("X-Feature-Flag", "new-algorithm");
+    }
+}
+```
+</Accordion>
+
+<Accordion title="Advanced HTTP client configuration">
+```java
+@Override
+protected void setHttpClient(ClientOptions.Builder builder) {
+    OkHttpClient customClient = new OkHttpClient.Builder()
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .addInterceptor(new RetryInterceptor())
+        .connectionPool(new ConnectionPool(50, 5, TimeUnit.MINUTES))
+        .build();
+    builder.httpClient(customClient);
+}
+```
+</Accordion>
+
+### Requirements
+
+- **Fern Java SDK version**: 2.39.1 or later
 
 ## Adding custom dependencies
 
