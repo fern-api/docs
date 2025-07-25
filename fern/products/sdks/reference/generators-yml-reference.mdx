@@ -674,28 +674,48 @@ groups:
 
 ### GitHub Configuration
 
-<ParamField path="groups.{groupName}.generators[].github.repository" type="string" required={true} toc={true}>
+There are three ways (`mode`) to deploy your SDK code to GitHub:
+* **Commit and release** (recommended) - Fern generates your code, commits it to main, and tags a new release. 
+* **Pull request** -  Fern generates your code, commits to a new branch, and opens a PR for review. To publish, you must merge the PR and tag a GitHub release. 
+* **Push** - Fern generates your code and pushes it to the branch you specify. 
+
+For all of these modes, you must specify the GitHub repository in which you want to store your SDK code. You can optionally
+specify a branch name, license, and reviewers. 
+
+```yml {6-17}
+groups: 
+  ts-sdk:
+    generators:
+      - name: fernapi/fern-typescript-sdk
+      ...
+        github: 
+          repository: "your-org/your-repo-name"
+          mode: "commit"
+          branch: "your-branch-name"
+          license: "MIT"
+          reviewers:
+            teams:
+              - name: "sdk-team"
+              - name: "api-team"
+            users:
+              - name: "john-doe"
+              - name: "jane-smith"
+```
+
+<ParamField path="repository" type="string" required={true} toc={true}>
 </ParamField>
 
-<ParamField path="groups.{groupName}.generators[].github.mode" type="'commit' | 'release' | 'pull-request' | 'push'" required={false} toc={true}>
+<ParamField path="mode" type="'commit' | 'release' | 'pull-request' | 'push'" required={false} toc={true}>
 </ParamField>
 
-<ParamField path="groups.{groupName}.generators[].github.branch" type="string" required={false} toc={true}>
+<ParamField path="branch" type="string" required={false} toc={true}>
 </ParamField>
 
-<ParamField path="groups.{groupName}.generators[].github.license" type="GithubLicenseSchema" required={false} toc={true}>
+<ParamField path="license" type="'MIT' | 'Apache-2.0' | { custom: 'Custom License Name' }" required={false} toc={true}>
 </ParamField>
 
-<ParamField path="groups.{groupName}.generators[].github.license.MIT" type="'MIT'" required={false} toc={true}>
-</ParamField>
-
-<ParamField path="groups.{groupName}.generators[].github.license.Apache" type="'Apache-2.0'" required={false} toc={true}>
-</ParamField>
-
-<ParamField path="groups.{groupName}.generators[].github.license.custom" type="string" required={false} toc={true}>
-</ParamField>
-
-<ParamField path="groups.{groupName}.generators[].github.reviewers" type="ReviewersSchema" required={false} toc={true}>
+<ParamField path="reviewers" type="{ teams: list<string>, users: list<string> }" required={false} toc={true}>
+Specify which teams and users should review generated code. See [reviewers configuration](#reviewers-1).
 </ParamField>
 
 ### Generator Metadata
@@ -741,17 +761,14 @@ reviewers:
     - name: "jane-smith"
 ```
 
-<ParamField path="reviewers" type="ReviewersSchema" required={false} toc={true}>
+<ParamField path="teams" type="list<string>" required={false} toc={true}>
+  GitHub team names that should review generated code.
 </ParamField>
 
-<ParamField path="reviewers.teams" type="list<ReviewerSchema>" required={false} toc={true}>
+<ParamField path="users" type="list<string>" required={false} toc={true}>
+  GitHub users that should review generated code.
 </ParamField>
 
-<ParamField path="reviewers.teams[].name" type="string" required={true} toc={true}>
-</ParamField>
-
-<ParamField path="reviewers.users" type="list<ReviewerSchema>" required={false} toc={true}>
-</ParamField>
-
-<ParamField path="reviewers.users[].name" type="string" required={true} toc={true}>
+<ParamField path="name" type="string" required={true} toc={true}>
+Name of a GitHub team or a user.
 </ParamField>
