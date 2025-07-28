@@ -11,84 +11,8 @@ managing pagination complexity manually.
 
 This page describes how to configure auto pagination for your API endpoints.
 
-## Setting up auto pagination
+## How it works for SDK users
 
-To configure auto pagination, specify the dot-access path to the related request
-or response property in the `x-fern-pagination extension` (OpenAPI) or `pagination`
-field (Fern Definition).
-
-For example, if results of `my_nested_object` are located in the subfield
-`inner_list`, the dot-access path would be `results:
-$response.my_nested_object.inner_list`.
-
-```yaml {7-10}
-MyResponseObject:
-  type: object
-  properties:
-    my_nested_object:
-      type: object
-      properties:
-        inner_list: # location of results
-          type: array
-          items:
-            $ref: '#/components/schemas/MyObject'
-```
-
-
-<Tabs>
-<Tab title="OpenAPI">
-<CodeBlocks>
-```yaml Offset {6}
-...
-paths:
-  /path/to/my/endpoint:
-    x-fern-pagination:
-      offset: $request.page_number
-      results: $response.results
-...
-```
-
-```yaml Cursor {8}
-...
-paths:
-  /path/to/my/endpoint:
-    get:
-      x-fern-pagination:
-        cursor: $request.cursor
-        next_cursor: $response.next
-        results: $response.results
-...
-```
-</CodeBlocks>
-</Tab>
-
-<Tab title="Fern Definition">
-<CodeBlocks>
-
-```yaml Offset {6}
-service:
-  endpoints:
-    listWithOffsetPagination:
-      pagination: 
-        offset: $request.page
-        results: $response.data
-```
-
-```yaml Cursor {7}
-service:
-  endpoints:
-    listWithCursorPagination:
-      pagination: 
-        cursor: $request.starting_after
-        next_cursor: $response.page.next.starting_after
-        results: $response.data
-```
-
-</CodeBlocks>
-</Tab>
-</Tabs>
-
-## Generated SDK Usage
 <Tabs>
 <Tab title="TypeScript" language="typescript">
 
@@ -159,3 +83,96 @@ service:
 </Tab>
 </Tabs>
 
+
+## Setting up auto pagination
+
+Setting up auto pagination involves defining your pagination scheme and where
+your results are located.
+
+<AccordionGroup>
+<Accordion title="OpenAPI">
+
+To set up auto pagination for OpenAPI:
+
+1. Annotate the desired paginated endpoint with the `x-fern-pagination` extension.
+1. Specify the pagination scheme, `offset` or `cursor`
+1. Specify where your `results` are located, using dot-access notation.
+
+
+<CodeBlocks>
+```yaml Offset {4-6}
+...
+paths:
+  /path/to/my/endpoint:
+    x-fern-pagination: # Add pagination extension
+      offset: $request.page_number # Specify offset pagination scheme
+      results: $response.results # Specify result location
+...
+```
+
+```yaml Cursor {5-8}
+...
+paths:
+  /path/to/my/endpoint:
+    get:
+      x-fern-pagination: # Add pagination extension
+        cursor: $request.cursor # Specify cursor pagination scheme
+        next_cursor: $response.next
+        results: $response.results # Specify result location
+...
+```
+</CodeBlocks>
+
+<Info title="How to find the location of your results">
+
+  For example, if results of `my_nested_object` are located in the subfield
+  `inner_list`, the dot-access path would be `results:
+  $response.my_nested_object.inner_list`.
+
+  ```yaml {4, 7}
+  MyResponseObject:
+    type: object
+    properties:
+      my_nested_object:
+        type: object
+        properties:
+          inner_list: # location of results
+            type: array
+            items:
+              $ref: '#/components/schemas/MyObject'
+  ```
+</Info>
+</Accordion>
+
+<Accordion title="Fern Definition">
+
+To set up auto pagination for the Fern Definition:
+
+1. Annotate the desired paginated endpoint with the `pagination` field.
+1. Specify the pagination scheme, `offset` or `cursor`
+1. Specify where your `results` are located, using dot-access notation.
+
+<CodeBlocks>
+
+```yaml Offset {6}
+service:
+  endpoints:
+    listWithOffsetPagination:
+      pagination: # Add pagination field
+        offset: $request.page # Specify offset pagination scheme
+        results: $response.data # Specify result location
+```
+
+```yaml Cursor {7}
+service:
+  endpoints:
+    listWithCursorPagination:
+      pagination: # Add pagination field
+        cursor: $request.starting_after # Specify cursor pagination scheme
+        next_cursor: $response.page.next.starting_after
+        results: $response.data # Specify result location
+```
+
+</CodeBlocks>
+</Accordion>
+</AccordionGroup>

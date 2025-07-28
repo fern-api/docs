@@ -1,6 +1,6 @@
 # Fern Documentation
 
-Welcome to the Fern documentation! This repository contains the source code for Fern's comprehensive documentation site, currently live at [fern-v2.docs.buildwithfern.com](https://fern-v2.docs.buildwithfern.com).
+Welcome to the Fern documentation! This repository contains the source code for Fern's comprehensive documentation site, currently live at [fern-api.docs.buildwithfern.com/learn/home](https://fern-api.docs.buildwithfern.com/learn/home).
 
 ## 🚀 Quick Start
 
@@ -39,19 +39,32 @@ To run the documentation site locally:
 
 The development server will automatically reload when you make changes to the documentation files.
 
-## Open Issues 
+## Contribution Guide
 
-Below are links to slack conversations about what docs need to be included as part of the revamp.
+Thanks for contributing to Fern's documentation!
 
-- https://buildwithfern.slack.com/archives/C0811KJCBL4/p1749843216981529
-- https://buildwithfern.slack.com/archives/C05J55L8JES/p1749852300828139
-- https://buildwithfern.slack.com/archives/C07EQ2VEFU5/p1750085639878549
-- https://buildwithfern.slack.com/archives/C052DFWVCG6/p1750097991824229?thread_ts=1750093356.728189&cid=C052DFWVCG6
-- Add on-prem docs to enterprise https://buildwithfern.slack.com/archives/C069FN9958X/p1750085336657299 
-- https://buildwithfern.slack.com/archives/C052DFWVCG6/p1750105603399839
-- https://buildwithfern.slack.com/archives/C06N8147J4W/p1750374966649439
-- https://buildwithfern.slack.com/archives/C08L9HGAZ2T/p1750429522110329?thread_ts=1750420489.267739&cid=C08L9HGAZ2T
-- https://buildwithfern.slack.com/archives/C06N8147J4W/p1750523650796109
-- https://buildwithfern.slack.com/archives/C06UVH9HKRC/p1750709442534809?thread_ts=1750703512.877769&cid=C06UVH9HKRCj
-- https://buildwithfern.slack.com/archives/C08T7EHDHMW/p1750793551604399?thread_ts=1750792603.757169&cid=C08T7EHDHMW
+### Writing tips
+
+Keep the following principles in mind:
+
+- **Write for your audience** - Consider why users are reading your documentation and explain the use case clearly. Focus on clarity and completeness without being verbose. Add examples and code snippets when relevant.
+- **Help users get something done**. Don't try to sell users on the product, and avoid marketing language like "amazing features" or "the best solution."
+- **Write in clear, concise language**, using [active voice](https://developers.google.com/style/voice) whenever possible. Keep sentences and paragraphs short and to the point. Use a friendly, casual tone and stay away from jargon as much as you can.
+- **Use [Fern’s documentation components](https://buildwithfern.com/learn/docs/writing-content/components/overview)** whenever you can.
+- **When editing an existing page** - Match the existing heading structure, tone, and level of detail to ensure your changes integrate as seamlessly as possible.
+
+**For language and grammar help**, check out [Google's developer documentation style guide](https://developers.google.com/style) or Microsoft's [writing style guide](https://learn.microsoft.com/en-us/style-guide/welcome/)
+
+### Getting changes reviewed
+
+If you want to **add a new page or make a large structural change**:
+- [File an issue in GitHub](https://github.com/fern-api/docs/issues) and assign @devalog and @kgowru. We'll review your issue to make sure your proposed page fits with Fern's overall documentation strategy and isn't duplicating any ongoing work. 
+
+For **all other changes**:
+-  Submit a PR directly with your suggested changes. A Fern docs member will review and confirm.
+
+If you see something that is wrong or outdated in the documentation but don't know how to fix it, [file an issue](https://github.com/fern-api/docs/issues) or reach out to @devalog and @kgowru. 
+
+
+
 
