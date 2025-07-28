@@ -1,0 +1,89 @@
+docs: FAI Index API
+
+imports:
+  commons: ./commons.yml
+
+service:
+  auth: false
+  base-path: /index
+  endpoints:
+    indexDocument:
+      docs: Index a document for a given domain
+      path: /{domain}
+      method: POST
+      path-parameters:
+        domain: string
+      request:
+        name: IndexRequest
+        body:
+          properties:
+            index_name:
+              type: optional<string>
+              default: custom
+              docs: The name of the index to which the document will be added
+            document_id:
+              type: string
+              docs: A unique identifier for the document
+            context:
+              type: list<string>
+              docs: The context of the document, as a list of strings, that will be indexed.
+            content:
+              type: string
+              docs: The content of the document that will be returned in the tool response
+      errors:
+        - commons.BadRequestError
+        - commons.InternalError
+
+    getDocument:
+      docs: Get a document for a given domain
+      path: /{domain}
+      method: GET
+      path-parameters:
+        domain: string
+      request:
+        name: GetRequest
+        query-parameters:
+          document_id:
+            type: string
+            docs: The unique identifier of the document to get
+      errors:
+        - commons.BadRequestError
+        - commons.InternalError
+
+    updateDocument:
+      docs: Update a document for a given domain
+      path: /{domain}/update
+      method: POST
+      path-parameters:
+        domain: string
+      request:
+        name: UpdateRequest
+        query-parameters:
+          document_id:
+            type: string
+            docs: The unique identifier of the document to update
+          is_active:
+            type: boolean
+            docs: Whether the document is active
+          context:
+            type: list<string>
+            docs: The context of the document, as a list of strings, that will be indexed.
+          content:
+            type: string
+            docs: The content of the document that will be returned in the tool response. If not provided, the document will be removed from the index.
+      response: ContextResponse
+      errors:
+        - commons.BadRequestError
+        - commons.InternalError
+
+types:
+  ContextResponse:
+    properties:
+      document_id: string
+      domain: string
+      context_id: string
+      context: list<string>
+      content: string
+      is_active: boolean
+      created_at: datetime
+      updated_at: datetime

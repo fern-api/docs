@@ -1,0 +1,78 @@
+docs: FAI Analytics API
+
+imports:
+  commons: ./commons.yml
+
+service:
+  auth: false
+  base-path: /analytics
+  endpoints:
+    getHistogramAnalytics:
+      docs: Retrieve the usage histogram analytics for a given period
+      path: /histogram/{domain}
+      method: GET
+      path-parameters:
+        domain: string
+      request:
+        name: GetHistogramAnalyticsRequest
+        query-parameters:
+          start_date:
+            type: optional<datetime>
+            docs: The start date of the period to retrieve analytics for
+          end_date:
+            type: optional<datetime>
+            docs: The end date of the period to retrieve analytics for
+          groupBy:
+            type: GroupBy
+            docs: The field to group the analytics by
+      response: HistogramAnalytics
+      errors:
+        - commons.BadRequestError
+        - commons.InternalError
+    getInsights:
+      docs: Retrieve the insights for a given period
+      path: /insights/{domain}
+      method: GET
+      path-parameters:
+        domain: string
+      request:
+        name: GetInsightsRequest
+        query-parameters:
+          start_date:
+            type: optional<datetime>
+            docs: The start date of the period to retrieve analytics for
+          end_date:
+            type: optional<datetime>
+            docs: The end date of the period to retrieve analytics for
+      response: Insights
+      errors:
+        - commons.BadRequestError
+        - commons.InternalError
+
+types:
+  GroupBy:
+    enum:
+      - "DAY"
+      - "WEEK"
+      - "MONTH"
+
+  HistogramAnalytics:
+    properties:
+      bars: list<HistogramAnalyticsBar>
+
+  HistogramAnalyticsBar:
+    properties:
+      label: string
+      queryCount: integer
+      conversationCount: integer
+
+  Insights:
+    properties:
+      insights: list<Insight>
+
+  Insight:
+    properties:
+      insightText: string
+      numberOfQueries: integer
+      examples: list<string>
+  
