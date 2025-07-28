@@ -11,15 +11,16 @@ you'll have a versioned package published on npm.
 	<img src="assets/npm-packages.png" alt="Versioned package published on npm" />
 </Frame>
 
-## Prerequisites 
+<Info>
+	This page assumes that you have:
 
-This page assumes that you have:
+	* An initialized `fern` folder on your local machine. See [Set up the `fern`
+	folder](/sdks/overview/quickstart).
+	* A GitHub repository for your TypeScript SDK. See [Set up your GitHub structure](/sdks/github).
+	* A TypeScript generator group in `generators.yml`. See [TypeScript
+	Quickstart](quickstart#add-the-sdk-generator).
 
-* An initialized `fern` folder on your local machine. See [Set up the `fern`
-  folder](/sdks/overview/quickstart).
-* A GitHub repository for your TypeScript SDK. See [Set up your GitHub structure](/sdks/github).
-* A TypeScript generator group in `generators.yml`. See [TypeScript
-  Quickstart](quickstart#add-the-sdk-generator).
+  </Info>
 
 ## Configure `generators.yml`
 
@@ -81,7 +82,7 @@ groups:
 
 	  <Step title="Add repository location">
 
-	  Add the path to your GitHub repository to `generators.yml`: 
+	  Add the path to your GitHub repository to `generators.yml`, if you haven't already:
 
 ```yaml {11-12}
 groups: 
@@ -166,23 +167,13 @@ groups:
 <AccordionGroup>
 <Accordion title="Option 1: Configure authentication via GitHub Actions">
 
-Alternatively, you can use GitHub Actions automatically publish new versions of your SDK to npm. When you push new SDK code changes 
-GitHub actions allow you to automatically trigger releases for your SDKs and automatically push new releases to relevant package managers. 
-example: https://github.com/VapiAI/server-sdk-typescript/blob/main/.github/workflows/ci.yml
-
-For more information, see GitHub's quickstart guide: https://docs.github.com/en/actions/get-started/quickstart
+Use [GitHub Actions](https://docs.github.com/en/actions/get-started/quickstart) to automatically publish new SDK versions to npm when you push code changes. 
 
 <Steps>
 
-	<Step title="Open Repository">
-
-	Open your Fern repository in GitHub.
-
-	</Step>
-
 	<Step title="Navigate to Actions in Settings">
 
-	Click on the **Settings** tab in your repository. Then, under the **Security** section, open **Secrets and variables** > **Actions**. 
+	Open your Fern repository in GitHub. Click on the **Settings** tab in your repository. Then, under the **Security** section, open **Secrets and variables** > **Actions**. 
 
 	<Frame>
 	<img src="assets/github-secret.png" alt="Adding GitHub Repository Secret" />
@@ -192,20 +183,10 @@ For more information, see GitHub's quickstart guide: https://docs.github.com/en/
 
 	</Step>
 
-	<Step title="Add secret for your NPM Token">
+	<Step title="Add secret for your npm Token">
 
 	1.    Select **New repository secret**. 
 	1.    Name your secret `NPM_TOKEN`.
-	1.    Add the corresponding token you generated above.
-	1.    Click **Add secret**. 
-
-	</Step>
-
-	<Step title="Generate and Add Secret for your Fern Token">
-
-	1.    Generate a Fern token by running `fern token` and saving the token id. 
-	1.    Select **New repository secret**. 
-	1.    Name your secret `FERN_TOKEN`.
 	1.    Add the corresponding token you generated above.
 	1.    Click **Add secret**. 
 
@@ -218,49 +199,86 @@ For more information, see GitHub's quickstart guide: https://docs.github.com/en/
 		1.    Click on the **Settings** tab in your repository. 
 		1.    Under the **Code and automation** section, navigate to **Actions** > **General**. 
         1.    Under **Actions permissions**, select **Allow all actions and reusable workflows**.
-		1.    **Save** your settings. Now GitHub can run any actions you configure. 
+		1.    **Save** your settings. Now GitHub can run the actions you configure. 
 
 	</Step>
-	<Step title="Set up a GitHub Action">
+	<Step title="Set up a publishing workflow">
 
-    Add a GitHub Action to trigger releases for your SDK.
+    Use GitHub Actions to set up a workflow that automatically publishes your new releases to npm.
 
-    Navigate to the **Actions** tab in your repositiory and select **set up a workflow yourself**. GitHub will automatically set up a blank yml file in a new `.github/workflows` directory.
+    To get started, navigate to the **Actions** tab in your repositiory and select **set up a workflow yourself**. GitHub will automatically set up a blank yml file in a new `.github/workflows` directory.
 
-        Rename this file `publish-typescript-sdk.yml` (or something similar). Your file should look like this:
+	Rename this file `ci.yml`. Your file should look like this:
 
+	```yaml title=".github/workflows/ci.yml" maxLines=0
+name: ci
 
-		```yaml title="TypeScript" maxLines=0
-			name: Publish TypeScript SDK
+on: [push]
 
-			on:
-			  workflow_dispatch:
-			    inputs:
-			      version:
-			        description: "The version of the TypeScript SDK that you would like to release"
-			        required: true
-			        type: string
+jobs:
+  compile:
+    runs-on: ubuntu-latest
 
-			jobs:
-			  release:
-			    runs-on: ubuntu-latest
-			    steps:
-			      - name: Checkout repo
-			        uses: actions/checkout@v4
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
-			      - name: Install Fern CLI
-			        run: npm install -g fern-api
+      - name: Set up node
+        uses: actions/setup-node@v3
 
-			      - name: Release TypeScript SDK
-			        env:
-			          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
-			          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-			        run: |
-			          fern generate --group ts-sdk --version ${{ inputs.version }} --log-level debug
-		```
+      - name: Compile
+        run: yarn && yarn build
+
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up node
+        uses: actions/setup-node@v3
+
+      - name: Compile
+        run: yarn && yarn test    
+
+  publish:
+    needs: [ compile, test ]
+    if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+      - name: Set up node
+        uses: actions/setup-node@v3
+      - name: Install dependencies
+        run: yarn install
+      - name: Build
+        run: yarn build
+
+      - name: Publish to npm
+        run: |
+          npm config set //registry.npmjs.org/:_authToken ${NPM_TOKEN}
+          if [[ ${GITHUB_REF} == *alpha* ]]; then
+            npm publish --access public --tag alpha
+          elif [[ ${GITHUB_REF} == *beta* ]]; then
+            npm publish --access public --tag beta
+          else
+            npm publish --access public
+          fi
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+	```
+
+	For another example, see Vapi's [npm publishing GitHub Action](https://github.com/VapiAI/server-sdk-typescript/blob/main/.github/workflows/ci.yml)
 	</Step>
+
 	<Step title="Update `.fernignore`">
-	Once your workflow is configured, add github/workflow/ci.yml files to .fernignore so regenerating releases doesn't overwrite your workflow.
+	Once your workflow is configured, add your new workflow file to `.fernignore` so regenerating releases doesn't overwrite your workflow.
+
+	```diff title=".fernignore"
+    + .github/workflows/ci.yml
+    ```
 
 	</Step>
 </Steps>
