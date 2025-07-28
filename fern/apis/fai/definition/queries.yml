@@ -1,0 +1,74 @@
+docs: FAI Queries API
+
+imports:
+  commons: ./commons.yml
+  conversations: ./conversations.yml
+
+service:
+  auth: false
+  base-path: /
+  endpoints:
+    createQuery:
+      docs: Log a new query to the FAI DB
+      path: /queries
+      method: POST
+      request:
+        name: CreateQueryRequest
+        body:
+          properties:
+            query_id: string
+            conversation_id: string
+            domain: string
+            text: string
+            role: string
+            source: string
+            created_at: datetime
+            time_to_first_token:
+              type: optional<double>
+              docs: Time in seconds until first token was received. Only specified for Assistant responses.
+      errors:
+        - commons.BadRequestError
+        - commons.InternalError
+
+    getRecentQueries:
+      docs: Retrieve all paginated recent queries
+      path: /queries/{domain}
+      method: GET
+      path-parameters:
+        domain:
+          type: string
+          docs: The domain to retrieve queries for
+      request:
+        name: GetRecentQueriesRequest
+        query-parameters:
+          page: optional<integer>
+          limit: optional<integer>
+          cutoff_time: optional<datetime>
+          include_assistant: optional<boolean>
+          start_date:
+            type: optional<datetime>
+            docs: The start date of the period to retrieve analytics for
+          end_date:
+            type: optional<datetime>
+            docs: The end date of the period to retrieve analytics for
+      response: QueryPage
+      errors:
+        - commons.BadRequestError
+        - commons.InternalError
+
+types:
+  Query:
+    properties:
+      query_id: string
+      conversation_id: string
+      domain: string
+      text: string
+      role: string
+      source: string
+      created_at: datetime
+      time_to_first_token: optional<double>
+      
+  QueryPage:
+    properties:
+      queries: list<Query>
+      total: integer
