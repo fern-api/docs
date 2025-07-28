@@ -10,6 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
       - name: update-csharp-version
         run: curl -s "https://registry.hub.docker.com/v2/repositories/fernapi/fern-csharp-sdk/tags" | jq -r -j '[.results[] | select(.name != "latest")] | .[0].name' > fern/snippets/version-number-csharp.mdx
       - name: update-go-version
@@ -31,6 +33,7 @@ jobs:
           commit-message: "update versions from docker hub"
           title: "Update versions from docker hub"
           branch: update-versions
+          base: main
           delete-branch: true
       - name: Enable Pull Request Automerge
         if: steps.cpr.outputs.pull-request-operation == 'created'
@@ -41,7 +44,7 @@ jobs:
       - name: Approving PR
         if: steps.cpr.outputs.pull-request-operation == 'created'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.PR_BOT_GH_PAT }}
         run: |
           echo "Approving PR"
           gh pr review ${{ steps.cpr.outputs.pull-request-number }} --approve
