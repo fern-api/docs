@@ -663,6 +663,16 @@ ${context.additionalContext ? `**Additional Context:** ${context.additionalConte
       
       console.log('🌿 Fern Scribe starting...');
       
+      // Log GitHub event details
+      console.log('📋 GitHub Event Details:');
+      console.log('--- ISSUE NUMBER ---');
+      console.log(this.issueNumber);
+      console.log('--- ISSUE TITLE ---');
+      console.log(this.issueTitle);
+      console.log('--- ISSUE BODY ---');
+      console.log(this.issueBody);
+      console.log('--- END GITHUB EVENT ---');
+      
       const context = this.parseIssueBody(this.issueBody);
       console.log('📝 Parsed issue context:', context);
 
