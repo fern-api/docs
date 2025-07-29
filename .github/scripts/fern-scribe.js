@@ -8,6 +8,7 @@ class FernScribe {
     this.turbopufferEndpoint = process.env.TURBOPUFFER_ENDPOINT;
     this.turbopufferApiKey = process.env.TURBOPUFFER_API_KEY;
     this.anthropicApiKey = process.env.ANTHROPIC_API_KEY;
+    this.slackToken = process.env.SLACK_USER_TOKEN;
     
     this.owner = process.env.REPOSITORY.split('/')[0];
     this.repo = process.env.REPOSITORY.split('/')[1];
@@ -61,6 +62,247 @@ class FernScribe {
     return parsed;
   }
 
+  parseSlackUrl(url) {
+    if (!url || !url.includes('slack.com')) return null;
+    
+    // Parse Slack URL formats:
+    // https://workspace.slack.com/archives/C1234567890/p1234567890123456
+    // https://workspace.slack.com/archives/C1234567890/p1234567890123456?thread_ts=1234567890.123456
+    
+    const regex = /https:\/\/([^.]+)\.slack\.com\/archives\/([A-Z0-9]+)\/p(\d+)(?:\?thread_ts=(\d+\.\d+))?/;
+    const match = url.match(regex);
+    
+    if (!match) return null;
+    
+    const [, workspace, channelId, messageTs, threadTs] = match;
+    
+    // Convert message timestamp format (p1234567890123456 -> 1234567890.123456)
+    const timestamp = messageTs.slice(0, 10) + '.' + messageTs.slice(10);
+    
+    return {
+      workspace,
+      channelId,
+      messageTs: timestamp,
+      threadTs: threadTs || timestamp // Use thread_ts if available, otherwise use message timestamp
+    };
+  }
+
+  async fetchSlackFile(file) {
+    if (!file.url_private || !this.slackToken) return null;
+
+    try {
+      // Download the file content
+      const response = await fetch(file.url_private, {
+        headers: {
+          'Authorization': `Bearer ${this.slackToken}`
+        }
+      });
+
+      if (!response.ok) return null;
+
+      // Handle different file types
+      const mimeType = file.mimetype || '';
+      const fileName = file.name || '';
+      const fileExtension = fileName.split('.').pop()?.toLowerCase();
+
+      // Text-based files - return content directly
+      if (mimeType.startsWith('text/') || 
+          ['txt', 'md', 'json', 'yaml', 'yml', 'csv', 'log'].includes(fileExtension)) {
+        return await response.text();
+      }
+
+      // Code files - return content with language hint
+      if (['js', 'ts', 'py', 'java', 'go', 'rs', 'cpp', 'c', 'php', 'rb', 'sh', 'sql', 'html', 'css', 'xml'].includes(fileExtension)) {
+        const content = await response.text();
+        return `// File: ${fileName}\n${content}`;
+      }
+
+      // Configuration files
+      if (['env', 'config', 'ini', 'toml', 'properties'].includes(fileExtension) || fileName === 'Dockerfile') {
+        const content = await response.text();
+        return `# Configuration: ${fileName}\n${content}`;
+      }
+
+      // For binary files, return file info instead of content
+      return `[Binary file: ${fileName} (${file.size || 0} bytes, ${mimeType})]`;
+
+    } catch (error) {
+      console.error(`Failed to fetch file ${file.name}:`, error);
+      return `[Could not fetch file: ${file.name}]`;
+    }
+  }
+
+  async describeImage(imageUrl) {
+    if (!imageUrl || !this.anthropicApiKey) return null;
+
+    try {
+      // Download image and convert to base64
+      const response = await fetch(imageUrl, {
+        headers: {
+          'Authorization': `Bearer ${this.slackToken}`
+        }
+      });
+
+      if (!response.ok) return null;
+
+      const imageBuffer = await response.arrayBuffer();
+      const base64Image = Buffer.from(imageBuffer).toString('base64');
+      const mimeType = response.headers.get('content-type') || 'image/jpeg';
+
+      // Use Claude to describe the image
+      const claudeResponse = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key': this.anthropicApiKey,
+          'Content-Type': 'application/json',
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify({
+          model: 'claude-3-5-sonnet-20241022',
+          max_tokens: 300,
+          messages: [{
+            role: 'user',
+            content: [
+              {
+                type: 'image',
+                source: {
+                  type: 'base64',
+                  media_type: mimeType,
+                  data: base64Image
+                }
+              },
+              {
+                type: 'text',
+                text: 'Describe this image in detail, focusing on any text, code, diagrams, or technical content that might be relevant for documentation purposes.'
+              }
+            ]
+          }]
+        })
+      });
+
+      if (!claudeResponse.ok) return null;
+
+      const data = await claudeResponse.json();
+      return data.content[0]?.text || null;
+
+    } catch (error) {
+      console.error('Failed to describe image:', error);
+      return null;
+    }
+  }
+
+  async fetchSlackThread(slackUrl) {
+    if (!slackUrl || !this.slackToken) return '';
+    
+    const parsedUrl = this.parseSlackUrl(slackUrl);
+    if (!parsedUrl) {
+      console.log('Could not parse Slack URL:', slackUrl);
+      return '';
+    }
+
+    try {
+      // Fetch the thread replies
+      const response = await fetch(`https://slack.com/api/conversations.replies?${new URLSearchParams({
+        channel: parsedUrl.channelId,
+        ts: parsedUrl.threadTs,
+        inclusive: 'true'
+      })}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${this.slackToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Slack API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (!data.ok) {
+        console.error('Slack API error:', data.error);
+        return '';
+      }
+
+      // Format the thread messages with files and attachments
+      const messages = data.messages || [];
+      const threadContent = await Promise.all(messages.map(async (msg, index) => {
+        const timestamp = new Date(parseFloat(msg.ts) * 1000).toLocaleString();
+        const user = msg.user || 'Unknown';
+        let text = msg.text || '';
+        
+        // Preserve code blocks exactly as-is
+        const codeBlockRegex = /```([^`]*?)```/gs;
+        const codeBlocks = [];
+        text = text.replace(codeBlockRegex, (match, code) => {
+          const placeholder = `__CODE_BLOCK_${codeBlocks.length}__`;
+          codeBlocks.push(code.trim());
+          return placeholder;
+        });
+
+        // Clean up other Slack formatting but preserve structure
+        const cleanText = text
+          .replace(/<@[UW][A-Z0-9]+(\|[^>]+)?>/g, '@user') // Replace user mentions
+          .replace(/<#[CD][A-Z0-9]+\|([^>]+)>/g, '#$1') // Replace channel mentions
+          .replace(/<([^|>]+)\|([^>]+)>/g, '$2') // Replace links with text
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&amp;/g, '&');
+
+        // Restore code blocks
+        let finalText = cleanText;
+        codeBlocks.forEach((code, i) => {
+          finalText = finalText.replace(`__CODE_BLOCK_${i}__`, `\`\`\`\n${code}\n\`\`\``);
+        });
+
+        let messageContent = `[${timestamp}] ${index === 0 ? '(Original)' : ''} ${user}: ${finalText}`;
+
+        // Handle file attachments - convert all to text
+        if (msg.files && msg.files.length > 0) {
+          messageContent += '\n\n**Attached Files:**';
+          
+          for (const file of msg.files) {
+            messageContent += `\n\n--- File: ${file.name} ---`;
+            
+            // Extract text content from file
+            const fileContent = await this.fetchSlackFile(file);
+            if (fileContent) {
+              messageContent += `\n${fileContent}`;
+            }
+
+            // Describe images using Claude
+            if (file.mimetype && file.mimetype.startsWith('image/')) {
+              const imageDescription = await this.describeImage(file.url_private);
+              if (imageDescription) {
+                messageContent += `\n[Image Description: ${imageDescription}]`;
+              }
+            }
+          }
+        }
+
+        // Handle code snippets (Slack's snippet feature)
+        if (msg.attachments && msg.attachments.length > 0) {
+          for (const attachment of msg.attachments) {
+            if (attachment.text) {
+              messageContent += `\n\n**Code Snippet:**\n\`\`\`\n${attachment.text}\n\`\`\``;
+            }
+          }
+        }
+
+        return messageContent;
+      }));
+
+      const fullThreadContent = (await Promise.all(threadContent)).join('\n\n---\n\n');
+      console.log(`📱 Fetched Slack thread with ${messages.length} messages and extracted file content`);
+      return fullThreadContent;
+
+    } catch (error) {
+      console.error('Failed to fetch Slack thread:', error);
+      return '';
+    }
+  }
+
   async queryTurbopuffer(query, opts = {}) {
     if (!query || query.trimStart().length === 0) {
       return [];
@@ -105,7 +347,7 @@ class FernScribe {
 
   async createEmbedding(text) {
     try {
-      // Using OpenAI's embedding model as fallback - you can switch this to your preferred embedding service
+      // Using OpenAI's embedding model
       const response = await fetch('https://api.openai.com/v1/embeddings', {
         method: 'POST',
         headers: {
@@ -149,6 +391,7 @@ Request: ${context.requestDescription}
 Existing Instructions: ${context.existingInstructions}
 Why Current Approach Doesn't Work: ${context.whyNotWork}
 Additional Context: ${context.additionalContext}
+${context.slackThreadContent ? `\n## Slack Discussion Context\n${context.slackThreadContent}` : ''}
 
 ## Fern Docs Structure Reference
 ${fernStructure}
@@ -157,7 +400,7 @@ ${fernStructure}
 ${existingContent}
 
 ## Instructions
-Update this file to address the documentation request. Follow Fern documentation best practices and maintain consistency with the existing structure.
+Update this file to address the documentation request. Use the Slack discussion context to understand the specific pain points and requirements mentioned by users. Follow Fern documentation best practices and maintain consistency with the existing structure.
 
 Provide the complete updated file content:`;
 
@@ -346,12 +589,26 @@ ${context.additionalContext ? `**Additional Context:** ${context.additionalConte
       const context = this.parseIssueBody(this.issueBody);
       console.log('📝 Parsed issue context:', context);
 
+      // Fetch Slack thread if URL provided
+      let slackThreadContent = '';
+      if (context.slackThread) {
+        console.log('📱 Fetching Slack thread content...');
+        slackThreadContent = await this.fetchSlackThread(context.slackThread);
+      }
+
+      // Create enhanced query text that includes both request description and Slack context
+      const enhancedQuery = [
+        context.requestDescription,
+        slackThreadContent ? `\n\nSlack Discussion Context:\n${slackThreadContent}` : '',
+        context.additionalContext ? `\n\nAdditional Context:\n${context.additionalContext}` : ''
+      ].filter(Boolean).join('\n');
+
       // Query TurboBuffer for relevant files
       console.log('🔍 Querying TurboBuffer for relevant files...');
       const searchResultURLs = new Set();
       const searchResults = [];
       
-      const turbopufferResults = await this.queryTurbopuffer(context.requestDescription, {
+      const turbopufferResults = await this.queryTurbopuffer(enhancedQuery, {
         namespace: process.env.TURBOPUFFER_NAMESPACE || 'default',
         topK: 3
       });
@@ -398,7 +655,8 @@ ${context.additionalContext ? `**Additional Context:** ${context.additionalConte
         const currentContent = await this.getCurrentFileContent(filePath);
         const contextWithDocument = {
           ...context,
-          currentDocument: result.attributes?.document || ''
+          currentDocument: result.attributes?.document || '',
+          slackThreadContent
         };
         
         const updatedContent = await this.generateContent(filePath, currentContent, contextWithDocument, fernStructure);
