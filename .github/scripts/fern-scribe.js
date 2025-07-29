@@ -390,33 +390,6 @@ class FernScribe {
     }
   }
 
-  async createEmbedding(text) {
-    try {
-      // Using OpenAI's embedding model
-      const response = await fetch('https://api.openai.com/v1/embeddings', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model: 'text-embedding-3-small',
-          input: text
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Embedding API error: ${response.status}`);
-      }
-
-      const data = await response.json();
-      return data.data[0]?.embedding;
-    } catch (error) {
-      console.error('Embedding creation failed:', error);
-      return null;
-    }
-  }
-
   async getFernDocsStructure() {
     try {
       const response = await fetch('https://buildwithfern.com/learn/llms.txt');
@@ -639,6 +612,11 @@ ${context.additionalContext ? `**Additional Context:** ${context.additionalConte
       if (context.slackThread) {
         console.log('📱 Fetching Slack thread content...');
         slackThreadContent = await this.fetchSlackThread(context.slackThread);
+        console.log('📱 Slack thread content length:', slackThreadContent.length);
+        console.log('📱 Full Slack thread content:');
+        console.log('--- SLACK THREAD START ---');
+        console.log(slackThreadContent);
+        console.log('--- SLACK THREAD END ---');
       }
 
       // Create enhanced query text that includes both request description and Slack context
@@ -650,7 +628,10 @@ ${context.additionalContext ? `**Additional Context:** ${context.additionalConte
 
       // Debug logging
       console.log('🔍 Enhanced query length:', enhancedQuery.length);
-      console.log('🔍 Enhanced query preview:', enhancedQuery.substring(0, 500) + '...');
+      console.log('🔍 Full enhanced query:');
+      console.log('--- ENHANCED QUERY START ---');
+      console.log(enhancedQuery);
+      console.log('--- ENHANCED QUERY END ---');
       console.log('🔍 Namespace:', process.env.TURBOPUFFER_NAMESPACE || 'default');
 
       // Query TurboBuffer for relevant files
