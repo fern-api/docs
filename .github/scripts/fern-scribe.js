@@ -305,14 +305,17 @@ class FernScribe {
 
   async queryTurbopuffer(query, opts = {}) {
     if (!query || query.trimStart().length === 0) {
+      console.log('🔧 Empty query provided to Turbopuffer');
       return [];
     }
 
     try {
+      console.log('🔧 Querying Turbopuffer with options:', JSON.stringify(opts, null, 2));
+      
       // Create embedding for the query
       const embeddingResponse = await this.createEmbedding(query);
       if (!embeddingResponse) {
-        console.error('Failed to create embedding for query');
+        console.error('🔧 Failed to create embedding for query');
         return [];
       }
 
@@ -324,6 +327,11 @@ class FernScribe {
         ...(opts.urlsToIgnore && { urls_to_ignore: opts.urlsToIgnore })
       };
 
+      console.log('🔧 Turbopuffer request body (without embedding):', {
+        ...requestBody,
+        query_embedding: `[${embeddingResponse.length} dimensions]`
+      });
+
       const response = await fetch(this.turbopufferEndpoint, {
         method: 'POST',
         headers: {
@@ -334,19 +342,26 @@ class FernScribe {
       });
 
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('🔧 Turbopuffer API error details:', errorText);
         throw new Error(`Turbopuffer API error: ${response.status}`);
       }
 
       const data = await response.json();
+      console.log('🔧 Turbopuffer response structure:', Object.keys(data));
+      console.log('🔧 Turbopuffer results count:', data.results?.length || 0);
+      
       return data.results || [];
     } catch (error) {
-      console.error('Turbopuffer query failed:', error);
+      console.error('🔧 Turbopuffer query failed:', error);
       return [];
     }
   }
 
   async createEmbedding(text) {
     try {
+      console.log('🔧 Creating embedding for text of length:', text.length);
+      
       // Using OpenAI's embedding model
       const response = await fetch('https://api.openai.com/v1/embeddings', {
         method: 'POST',
@@ -361,13 +376,16 @@ class FernScribe {
       });
 
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('🔧 Embedding API error details:', errorText);
         throw new Error(`Embedding API error: ${response.status}`);
       }
 
       const data = await response.json();
+      console.log('🔧 Embedding created successfully, dimensions:', data.data[0]?.embedding?.length);
       return data.data[0]?.embedding;
     } catch (error) {
-      console.error('Embedding creation failed:', error);
+      console.error('🔧 Embedding creation failed:', error);
       return null;
     }
   }
@@ -603,6 +621,11 @@ ${context.additionalContext ? `**Additional Context:** ${context.additionalConte
         context.additionalContext ? `\n\nAdditional Context:\n${context.additionalContext}` : ''
       ].filter(Boolean).join('\n');
 
+      // Debug logging
+      console.log('🔍 Enhanced query length:', enhancedQuery.length);
+      console.log('🔍 Enhanced query preview:', enhancedQuery.substring(0, 500) + '...');
+      console.log('🔍 Namespace:', process.env.TURBOPUFFER_NAMESPACE || 'default');
+
       // Query TurboBuffer for relevant files
       console.log('🔍 Querying TurboBuffer for relevant files...');
       const searchResultURLs = new Set();
@@ -612,6 +635,11 @@ ${context.additionalContext ? `**Additional Context:** ${context.additionalConte
         namespace: process.env.TURBOPUFFER_NAMESPACE || 'default',
         topK: 3
       });
+
+      console.log('🔍 Turbopuffer results count:', turbopufferResults.length);
+      if (turbopufferResults.length > 0) {
+        console.log('🔍 First result preview:', JSON.stringify(turbopufferResults[0], null, 2));
+      }
 
       // Deduplicate results by URL (following the original logic)
       for (const result of turbopufferResults) {
