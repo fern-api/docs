@@ -32,15 +32,15 @@ Each product can contain its own distinct versions, tabs, sections, pages, and A
 Create a `products` folder inside of your `fern` folder. To specify a product's contents and navigational structure, add a `.yml` file to the `products` folder for each product.
 Make sure to include the `navigation` and `tabs` properties, if applicable.
 
-```bash
+```bash {4, 7-8}
 fern/
   ├─ fern.config.json
   ├─ generators.yml
-  ├─ docs.yml
+  ├─ docs.yml # Site-level contents and navigation
   └─ products/
     ├─ ...
-    ├─ product-a.yml
-    └─ product-b.yml
+    ├─ product-a.yml # Contents and navigation for Product A
+    └─ product-b.yml # Contents and navigation for Product B
 ```
 
 <CodeBlocks>
@@ -92,39 +92,10 @@ The optional parameters are: `image`, `icon`, `subtitle`, `slug`, and `versions`
 
 <Note>If you provide both an `image` and an `icon`, the `image` will take precedence.</Note>
 
-<Accordion title='Setting up Versioned Products'>
-  Products can be versioned or unversioned. The following is an example of how more complex products might be organized:
-
-  ```bash
-  fern/
-    ├─ fern.config.json
-    ├─ generators.yml
-    ├─ docs.yml
-    ├─ pages/
-      ├─ ...
-    └─ products/
-      ├── product-a.yml # basic unversioned product
-      ├── product-b/ # unversioned product with product-specific pages
-      │   ├─ pages/...
-      │   └─ product-with-pages.yml
-      └── product-c/ # versioned product
-          ├─ product-c.yml
-          └─ versions/
-            ├─ v1/
-            │  ├─ v1.yml
-            │  └─ pages/...
-            └─ v2/
-              ├─ v2.yml
-              └─ pages/...
-  ```
-
-  For more information on setting up versions, follow our [versioning docs](/learn/docs/building-and-customizing-your-docs/versioning).
-</Accordion>
-
-
+The below example is a `docs.yml` configuration for a site with two products, Product A and Product B.
 
 <CodeBlock title="docs.yml">
-```yaml
+```yaml {2-3, 8-9}
 products:
   - display-name: Product A
     path: ./products/product-a.yml
@@ -137,6 +108,54 @@ products:
     image: ./images/product-b.png # optional
     slug: product-b # optional
     subtitle: Product B subtitle # optional
+```
+</CodeBlock>
+
+### Add versioning to your products (optional)
+
+You can optionally add versions to a product. Versioned and unversioned products can live next to each other in your site. Each version of a single product has its own `yml` file.
+
+In the below example, Product A is **unversioned** and Product B is **versioned**:
+
+<CodeBlock>
+
+  ```bash {8, 10-17}
+  fern/
+    ├─ fern.config.json
+    ├─ generators.yml
+    ├─ docs.yml
+    ├─ pages/
+      ├─ ...
+    └─ products/
+      ├── product-a.yml # basic unversioned product
+      └── product-b/ # versioned product
+          ├─ product-b.yml
+          └─ versions/
+            ├─ latest/
+            │  ├─ latest.yml
+            │  └─ pages/...
+            └─ v2/
+              ├─ v2.yml
+              └─ pages/...
+  ```
+</CodeBlock>
+
+The top-level `doc.yml` configuration for a Fern Docs website containing two products, one unversioned and one versioned, might look something like this:
+
+<CodeBlock title="docs.yml">
+```yaml {2, 8, 13-17}
+products:
+  - display-name: Product A # unversioned
+    path: ./products/product-a.yml
+    icon: fa-solid fa-leaf # optional
+    slug: product-a # optional
+    subtitle: Product A subtitle # optional
+
+  - display-name: Product B # versioned
+    path: ./products/product-b/latest.yml # <-- default showing latest
+    image: ./images/product-b.png # optional
+    slug: product-b # optional
+    subtitle: Product B subtitle # optional
     versions: # optional
       - display-name: Latest
         path: ./products/product-b/latest.yml
@@ -144,6 +163,8 @@ products:
         path: ./products/product-b/v2.yml
 ```
 </CodeBlock>
+
+For more information on setting up versioned products, follow our [versioning docs](/docs/navigation/versions).
 
 ### Remove extra `navigation` from `docs.yml`
 If your `docs.yml` file includes a `navigation` field or a `tabs` field, be sure to remove. Those fields should now belong in the product-specific `.yml` files. 
