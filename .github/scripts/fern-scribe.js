@@ -305,17 +305,27 @@ class FernScribe {
 
   async queryTurbopuffer(query, opts = {}) {
     if (!query || query.trimStart().length === 0) {
+<<<<<<< HEAD
       console.log('🔧 Empty query provided to Turbopuffer');
+=======
+>>>>>>> origin/main
       return [];
     }
 
     try {
+<<<<<<< HEAD
       console.log('🔧 Querying Turbopuffer with options:', JSON.stringify(opts, null, 2));
       
       // Create embedding for the query
       const embeddingResponse = await this.createEmbedding(query);
       if (!embeddingResponse) {
         console.error('🔧 Failed to create embedding for query');
+=======
+      // Create embedding for the query
+      const embeddingResponse = await this.createEmbedding(query);
+      if (!embeddingResponse) {
+        console.error('Failed to create embedding for query');
+>>>>>>> origin/main
         return [];
       }
 
@@ -327,11 +337,14 @@ class FernScribe {
         ...(opts.urlsToIgnore && { urls_to_ignore: opts.urlsToIgnore })
       };
 
+<<<<<<< HEAD
       console.log('🔧 Turbopuffer request body (without embedding):', {
         ...requestBody,
         query_embedding: `[${embeddingResponse.length} dimensions]`
       });
 
+=======
+>>>>>>> origin/main
       const response = await fetch(this.turbopufferEndpoint, {
         method: 'POST',
         headers: {
@@ -339,6 +352,7 @@ class FernScribe {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(requestBody)
+<<<<<<< HEAD
       });
 
       if (!response.ok) {
@@ -379,13 +393,51 @@ class FernScribe {
         const errorText = await response.text();
         console.error('🔧 Embedding API error details:', errorText);
         throw new Error(`Embedding API error: ${response.status}`);
+=======
+      });
+
+      if (!response.ok) {
+        throw new Error(`Turbopuffer API error: ${response.status}`);
+>>>>>>> origin/main
       }
 
       const data = await response.json();
       console.log('🔧 Embedding created successfully, dimensions:', data.data[0]?.embedding?.length);
       return data.data[0]?.embedding;
     } catch (error) {
+<<<<<<< HEAD
       console.error('🔧 Embedding creation failed:', error);
+      return null;
+=======
+      console.error('Turbopuffer query failed:', error);
+      return [];
+>>>>>>> origin/main
+    }
+  }
+
+  async createEmbedding(text) {
+    try {
+      // Using OpenAI's embedding model
+      const response = await fetch('https://api.openai.com/v1/embeddings', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'text-embedding-3-small',
+          input: text
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Embedding API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.data[0]?.embedding;
+    } catch (error) {
+      console.error('Embedding creation failed:', error);
       return null;
     }
   }
@@ -621,11 +673,14 @@ ${context.additionalContext ? `**Additional Context:** ${context.additionalConte
         context.additionalContext ? `\n\nAdditional Context:\n${context.additionalContext}` : ''
       ].filter(Boolean).join('\n');
 
+<<<<<<< HEAD
       // Debug logging
       console.log('🔍 Enhanced query length:', enhancedQuery.length);
       console.log('🔍 Enhanced query preview:', enhancedQuery.substring(0, 500) + '...');
       console.log('🔍 Namespace:', process.env.TURBOPUFFER_NAMESPACE || 'default');
 
+=======
+>>>>>>> origin/main
       // Query TurboBuffer for relevant files
       console.log('🔍 Querying TurboBuffer for relevant files...');
       const searchResultURLs = new Set();
@@ -636,11 +691,14 @@ ${context.additionalContext ? `**Additional Context:** ${context.additionalConte
         topK: 3
       });
 
+<<<<<<< HEAD
       console.log('🔍 Turbopuffer results count:', turbopufferResults.length);
       if (turbopufferResults.length > 0) {
         console.log('🔍 First result preview:', JSON.stringify(turbopufferResults[0], null, 2));
       }
 
+=======
+>>>>>>> origin/main
       // Deduplicate results by URL (following the original logic)
       for (const result of turbopufferResults) {
         const url = result.attributes?.url || 
