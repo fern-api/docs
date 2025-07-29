@@ -61,30 +61,72 @@ class FernScribe {
     return parsed;
   }
 
-  async queryTurbopuffer(query) {
+  async queryTurbopuffer(query, opts = {}) {
+    if (!query || query.trimStart().length === 0) {
+      return [];
+    }
+
     try {
+      // Create embedding for the query
+      const embeddingResponse = await this.createEmbedding(query);
+      if (!embeddingResponse) {
+        console.error('Failed to create embedding for query');
+        return [];
+      }
+
+      const requestBody = {
+        query_embedding: embeddingResponse,
+        top_k: opts.topK || 10,
+        namespace: opts.namespace,
+        ...(opts.documentIdsToIgnore && { document_ids_to_ignore: opts.documentIdsToIgnore }),
+        ...(opts.urlsToIgnore && { urls_to_ignore: opts.urlsToIgnore })
+      };
+
       const response = await fetch(this.turbopufferEndpoint, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${this.turbopufferApiKey}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          query: query,
-          top_k: 10,
-          include_metadata: true
-        })
+        body: JSON.stringify(requestBody)
       });
 
       if (!response.ok) {
-        throw new Error(`TurboBuffer API error: ${response.status}`);
+        throw new Error(`Turbopuffer API error: ${response.status}`);
       }
 
       const data = await response.json();
       return data.results || [];
     } catch (error) {
-      console.error('TurboBuffer query failed:', error);
+      console.error('Turbopuffer query failed:', error);
       return [];
+    }
+  }
+
+  async createEmbedding(text) {
+    try {
+      // Using OpenAI's embedding model as fallback - you can switch this to your preferred embedding service
+      const response = await fetch('https://api.openai.com/v1/embeddings', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'text-embedding-3-small',
+          input: text
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Embedding API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.data[0]?.embedding;
+    } catch (error) {
+      console.error('Embedding creation failed:', error);
+      return null;
     }
   }
 
@@ -306,12 +348,35 @@ ${context.additionalContext ? `**Additional Context:** ${context.additionalConte
 
       // Query TurboBuffer for relevant files
       console.log('🔍 Querying TurboBuffer for relevant files...');
-      const relevantFiles = await this.queryTurbopuffer(context.requestDescription);
+      const searchResultURLs = new Set();
+      const searchResults = [];
       
-      if (relevantFiles.length === 0) {
+      const turbopufferResults = await this.queryTurbopuffer(context.requestDescription, {
+        namespace: process.env.TURBOPUFFER_NAMESPACE || 'default',
+        topK: 3
+      });
+
+      // Deduplicate results by URL (following the original logic)
+      for (const result of turbopufferResults) {
+        const url = result.attributes?.url || 
+                   `https://${result.attributes?.domain}${result.attributes?.pathname}${result.attributes?.hash || ''}`;
+        
+        if (result.attributes?.url) {
+          if (!searchResultURLs.has(result.attributes.url)) {
+            searchResultURLs.add(result.attributes.url);
+            searchResults.push(result);
+          }
+        } else {
+          searchResults.push(result);
+        }
+      }
+      
+      if (searchResults.length === 0) {
         console.log('❌ No relevant files found');
         return;
       }
+
+      console.log(`📁 Found ${searchResults.length} relevant files`);
 
       // Get Fern docs structure
       const fernStructure = await this.getFernDocsStructure();
@@ -324,14 +389,19 @@ ${context.additionalContext ? `**Additional Context:** ${context.additionalConte
       const filesUpdated = [];
 
       // Process each relevant file
-      for (const file of relevantFiles) {
-        const filePath = file.metadata?.path || file.path;
+      for (const result of searchResults) {
+        const filePath = result.attributes?.pathname || result.path;
         if (!filePath) continue;
 
         console.log(`📄 Processing: ${filePath}`);
         
         const currentContent = await this.getCurrentFileContent(filePath);
-        const updatedContent = await this.generateContent(filePath, currentContent, context, fernStructure);
+        const contextWithDocument = {
+          ...context,
+          currentDocument: result.attributes?.document || ''
+        };
+        
+        const updatedContent = await this.generateContent(filePath, currentContent, contextWithDocument, fernStructure);
         
         if (updatedContent && updatedContent !== currentContent) {
           await this.updateFile(
