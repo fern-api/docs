@@ -1,0 +1,235 @@
+---
+title: Authentication
+subtitle: Model auth schemes for JSON-RPC APIs including bearer, basic, and api key authentication
+---
+
+Authentication in OpenRPC can be configured at the server level or method level, depending on your JSON-RPC implementation. Unlike REST APIs, JSON-RPC typically handles authentication through the transport layer (HTTP headers) or within the JSON-RPC request payload.
+
+## HTTP Transport Authentication
+
+When using HTTP as the transport for JSON-RPC, you can use standard HTTP authentication schemes.
+
+### Bearer Token Authentication
+
+Configure bearer token authentication for HTTP-based JSON-RPC:
+
+```yml title="openrpc.yml" {4-9}
+servers:
+  - name: production
+    url: https://api.example.com/rpc
+    description: Production JSON-RPC server
+    security:
+      - bearerAuth: []
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+```
+
+This generates SDK methods that require a token:
+
+```typescript
+const client = new JSONRPCClient({
+  url: "https://api.example.com/rpc",
+  auth: {
+    bearer: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  }
+});
+
+// Call JSON-RPC method
+const result = await client.call("calculate.add", { a: 5, b: 3 });
+```
+
+### API Key Authentication
+
+Configure API key authentication:
+
+```yml title="openrpc.yml" {4-9}
+servers:
+  - name: production
+    url: https://api.example.com/rpc
+    description: Production JSON-RPC server
+    security:
+      - apiKeyAuth: []
+components:
+  securitySchemes:
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+```
+
+Usage in SDK:
+
+```typescript
+const client = new JSONRPCClient({
+  url: "https://api.example.com/rpc",
+  auth: {
+    apiKey: "your-api-key-here"
+  }
+});
+```
+
+### Basic Authentication
+
+Configure basic authentication:
+
+```yml title="openrpc.yml" {4-9}
+servers:
+  - name: production
+    url: https://api.example.com/rpc
+    description: Production JSON-RPC server
+    security:
+      - basicAuth: []
+components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+```
+
+Usage in SDK:
+
+```typescript
+const client = new JSONRPCClient({
+  url: "https://api.example.com/rpc",
+  auth: {
+    username: "user@example.com",
+    password: "password123"
+  }
+});
+```
+
+## Method-Level Authentication
+
+Some JSON-RPC implementations may require different authentication for specific methods:
+
+```yml title="openrpc.yml" {6-7, 15-16}
+methods:
+  - name: public.getInfo
+    summary: Get public information
+    description: Publicly accessible method (no auth required)
+    params: []
+    result:
+      name: info
+      schema:
+        type: object
+  - name: user.getProfile
+    summary: Get user profile
+    description: Requires user authentication
+    security:
+      - bearerAuth: []
+    params:
+      - name: userId
+        schema:
+          type: string
+        required: true
+    result:
+      name: profile
+      schema:
+        $ref: '#/components/schemas/UserProfile'
+```
+
+## WebSocket Authentication
+
+For WebSocket transport, authentication typically happens during connection establishment:
+
+```yml title="openrpc.yml" {4-8}
+servers:
+  - name: websocket
+    url: wss://api.example.com/rpc
+    description: WebSocket JSON-RPC server
+    variables:
+      token:
+        description: Authentication token for WebSocket connection
+        default: ""
+    security:
+      - wsAuth: []
+components:
+  securitySchemes:
+    wsAuth:
+      type: apiKey
+      in: query
+      name: token
+      description: Authentication token passed as query parameter
+```
+
+## Custom Authentication Parameters
+
+For JSON-RPC APIs that handle authentication within the request payload:
+
+```yml title="openrpc.yml" {8-16}
+methods:
+  - name: auth.login
+    summary: Authenticate user
+    description: Login method that returns authentication token
+    params:
+      - name: credentials
+        schema:
+          type: object
+          properties:
+            username:
+              type: string
+            password:
+              type: string
+          required:
+            - username
+            - password
+    result:
+      name: authResult
+      schema:
+        type: object
+        properties:
+          token:
+            type: string
+          expiresIn:
+            type: integer
+          refreshToken:
+            type: string
+```
+
+## Fern Extensions for Authentication
+
+Use Fern extensions to customize authentication behavior:
+
+```yml title="openrpc.yml" {5-8}
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      x-fern-token:
+        name: authToken
+        env: AUTH_TOKEN
+```
+
+This allows users to set authentication via environment variables or constructor parameters, making the SDK more flexible and secure.
+
+## Error Handling for Authentication
+
+Define standardized error responses for authentication failures:
+
+```yml title="openrpc.yml" {2-12}
+components:
+  errors:
+    - code: -32001
+      message: Authentication required
+      data:
+        type: object
+        properties:
+          error:
+            type: string
+            const: "Authentication token is required"
+    - code: -32002
+      message: Invalid authentication
+      data:
+        type: object
+        properties:
+          error:
+            type: string
+            const: "Invalid or expired authentication token"
+```
+
+These error codes follow JSON-RPC 2.0 conventions while providing clear authentication feedback to API consumers. 

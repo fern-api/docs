@@ -1,0 +1,309 @@
+---
+title: Notifications
+subtitle: Document one-way JSON-RPC calls that don't expect a response
+---
+
+Notifications in JSON-RPC are one-way method calls that don't expect a response from the server. They're useful for fire-and-forget operations like logging, analytics, or triggering background processes.
+
+## Basic notifications
+
+Define a notification by omitting the `result` property:
+
+```yml title="openrpc.yml" {2-12}
+methods:
+  - name: analytics.track
+    summary: Track user analytics event
+    description: Send an analytics event (no response expected)
+    params:
+      - name: event
+        schema:
+          type: object
+          properties:
+            userId:
+              type: string
+            eventType:
+              type: string
+              enum: [page_view, click, conversion, signup]
+            properties:
+              type: object
+              additionalProperties: true
+            timestamp:
+              type: string
+              format: date-time
+          required:
+            - userId
+            - eventType
+        required: true
+    # Note: No result property - this makes it a notification
+    examples:
+      - name: PageViewEvent
+        description: Track a page view
+        params:
+          event:
+            userId: "user_123"
+            eventType: "page_view"
+            properties:
+              page: "/dashboard"
+              referrer: "https://google.com"
+            timestamp: "2024-01-15T10:30:00Z"
+```
+
+## Logging notifications
+
+Use notifications for logging and monitoring:
+
+```yml title="openrpc.yml" {2-15}
+methods:
+  - name: log.error
+    summary: Log an error event
+    description: Send error information for monitoring (fire and forget)
+    params:
+      - name: errorData
+        schema:
+          type: object
+          properties:
+            level:
+              type: string
+              enum: [error, warning, info, debug]
+            message:
+              type: string
+            stackTrace:
+              type: string
+            userId:
+              type: string
+            sessionId:
+              type: string
+            metadata:
+              type: object
+              additionalProperties: true
+          required:
+            - level
+            - message
+        required: true
+    examples:
+      - name: ApplicationError
+        description: Log an application error
+        params:
+          errorData:
+            level: "error"
+            message: "Database connection failed"
+            stackTrace: "Error: Connection timeout\n  at Database.connect (db.js:45)"
+            userId: "user_456"
+            sessionId: "session_789"
+            metadata:
+              component: "user-service"
+              version: "1.2.3"
+```
+
+## Real-time updates
+
+Send real-time updates without expecting responses:
+
+```yml title="openrpc.yml" {2-16}
+methods:
+  - name: presence.update
+    summary: Update user presence status
+    description: Notify about user presence changes
+    params:
+      - name: presenceData
+        schema:
+          type: object
+          properties:
+            userId:
+              type: string
+            status:
+              type: string
+              enum: [online, away, busy, offline]
+            lastSeen:
+              type: string
+              format: date-time
+            customMessage:
+              type: string
+              maxLength: 100
+          required:
+            - userId
+            - status
+        required: true
+    examples:
+      - name: UserOnline
+        description: User comes online
+        params:
+          presenceData:
+            userId: "user_123"
+            status: "online"
+            lastSeen: "2024-01-15T10:30:00Z"
+            customMessage: "Working on the new feature"
+```
+
+## Background processing
+
+Trigger background tasks without waiting for completion:
+
+```yml title="openrpc.yml" {2-20}
+methods:
+  - name: email.send
+    summary: Send email notification
+    description: Queue an email for sending (background processing)
+    params:
+      - name: emailRequest
+        schema:
+          type: object
+          properties:
+            to:
+              type: array
+              items:
+                type: string
+                format: email
+              minItems: 1
+            subject:
+              type: string
+            body:
+              type: string
+            templateId:
+              type: string
+            variables:
+              type: object
+              additionalProperties: true
+            priority:
+              type: string
+              enum: [low, normal, high, urgent]
+              default: normal
+          required:
+            - to
+            - subject
+            - body
+        required: true
+    examples:
+      - name: WelcomeEmail
+        description: Send welcome email to new user
+        params:
+          emailRequest:
+            to: ["newuser@example.com"]
+            subject: "Welcome to our platform!"
+            body: "Thank you for signing up..."
+            templateId: "welcome_template"
+            variables:
+              userName: "John Doe"
+              activationLink: "https://app.example.com/activate/123"
+            priority: "normal"
+```
+
+## Cache invalidation
+
+Notify about cache invalidation events:
+
+```yml title="openrpc.yml" {2-15}
+methods:
+  - name: cache.invalidate
+    summary: Invalidate cache entries
+    description: Notify cache system to invalidate specific entries
+    params:
+      - name: invalidationRequest
+        schema:
+          type: object
+          properties:
+            keys:
+              type: array
+              items:
+                type: string
+              description: Cache keys to invalidate
+            pattern:
+              type: string
+              description: Pattern for batch invalidation
+            namespace:
+              type: string
+              description: Cache namespace
+          anyOf:
+            - required: [keys]
+            - required: [pattern]
+        required: true
+    examples:
+      - name: InvalidateUserCache
+        description: Invalidate user-related cache entries
+        params:
+          invalidationRequest:
+            keys: ["user:123", "user:123:profile", "user:123:settings"]
+            namespace: "users"
+      - name: InvalidatePatternCache
+        description: Invalidate all product cache entries
+        params:
+          invalidationRequest:
+            pattern: "product:*"
+            namespace: "catalog"
+```
+
+## Audit logging
+
+Record audit events for compliance:
+
+```yml title="openrpc.yml" {2-18}
+methods:
+  - name: audit.record
+    summary: Record audit event
+    description: Log security and compliance events
+    params:
+      - name: auditEvent
+        schema:
+          type: object
+          properties:
+            eventType:
+              type: string
+              enum: [login, logout, data_access, data_modification, permission_change]
+            actor:
+              type: object
+              properties:
+                userId:
+                  type: string
+                email:
+                  type: string
+                ipAddress:
+                  type: string
+                userAgent:
+                  type: string
+              required: [userId]
+            resource:
+              type: object
+              properties:
+                type:
+                  type: string
+                id:
+                  type: string
+                name:
+                  type: string
+            timestamp:
+              type: string
+              format: date-time
+            metadata:
+              type: object
+              additionalProperties: true
+          required:
+            - eventType
+            - actor
+            - timestamp
+        required: true
+    examples:
+      - name: LoginAudit
+        description: Record user login event
+        params:
+          auditEvent:
+            eventType: "login"
+            actor:
+              userId: "user_123"
+              email: "john@example.com"
+              ipAddress: "192.168.1.100"
+              userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            timestamp: "2024-01-15T10:30:00Z"
+            metadata:
+              loginMethod: "password"
+              mfaUsed: true
+```
+
+## Notification best practices
+
+- Use notifications for fire-and-forget operations where you don't need to know if the operation succeeded
+- Consider using regular methods with results for critical operations that need confirmation
+- Include enough context in notification parameters for proper processing
+- Use structured schemas even for notifications to maintain API consistency
+- Consider implementing client-side queuing for notifications in unreliable network conditions
+
+Notifications are perfect for decoupling systems and improving performance by not waiting for non-critical operations to complete. 

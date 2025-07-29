@@ -1,0 +1,187 @@
+---
+title: Authentication
+subtitle: Model auth schemes such as bearer, basic, and api key for your event-driven APIs. 
+---
+
+Configuring authentication schemes happens in the `components.securitySchemes` section of AsyncAPI. 
+
+```yml title="asyncapi.yml" {2-3}
+components: 
+  securitySchemes: 
+    ...
+```
+
+<Note>
+To apply a security scheme across all operations, reference the `securityScheme` within the `security` section of your AsyncAPI Specification. 
+
+```yml title="asyncapi.yml" {3, 5-6}
+components: 
+  securitySchemes: 
+    AuthScheme:
+      ...
+security: 
+  - AuthScheme: []
+```
+</Note>
+
+## Bearer security scheme
+
+Start by defining a `bearer` security scheme in your `asyncapi.yml`: 
+
+```yml title="asyncapi.yml" {3-5}
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+```
+
+This will generate an SDK where the user would have to provide 
+a mandatory argument called `token`. 
+
+```ts index.ts
+const client = new Client({
+  token: "ey34..."
+})
+```
+
+If you want to control variable naming and the environment variable to scan, 
+use the configuration below: 
+
+```yml title="asyncapi.yml" {4-6}
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      x-fern-token:
+        name: authToken
+        env: AUTH_TOKEN
+```
+
+## API Key security scheme
+
+Start by defining an `apiKey` security scheme in your `asyncapi.yml`: 
+
+```yml title="asyncapi.yml" {3-6}
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+```
+
+This will generate an SDK where the user would have to provide 
+a mandatory argument called `apiKey`. 
+
+```ts index.ts
+const client = new Client({
+  apiKey: "my-api-key"
+})
+```
+
+### Custom API Key variable name
+
+If you want to control variable naming and the environment variable to scan, 
+use the configuration below:
+
+```yml title="asyncapi.yml" {5-7}
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      x-fern-api-key:
+        name: customApiKey
+        env: CUSTOM_API_KEY
+      in: header
+      name: X-API-Key
+```
+
+## Basic security scheme
+
+Start by defining a `basic` security scheme in your `asyncapi.yml`: 
+
+```yml title="asyncapi.yml" {3-5}
+components:
+  securitySchemes:
+    BasicAuth:
+      type: http
+      scheme: basic
+```
+
+This will generate an SDK where the user would have to provide 
+a `username` and `password`. 
+
+```ts index.ts
+const client = new Client({
+  username: "john@example.com",
+  password: "password123"
+})
+```
+
+### Custom Basic Auth variable names
+
+If you want to control variable naming and the environment variables to scan, 
+use the configuration below:
+
+```yml title="asyncapi.yml" {4-7}
+components:
+  securitySchemes:
+    BasicAuth:
+      type: http
+      scheme: basic
+      x-fern-username:
+        name: email
+        env: EMAIL
+      x-fern-password:
+        name: pass
+        env: PASSWORD
+```
+
+## OAuth2 security scheme
+
+OAuth2 authentication is supported for AsyncAPI specifications:
+
+```yml title="asyncapi.yml" {3-11}
+components:
+  securitySchemes:
+    OAuth2:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://example.com/oauth/authorize
+          tokenUrl: https://example.com/oauth/token
+          scopes:
+            read: Read access to resources
+            write: Write access to resources
+```
+
+This will generate an SDK that supports OAuth2 flow for event-driven operations.
+
+## Multiple security schemes
+
+You can specify multiple security schemes and apply them to different operations:
+
+```yml title="asyncapi.yml" {2-12, 16-17}
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+    BearerAuth:
+      type: http
+      scheme: bearer
+    OAuth2:
+      type: oauth2
+      flows: ...
+
+operations:
+  sendMessage:
+    security:
+      - ApiKeyAuth: []
+      - BearerAuth: []
+```
+
+This allows different operations to use different authentication methods as needed. 

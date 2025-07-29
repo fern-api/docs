@@ -1,0 +1,277 @@
+---
+title: JSON-RPC Methods
+subtitle: Document JSON-RPC methods with parameters, results, and error handling
+---
+
+Methods in OpenRPC are the core building blocks of your JSON-RPC API. Each method defines the procedure name, parameters, return values, and potential errors.
+
+```yml title="openrpc.yml" {2-19}
+methods:
+  - name: user.create
+    summary: Create a new user
+    description: Creates a new user account with the provided information
+    params:
+      - name: userData
+        schema:
+          $ref: '#/components/schemas/CreateUserRequest'
+        required: true
+        description: User data for account creation
+    result:
+      name: createdUser
+      schema:
+        $ref: '#/components/schemas/User'
+      description: The newly created user object
+    examples:
+      - name: CreateUserExample
+        description: Example of creating a user
+        params:
+          userData:
+            email: "john@example.com"
+            name: "John Doe"
+            age: 30
+        result:
+          id: "user_123"
+          email: "john@example.com"
+          name: "John Doe"
+          age: 30
+          createdAt: "2024-01-15T10:30:00Z"
+```
+
+## Method parameters
+
+Parameters in JSON-RPC can be positional (by-position) or named (by-name):
+
+### Named parameters
+```yml title="openrpc.yml" {4-14}
+methods:
+  - name: calculate.add
+    summary: Add two numbers
+    paramStructure: by-name
+    params:
+      - name: a
+        schema:
+          type: number
+        required: true
+        description: First number
+      - name: b
+        schema:
+          type: number
+        required: true
+        description: Second number
+    result:
+      name: sum
+      schema:
+        type: number
+```
+
+### Positional parameters
+```yml title="openrpc.yml" {4-12}
+methods:
+  - name: calculate.multiply
+    summary: Multiply two numbers
+    paramStructure: by-position
+    params:
+      - schema:
+          type: number
+        description: First number (multiplicand)
+      - schema:
+          type: number
+        description: Second number (multiplier)
+    result:
+      name: product
+      schema:
+        type: number
+```
+
+## Complex parameter types
+
+Use complex schemas for method parameters:
+
+```yml title="openrpc.yml" {6-24}
+methods:
+  - name: order.create
+    summary: Create a new order
+    description: Creates a new order with items and shipping information
+    params:
+      - name: orderData
+        schema:
+          type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/OrderItem'
+              minItems: 1
+            shippingAddress:
+              $ref: '#/components/schemas/Address'
+            paymentMethod:
+              type: string
+              enum: [credit_card, paypal, bank_transfer]
+            notes:
+              type: string
+              maxLength: 500
+          required:
+            - items
+            - shippingAddress
+            - paymentMethod
+        required: true
+    result:
+      name: order
+      schema:
+        $ref: '#/components/schemas/Order'
+```
+
+## Method results
+
+Define the structure of successful method responses:
+
+```yml title="openrpc.yml" {8-20}
+methods:
+  - name: search.products
+    summary: Search for products
+    params:
+      - name: query
+        schema:
+          type: string
+        required: true
+    result:
+      name: searchResults
+      schema:
+        type: object
+        properties:
+          products:
+            type: array
+            items:
+              $ref: '#/components/schemas/Product'
+          totalCount:
+            type: integer
+          hasMore:
+            type: boolean
+          nextCursor:
+            type: string
+        required:
+          - products
+          - totalCount
+          - hasMore
+```
+
+## Error handling
+
+Define custom errors for your methods:
+
+```yml title="openrpc.yml" {10-24}
+methods:
+  - name: user.login
+    summary: Authenticate user
+    params:
+      - name: email
+        schema:
+          type: string
+          format: email
+        required: true
+    errors:
+      - code: -32001
+        message: Invalid credentials
+        data:
+          type: object
+          properties:
+            error:
+              type: string
+              const: "Email or password is incorrect"
+      - code: -32002
+        message: Account locked
+        data:
+          type: object
+          properties:
+            error:
+              type: string
+              const: "Account temporarily locked due to failed login attempts"
+            unlockTime:
+              type: string
+              format: date-time
+    result:
+      name: authResult
+      schema:
+        $ref: '#/components/schemas/AuthToken'
+```
+
+## Method examples
+
+Provide comprehensive examples for better documentation:
+
+```yml title="openrpc.yml" {12-35}
+methods:
+  - name: file.upload
+    summary: Upload a file
+    params:
+      - name: fileData
+        schema:
+          type: object
+          properties:
+            filename:
+              type: string
+            content:
+              type: string
+              format: base64
+            mimeType:
+              type: string
+        required: true
+    examples:
+      - name: ImageUpload
+        description: Upload a JPEG image
+        params:
+          fileData:
+            filename: "photo.jpg"
+            content: "/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/2wBDAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwC/gA=="
+            mimeType: "image/jpeg"
+        result:
+          fileId: "file_abc123"
+          url: "https://cdn.example.com/files/file_abc123.jpg"
+          size: 1024000
+      - name: DocumentUpload
+        description: Upload a PDF document
+        params:
+          fileData:
+            filename: "document.pdf"
+            content: "JVBERi0xLjQKJdPr6eEKMSAwIG9iago8PAovVHlwZSAvQ2F0YWxvZwovUGFnZXMgMiAwIFIKPj4KZW5kb2JqCgoyIDAgb2JqCjw8Ci9UeXBlIC9QYWdlcwo="
+            mimeType: "application/pdf"
+        result:
+          fileId: "file_def456"
+          url: "https://cdn.example.com/files/file_def456.pdf"
+          size: 256000
+```
+
+## Optional parameters
+
+Define optional parameters with default values:
+
+```yml title="openrpc.yml" {6-19}
+methods:
+  - name: report.generate
+    summary: Generate a report
+    params:
+      - name: reportType
+        schema:
+          type: string
+          enum: [daily, weekly, monthly, yearly]
+        required: true
+      - name: format
+        schema:
+          type: string
+          enum: [pdf, csv, json]
+          default: pdf
+        required: false
+        description: Output format (defaults to PDF)
+      - name: includeCharts
+        schema:
+          type: boolean
+          default: true
+        required: false
+        description: Include charts in the report
+    result:
+      name: report
+      schema:
+        $ref: '#/components/schemas/Report'
+```
+
+Methods are the foundation of your JSON-RPC API, providing a clear contract for what operations are available, what data they expect, and what they return. 

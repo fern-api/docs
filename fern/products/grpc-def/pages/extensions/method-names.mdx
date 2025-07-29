@@ -1,0 +1,330 @@
+---
+title: SDK Method Names
+subtitle: Use `x-fern-sdk-method-name` to customize SDK method names for gRPC methods
+---
+
+By default, Fern generates SDK method names based on your gRPC service and method names. You can override this behavior using the `x-fern-sdk-method-name` extension.
+
+## Customize method names
+
+Use `x-fern-sdk-method-name` to specify custom method names for your gRPC methods:
+
+```protobuf title="user_service.proto"
+syntax = "proto3";
+
+package userservice.v1;
+
+service UserService {
+  // Customize the SDK method name
+  rpc GetUserById(GetUserByIdRequest) returns (User) {
+    option (x_fern_sdk_method_name) = "getUser";
+  }
+  
+  // Another customized method name
+  rpc CreateNewUser(CreateNewUserRequest) returns (User) {
+    option (x_fern_sdk_method_name) = "create";
+  }
+  
+  // Remove redundant service name from method
+  rpc UpdateUserProfile(UpdateUserProfileRequest) returns (User) {
+    option (x_fern_sdk_method_name) = "updateProfile";
+  }
+}
+```
+
+This will generate SDK methods like:
+
+```typescript
+// Instead of client.userService.getUserById()
+const user = await client.userService.getUser({ id: "user_123" });
+
+// Instead of client.userService.createNewUser()
+const newUser = await client.userService.create({ userData: {...} });
+
+// Instead of client.userService.updateUserProfile()
+const updatedUser = await client.userService.updateProfile({ profileData: {...} });
+```
+
+## Method naming conventions
+
+Follow these conventions when naming SDK methods:
+
+### CRUD operations
+Use standard CRUD naming for common operations:
+
+```protobuf title="crud_service.proto"
+syntax = "proto3";
+
+package userservice.v1;
+
+service UserService {
+  rpc CreateUser(CreateUserRequest) returns (User) {
+    option (x_fern_sdk_method_name) = "create";
+  }
+  
+  rpc GetUser(GetUserRequest) returns (User) {
+    option (x_fern_sdk_method_name) = "get";
+  }
+  
+  rpc UpdateUser(UpdateUserRequest) returns (User) {
+    option (x_fern_sdk_method_name) = "update";
+  }
+  
+  rpc DeleteUser(DeleteUserRequest) returns (google.protobuf.Empty) {
+    option (x_fern_sdk_method_name) = "delete";
+  }
+  
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse) {
+    option (x_fern_sdk_method_name) = "list";
+  }
+}
+```
+
+### Search and query operations
+Use descriptive names for search operations:
+
+```protobuf title="search_service.proto"
+syntax = "proto3";
+
+package userservice.v1;
+
+service UserService {
+  rpc SearchUsers(SearchUsersRequest) returns (SearchUsersResponse) {
+    option (x_fern_sdk_method_name) = "search";
+  }
+  
+  rpc FindUserByEmail(FindUserByEmailRequest) returns (User) {
+    option (x_fern_sdk_method_name) = "findByEmail";
+  }
+  
+  rpc QueryUsersByRole(QueryUsersByRoleRequest) returns (QueryUsersResponse) {
+    option (x_fern_sdk_method_name) = "queryByRole";
+  }
+}
+```
+
+### Action operations
+Use action-oriented names for business operations:
+
+```protobuf title="action_service.proto"
+syntax = "proto3";
+
+package userservice.v1;
+
+service UserService {
+  rpc ActivateUserAccount(ActivateUserAccountRequest) returns (User) {
+    option (x_fern_sdk_method_name) = "activate";
+  }
+  
+  rpc DeactivateUserAccount(DeactivateUserAccountRequest) returns (User) {
+    option (x_fern_sdk_method_name) = "deactivate";
+  }
+  
+  rpc ResetUserPassword(ResetUserPasswordRequest) returns (ResetPasswordResponse) {
+    option (x_fern_sdk_method_name) = "resetPassword";
+  }
+  
+  rpc SendVerificationEmail(SendVerificationEmailRequest) returns (google.protobuf.Empty) {
+    option (x_fern_sdk_method_name) = "sendVerification";
+  }
+}
+```
+
+## Language-specific method names
+
+You can specify different method names for different programming languages:
+
+```protobuf title="language_specific.proto"
+syntax = "proto3";
+
+package userservice.v1;
+
+service UserService {
+  rpc GetUserPreferences(GetUserPreferencesRequest) returns (UserPreferences) {
+    option (x_fern_sdk_method_name_python) = "get_preferences";
+    option (x_fern_sdk_method_name_typescript) = "getPreferences";
+    option (x_fern_sdk_method_name_go) = "GetPreferences";
+    option (x_fern_sdk_method_name_java) = "getPreferences";
+    option (x_fern_sdk_method_name_csharp) = "GetPreferences";
+  }
+  
+  rpc UpdateUserPreferences(UpdateUserPreferencesRequest) returns (UserPreferences) {
+    option (x_fern_sdk_method_name_python) = "update_preferences";
+    option (x_fern_sdk_method_name_typescript) = "updatePreferences";
+    option (x_fern_sdk_method_name_go) = "UpdatePreferences";
+    option (x_fern_sdk_method_name_java) = "updatePreferences";
+    option (x_fern_sdk_method_name_csharp) = "UpdatePreferences";
+  }
+}
+```
+
+## Streaming method names
+
+For streaming methods, use appropriate naming:
+
+```protobuf title="streaming_service.proto"
+syntax = "proto3";
+
+package userservice.v1;
+
+service UserStreamingService {
+  // Server streaming
+  rpc StreamUserEvents(StreamUserEventsRequest) returns (stream UserEvent) {
+    option (x_fern_sdk_method_name) = "streamEvents";
+  }
+  
+  // Client streaming
+  rpc UploadUserData(stream UploadUserDataRequest) returns (UploadUserDataResponse) {
+    option (x_fern_sdk_method_name) = "upload";
+  }
+  
+  // Bidirectional streaming
+  rpc ChatWithUser(stream ChatMessage) returns (stream ChatMessage) {
+    option (x_fern_sdk_method_name) = "chat";
+  }
+  
+  // Real-time notifications
+  rpc SubscribeToNotifications(SubscribeRequest) returns (stream Notification) {
+    option (x_fern_sdk_method_name) = "subscribe";
+  }
+}
+```
+
+## Service-level naming
+
+Customize the service name for better SDK organization:
+
+```protobuf title="service_naming.proto"
+syntax = "proto3";
+
+package userservice.v1;
+
+service UserManagementService {
+  option (x_fern_sdk_service_name) = "users";
+  
+  rpc CreateUser(CreateUserRequest) returns (User) {
+    option (x_fern_sdk_method_name) = "create";
+  }
+  
+  rpc GetUser(GetUserRequest) returns (User) {
+    option (x_fern_sdk_method_name) = "get";
+  }
+}
+
+service AuthenticationService {
+  option (x_fern_sdk_service_name) = "auth";
+  
+  rpc LoginUser(LoginUserRequest) returns (LoginResponse) {
+    option (x_fern_sdk_method_name) = "login";
+  }
+  
+  rpc LogoutUser(LogoutUserRequest) returns (google.protobuf.Empty) {
+    option (x_fern_sdk_method_name) = "logout";
+  }
+}
+```
+
+This generates cleaner SDK interfaces:
+
+```typescript
+// Instead of client.userManagementService.createUser()
+await client.users.create({ userData: {...} });
+
+// Instead of client.authenticationService.loginUser()
+await client.auth.login({ credentials: {...} });
+```
+
+## Handling method overloading
+
+For services with similar methods, use descriptive names to avoid conflicts:
+
+```protobuf title="overloaded_methods.proto"
+syntax = "proto3";
+
+package userservice.v1;
+
+service UserService {
+  // Get user by ID
+  rpc GetUser(GetUserRequest) returns (User) {
+    option (x_fern_sdk_method_name) = "get";
+  }
+  
+  // Get user by email
+  rpc GetUserByEmail(GetUserByEmailRequest) returns (User) {
+    option (x_fern_sdk_method_name) = "getByEmail";
+  }
+  
+  // Get user by username
+  rpc GetUserByUsername(GetUserByUsernameRequest) returns (User) {
+    option (x_fern_sdk_method_name) = "getByUsername";
+  }
+  
+  // Get multiple users
+  rpc GetUsers(GetUsersRequest) returns (GetUsersResponse) {
+    option (x_fern_sdk_method_name) = "getMany";
+  }
+}
+```
+
+## Async method naming
+
+For long-running operations, consider async naming:
+
+```protobuf title="async_methods.proto"
+syntax = "proto3";
+
+package userservice.v1;
+
+service UserService {
+  // Quick operation
+  rpc GetUser(GetUserRequest) returns (User) {
+    option (x_fern_sdk_method_name) = "get";
+  }
+  
+  // Long-running operation
+  rpc GenerateUserReport(GenerateUserReportRequest) returns (Operation) {
+    option (x_fern_sdk_method_name) = "generateReportAsync";
+  }
+  
+  // Batch operation
+  rpc BatchUpdateUsers(BatchUpdateUsersRequest) returns (Operation) {
+    option (x_fern_sdk_method_name) = "batchUpdateAsync";
+  }
+}
+```
+
+## Grouping related methods
+
+Use consistent naming for related operations:
+
+```protobuf title="grouped_methods.proto"
+syntax = "proto3";
+
+package userservice.v1;
+
+service UserService {
+  // Profile operations
+  rpc GetUserProfile(GetUserProfileRequest) returns (UserProfile) {
+    option (x_fern_sdk_method_name) = "getProfile";
+  }
+  
+  rpc UpdateUserProfile(UpdateUserProfileRequest) returns (UserProfile) {
+    option (x_fern_sdk_method_name) = "updateProfile";
+  }
+  
+  rpc DeleteUserProfile(DeleteUserProfileRequest) returns (google.protobuf.Empty) {
+    option (x_fern_sdk_method_name) = "deleteProfile";
+  }
+  
+  // Settings operations
+  rpc GetUserSettings(GetUserSettingsRequest) returns (UserSettings) {
+    option (x_fern_sdk_method_name) = "getSettings";
+  }
+  
+  rpc UpdateUserSettings(UpdateUserSettingsRequest) returns (UserSettings) {
+    option (x_fern_sdk_method_name) = "updateSettings";
+  }
+}
+```
+
+This ensures method names follow the conventions of each target language while maintaining clear and intuitive APIs for developers. 

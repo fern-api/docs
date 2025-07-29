@@ -1,0 +1,514 @@
+---
+title: Streaming
+subtitle: Implement server streaming, client streaming, and bidirectional streaming with gRPC
+---
+
+gRPC supports four types of service methods: unary, server streaming, client streaming, and bidirectional streaming. Streaming enables efficient real-time communication and large data transfers.
+
+## Server Streaming
+
+Server streaming allows the server to send multiple responses to a single client request:
+
+```protobuf title="streaming_service.proto"
+syntax = "proto3";
+
+package streaming.v1;
+
+service StreamingService {
+  // Server streaming: send multiple events to client
+  rpc StreamUserEvents(StreamUserEventsRequest) returns (stream UserEvent);
+  
+  // Server streaming: download large file in chunks
+  rpc DownloadFile(DownloadFileRequest) returns (stream FileChunk);
+  
+  // Server streaming: real-time notifications
+  rpc SubscribeToNotifications(SubscribeRequest) returns (stream Notification);
+}
+
+message StreamUserEventsRequest {
+  string user_id = 1;
+  repeated UserEventType event_types = 2;
+  google.protobuf.Timestamp start_time = 3;
+}
+
+message UserEvent {
+  string id = 1;
+  string user_id = 2;
+  UserEventType type = 3;
+  google.protobuf.Timestamp timestamp = 4;
+  google.protobuf.Any data = 5;
+}
+
+enum UserEventType {
+  USER_EVENT_TYPE_UNSPECIFIED = 0;
+  USER_EVENT_TYPE_LOGIN = 1;
+  USER_EVENT_TYPE_LOGOUT = 2;
+  USER_EVENT_TYPE_PROFILE_UPDATE = 3;
+  USER_EVENT_TYPE_PASSWORD_CHANGE = 4;
+}
+```
+
+Server streaming implementation:
+
+```python title="server_streaming.py"
+import grpc
+import time
+import asyncio
+from grpc import ServicerContext
+from typing import Iterator
+
+class StreamingServiceServicer(streaming_pb2_grpc.StreamingServiceServicer):
+    
+    def StreamUserEvents(
+        self, 
+        request: streaming_pb2.StreamUserEventsRequest, 
+        context: ServicerContext
+    ) -> Iterator[streaming_pb2.UserEvent]:
+        """Stream user events in real-time."""
+        
+        # Validate request
+        if not request.user_id:
+            context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+            context.set_details('User ID is required')
+            return
+        
+        # Subscribe to event stream
+        event_subscriber = self.event_store.subscribe(
+            user_id=request.user_id,
+            event_types=request.event_types,
+            start_time=request.start_time
+        )
+        
+        try:
+            while context.is_active():
+                # Wait for next event (with timeout)
+                try:
+                    event = event_subscriber.get_next_event(timeout=30)
+                    if event:
+                        yield event
+                    else:
+                        # Send heartbeat to keep connection alive
+                        continue
+                        
+                except TimeoutError:
+                    # Check if client is still connected
+                    if not context.is_active():
+                        break
+                        
+                except Exception as e:
+                    context.set_code(grpc.StatusCode.INTERNAL)
+                    context.set_details(f'Error streaming events: {str(e)}')
+                    break
+                    
+        finally:
+            # Clean up subscription
+            event_subscriber.close()
+    
+    def DownloadFile(
+        self, 
+        request: streaming_pb2.DownloadFileRequest, 
+        context: ServicerContext
+    ) -> Iterator[streaming_pb2.FileChunk]:
+        """Download file in chunks."""
+        
+        try:
+            file_path = self.file_store.get_file_path(request.file_id)
+            if not file_path or not os.path.exists(file_path):
+                context.set_code(grpc.StatusCode.NOT_FOUND)
+                context.set_details(f'File {request.file_id} not found')
+                return
+            
+            chunk_size = 64 * 1024  # 64KB chunks
+            
+            with open(file_path, 'rb') as f:
+                while True:
+                    chunk_data = f.read(chunk_size)
+                    if not chunk_data:
+                        break
+                    
+                    # Check if client disconnected
+                    if not context.is_active():
+                        break
+                    
+                    yield streaming_pb2.FileChunk(
+                        data=chunk_data,
+                        offset=f.tell() - len(chunk_data),
+                        size=len(chunk_data)
+                    )
+                    
+        except Exception as e:
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details(f'Error downloading file: {str(e)}')
+```
+
+## Client Streaming
+
+Client streaming allows the client to send multiple requests and receive a single response:
+
+```protobuf title="client_streaming.proto"
+service StreamingService {
+  // Client streaming: upload large file in chunks
+  rpc UploadFile(stream FileChunk) returns (UploadFileResponse);
+  
+  // Client streaming: batch data processing
+  rpc ProcessDataBatch(stream DataRecord) returns (BatchProcessingResult);
+  
+  // Client streaming: real-time metrics collection
+  rpc CollectMetrics(stream MetricData) returns (MetricsCollectionResult);
+}
+
+message FileChunk {
+  oneof data {
+    FileMetadata metadata = 1;
+    bytes chunk = 2;
+  }
+}
+
+message FileMetadata {
+  string filename = 1;
+  int64 total_size = 2;
+  string content_type = 3;
+  string checksum = 4;
+}
+
+message UploadFileResponse {
+  string file_id = 1;
+  int64 bytes_uploaded = 2;
+  string download_url = 3;
+  bool checksum_verified = 4;
+}
+```
+
+Client streaming implementation:
+
+```python title="client_streaming.py"
+class StreamingServiceServicer(streaming_pb2_grpc.StreamingServiceServicer):
+    
+    def UploadFile(
+        self, 
+        request_iterator: Iterator[streaming_pb2.FileChunk], 
+        context: ServicerContext
+    ) -> streaming_pb2.UploadFileResponse:
+        """Upload file from client stream."""
+        
+        file_metadata = None
+        total_bytes = 0
+        file_path = None
+        hasher = hashlib.sha256()
+        
+        try:
+            for chunk in request_iterator:
+                if chunk.HasField('metadata'):
+                    # First chunk contains metadata
+                    file_metadata = chunk.metadata
+                    
+                    # Create temporary file
+                    file_id = str(uuid.uuid4())
+                    file_path = f'/tmp/uploads/{file_id}'
+                    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+                    
+                elif chunk.HasField('chunk'):
+                    # Subsequent chunks contain file data
+                    if not file_metadata:
+                        context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+                        context.set_details('File metadata must be sent first')
+                        return streaming_pb2.UploadFileResponse()
+                    
+                    # Write chunk to file
+                    with open(file_path, 'ab') as f:
+                        f.write(chunk.chunk)
+                    
+                    total_bytes += len(chunk.chunk)
+                    hasher.update(chunk.chunk)
+                    
+                    # Check size limit
+                    if total_bytes > file_metadata.total_size:
+                        context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+                        context.set_details('File size exceeds declared size')
+                        return streaming_pb2.UploadFileResponse()
+            
+            # Verify checksum
+            computed_checksum = hasher.hexdigest()
+            checksum_verified = computed_checksum == file_metadata.checksum
+            
+            if not checksum_verified:
+                context.set_code(grpc.StatusCode.DATA_LOSS)
+                context.set_details('File checksum verification failed')
+                return streaming_pb2.UploadFileResponse()
+            
+            # Move file to permanent storage
+            permanent_path = self.file_store.store_file(file_id, file_path)
+            download_url = self.file_store.get_download_url(file_id)
+            
+            return streaming_pb2.UploadFileResponse(
+                file_id=file_id,
+                bytes_uploaded=total_bytes,
+                download_url=download_url,
+                checksum_verified=True
+            )
+            
+        except Exception as e:
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details(f'Error uploading file: {str(e)}')
+            return streaming_pb2.UploadFileResponse()
+        
+        finally:
+            # Clean up temporary file
+            if file_path and os.path.exists(file_path):
+                os.remove(file_path)
+```
+
+## Bidirectional Streaming
+
+Bidirectional streaming allows both client and server to send multiple messages:
+
+```protobuf title="bidirectional_streaming.proto"
+service StreamingService {
+  // Bidirectional streaming: real-time chat
+  rpc Chat(stream ChatMessage) returns (stream ChatMessage);
+  
+  // Bidirectional streaming: real-time collaboration
+  rpc Collaborate(stream CollaborationEvent) returns (stream CollaborationEvent);
+  
+  // Bidirectional streaming: live data processing
+  rpc ProcessLiveData(stream DataInput) returns (stream ProcessingResult);
+}
+
+message ChatMessage {
+  string id = 1;
+  string user_id = 2;
+  string room_id = 3;
+  string content = 4;
+  google.protobuf.Timestamp timestamp = 5;
+  ChatMessageType type = 6;
+}
+
+enum ChatMessageType {
+  CHAT_MESSAGE_TYPE_UNSPECIFIED = 0;
+  CHAT_MESSAGE_TYPE_TEXT = 1;
+  CHAT_MESSAGE_TYPE_IMAGE = 2;
+  CHAT_MESSAGE_TYPE_FILE = 3;
+  CHAT_MESSAGE_TYPE_SYSTEM = 4;
+  CHAT_MESSAGE_TYPE_TYPING = 5;
+}
+```
+
+Bidirectional streaming implementation:
+
+```python title="bidirectional_streaming.py"
+import asyncio
+import queue
+import threading
+
+class StreamingServiceServicer(streaming_pb2_grpc.StreamingServiceServicer):
+    
+    def Chat(
+        self, 
+        request_iterator: Iterator[streaming_pb2.ChatMessage], 
+        context: ServicerContext
+    ) -> Iterator[streaming_pb2.ChatMessage]:
+        """Bidirectional chat streaming."""
+        
+        # Message queue for outgoing messages
+        outgoing_queue = queue.Queue()
+        
+        # Track user session
+        user_session = None
+        
+        def handle_incoming_messages():
+            """Process incoming messages from client."""
+            nonlocal user_session
+            
+            try:
+                for message in request_iterator:
+                    if not user_session:
+                        # First message establishes session
+                        user_session = self.chat_service.join_room(
+                            user_id=message.user_id,
+                            room_id=message.room_id
+                        )
+                        
+                        # Send welcome message
+                        welcome_msg = streaming_pb2.ChatMessage(
+                            id=str(uuid.uuid4()),
+                            user_id="system",
+                            room_id=message.room_id,
+                            content=f"User {message.user_id} joined the chat",
+                            timestamp=google.protobuf.timestamp_pb2.Timestamp(),
+                            type=streaming_pb2.CHAT_MESSAGE_TYPE_SYSTEM
+                        )
+                        outgoing_queue.put(welcome_msg)
+                    
+                    # Process message
+                    if message.type == streaming_pb2.CHAT_MESSAGE_TYPE_TEXT:
+                        # Broadcast to other users in room
+                        self.chat_service.broadcast_message(message)
+                        
+                    elif message.type == streaming_pb2.CHAT_MESSAGE_TYPE_TYPING:
+                        # Send typing indicator to other users
+                        self.chat_service.broadcast_typing(message)
+                        
+            except Exception as e:
+                print(f"Error handling incoming messages: {e}")
+            finally:
+                # Clean up session
+                if user_session:
+                    self.chat_service.leave_room(user_session)
+        
+        # Start background thread for incoming messages
+        incoming_thread = threading.Thread(target=handle_incoming_messages)
+        incoming_thread.daemon = True
+        incoming_thread.start()
+        
+        # Subscribe to room messages
+        message_subscriber = None
+        if user_session:
+            message_subscriber = self.chat_service.subscribe_to_room(
+                user_session.room_id,
+                exclude_user=user_session.user_id
+            )
+        
+        try:
+            while context.is_active():
+                # Check for outgoing messages from queue
+                try:
+                    message = outgoing_queue.get(timeout=1)
+                    yield message
+                except queue.Empty:
+                    pass
+                
+                # Check for messages from other users
+                if message_subscriber:
+                    try:
+                        room_message = message_subscriber.get_message(timeout=1)
+                        if room_message:
+                            yield room_message
+                    except TimeoutError:
+                        pass
+                        
+        finally:
+            # Clean up
+            if message_subscriber:
+                message_subscriber.close()
+            if user_session:
+                self.chat_service.leave_room(user_session)
+```
+
+## Streaming Best Practices
+
+### Flow Control
+Implement proper flow control to prevent overwhelming clients:
+
+```python title="flow_control.py"
+def StreamData(self, request, context):
+    """Stream with flow control."""
+    
+    # Use a bounded queue to control memory usage
+    data_queue = queue.Queue(maxsize=100)
+    
+    def data_producer():
+        """Background thread that produces data."""
+        for item in self.data_source.get_items():
+            try:
+                data_queue.put(item, timeout=5)
+            except queue.Full:
+                # Apply backpressure
+                print("Client is too slow, dropping data")
+                break
+    
+    producer_thread = threading.Thread(target=data_producer)
+    producer_thread.start()
+    
+    try:
+        while context.is_active():
+            try:
+                item = data_queue.get(timeout=30)
+                yield item
+            except queue.Empty:
+                # Send heartbeat or check client connection
+                if not context.is_active():
+                    break
+    finally:
+        producer_thread.join(timeout=1)
+```
+
+### Error Handling in Streams
+Handle errors gracefully in streaming operations:
+
+```python title="stream_error_handling.py"
+def StreamWithErrorHandling(self, request, context):
+    """Stream with robust error handling."""
+    
+    try:
+        for item in self.get_stream_data(request):
+            if not context.is_active():
+                break
+                
+            try:
+                # Process item
+                processed_item = self.process_item(item)
+                yield processed_item
+                
+            except ProcessingError as e:
+                # Send error as part of response
+                error_response = create_error_response(e)
+                yield error_response
+                
+            except Exception as e:
+                # Critical error - abort stream
+                context.set_code(grpc.StatusCode.INTERNAL)
+                context.set_details(f'Processing failed: {str(e)}')
+                break
+                
+    except Exception as e:
+        context.set_code(grpc.StatusCode.INTERNAL)
+        context.set_details(f'Stream failed: {str(e)}')
+```
+
+### Client-side Streaming
+
+Handle streaming on the client side:
+
+```python title="streaming_client.py"
+import grpc
+
+def stream_chat_client():
+    """Example bidirectional streaming client."""
+    
+    channel = grpc.insecure_channel('localhost:50051')
+    stub = streaming_pb2_grpc.StreamingServiceStub(channel)
+    
+    def message_generator():
+        """Generate outgoing messages."""
+        # Send initial message
+        yield streaming_pb2.ChatMessage(
+            user_id="user123",
+            room_id="general",
+            content="Hello, world!",
+            type=streaming_pb2.CHAT_MESSAGE_TYPE_TEXT
+        )
+        
+        # Keep connection alive and send periodic messages
+        while True:
+            user_input = input("Enter message: ")
+            if user_input.lower() == 'quit':
+                break
+                
+            yield streaming_pb2.ChatMessage(
+                user_id="user123",
+                room_id="general", 
+                content=user_input,
+                type=streaming_pb2.CHAT_MESSAGE_TYPE_TEXT
+            )
+    
+    # Start bidirectional stream
+    responses = stub.Chat(message_generator())
+    
+    try:
+        for response in responses:
+            print(f"Received: {response.content}")
+    except grpc.RpcError as e:
+        print(f"RPC failed: {e}")
+```
+
+Streaming in gRPC enables powerful real-time applications while maintaining the benefits of strongly-typed contracts and efficient binary protocols. 

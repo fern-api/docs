@@ -1,0 +1,170 @@
+---
+title: Message Formats
+subtitle: Define message schemas, content types, and structure for event-driven communication
+---
+
+Messages in AsyncAPI are defined in the `components.messages` section and referenced from channels and operations. They define the structure and format of data exchanged through your event-driven API.
+
+```yml title="asyncapi.yml" {2-12}
+components:
+  messages:
+    UserEvent:
+      name: UserEvent
+      title: User Event Message
+      summary: Event triggered by user actions
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/UserEventPayload'
+      headers:
+        $ref: '#/components/schemas/MessageHeaders'
+```
+
+## Message payload
+
+The payload defines the structure of the message data:
+
+```yml title="asyncapi.yml" {4-6}
+components:
+  messages:
+    OrderCreated:
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/Order'
+  schemas:
+    Order:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique order identifier
+        customerId:
+          type: string
+          description: Customer who placed the order
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItem'
+        total:
+          type: number
+          format: decimal
+          description: Total order amount
+        createdAt:
+          type: string
+          format: date-time
+          description: When the order was created
+      required:
+        - id
+        - customerId
+        - items
+        - total
+```
+
+## Message headers
+
+You can define headers that are sent with your messages:
+
+```yml title="asyncapi.yml" {6-8}
+components:
+  messages:
+    NotificationEvent:
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/Notification'
+      headers:
+        $ref: '#/components/schemas/NotificationHeaders'
+  schemas:
+    NotificationHeaders:
+      type: object
+      properties:
+        messageId:
+          type: string
+          description: Unique message identifier
+        timestamp:
+          type: string
+          format: date-time
+          description: Message timestamp
+        source:
+          type: string
+          description: Source service that generated the message
+        priority:
+          type: string
+          enum: [low, medium, high, urgent]
+          description: Message priority level
+```
+
+## Content types
+
+AsyncAPI supports various content types for messages:
+
+```yml title="asyncapi.yml" {4,10,16}
+components:
+  messages:
+    JsonMessage:
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/JsonPayload'
+    
+    BinaryMessage:
+      contentType: application/octet-stream
+      payload:
+        type: string
+        format: binary
+    
+    TextMessage:
+      contentType: text/plain
+      payload:
+        type: string
+```
+
+## Message examples
+
+Provide concrete examples to help developers understand your message format:
+
+```yml title="asyncapi.yml" {8-18}
+components:
+  messages:
+    UserSignup:
+      name: UserSignup
+      title: User Signup Event
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/User'
+      examples:
+        - name: StandardSignup
+          summary: Regular user signup
+          payload:
+            id: "123e4567-e89b-12d3-a456-426614174000"
+            email: "john@example.com"
+            name: "John Doe"
+            signupSource: "web"
+            createdAt: "2024-01-15T10:30:00Z"
+```
+
+## Message traits
+
+Use traits to share common message properties across multiple messages:
+
+```yml title="asyncapi.yml" {2-12, 15-19}
+components:
+  messageTraits:
+    commonHeaders:
+      headers:
+        type: object
+        properties:
+          messageId:
+            type: string
+          timestamp:
+            type: string
+            format: date-time
+  
+  messages:
+    UserEvent:
+      traits:
+        - $ref: '#/components/messageTraits/commonHeaders'
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/UserEventPayload'
+```
+
+This approach helps maintain consistency across your message definitions while reducing duplication. 

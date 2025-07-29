@@ -1,0 +1,214 @@
+---
+title: Message Bindings
+subtitle: Configure protocol-specific settings for WebSocket, MQTT, Kafka, and other protocols
+---
+
+Bindings in AsyncAPI allow you to specify protocol-specific information for servers, channels, operations, and messages. This enables you to provide detailed configuration for different messaging protocols.
+
+```yml title="asyncapi.yml" {6-12}
+channels:
+  user/notifications:
+    address: user/notifications
+    messages:
+      UserNotification:
+        $ref: '#/components/messages/UserNotification'
+    bindings:
+      ws:
+        method: GET
+        query:
+          type: object
+          properties:
+            token:
+              type: string
+              description: Authentication token
+```
+
+## WebSocket bindings
+
+Configure WebSocket-specific settings for real-time communication:
+
+```yml title="asyncapi.yml" {4-10}
+channels:
+  chat/room:
+    address: chat/room/{roomId}
+    bindings:
+      ws:
+        method: GET
+        headers:
+          type: object
+          properties:
+            Authorization:
+              type: string
+        query:
+          type: object
+          properties:
+            userId:
+              type: string
+            roomId:
+              type: string
+
+operations:
+  sendMessage:
+    action: send
+    channel:
+      $ref: '#/channels/chat~1room'
+    bindings:
+      ws:
+        type: request
+        method: message
+```
+
+## MQTT bindings
+
+Configure MQTT-specific settings for IoT and messaging applications:
+
+```yml title="asyncapi.yml" {4-8}
+channels:
+  device/telemetry:
+    address: device/{deviceId}/telemetry
+    bindings:
+      mqtt:
+        qos: 1
+        retain: true
+        messageExpiryInterval: 3600
+        
+servers:
+  mqtt-broker:
+    host: mqtt.example.com
+    protocol: mqtt
+    bindings:
+      mqtt:
+        clientId: device-client
+        cleanSession: false
+        keepAlive: 60
+        will:
+          topic: device/status
+          payload: "offline"
+          qos: 1
+          retain: true
+```
+
+## Kafka bindings
+
+Configure Kafka-specific settings for high-throughput event streaming:
+
+```yml title="asyncapi.yml" {4-12}
+channels:
+  user.events:
+    address: user.events
+    bindings:
+      kafka:
+        topic: user.events
+        partitions: 10
+        replicas: 3
+        topicConfiguration:
+          cleanup.policy: ["delete"]
+          retention.ms: 604800000
+          segment.ms: 86400000
+
+operations:
+  publishUserEvent:
+    action: send
+    channel:
+      $ref: '#/channels/user.events'
+    bindings:
+      kafka:
+        groupId: user-event-processors
+        key:
+          type: string
+          description: User ID for partitioning
+```
+
+## Server bindings
+
+Configure protocol-specific server settings:
+
+```yml title="asyncapi.yml" {6-16}
+servers:
+  websocket-server:
+    host: ws.example.com
+    protocol: wss
+    description: WebSocket server with SSL
+    bindings:
+      ws:
+        headers:
+          type: object
+          properties:
+            X-API-Version:
+              type: string
+              const: "v1"
+        
+  kafka-cluster:
+    host: kafka.example.com:9092
+    protocol: kafka
+    bindings:
+      kafka:
+        schemaRegistryUrl: https://schema-registry.example.com
+        schemaRegistryVendor: confluent
+```
+
+## Message bindings
+
+Configure how messages are handled by specific protocols:
+
+```yml title="asyncapi.yml" {8-15}
+components:
+  messages:
+    OrderEvent:
+      name: OrderEvent
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/Order'
+      bindings:
+        kafka:
+          key:
+            type: string
+            description: Order ID for consistent partitioning
+          headers:
+            type: object
+            properties:
+              eventType:
+                type: string
+                enum: [created, updated, cancelled]
+        mqtt:
+          qos: 2
+          retain: false
+```
+
+## HTTP bindings
+
+For HTTP-based protocols like Server-Sent Events:
+
+```yml title="asyncapi.yml" {4-8}
+channels:
+  events/stream:
+    address: /events/stream
+    bindings:
+      http:
+        type: response
+        method: GET
+        query:
+          type: object
+          properties:
+            lastEventId:
+              type: string
+              description: Last received event ID for resumption
+
+operations:
+  streamEvents:
+    action: send
+    channel:
+      $ref: '#/channels/events~1stream'
+    bindings:
+      http:
+        type: response
+        statusCode: 200
+        headers:
+          type: object
+          properties:
+            Content-Type:
+              type: string
+              const: text/event-stream
+```
+
+Bindings provide the flexibility to leverage protocol-specific features while maintaining a unified API specification across different transport mechanisms. 
