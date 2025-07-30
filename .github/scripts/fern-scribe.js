@@ -2,8 +2,9 @@ const { Octokit } = require('@octokit/rest');
 const Turbopuffer = require('@turbopuffer/turbopuffer').default;
 const fs = require('fs').promises;
 const path = require('path');
+const yaml = require('js-yaml');
 
-class FernScribe {
+class FernScribeGitHub {
   constructor() {
     this.octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
     this.turbopuffer = new Turbopuffer({
@@ -20,6 +21,10 @@ class FernScribe {
     this.issueTitle = process.env.ISSUE_TITLE;
     
     this.systemPrompt = null;
+    
+    // Initialize dynamic path mapping
+    this.dynamicPathMapping = new Map();
+    this.isPathMappingLoaded = false;
   }
 
   async init() {
@@ -40,7 +45,7 @@ class FernScribe {
     // Parse the issue body (GitHub issue form format)
     const sections = body.split('###');
     
-    sections.forEach(section => {
+    sections.forEach((section, index) => {
       const lines = section.trim().split('\n');
       const title = lines[0]?.toLowerCase();
       const content = lines.slice(1).join('\n').trim();
@@ -54,7 +59,13 @@ class FernScribe {
       } else if (title.includes('why they didn\'t work')) {
         parsed.whyNotWork = content;
       } else if (title.includes('changelog')) {
-        parsed.changelogRequired = content.includes('Yes, include changelog');
+        // Check for checked checkbox format: [x] Yes, include changelog
+        const yesChecked = content.includes('[x] Yes, include changelog');
+        const noChecked = content.includes('[x] No changelog');
+        parsed.changelogRequired = yesChecked && !noChecked;
+        
+        // Debug logging for changelog parsing
+        console.log(`📋 Changelog parsing: yesChecked=${yesChecked}, noChecked=${noChecked}, changelogRequired=${parsed.changelogRequired}`);
       } else if (title.includes('priority')) {
         parsed.priority = content;
       } else if (title.includes('additional context')) {
@@ -199,7 +210,6 @@ class FernScribe {
     
     const parsedUrl = this.parseSlackUrl(slackUrl);
     if (!parsedUrl) {
-      console.log('Could not parse Slack URL:', slackUrl);
       return '';
     }
 
@@ -297,7 +307,6 @@ class FernScribe {
       }));
 
       const fullThreadContent = (await Promise.all(threadContent)).join('\n\n---\n\n');
-      console.log(`📱 Fetched Slack thread with ${messages.length} messages and extracted file content`);
       return fullThreadContent;
 
     } catch (error) {
@@ -306,48 +315,68 @@ class FernScribe {
     }
   }
 
-  reciprocalRankFusion(semanticResults, bm25Results) {
-    const k = 60; // RRF constant
-    const combinedScores = new Map();
+  async createEmbedding(text) {
+    const response = await fetch('https://api.openai.com/v1/embeddings', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        input: text,
+        model: 'text-embedding-3-large',
+      }),
+    });
 
-    // Add semantic results with RRF scoring
+    if (!response.ok) {
+      throw new Error(`OpenAI API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.data[0].embedding;
+  }
+
+  reciprocalRankFusion(semanticResults, bm25Results, k = 60) {
+    const scoreMap = new Map();
+    
+    // Add semantic search scores
     semanticResults.forEach((result, index) => {
-      const score = 1 / (k + index + 1);
       const id = result.id;
-      if (id) {
-        combinedScores.set(id, { result, score });
-      }
+      const rank = index + 1;
+      const score = 1 / (k + rank);
+      scoreMap.set(id, (scoreMap.get(id) || 0) + score);
     });
-
-    // Add BM25 results with RRF scoring
+    
+    // Add BM25 scores
     bm25Results.forEach((result, index) => {
-      const score = 1 / (k + index + 1);
       const id = result.id;
-      if (id) {
-        const existing = combinedScores.get(id);
-        if (existing) {
-          existing.score += score;
-        } else {
-          combinedScores.set(id, { result, score });
-        }
+      const rank = index + 1;
+      const score = 1 / (k + rank);
+      scoreMap.set(id, (scoreMap.get(id) || 0) + score);
+    });
+    
+    // Create combined results with scores
+    const allResults = new Map();
+    [...semanticResults, ...bm25Results].forEach(result => {
+      if (!allResults.has(result.id)) {
+        allResults.set(result.id, {
+          ...result,
+          fusedScore: scoreMap.get(result.id)
+        });
       }
     });
-
-    // Sort by combined score and return results
-    return Array.from(combinedScores.values())
-      .sort((a, b) => b.score - a.score)
-      .map(item => item.result);
+    
+    // Sort by fused score and return
+    return Array.from(allResults.values())
+      .sort((a, b) => b.fusedScore - a.fusedScore);
   }
 
   async queryTurbopuffer(query, opts = {}) {
     if (!query || query.trimStart().length === 0) {
-      console.log('🔧 Empty query provided to Turbopuffer');
       return [];
     }
 
     try {
-      console.log('🔧 Querying Turbopuffer with options:', JSON.stringify(opts, null, 2));
-      
       const {
         namespace,
         topK = 10,
@@ -361,7 +390,7 @@ class FernScribe {
       // Create embedding for the query
       const vector = await this.createEmbedding(query);
       if (!vector) {
-        console.error('🔧 Failed to create embedding for query');
+        console.error('Failed to create embedding for query');
         return [];
       }
 
@@ -373,8 +402,6 @@ class FernScribe {
       const queryFilters = allFilters.length > 0 
         ? (allFilters.length === 1 ? allFilters[0] : ["And", allFilters])
         : undefined;
-
-      console.log('🔧 Turbopuffer query filters:', queryFilters);
 
       // Semantic search (vector similarity)
       const semanticResponse = mode !== "bm25" ? await ns.query({
@@ -402,61 +429,23 @@ class FernScribe {
       const semanticResults = semanticResponse.rows || [];
       const bm25Results = bm25Response.rows || [];
 
-      console.log('🔧 Semantic results count:', semanticResults.length);
-      console.log('🔧 BM25 results count:', bm25Results.length);
-
       // Combine results using reciprocal rank fusion
       const fusedResults = this.reciprocalRankFusion(semanticResults, bm25Results);
       
-      console.log('🔧 Fused results count:', fusedResults.length);
-      
       return fusedResults;
     } catch (error) {
-      console.error('🔧 Turbopuffer query failed:', error);
+      console.error('Turbopuffer query failed:', error);
       return [];
     }
   }
 
-  async createEmbedding(text) {
-    try {
-      console.log('🔧 Creating embedding for text of length:', text.length);
-      
-      // Using OpenAI's embedding model
-      const response = await fetch('https://api.openai.com/v1/embeddings', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model: 'text-embedding-3-large',
-          input: text
-        })
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('🔧 Embedding API error details:', errorText);
-        throw new Error(`Embedding API error: ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log('🔧 Embedding created successfully, dimensions:', data.data[0]?.embedding?.length);
-      return data.data[0]?.embedding;
-    } catch (error) {
-      console.error('🔧 Embedding creation failed:', error);
-      return null;
-    }
-  }
-
   async getFernDocsStructure() {
-    try {
-      const response = await fetch('https://buildwithfern.com/learn/llms.txt');
-      return await response.text();
-    } catch (error) {
-      console.error('Failed to fetch Fern docs structure:', error);
-      return '';
-    }
+    // This would normally fetch the actual Fern docs structure
+    // For now, return a simple structure
+    return {
+      products: ['SDKs', 'Docs', 'API Reference'],
+      sections: ['Getting Started', 'Configuration', 'Advanced']
+    };
   }
 
   async generateContent(filePath, existingContent, context, fernStructure) {
@@ -479,14 +468,16 @@ ${existingContent}
 ## Instructions
 Update this file to address the documentation request. Use the Slack discussion context to understand the specific pain points and requirements mentioned by users. Follow Fern documentation best practices and maintain consistency with the existing structure.
 
-Provide the complete updated file content:`;
+IMPORTANT: Return ONLY the clean file content. Do not include any explanatory text, meta-commentary, or descriptions about what you're doing. Start directly with the frontmatter (---) or first line of the file content.
+
+Complete updated file content:`;
 
     try {
       const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
           'x-api-key': this.anthropicApiKey,
-          'Content-Type': 'application/json',
+          'content-type': 'application/json',
           'anthropic-version': '2023-06-01'
         },
         body: JSON.stringify({
@@ -512,31 +503,35 @@ Provide the complete updated file content:`;
   }
 
   async generateChangelogEntry(context) {
-    if (!context.changelogRequired) return null;
-
     const prompt = `Generate a changelog entry for the following documentation update:
 
 Request: ${context.requestDescription}
-Priority: ${context.priority}
 Additional Context: ${context.additionalContext}
 
-Format as a standard changelog entry with appropriate category (Added, Changed, Fixed, etc.) and concise description.`;
+Please create a concise changelog entry that describes what was changed/added/improved. Format it as a markdown list item suitable for insertion into a CHANGELOG.md file.
+
+Example format:
+- **[Section]** Description of the change ([#123](link-to-pr))
+
+Changelog entry:`;
 
     try {
       const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
           'x-api-key': this.anthropicApiKey,
-          'Content-Type': 'application/json',
+          'content-type': 'application/json',
           'anthropic-version': '2023-06-01'
         },
         body: JSON.stringify({
           model: 'claude-3-5-sonnet-20241022',
-          max_tokens: 200,
-          messages: [{
-            role: 'user',
-            content: prompt
-          }]
+          max_tokens: 500,
+          messages: [
+            {
+              role: 'user',
+              content: prompt
+            }
+          ]
         })
       });
 
@@ -552,57 +547,212 @@ Format as a standard changelog entry with appropriate category (Added, Changed, 
     }
   }
 
-  async getCurrentFileContent(filePath) {
+  // Load dynamic path mapping from Fern docs structure
+  async loadDynamicPathMapping() {
+    if (this.isPathMappingLoaded) return;
+    
+    try {
+      console.log('Loading Fern docs structure for dynamic path mapping...');
+      
+      // Load main docs.yml
+      const docsContent = await this.fetchFileContent('fern/docs.yml');
+      if (!docsContent) return;
+      
+      const docsConfig = yaml.load(docsContent);
+      if (!docsConfig.products) return;
+      
+      // Process each product
+      for (const product of docsConfig.products) {
+        if (!product.path) continue;
+        
+        // Resolve relative path
+        let resolvedPath = product.path;
+        if (resolvedPath.startsWith('./')) {
+          resolvedPath = `fern/${resolvedPath.substring(2)}`;
+        } else if (!resolvedPath.startsWith('fern/')) {
+          resolvedPath = `fern/${resolvedPath}`;
+        }
+        
+        // Load product config
+        const productContent = await this.fetchFileContent(resolvedPath);
+        if (!productContent) continue;
+        
+        const productConfig = yaml.load(productContent);
+        if (!productConfig.navigation) continue;
+        
+        // Process navigation structure
+        await this.processNavigation(productConfig, product.slug, resolvedPath);
+      }
+      
+      this.isPathMappingLoaded = true;
+      console.log(`Loaded ${this.dynamicPathMapping.size} dynamic path mappings`);
+    } catch (error) {
+      console.error('Failed to load dynamic path mapping:', error);
+    }
+  }
+  
+  async processNavigation(config, productSlug, configPath) {
+    if (!config.navigation) return;
+
+    const basePath = configPath.replace(/\/[^\/]+\.yml$/, '').replace('fern/', '');
+    
+    for (const navItem of config.navigation) {
+      if (navItem.page) {
+        // It's a page
+        const pageFilePath = `fern/${basePath}/pages/${navItem.page}`;
+        const pageUrl = `/${productSlug}/${navItem.page}`;
+        this.dynamicPathMapping.set(pageUrl, pageFilePath);
+      } else if (navItem.section) {
+        // It's a section with pages
+        for (const pageItem of navItem.contents || []) {
+          if (pageItem.page) {
+            const pageFilePath = `fern/${basePath}/pages/${pageItem.page}`;
+            const pageUrl = `/${productSlug}/${pageItem.page}`;
+            this.dynamicPathMapping.set(pageUrl, pageFilePath);
+          }
+        }
+      }
+    }
+  }
+  
+  // Transform Turbopuffer URLs to actual GitHub file paths
+  transformTurbopufferUrlToPath(turbopufferUrl) {
+    // Remove /learn prefix and clean up trailing slashes
+    let urlPath = turbopufferUrl.replace('/learn', '').replace(/\/$/, '');
+    
+    // Extract product and path
+    const pathParts = urlPath.split('/').filter(p => p);
+    if (pathParts.length === 0) return null;
+    
+    const product = pathParts[0]; // docs, sdks, etc.
+    const remainingPath = pathParts.slice(1).join('/');
+    
+    // Build the file path
+    let basePath = `fern/products/${product}`;
+    
+    // Handle special cases and path mapping
+    if (product === 'docs') {
+      if (remainingPath === 'changelog') {
+        // Special case: changelog is a folder
+        return `${basePath}/pages/changelog`;
+      } else if (remainingPath.startsWith('navigation/')) {
+        // navigation/* maps directly
+        const navPath = remainingPath.replace('navigation/', '');
+        return `${basePath}/pages/navigation/${navPath}.mdx`;
+      } else {
+        // Other docs paths
+        return `${basePath}/pages/${remainingPath}.mdx`;
+      }
+    } else if (product === 'sdks') {
+      if (remainingPath.startsWith('generators/')) {
+        // sdks/generators/* maps to overview/
+        const generatorPath = remainingPath.replace('generators/', '');
+        return `${basePath}/overview/${generatorPath}.mdx`;
+      } else {
+        return `${basePath}/pages/${remainingPath}.mdx`;
+      }
+    } else {
+      // Default mapping for other products
+      return `${basePath}/pages/${remainingPath}.mdx`;
+    }
+  }
+
+  // Map Turbopuffer URLs to actual GitHub file paths (now using dynamic mapping)
+  async mapTurbopufferPathToGitHub(turbopufferPath) {
+    // Ensure dynamic mapping is loaded
+    await this.loadDynamicPathMapping();
+    
+    // Use the new transformation logic
+    return this.transformTurbopufferUrlToPath(turbopufferPath) || turbopufferPath;
+  }
+
+  // Simple file content fetcher for dynamic mapping (without path transformation)
+  async fetchFileContent(filePath) {
     try {
       const { data } = await this.octokit.rest.repos.getContent({
         owner: this.owner,
         repo: this.repo,
         path: filePath
       });
+      
+      if (Array.isArray(data)) {
+        // It's a directory
+        return `Directory: ${data.length} files/folders`;
+      } else if (data.content) {
+        // It's a file
+        return Buffer.from(data.content, 'base64').toString('utf-8');
+      }
+      return null;
+    } catch (error) {
+      return null;
+    }
+  }
 
-      return Buffer.from(data.content, 'base64').toString('utf-8');
+  async getCurrentFileContent(filePath) {
+    try {
+      // Map Turbopuffer path to actual GitHub path
+      const actualPath = await this.mapTurbopufferPathToGitHub(filePath);
+      console.log(`   📥 Fetching content from GitHub: ${filePath} -> ${actualPath}`);
+      
+      const { data } = await this.octokit.rest.repos.getContent({
+        owner: this.owner,
+        repo: this.repo,
+        path: actualPath
+      });
+
+      const content = Buffer.from(data.content, 'base64').toString('utf-8');
+      console.log(`   ✅ Successfully fetched ${content.length} characters from ${actualPath}`);
+      return content;
     } catch (error) {
       if (error.status === 404) {
+        console.log(`   ⚠️  File not found: ${filePath} (will be created)`);
         return ''; // File doesn't exist, will be created
       }
+      console.error(`   ❌ Error fetching ${filePath}:`, error.message);
       throw error;
     }
   }
 
   async createBranch(branchName) {
     try {
+      // Get the latest commit SHA from main branch
       const { data: mainBranch } = await this.octokit.rest.repos.getBranch({
         owner: this.owner,
         repo: this.repo,
         branch: 'main'
       });
 
+      // Create new branch
       await this.octokit.rest.git.createRef({
         owner: this.owner,
         repo: this.repo,
         ref: `refs/heads/${branchName}`,
         sha: mainBranch.commit.sha
       });
+
+      return true;
     } catch (error) {
       if (error.status !== 422) { // Branch might already exist
         throw error;
       }
+      return true;
     }
   }
 
   async updateFile(filePath, content, branchName, commitMessage) {
     try {
-      let sha;
+      // Try to get the current file to get its SHA (needed for updates)
+      let sha = null;
       try {
-        const { data } = await this.octokit.rest.repos.getContent({
+        const { data: currentFile } = await this.octokit.rest.repos.getContent({
           owner: this.owner,
           repo: this.repo,
           path: filePath,
           ref: branchName
         });
-        sha = data.sha;
+        sha = currentFile.sha;
       } catch (error) {
-        // File doesn't exist, will be created
+        // File doesn't exist, that's okay for creation
       }
 
       await this.octokit.rest.repos.createOrUpdateFileContents({
@@ -614,8 +764,11 @@ Format as a standard changelog entry with appropriate category (Added, Changed, 
         branch: branchName,
         ...(sha && { sha })
       });
+
+      return true;
     } catch (error) {
       console.error(`Failed to update ${filePath}:`, error);
+      return false;
     }
   }
 
@@ -661,31 +814,14 @@ ${context.additionalContext ? `**Additional Context:** ${context.additionalConte
     try {
       await this.init();
       
-      console.log('🌿 Fern Scribe starting...');
-      
-      // Log GitHub event details
-      console.log('📋 GitHub Event Details:');
-      console.log('--- ISSUE NUMBER ---');
-      console.log(this.issueNumber);
-      console.log('--- ISSUE TITLE ---');
-      console.log(this.issueTitle);
-      console.log('--- ISSUE BODY ---');
-      console.log(this.issueBody);
-      console.log('--- END GITHUB EVENT ---');
+      console.log('🌿 Fern Scribe GitHub starting...');
       
       const context = this.parseIssueBody(this.issueBody);
-      console.log('📝 Parsed issue context:', context);
 
       // Fetch Slack thread if URL provided
       let slackThreadContent = '';
       if (context.slackThread) {
-        console.log('📱 Fetching Slack thread content...');
         slackThreadContent = await this.fetchSlackThread(context.slackThread);
-        console.log('📱 Slack thread content length:', slackThreadContent.length);
-        console.log('📱 Full Slack thread content:');
-        console.log('--- SLACK THREAD START ---');
-        console.log(slackThreadContent);
-        console.log('--- SLACK THREAD END ---');
       }
 
       // Create enhanced query text that includes both request description and Slack context
@@ -694,14 +830,6 @@ ${context.additionalContext ? `**Additional Context:** ${context.additionalConte
         slackThreadContent ? `\n\nSlack Discussion Context:\n${slackThreadContent}` : '',
         context.additionalContext ? `\n\nAdditional Context:\n${context.additionalContext}` : ''
       ].filter(Boolean).join('\n');
-
-      // Debug logging
-      console.log('🔍 Enhanced query length:', enhancedQuery.length);
-      console.log('🔍 Full enhanced query:');
-      console.log('--- ENHANCED QUERY START ---');
-      console.log(enhancedQuery);
-      console.log('--- ENHANCED QUERY END ---');
-      console.log('🔍 Namespace:', process.env.TURBOPUFFER_NAMESPACE || 'default');
 
       // Query TurboBuffer for relevant files
       console.log('🔍 Querying TurboBuffer for relevant files...');
@@ -713,19 +841,28 @@ ${context.additionalContext ? `**Additional Context:** ${context.additionalConte
         topK: 3
       });
 
-      console.log('🔍 Turbopuffer results count:', turbopufferResults.length);
-      if (turbopufferResults.length > 0) {
-        console.log('🔍 First result preview:', JSON.stringify(turbopufferResults[0], null, 2));
-      }
-
-      // Deduplicate results by URL (following the original logic)
-      for (const result of turbopufferResults) {
-        const url = result.attributes?.url || 
-                   `https://${result.attributes?.domain}${result.attributes?.pathname}${result.attributes?.hash || ''}`;
+      console.log(`\n📁 Found ${turbopufferResults.length} relevant files from Turbopuffer:`);
+      
+      turbopufferResults.forEach((result, index) => {
+        const path = result.pathname || result.url || 'Unknown path';
+        const title = result.title || 'Untitled';
+        const url = result.url || `https://${result.domain || ''}${result.pathname || ''}`;
+        const relevance = result.$dist !== undefined ? (1 - result.$dist).toFixed(3) : 'N/A';
         
-        if (result.attributes?.url) {
-          if (!searchResultURLs.has(result.attributes.url)) {
-            searchResultURLs.add(result.attributes.url);
+        console.log(`${index + 1}. ${path}`);
+        console.log(`   Title: ${title}`);
+        console.log(`   URL: ${url}`);
+        console.log(`   Relevance Score: ${relevance}`);
+      });
+      console.log('');
+
+      // Deduplicate results by URL
+      for (const result of turbopufferResults) {
+        const url = result.url || `https://${result.domain}${result.pathname}${result.hash || ''}`;
+        
+        if (result.url) {
+          if (!searchResultURLs.has(result.url)) {
+            searchResultURLs.add(result.url);
             searchResults.push(result);
           }
         } else {
@@ -738,80 +875,217 @@ ${context.additionalContext ? `**Additional Context:** ${context.additionalConte
         return;
       }
 
-      console.log(`📁 Found ${searchResults.length} relevant files`);
+      console.log(`📁 Processing ${searchResults.length} relevant files for documentation updates...`);
+      
+      // Filter and preview files to be processed
+      const filesToProcess = searchResults.filter(result => {
+        const filePath = result.pathname || result.path;
+        if (!filePath) return false;
+        if (!context.changelogRequired && filePath.includes('/changelog/')) {
+          console.log(`   📄 Will skip changelog file: ${filePath} (changelog not requested)`);
+          return false;
+        }
+        return true;
+      });
+      
+      console.log(`📁 Will process ${filesToProcess.length} files (skipped ${searchResults.length - filesToProcess.length} changelog files)`);
 
-      // Get Fern docs structure
+      // Get Fern docs structure for context
       const fernStructure = await this.getFernDocsStructure();
 
-      // Create branch
-      const branchName = `fern-scribe/issue-${this.issueNumber}`;
-      await this.createBranch(branchName);
-      console.log(`🌱 Created branch: ${branchName}`);
-
-      const filesUpdated = [];
-
-      // Process each relevant file
-      for (const result of searchResults) {
-        const filePath = result.attributes?.pathname || result.path;
+      // Analyze each relevant file and suggest changes
+      console.log('\n📋 Analyzing files and suggesting changes...\n');
+      
+      const analysisResults = [];
+      
+      for (const result of filesToProcess) {
+        const filePath = result.pathname || result.path;
         if (!filePath) continue;
 
-        console.log(`📄 Processing: ${filePath}`);
+        console.log(`📄 Analyzing: ${filePath}`);
+        console.log(`   Title: ${result.title}`);
+        console.log(`   URL: ${result.url}`);
         
-        const currentContent = await this.getCurrentFileContent(filePath);
-        const contextWithDocument = {
-          ...context,
-          currentDocument: result.attributes?.document || '',
-          slackThreadContent
-        };
-        
-        const updatedContent = await this.generateContent(filePath, currentContent, contextWithDocument, fernStructure);
-        
-        if (updatedContent && updatedContent !== currentContent) {
-          await this.updateFile(
-            filePath, 
-            updatedContent, 
-            branchName, 
-            `docs: update ${filePath} via Fern Scribe`
-          );
-          filesUpdated.push(filePath);
-        }
-      }
-
-      // Generate changelog if requested
-      if (context.changelogRequired) {
-        const changelogEntry = await this.generateChangelogEntry(context);
-        if (changelogEntry) {
-          const changelogPath = 'CHANGELOG.md';
-          const currentChangelog = await this.getCurrentFileContent(changelogPath);
-          const updatedChangelog = this.addChangelogEntry(currentChangelog, changelogEntry);
+        try {
+          const currentContent = await this.getCurrentFileContent(filePath);
           
-          await this.updateFile(
-            changelogPath,
-            updatedChangelog,
-            branchName,
-            'docs: add changelog entry via Fern Scribe'
-          );
-          filesUpdated.push(changelogPath);
+          const contextWithDocument = {
+            ...context,
+            currentDocument: result.document || '',
+            slackThreadContent
+          };
+          
+          console.log(`   🤖 Generating AI suggestions based on context...`);
+          const suggestedContent = await this.generateContent(filePath, currentContent, contextWithDocument, fernStructure);
+          
+          if (suggestedContent && suggestedContent !== currentContent) {
+            analysisResults.push({
+              filePath,
+              currentContent,
+              suggestedContent,
+              title: result.title,
+              url: result.url
+            });
+            
+            console.log(`   ✅ Changes suggested for: ${filePath}`);
+            console.log(`   📊 Original: ${currentContent.length} chars → Suggested: ${suggestedContent.length} chars`);
+          } else {
+            console.log(`   ℹ️  No changes suggested for this file`);
+          }
+        } catch (error) {
+          console.error(`   ❌ Error analyzing ${filePath}:`, error.message);
         }
-      }
-
-      // Create PR
-      const pr = await this.createPullRequest(branchName, context, filesUpdated);
-      
-      if (pr) {
-        console.log(`✅ Created PR: ${pr.html_url}`);
         
-        // Comment on issue with PR link
-        await this.octokit.rest.issues.createComment({
-          owner: this.owner,
-          repo: this.repo,
-          issue_number: this.issueNumber,
-          body: `🌿 **Fern Scribe has completed your request!**\n\nI've created a draft PR with the documentation updates: ${pr.html_url}\n\nFiles updated:\n${filesUpdated.map(file => `- \`${file}\``).join('\n')}\n\nPlease review the changes and merge when ready.`
-        });
+        console.log(''); // Add spacing between files
       }
+      
+      // Generate changelog entry if requested
+      let changelogEntry = null;
+      if (context.changelogRequired) {
+        console.log('📋 Changelog update requested - generating entry...\n');
+        try {
+          changelogEntry = await this.generateChangelogEntry(context);
+          if (changelogEntry) {
+            console.log('   ✅ Changelog entry generated');
+          } else {
+            console.log('   ℹ️  No changelog entry generated');
+          }
+        } catch (error) {
+          console.error('   ❌ Error generating changelog:', error.message);
+        }
+      } else {
+        console.log('📋 Changelog update not requested (changelogRequired: false)');
+      }
+      
+      // Log analysis summary to console
+      console.log('\n' + '='.repeat(80));
+      console.log('📋 ANALYSIS SUMMARY');
+      console.log('='.repeat(80));
+      
+      console.log('\n## Request Context');
+      console.log(`- **Issue**: ${context.requestDescription}`);
+      console.log(`- **Priority**: ${context.priority}`);
+      console.log(`- **Changelog Required**: ${context.changelogRequired}`);
+      console.log(`- **Existing Instructions**: ${context.existingInstructions}`);
+      console.log(`- **Why Current Approach Doesn't Work**: ${context.whyNotWork}`);
+      
+      console.log('\n## Slack Discussion Summary');
+      if (slackThreadContent) {
+        console.log('Key points from Slack discussion:');
+        console.log(slackThreadContent.substring(0, 500) + '...');
+      } else {
+        console.log('No Slack discussion provided');
+      }
+      
+      console.log('\n## Files Analyzed');
+      filesToProcess.forEach((result, index) => {
+        const relevance = result.$dist !== undefined ? (1 - result.$dist).toFixed(3) : 'N/A';
+        console.log(`${index + 1}. **${result.pathname}**`);
+        console.log(`   - Title: ${result.title}`);
+        console.log(`   - URL: ${result.url}`);
+        console.log(`   - Relevance Score: ${relevance}`);
+      });
+      
+      console.log('\n## Analysis Results');
+      if (analysisResults.length > 0) {
+        console.log(`Generated suggestions for ${analysisResults.length} files:`);
+        analysisResults.forEach((result, index) => {
+          console.log(`${index + 1}. ${result.filePath} (${result.currentContent.length} → ${result.suggestedContent.length} chars)`);
+        });
+      } else {
+        console.log('No changes suggested for any files');
+      }
+      
+      if (changelogEntry) {
+        console.log('\n## Changelog Entry');
+        console.log(changelogEntry);
+      }
+      
+      console.log('\n' + '='.repeat(80));
+      
+      // Create GitHub PR with suggested changes
+      if (analysisResults.length > 0) {
+        console.log('\n🚀 Creating GitHub PR with suggested changes...');
+        
+        const branchName = `fern-scribe-${this.issueNumber}-${Date.now()}`;
+        const filesUpdated = [];
+        
+        try {
+          // Create a new branch
+          console.log(`   🌿 Creating branch: ${branchName}`);
+          await this.createBranch(branchName);
+          
+          // Update files with suggested content
+          for (const result of analysisResults) {
+            try {
+              const actualPath = await this.mapTurbopufferPathToGitHub(result.filePath);
+              
+              console.log(`   📝 Updating file: ${actualPath}`);
+              await this.updateFile(
+                actualPath,
+                result.suggestedContent,
+                branchName,
+                `Update ${path.basename(actualPath)} based on issue #${this.issueNumber}`
+              );
+              
+              filesUpdated.push(actualPath);
+            } catch (error) {
+              console.error(`   ⚠️  Could not update ${result.filePath}: ${error.message}`);
+            }
+          }
+          
+          // Update changelog if requested
+          if (context.changelogRequired && changelogEntry) {
+            try {
+              // Find the main changelog file
+              const changelogPath = 'CHANGELOG.md'; // or detect dynamically
+              
+              try {
+                const currentChangelog = await this.fetchFileContent(changelogPath);
+                const updatedChangelog = this.addChangelogEntry(currentChangelog, changelogEntry);
+                
+                console.log(`   📋 Updating changelog: ${changelogPath}`);
+                await this.updateFile(
+                  changelogPath,
+                  updatedChangelog,
+                  branchName,
+                  `Add changelog entry for issue #${this.issueNumber}`
+                );
+                
+                filesUpdated.push(changelogPath);
+              } catch (error) {
+                console.error(`   ⚠️  Could not update changelog: ${error.message}`);
+              }
+            } catch (error) {
+              console.error(`   ⚠️  Error processing changelog: ${error.message}`);
+            }
+          }
+          
+          // Create draft pull request
+          if (filesUpdated.length > 0) {
+            console.log(`   🔗 Creating draft PR with ${filesUpdated.length} file(s)...`);
+            const pr = await this.createPullRequest(branchName, context, filesUpdated);
+            
+            if (pr && pr.html_url) {
+              console.log(`   ✅ Draft PR created: ${pr.html_url}`);
+            } else {
+              console.log(`   ⚠️  PR creation failed`);
+            }
+          } else {
+            console.log(`   ℹ️  No files were updated, skipping PR creation`);
+          }
+          
+        } catch (error) {
+          console.error(`   ❌ GitHub operations failed: ${error.message}`);
+        }
+      } else {
+        console.log('\n ℹ️  No changes suggested, skipping PR creation');
+      }
+      
+      console.log('\n✅ Fern Scribe GitHub workflow complete!');
 
     } catch (error) {
-      console.error('❌ Fern Scribe failed:', error);
+      console.error('❌ Fern Scribe GitHub failed:', error);
       throw error;
     }
   }
@@ -833,8 +1107,8 @@ ${context.additionalContext ? `**Additional Context:** ${context.additionalConte
 }
 
 // Run the script
-const fernScribe = new FernScribe();
-fernScribe.run().catch(error => {
+const fernScribeGitHub = new FernScribeGitHub();
+fernScribeGitHub.run().catch(error => {
   console.error('Fatal error:', error);
   process.exit(1);
-});
+}); 
