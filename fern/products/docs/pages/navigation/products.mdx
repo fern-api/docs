@@ -1,7 +1,16 @@
 ---
 title: Product Switching
-subtitle: Allow users to seamlessly navigate between different products you offer. 
+subtitle: Add multiple products and versions to your documentation.
 ---
+
+## Overview
+
+The product switcher allows users to navigate between different products and versions of your documentation. Each product can have:
+- Multiple versions
+- Its own navigation structure 
+- Distinct tabs and sections
+- Shared or unique content
+- API references
 
 <Frame>
   <video 
@@ -14,190 +23,160 @@ subtitle: Allow users to seamlessly navigate between different products you offe
   </video>
 </Frame>
 
-<Card href="https://developers.webflow.com/data/docs/getting-started-apps">
-  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', height: '1.5em' }}>
-    <img src="logos/webflow-light.svg" alt="Webflow" width="24px" height="24px" class="logo-icon dark:hidden" style={{ marginRight: '10px', marginLeft: '0' }} />
-    <img src="logos/webflow-dark.svg" alt="Webflow" width="24px" height="24px" class="logo-icon hidden dark:block" style={{ marginRight: '10px', marginLeft: '0' }} />
-    <div className="text-body text-base font-semibold" style={{ color: 'var(--grayscale-a12)'}}>View Webflow's Product Switcher</div>
-  </div>
-</Card>
-
-Each product can contain its own distinct versions, tabs, sections, pages, and API references. Products can share content as well. 
-
-## Add Products to Your Docs
+## Setting Up Products
 
 <Steps toc={true}>
-<Step title="Define your products">
+<Step title="Create product files">
 
-Create a `products` folder inside of your `fern` folder. To specify a product's contents and navigational structure, add a `.yml` file to the `products` folder for each product.
-Make sure to include the `navigation` and `tabs` properties, if applicable.
+Create a `products` folder in your `fern` directory. Each product requires a configuration file:
 
-```bash {4, 7-8}
+```bash
 fern/
   ├─ fern.config.json
   ├─ generators.yml
-  ├─ docs.yml # Site-level contents and navigation
+  ├─ docs.yml             # Site-level configuration
   └─ products/
-    ├─ ...
-    ├─ product-a.yml # Contents and navigation for Product A
-    └─ product-b.yml # Contents and navigation for Product B
+      ├─ product-a/       # Versioned product
+      │  ├─ latest.yml    
+      │  └─ v1.yml
+      └─ product-b.yml    # Unversioned product
 ```
 
+Define each product's navigation structure in its configuration file:
+
 <CodeBlocks>
-<CodeBlock title="products/product-a.yml">
+<CodeBlock title="products/product-b.yml">
 ```yaml
 navigation: 
   - section: Introduction
     contents:
+      - page: Getting Started
+        path: ./pages/getting-started.mdx
       - page: Shared Resource
         path: ../pages/shared-resource.mdx
   - api: API Reference
 ```
 </CodeBlock>
-<CodeBlock title="products/product-b.yml">
+<CodeBlock title="products/product-a/latest.yml">
 ```yaml
 tabs: 
   api: 
     title: API Reference
     icon: puzzle
-  help:
-    title: Help Center
-    icon: home
+  guides:
+    title: Guides
+    icon: book
     
- navigation:
+navigation:
   - tab: api
-     contents:
-        - section: Introduction
-           contents: 
-              - page: My Page
-                path: ./latest/pages/my-page.mdx # relative path to the file
-              - page: Shared Resource
-                path: ../pages/shared-resource.mdx
-        - api: API Reference
-   - tab: help
-      contents: 
-         - section: Help Center
-           contents: 
-              - page: Contact Us
-                 path: contact-us.mdx
+    contents:
+      - section: Introduction
+        contents: 
+          - page: Overview
+            path: ./pages/overview.mdx
+  - tab: guides
+    contents:
+      - section: Tutorials
+        contents:
+          - page: Quick Start
+            path: ./pages/quick-start.mdx
 ```
 </CodeBlock>
 </CodeBlocks>
 </Step>
-<Step title="Add your product configuration">
 
-To define a product, add an item to the `products` list in `docs.yml`, specifying the `display-name` and `path`.
+<Step title="Configure products in docs.yml">
 
-The optional parameters are: `image`, `icon`, `subtitle`, `slug`, and `versions`.
-
-<Note>If you provide both an `image` and an `icon`, the `image` will take precedence.</Note>
-
-The below example is a `docs.yml` configuration for a site with two products, Product A and Product B.
+Add your products to the site-level `docs.yml` configuration:
 
 <CodeBlock title="docs.yml">
-```yaml {2-3, 8-9}
+```yaml
 products:
-  - display-name: Product A
-    path: ./products/product-a.yml
-    icon: fa-solid fa-leaf # optional
-    slug: product-a # optional
-    subtitle: Product A subtitle # optional
-
+  # Unversioned product
   - display-name: Product B
-    path: ./products/product-b/latest.yml # <-- default showing latest
-    image: ./images/product-b.png # optional
-    slug: product-b # optional
-    subtitle: Product B subtitle # optional
-```
-</CodeBlock>
-</Step>
-<Step title="Add versioning to your products (optional)">
+    path: ./products/product-b.yml
+    icon: puzzle
+    subtitle: API Client
+    slug: client
 
-You can optionally add versions to a product. Versioned and unversioned products can live next to each other in your site. Each version of a single product has its own `yml` file.
-
-In the below example, Product A is **unversioned** and Product B is **versioned**:
-
-<CodeBlock>
-
-  ```bash {8, 10-17}
-  fern/
-    ├─ fern.config.json
-    ├─ generators.yml
-    ├─ docs.yml
-    ├─ pages/
-      ├─ ...
-    └─ products/
-      ├── product-a.yml # basic unversioned product
-      └── product-b/ # versioned product
-          ├─ product-b.yml
-          └─ versions/
-            ├─ latest/
-            │  ├─ latest.yml
-            │  └─ pages/...
-            └─ v2/
-              ├─ v2.yml
-              └─ pages/...
-  ```
-</CodeBlock>
-
-The top-level `doc.yml` configuration for a Fern Docs website containing two products, one unversioned and one versioned, might look something like this:
-
-<CodeBlock title="docs.yml">
-```yaml {2, 8, 13-17}
-products:
-  - display-name: Product A # unversioned
-    path: ./products/product-a.yml
-    icon: fa-solid fa-leaf # optional
-    slug: product-a # optional
-    subtitle: Product A subtitle # optional
-
-  - display-name: Product B # versioned
-    path: ./products/product-b/latest.yml # <-- default showing latest
-    image: ./images/product-b.png # optional
-    slug: product-b # optional
-    subtitle: Product B subtitle # optional
-    versions: # optional
-      - display-name: Latest
-        path: ./products/product-b/latest.yml
-      - display-name: V2
-        path: ./products/product-b/v2.yml
+  # Versioned product 
+  - display-name: Product A
+    path: ./products/product-a/latest.yml
+    image: ./images/product-a.png
+    subtitle: Management API
+    slug: api
+    versions:
+      - display-name: Latest (2.0)
+        path: ./products/product-a/latest.yml
+      - display-name: v1.0
+        path: ./products/product-a/v1.yml
 ```
 </CodeBlock>
 
-For more information on setting up versioned products, follow our [versioning docs](/docs/navigation/versions).
+Each product configuration supports:
+- `display-name`: Name shown in the UI
+- `path`: Location of the product configuration file
+- `icon` or `image`: Visual identifier (image takes precedence)
+- `subtitle`: Additional context shown in the dropdown
+- `slug`: URL path segment
+- `versions`: Optional list of product versions
 </Step>
-<Step title="Remove extra navigation from docs.yml">
 
-If your `docs.yml` file includes a `navigation` field or a `tabs` field, be sure to remove. Those fields should now belong in the product-specific `.yml` files. 
+<Step title="Organize versioned content">
+
+For versioned products, structure your content like this:
+
+```bash
+products/
+  └─ product-a/
+      ├─ latest/
+      │  ├─ latest.yml    # Latest version config
+      │  └─ pages/        # Latest version content
+      │     └─ overview.mdx
+      └─ v1/
+         ├─ v1.yml        # v1 version config
+         └─ pages/        # v1 version content
+            └─ overview.mdx
+```
+
+Each version can have:
+- Its own configuration file
+- Version-specific content
+- Shared content from parent directories
+- Different navigation structure
+</Step>
+
+<Step title="Share content between versions">
+
+Reference shared content using relative paths:
+
+```yaml
+navigation:
+  - section: Common
+    contents:
+      - page: Shared Guide
+        path: ../../shared/guide.mdx  # Shared across versions
+      - page: Version Guide
+        path: ./pages/guide.mdx       # Version-specific
+```
 </Step>
 </Steps>
 
-## Customizing Selector Styling
+## Customizing the UI
 
-You can directly customize the appearance of the product and version selectors by targeting their CSS classes:
+### Selector Styling
 
-- `fern-product-selector` - Controls the styling of the product selector
-- `fern-version-selector` - Controls the styling of the version selector
-
-<Frame>
-  <img src="webflow-dropdown-selector.avif" alt="Example of a styled product selector" />
-</Frame>
-
-### Common Styling Adjustments
-
-**Adjusting positioning:**
-Use `transform: translateY(Npx)` to adjust the vertical positioning of the selectors. This ensures that the product and version selectors match the line height of your logo for better visual alignment.
-
-**Enhancing visual prominence:**
-You can modify the border radius and add borders to make the selectors more prominent and better integrated with your site's design aesthetic.
+Style the product and version selectors using CSS classes:
 
 ```css
+/* Product selector */
 .fern-product-selector {
   transform: translateY(2px);
   border-radius: 8px;
   border: 1px solid var(--border);
 }
 
+/* Version selector */
 .fern-version-selector {
   transform: translateY(1px);
   border-radius: 1000px;
@@ -205,33 +184,33 @@ You can modify the border radius and add borders to make the selectors more prom
 }
 ```
 
-## Customizing Dropdown Styling
+### Dropdown Styling
 
-The dropdown menus for product and version selectors can be customized using these specific CSS classes:
+Customize the dropdown menus:
 
-- `fern-product-selector-radio-group` - Controls the styling of the product dropdown
-- `fern-version-selector-radio-group` - Controls the styling of the version dropdown
+```css
+/* Product dropdown */
+.fern-product-selector-radio-group {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+/* Version dropdown */
+.fern-version-selector-radio-group {
+  min-width: 200px;
+}
+```
 
 <Tabs>
-  <Tab title="Product Selector">
+  <Tab title="Product Dropdown">
     <Frame>
-      <img src="webflow-product-selector.avif" alt="Example of a styled product selector" />
-    </Frame>
-
-    ### Common Styling Adjustments
-
-    **Enable a grid layout for the dropdown:**
-    ```css
-    .fern-product-selector-radio-group {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 8px;
-    }  
-    ```
-  </Tab>
-  <Tab title="Version Selector">
-    <Frame>
-      <img src="webflow-version-selector.avif" alt="Example of a styled version selector" />
+      <img src="webflow-product-selector.avif" alt="Styled product selector dropdown" />
     </Frame>
   </Tab>
-</Tabs> 
+  <Tab title="Version Dropdown">
+    <Frame>
+      <img src="webflow-version-selector.avif" alt="Styled version selector dropdown" />
+    </Frame>
+  </Tab>
+</Tabs>
