@@ -1,0 +1,360 @@
+---
+title: Use audiences to filter your API
+subtitle: Use `x-fern-audiences` to filter to relevant services, methods and messages
+---
+
+Audiences are a useful tool for segmenting your gRPC API for different consumers. Common examples of audiences include `public`
+and `beta`.
+
+<Info>
+  Remember to filter your SDKs and Docs after specifying audiences. If **no audiences** are specified,
+  nothing will be filtered.
+
+<AccordionGroup>
+
+<Accordion title="SDKs">
+The following example configures the SDK to filter to the `public` audience:
+
+```yaml title="generators.yml" {3-4}
+groups:
+  sdks:
+    audiences:
+      - public
+    generators:
+      - name: fernapi/fern-typescript-node-sdk
+        version: 0.8.8
+```
+</Accordion>
+
+<Accordion title="Docs">
+The following example configures the docs to filter to the `public` audience:
+
+```yaml title="docs.yml" {3-4}
+navigation:
+  - api: API Reference
+    audiences:
+      - public
+```
+</Accordion>
+
+</AccordionGroup>
+</Info>
+
+## Filter services
+
+Add `x-fern-audiences` to services to control which services are included for specific audiences:
+
+```protobuf title="user_service.proto"
+syntax = "proto3";
+
+package userservice.v1;
+
+// Public user service available to all clients
+service UserService {
+  option (x_fern_audiences) = "public";
+  
+  rpc GetUser(GetUserRequest) returns (User);
+  rpc CreateUser(CreateUserRequest) returns (User);
+}
+
+// Internal admin service for administrative operations
+service AdminService {
+  option (x_fern_audiences) = "admin";
+  
+  rpc ListAllUsers(ListAllUsersRequest) returns (ListAllUsersResponse);
+  rpc DeleteUser(DeleteUserRequest) returns (google.protobuf.Empty);
+  rpc BanUser(BanUserRequest) returns (google.protobuf.Empty);
+}
+```
+
+## Filter individual methods
+
+You can filter specific methods within services:
+
+```protobuf title="mixed_service.proto"
+syntax = "proto3";
+
+package userservice.v1;
+
+service UserService {
+  // Public method available to all
+  rpc GetUser(GetUserRequest) returns (User) {
+    option (x_fern_audiences) = "public";
+  }
+  
+  // Beta method only for beta testers
+  rpc GetUserAnalytics(GetUserAnalyticsRequest) returns (UserAnalytics) {
+    option (x_fern_audiences) = "beta";
+  }
+  
+  // Internal method for debugging
+  rpc GetUserDebugInfo(GetUserDebugRequest) returns (UserDebugInfo) {
+    option (x_fern_audiences) = "internal";
+  }
+}
+```
+
+## Filter message fields
+
+Filter specific fields within message types:
+
+```protobuf title="user_messages.proto"
+syntax = "proto3";
+
+package userservice.v1;
+
+message User {
+  string id = 1;                    // Available to all audiences
+  string email = 2;                 // Available to all audiences
+  string name = 3;                  // Available to all audiences
+  
+  // Admin-only fields
+  string internal_id = 4 [(x_fern_audiences) = "admin"];
+  repeated string permissions = 5 [(x_fern_audiences) = "admin"];
+  google.protobuf.Timestamp created_at = 6 [(x_fern_audiences) = "admin"];
+  
+  // Debug-only fields
+  map<string, string> debug_metadata = 7 [(x_fern_audiences) = "debug"];
+  string session_id = 8 [(x_fern_audiences) = "debug"];
+}
+```
+
+## Filter entire messages
+
+Filter entire message types to different audiences:
+
+```protobuf title="filtered_messages.proto"
+syntax = "proto3";
+
+package userservice.v1;
+
+// Public user data
+message PublicUser {
+  option (x_fern_audiences) = "public";
+  
+  string id = 1;
+  string name = 2;
+  string avatar_url = 3;
+}
+
+// Extended user data for authenticated users
+message AuthenticatedUser {
+  option (x_fern_audiences) = "authenticated";
+  
+  string id = 1;
+  string name = 2;
+  string email = 3;
+  string phone = 4;
+  UserPreferences preferences = 5;
+}
+
+// Full user data for administrators
+message AdminUser {
+  option (x_fern_audiences) = "admin";
+  
+  string id = 1;
+  string name = 2;
+  string email = 3;
+  string phone = 4;
+  UserPreferences preferences = 5;
+  repeated string roles = 6;
+  repeated Permission permissions = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp last_login = 9;
+  string created_by = 10;
+}
+```
+
+## Filter enums and enum values
+
+Filter enum values based on audience:
+
+```protobuf title="user_enums.proto"
+syntax = "proto3";
+
+package userservice.v1;
+
+enum UserStatus {
+  USER_STATUS_UNSPECIFIED = 0;
+  
+  // Public statuses
+  USER_STATUS_ACTIVE = 1 [(x_fern_audiences) = "public"];
+  USER_STATUS_INACTIVE = 2 [(x_fern_audiences) = "public"];
+  
+  // Admin-only statuses
+  USER_STATUS_SUSPENDED = 3 [(x_fern_audiences) = "admin"];
+  USER_STATUS_BANNED = 4 [(x_fern_audiences) = "admin"];
+  USER_STATUS_PENDING_VERIFICATION = 5 [(x_fern_audiences) = "admin"];
+  
+  // Internal debugging statuses
+  USER_STATUS_DEBUG = 6 [(x_fern_audiences) = "debug"];
+  USER_STATUS_TEST = 7 [(x_fern_audiences) = "debug"];
+}
+
+enum OperationType {
+  OPERATION_TYPE_UNSPECIFIED = 0;
+  
+  // Available to beta users
+  OPERATION_TYPE_EXPERIMENTAL_FEATURE = 1 [(x_fern_audiences) = "beta"];
+  OPERATION_TYPE_ADVANCED_ANALYTICS = 2 [(x_fern_audiences) = "beta"];
+  
+  // Internal operations
+  OPERATION_TYPE_SYSTEM_MAINTENANCE = 3 [(x_fern_audiences) = "internal"];
+}
+```
+
+## Request/Response filtering
+
+Filter request and response messages based on audience:
+
+```protobuf title="request_response.proto"
+syntax = "proto3";
+
+package userservice.v1;
+
+service UserService {
+  // Method with different request/response based on audience
+  rpc GetUserProfile(GetUserProfileRequest) returns (GetUserProfileResponse);
+}
+
+message GetUserProfileRequest {
+  string user_id = 1;
+  
+  // Admin can request additional data
+  bool include_internal_data = 2 [(x_fern_audiences) = "admin"];
+  bool include_audit_log = 3 [(x_fern_audiences) = "admin"];
+  
+  // Debug fields
+  bool include_debug_info = 4 [(x_fern_audiences) = "debug"];
+}
+
+message GetUserProfileResponse {
+  PublicUserProfile public_profile = 1;                    // Always included
+  
+  AdminUserProfile admin_profile = 2 [(x_fern_audiences) = "admin"];     // Admin only
+  repeated AuditLogEntry audit_log = 3 [(x_fern_audiences) = "admin"];   // Admin only
+  
+  DebugInfo debug_info = 4 [(x_fern_audiences) = "debug"];               // Debug only
+}
+```
+
+## Conditional method definitions
+
+Use audiences to expose different versions of methods:
+
+```protobuf title="conditional_methods.proto"
+syntax = "proto3";
+
+package userservice.v1;
+
+service UserService {
+  // Basic user creation for public
+  rpc CreateUser(CreateUserRequest) returns (User) {
+    option (x_fern_audiences) = "public";
+  }
+  
+  // Enhanced user creation for admin
+  rpc CreateUserWithPermissions(CreateUserWithPermissionsRequest) returns (AdminUser) {
+    option (x_fern_audiences) = "admin";
+  }
+  
+  // Bulk user creation for enterprise
+  rpc BulkCreateUsers(BulkCreateUsersRequest) returns (BulkCreateUsersResponse) {
+    option (x_fern_audiences) = "enterprise";
+  }
+  
+  // Beta features
+  rpc CreateUserWithAI(CreateUserWithAIRequest) returns (User) {
+    option (x_fern_audiences) = "beta";
+  }
+}
+```
+
+## Streaming method filtering
+
+Filter streaming methods by audience:
+
+```protobuf title="streaming_methods.proto"
+syntax = "proto3";
+
+package userservice.v1;
+
+service UserStreamingService {
+  // Public event streaming
+  rpc StreamUserEvents(StreamUserEventsRequest) returns (stream PublicUserEvent) {
+    option (x_fern_audiences) = "public";
+  }
+  
+  // Admin event streaming with more details
+  rpc StreamAdminEvents(StreamAdminEventsRequest) returns (stream AdminEvent) {
+    option (x_fern_audiences) = "admin";
+  }
+  
+  // Internal debugging stream
+  rpc StreamDebugEvents(StreamDebugEventsRequest) returns (stream DebugEvent) {
+    option (x_fern_audiences) = "debug";
+  }
+}
+```
+
+## Multiple audience support
+
+Assign multiple audiences to services or methods:
+
+```protobuf title="multiple_audiences.proto"
+syntax = "proto3";
+
+package userservice.v1;
+
+service UserService {
+  // Available to both public and authenticated users
+  rpc GetPublicUserInfo(GetPublicUserInfoRequest) returns (PublicUserInfo) {
+    option (x_fern_audiences) = "public,authenticated";
+  }
+  
+  // Available to admin and support staff
+  rpc GetUserSupportInfo(GetUserSupportInfoRequest) returns (UserSupportInfo) {
+    option (x_fern_audiences) = "admin,support";
+  }
+  
+  // Available to beta and internal users
+  rpc TestNewFeature(TestNewFeatureRequest) returns (TestNewFeatureResponse) {
+    option (x_fern_audiences) = "beta,internal";
+  }
+}
+```
+
+## Using custom extensions
+
+Define custom Fern extensions for audience filtering:
+
+```protobuf title="custom_extensions.proto"
+syntax = "proto3";
+
+package userservice.v1;
+
+import "google/protobuf/descriptor.proto";
+
+// Define custom option for audience filtering
+extend google.protobuf.ServiceOptions {
+  string x_fern_audiences = 50001;
+}
+
+extend google.protobuf.MethodOptions {
+  string x_fern_audiences = 50002;
+}
+
+extend google.protobuf.FieldOptions {
+  string x_fern_audiences = 50003;
+}
+
+extend google.protobuf.MessageOptions {
+  string x_fern_audiences = 50004;
+}
+
+extend google.protobuf.EnumValueOptions {
+  string x_fern_audiences = 50005;
+}
+```
+
+This allows you to create different views of the same gRPC API for different types of consumers, ensuring each audience only sees the services, methods, and data relevant to their use case. 

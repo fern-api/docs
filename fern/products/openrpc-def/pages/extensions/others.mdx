@@ -1,0 +1,302 @@
+---
+title: Other Extensions
+subtitle: Additional Fern extensions for OpenRPC specifications
+---
+
+Fern supports various extensions to enhance your OpenRPC specifications and improve the generated SDKs and documentation.
+
+## `x-fern-ignore`
+
+Use `x-fern-ignore` to exclude specific methods or schemas from SDK generation:
+
+```yaml title="openrpc.yml" {4-5, 12-13}
+methods:
+  - name: debug.internalMethod
+    summary: Internal debugging method
+    x-fern-ignore: true
+    params:
+      - name: debugData
+        schema:
+          type: object
+    result:
+      name: debugResult
+      schema:
+        type: object
+  - name: test.experimentalFeature
+    summary: Experimental feature (not ready for public use)
+    x-fern-ignore: true
+    params: []
+    result:
+      name: result
+      schema:
+        type: string
+```
+
+## `x-fern-examples`
+
+Provide additional examples for better SDK documentation:
+
+```yaml title="openrpc.yml" {8-25}
+methods:
+  - name: user.create
+    summary: Create a new user
+    params:
+      - name: userData
+        schema:
+          $ref: '#/components/schemas/CreateUserRequest'
+        required: true
+    x-fern-examples:
+      - name: StandardUser
+        description: Create a regular user account
+        params:
+          userData:
+            email: "john@example.com"
+            name: "John Doe"
+            role: "user"
+        result:
+          id: "user_123"
+          email: "john@example.com"
+          name: "John Doe"
+          role: "user"
+          createdAt: "2024-01-15T10:30:00Z"
+      - name: AdminUser
+        description: Create an admin user account
+        params:
+          userData:
+            email: "admin@example.com"
+            name: "Admin User"
+            role: "admin"
+            permissions: ["read", "write", "delete"]
+        result:
+          id: "user_456"
+          email: "admin@example.com"
+          name: "Admin User"
+          role: "admin"
+          createdAt: "2024-01-15T10:30:00Z"
+    result:
+      name: user
+      schema:
+        $ref: '#/components/schemas/User'
+```
+
+## `x-fern-pagination`
+
+Configure pagination for methods that return multiple results:
+
+```yaml title="openrpc.yml" {6-11}
+methods:
+  - name: user.list
+    summary: List users with pagination
+    params:
+      - name: pagination
+        schema:
+          type: object
+          properties:
+            cursor:
+              type: string
+            limit:
+              type: integer
+              default: 20
+    x-fern-pagination:
+      cursor: pagination.cursor
+      results: users
+      next_cursor: pagination.nextCursor
+      has_next_page: pagination.hasMore
+    result:
+      name: userList
+      schema:
+        type: object
+        properties:
+          users:
+            type: array
+            items:
+              $ref: '#/components/schemas/User'
+          pagination:
+            type: object
+            properties:
+              nextCursor:
+                type: string
+              hasMore:
+                type: boolean
+```
+
+## `x-fern-retry`
+
+Configure retry behavior for methods:
+
+```yaml title="openrpc.yml" {6-10}
+methods:
+  - name: payment.process
+    summary: Process payment with retry logic
+    params:
+      - name: paymentData
+        schema:
+          $ref: '#/components/schemas/PaymentRequest'
+    x-fern-retry:
+      max_attempts: 3
+      exponential_backoff: true
+      initial_delay: 1000
+      max_delay: 30000
+    result:
+      name: paymentResult
+      schema:
+        $ref: '#/components/schemas/PaymentResult'
+```
+
+## `x-fern-timeout`
+
+Configure timeout settings for methods:
+
+```yaml title="openrpc.yml" {6-8}
+methods:
+  - name: report.generate
+    summary: Generate large report (may take time)
+    params:
+      - name: reportConfig
+        schema:
+          $ref: '#/components/schemas/ReportConfig'
+    x-fern-timeout:
+      seconds: 300
+      description: "Report generation can take up to 5 minutes"
+    result:
+      name: report
+      schema:
+        $ref: '#/components/schemas/Report'
+```
+
+## `x-fern-error-handling`
+
+Configure error handling for methods:
+
+```yaml title="openrpc.yml" {10-20}
+methods:
+  - name: order.create
+    summary: Create a new order
+    params:
+      - name: orderData
+        schema:
+          $ref: '#/components/schemas/CreateOrderRequest'
+    errors:
+      - code: -32001
+        message: Insufficient inventory
+        x-fern-error-handling:
+          error_name: InsufficientInventoryError
+          retry_after_seconds: 60
+      - code: -32002
+        message: Payment failed
+        x-fern-error-handling:
+          error_name: PaymentFailedError
+          user_friendly_message: "Payment could not be processed. Please check your payment information."
+    result:
+      name: order
+      schema:
+        $ref: '#/components/schemas/Order'
+```
+
+## `x-fern-availability`
+
+Mark features as available in specific SDK versions:
+
+```yaml title="openrpc.yml" {4-6}
+methods:
+  - name: beta.advancedSearch
+    summary: Advanced search functionality
+    x-fern-availability:
+      status: beta
+      message: "This feature is in beta and may change"
+    params:
+      - name: searchQuery
+        schema:
+          $ref: '#/components/schemas/AdvancedSearchQuery'
+    result:
+      name: searchResults
+      schema:
+        $ref: '#/components/schemas/SearchResults'
+```
+
+## `x-fern-streaming`
+
+Mark methods as streaming for appropriate SDK generation:
+
+```yaml title="openrpc.yml" {4-6}
+methods:
+  - name: logs.stream
+    summary: Stream log events
+    x-fern-streaming:
+      type: server_sent_events
+      termination: client_closes
+    params:
+      - name: filters
+        schema:
+          type: object
+          properties:
+            level:
+              type: string
+              enum: [debug, info, warn, error]
+            service:
+              type: string
+    # Note: Streaming methods typically don't have a traditional result
+```
+
+## `x-fern-server-name`
+
+Specify custom names for servers:
+
+```yaml title="openrpc.yml" {3-4}
+servers:
+  - name: production
+    url: https://api.yourcompany.com/rpc
+    x-fern-server-name: Production
+    description: Production JSON-RPC server
+  - name: staging
+    url: https://staging-api.yourcompany.com/rpc
+    x-fern-server-name: Staging
+    description: Staging environment
+```
+
+## `x-fern-base-path`
+
+Configure base paths for generated SDK clients:
+
+```yaml title="openrpc.yml" {3-4}
+info:
+  title: My JSON-RPC API
+  version: 1.0.0
+  x-fern-base-path: /api/v1/rpc
+  description: JSON-RPC API with custom base path
+```
+
+## `x-fern-sdk-group-name`
+
+Group related methods in the SDK:
+
+```yaml title="openrpc.yml" {4-5, 12-13}
+methods:
+  - name: user.create
+    summary: Create user
+    x-fern-sdk-group-name: users
+    params: [...]
+    result: {...}
+    
+  - name: user.get
+    summary: Get user
+    x-fern-sdk-group-name: users
+    params: [...]
+    result: {...}
+    
+  - name: order.create
+    summary: Create order
+    x-fern-sdk-group-name: orders
+    params: [...]
+    result: {...}
+```
+
+This generates SDKs with grouped methods:
+
+```typescript
+client.users.create(...)
+client.users.get(...)
+client.orders.create(...)
+```
+
+These extensions help you create more robust and user-friendly SDKs while maintaining full control over the generated code structure and behavior. 

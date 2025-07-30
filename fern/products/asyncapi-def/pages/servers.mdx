@@ -1,0 +1,116 @@
+---
+title: Servers
+description: Configure server URLs and protocols to help users connect to your event-driven API.
+subtitle: Define server URLs and protocols to help users connect to your event-driven API.
+---
+
+AsyncAPI allows you to specify one or more server configurations under the `servers` key.
+
+```yml asyncapi.yml 
+
+servers: 
+  production:
+    host: api.yourcompany.com
+    protocol: wss
+    description: Production WebSocket server
+  staging:
+    host: staging.api.yourcompany.com
+    protocol: wss
+    description: Staging WebSocket server
+```
+
+Specifying servers is valuable for both SDKs and Docs: 
+- For SDKs, your users won't need to manually specify the server URL at client instantiation
+- For Docs, your API playground will automatically connect to the correct server
+
+## Protocol support
+
+AsyncAPI supports various protocols for event-driven communication:
+
+```yml asyncapi.yml {4,8,12}
+servers: 
+  websocket-server:
+    host: ws.api.yourcompany.com
+    protocol: ws
+    description: WebSocket server for real-time communication
+  mqtt-server:
+    host: mqtt.yourcompany.com
+    protocol: mqtt
+    description: MQTT broker for IoT devices
+  kafka-server:
+    host: kafka.yourcompany.com
+    protocol: kafka
+    description: Kafka cluster for event streaming
+```
+
+## Naming your servers
+
+We recommend giving your servers descriptive names to make it clear what each server is for:
+
+```yml asyncapi.yml 
+servers: 
+  production:
+    host: api.yourcompany.com
+    protocol: wss
+    description: Production WebSocket server
+  staging:
+    host: staging.api.yourcompany.com
+    protocol: wss
+    description: Staging environment for testing
+  development:
+    host: localhost:8080
+    protocol: ws
+    description: Local development server
+```
+
+## Server variables
+
+You can use variables in your server configurations to make them more flexible:
+
+```yml asyncapi.yml {3-10}
+servers:
+  production:
+    host: '{environment}.api.yourcompany.com'
+    protocol: wss
+    variables:
+      environment:
+        default: prod
+        enum:
+          - prod
+          - staging
+        description: Environment name
+```
+
+## Multiple protocols for different channels
+
+If you have different channels that use different protocols, you can specify this in your server configuration:
+
+```yml asyncapi.yml {2-14, 17-21}
+servers:
+  websocket-server:
+    host: ws.api.yourcompany.com
+    protocol: wss
+    description: WebSocket server for real-time notifications
+  mqtt-server:
+    host: mqtt.api.yourcompany.com
+    protocol: mqtt
+    description: MQTT broker for IoT device communication
+  kafka-server:
+    host: kafka.api.yourcompany.com
+    protocol: kafka
+    description: Kafka for high-throughput event streaming
+
+channels:
+  user/notifications:
+    servers:
+      - websocket-server
+    address: user/notifications
+    description: Real-time user notifications via WebSocket
+  device/telemetry:
+    servers:
+      - mqtt-server
+    address: device/telemetry
+    description: IoT device telemetry via MQTT
+```
+
+This allows different channels to use the most appropriate protocol for their use case. 

@@ -1,0 +1,295 @@
+---
+title: Use audiences to filter your API
+subtitle: Use `x-fern-audiences` to filter to relevant methods, parameters and schemas
+---
+
+Audiences are a useful tool for segmenting your JSON-RPC API for different consumers. Common examples of audiences include `public`
+and `beta`.
+
+<Info>
+  Remember to filter your SDKs and Docs after specifying audiences. If **no audiences** are specified,
+  nothing will be filtered.
+
+<AccordionGroup>
+
+<Accordion title="SDKs">
+The following example configures the SDK to filter to the `public` audience:
+
+```yaml title="generators.yml" {3-4}
+groups:
+  sdks:
+    audiences:
+      - public
+    generators:
+      - name: fernapi/fern-typescript-node-sdk
+        version: 0.8.8
+```
+</Accordion>
+
+<Accordion title="Docs">
+The following example configures the docs to filter to the `public` audience:
+
+```yaml title="docs.yml" {3-4}
+navigation:
+  - api: API Reference
+    audiences:
+      - public
+```
+</Accordion>
+
+</AccordionGroup>
+</Info>
+
+## Filter methods
+
+Add `x-fern-audiences` to methods to control which methods are included for specific audiences:
+
+```yaml title="openrpc.yml" {5-6, 12-13}
+methods:
+  - name: public.getInfo
+    summary: Get public API information
+    description: Publicly available information about the API
+    x-fern-audiences:
+      - public
+    params: []
+    result:
+      name: info
+      schema:
+        $ref: '#/components/schemas/ApiInfo'
+  - name: admin.getUsers
+    summary: Get all users (admin only)
+    x-fern-audiences:
+      - admin
+    params:
+      - name: limit
+        schema:
+          type: integer
+          default: 100
+    result:
+      name: users
+      schema:
+        type: array
+        items:
+          $ref: '#/components/schemas/User'
+```
+
+## Filter method parameters
+
+You can filter specific parameters within methods:
+
+```yaml title="openrpc.yml" {8-9, 14-15}
+methods:
+  - name: user.create
+    summary: Create a new user
+    params:
+      - name: userData
+        schema:
+          type: object
+          properties:
+            email:
+              type: string
+              format: email
+            name:
+              type: string
+            adminNotes:
+              type: string
+              x-fern-audiences:
+                - admin
+            internalId:
+              type: string
+              x-fern-audiences:
+                - internal
+          required:
+            - email
+            - name
+        required: true
+    result:
+      name: user
+      schema:
+        $ref: '#/components/schemas/User'
+```
+
+## Filter schemas
+
+Filter entire schemas to different audiences:
+
+```yaml title="openrpc.yml" {5-6, 20-21}
+components:
+  schemas:
+    PublicUser:
+      type: object
+      x-fern-audiences:
+        - public
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+      required:
+        - id
+        - name
+        - email
+    AdminUser:
+      allOf:
+        - $ref: '#/components/schemas/PublicUser'
+        - type: object
+          x-fern-audiences:
+            - admin
+          properties:
+            role:
+              type: string
+            permissions:
+              type: array
+              items:
+                type: string
+            createdAt:
+              type: string
+              format: date-time
+            lastLoginAt:
+              type: string
+              format: date-time
+```
+
+## Filter schema properties
+
+You can filter individual properties within schemas:
+
+```yaml title="openrpc.yml" {9-10, 13-14, 17-18}
+components:
+  schemas:
+    Order:
+      type: object
+      properties:
+        id:
+          type: string
+        amount:
+          type: number
+          x-fern-audiences:
+            - public
+        internalCost:
+          type: number
+          x-fern-audiences:
+            - internal
+        debugInfo:
+          type: object
+          x-fern-audiences:
+            - debug
+        customerInfo:
+          type: object
+          properties:
+            id:
+              type: string
+            email:
+              type: string
+              x-fern-audiences:
+                - admin
+```
+
+## Filter error responses
+
+Filter error information based on audience:
+
+```yaml title="openrpc.yml" {7-12, 14-19}
+methods:
+  - name: payment.process
+    summary: Process a payment
+    params:
+      - name: paymentData
+        schema:
+          $ref: '#/components/schemas/PaymentRequest'
+    errors:
+      - code: -32001
+        message: Payment failed
+        x-fern-audiences:
+          - public
+        data:
+          type: object
+          properties:
+            error:
+              type: string
+              const: "Payment could not be processed"
+      - code: -32001
+        message: Payment failed
+        x-fern-audiences:
+          - admin
+        data:
+          type: object
+          properties:
+            error:
+              type: string
+            errorCode:
+              type: string
+            gatewayResponse:
+              type: object
+            debugTrace:
+              type: string
+```
+
+## Server-level filtering
+
+Apply audience filtering at the server level:
+
+```yaml title="openrpc.yml" {4-5, 10-11}
+servers:
+  - name: public-api
+    url: https://api.example.com/rpc
+    x-fern-audiences:
+      - public
+    description: Public API server
+  - name: admin-api
+    url: https://admin-api.example.com/rpc
+    x-fern-audiences:
+      - admin
+    description: Admin API server with additional privileges
+```
+
+## Conditional method availability
+
+Use audiences to make methods available only in certain contexts:
+
+```yaml title="openrpc.yml" {5-6, 15-16, 25-26}
+methods:
+  - name: debug.getSystemInfo
+    summary: Get system debug information
+    description: Internal system information for debugging
+    x-fern-audiences:
+      - debug
+    params: []
+    result:
+      name: systemInfo
+      schema:
+        type: object
+        additionalProperties: true
+  - name: beta.advancedSearch
+    summary: Advanced search functionality
+    x-fern-audiences:
+      - beta
+    params:
+      - name: query
+        schema:
+          type: object
+          properties:
+            text:
+              type: string
+            filters:
+              type: object
+              additionalProperties: true
+    result:
+      name: results
+      schema:
+        $ref: '#/components/schemas/SearchResults'
+  - name: internal.resetCache
+    summary: Reset internal caches
+    x-fern-audiences:
+      - internal
+    params:
+      - name: cacheType
+        schema:
+          type: string
+          enum: [user, product, session, all]
+    # Notification - no result expected
+```
+
+This allows you to create different views of the same JSON-RPC API for different types of consumers, ensuring each audience only sees the methods and data relevant to their use case. 

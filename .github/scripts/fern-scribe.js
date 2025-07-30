@@ -573,6 +573,20 @@ Changelog entry:`;
           resolvedPath = `fern/${resolvedPath}`;
         }
         
+        // Determine the effective slug for URL generation
+        let effectiveSlug = null;
+        if (product['skip-slug'] === true) {
+          // Skip slug entirely - pages will be at root level
+          effectiveSlug = '';
+        } else if (product.slug) {
+          // Use explicit slug
+          effectiveSlug = product.slug;
+        } else {
+          // Derive slug from path or display-name
+          const pathBasename = product.path.split('/').pop().replace(/\.yml$/, '');
+          effectiveSlug = pathBasename;
+        }
+        
         // Load product config
         const productContent = await this.fetchFileContent(resolvedPath);
         if (!productContent) continue;
@@ -581,7 +595,7 @@ Changelog entry:`;
         if (!productConfig.navigation) continue;
         
         // Process navigation structure
-        await this.processNavigation(productConfig, product.slug, resolvedPath);
+        await this.processNavigation(productConfig, effectiveSlug, resolvedPath);
       }
       
       this.isPathMappingLoaded = true;
@@ -591,24 +605,64 @@ Changelog entry:`;
     }
   }
   
-  async processNavigation(config, productSlug, configPath) {
+  async processNavigation(config, productSlug, configPath, parentSections = []) {
     if (!config.navigation) return;
 
-    const basePath = configPath.replace(/\/[^\/]+\.yml$/, '').replace('fern/', '');
+    // Extract the directory path from the config file path
+    // e.g., "fern/products/fern-def.yml" -> "products/fern-def"
+    const basePath = configPath.replace(/\.yml$/, '').replace('fern/', '');
     
     for (const navItem of config.navigation) {
       if (navItem.page) {
-        // It's a page
-        const pageFilePath = `fern/${basePath}/pages/${navItem.page}`;
-        const pageUrl = `/${productSlug}/${navItem.page}`;
+        // It's a page - check if it has a custom path
+        let pageFilePath;
+        if (navItem.path) {
+          // Use custom path
+          pageFilePath = `fern/${basePath}/pages/${navItem.path}`;
+        } else {
+          // Default path based on page name
+          pageFilePath = `fern/${basePath}/pages/${navItem.page}`;
+        }
+        
+        // Build URL with parent sections
+        const urlParts = [productSlug, ...parentSections, navItem.page].filter(Boolean);
+        const pageUrl = `/${urlParts.join('/')}`;
         this.dynamicPathMapping.set(pageUrl, pageFilePath);
       } else if (navItem.section) {
-        // It's a section with pages
+        // It's a section with pages - create section-based URLs
+        const sectionSlug = navItem.section.toLowerCase().replace(/\s+/g, '-');
+        const newParentSections = [...parentSections, sectionSlug];
+        
         for (const pageItem of navItem.contents || []) {
           if (pageItem.page) {
-            const pageFilePath = `fern/${basePath}/pages/${pageItem.page}`;
-            const pageUrl = `/${productSlug}/${pageItem.page}`;
-            this.dynamicPathMapping.set(pageUrl, pageFilePath);
+            let pageFilePath;
+            if (pageItem.path) {
+              // Use custom path
+              pageFilePath = `fern/${basePath}/pages/${pageItem.path}`;
+            } else {
+              // Default path based on page name
+              pageFilePath = `fern/${basePath}/pages/${pageItem.page}`;
+            }
+            
+            // Build URL with all parent sections
+            const urlParts = [productSlug, ...newParentSections, pageItem.page].filter(Boolean);
+            const sectionUrl = `/${urlParts.join('/')}`;
+            this.dynamicPathMapping.set(sectionUrl, pageFilePath);
+            
+            // Also create direct URL for backwards compatibility (without parent sections)
+            const directUrlParts = [productSlug, pageItem.page].filter(Boolean);
+            const directUrl = `/${directUrlParts.join('/')}`;
+            if (!this.dynamicPathMapping.has(directUrl)) {
+              this.dynamicPathMapping.set(directUrl, pageFilePath);
+            }
+          } else if (pageItem.section) {
+            // Handle nested sections recursively
+            const nestedSectionSlug = pageItem.section.toLowerCase().replace(/\s+/g, '-');
+            const nestedParentSections = [...newParentSections, nestedSectionSlug];
+            
+            // Create a temporary config object for recursive processing
+            const nestedConfig = { navigation: pageItem.contents || [] };
+            await this.processNavigation(nestedConfig, productSlug, configPath, nestedParentSections);
           }
         }
       }
@@ -620,7 +674,21 @@ Changelog entry:`;
     // Remove /learn prefix and clean up trailing slashes
     let urlPath = turbopufferUrl.replace('/learn', '').replace(/\/$/, '');
     
-    // Extract product and path
+    // First try to use dynamic mapping
+    if (this.dynamicPathMapping.has(urlPath)) {
+      const mappedPath = this.dynamicPathMapping.get(urlPath);
+      // Add .mdx extension if not present and not already a complete path
+      if (!mappedPath.endsWith('.mdx') && !mappedPath.endsWith('/')) {
+        // Check if it's a known directory case (like changelog)
+        if (mappedPath.endsWith('/changelog') || (mappedPath.includes('/changelog') && !mappedPath.includes('.'))) {
+          return mappedPath; // Return as directory
+        }
+        return `${mappedPath}.mdx`;
+      }
+      return mappedPath;
+    }
+    
+    // Fallback to hardcoded logic for backwards compatibility
     const pathParts = urlPath.split('/').filter(p => p);
     if (pathParts.length === 0) return null;
     
@@ -662,7 +730,7 @@ Changelog entry:`;
     // Ensure dynamic mapping is loaded
     await this.loadDynamicPathMapping();
     
-    // Use the new transformation logic
+    // Use the improved transformation logic that prioritizes dynamic mapping
     return this.transformTurbopufferUrlToPath(turbopufferPath) || turbopufferPath;
   }
 

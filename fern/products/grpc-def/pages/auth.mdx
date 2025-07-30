@@ -1,0 +1,370 @@
+---
+title: Authentication
+subtitle: Configure authentication for gRPC services including TLS, JWT, and custom auth
+---
+
+gRPC supports various authentication mechanisms to secure your services. Authentication can be configured at the transport level (TLS) and at the application level (credentials, tokens, etc.).
+
+## Transport Security (TLS)
+
+gRPC strongly recommends using TLS for production services to ensure encrypted communication:
+
+```protobuf auth_service.proto
+syntax = "proto3";
+
+package auth.v1;
+
+// Authentication service
+service AuthService {
+  // Authenticate user and return JWT token
+  rpc Login(LoginRequest) returns (LoginResponse);
+  
+  // Validate and refresh JWT token
+  rpc RefreshToken(RefreshTokenRequest) returns (RefreshTokenResponse);
+  
+  // Logout and invalidate token
+  rpc Logout(LogoutRequest) returns (google.protobuf.Empty);
+}
+
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  string access_token = 1;
+  string refresh_token = 2;
+  int64 expires_in = 3;
+  User user = 4;
+}
+```
+
+Configure TLS in your server:
+
+```python title="server.py"
+import grpc
+from grpc import ssl_channel_credentials
+import auth_service_pb2_grpc
+
+def create_secure_server():
+    # Load TLS credentials
+    server_credentials = grpc.ssl_server_credentials([
+        (private_key, certificate_chain)
+    ])
+    
+    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+    auth_service_pb2_grpc.add_AuthServiceServicer_to_server(
+        AuthServiceServicer(), server
+    )
+    
+    # Listen on secure port
+    server.add_secure_port('[::]:443', server_credentials)
+    return server
+```
+
+## JWT Authentication
+
+Use JWT tokens for stateless authentication:
+
+```protobuf auth.proto
+syntax = "proto3";
+
+package auth.v1;
+
+// JWT claims for user authentication
+message JWTClaims {
+  string user_id = 1;
+  string email = 2;
+  repeated string roles = 3;
+  google.protobuf.Timestamp issued_at = 4;
+  google.protobuf.Timestamp expires_at = 5;
+}
+```
+
+Implement JWT authentication in your service:
+
+```python title="auth_service.py"
+import grpc
+import jwt
+from grpc import ServicerContext
+
+class AuthServiceServicer(auth_service_pb2_grpc.AuthServiceServicer):
+    
+    def Login(self, request, context):
+        # Validate credentials
+        user = self.validate_credentials(request.email, request.password)
+        if not user:
+            context.set_code(grpc.StatusCode.UNAUTHENTICATED)
+            context.set_details('Invalid credentials')
+            return auth_service_pb2.LoginResponse()
+        
+        # Generate JWT token
+        payload = {
+            'user_id': user.id,
+            'email': user.email,
+            'roles': user.roles,
+            'exp': datetime.utcnow() + timedelta(hours=1)
+        }
+        
+        access_token = jwt.encode(payload, JWT_SECRET, algorithm='HS256')
+        
+        return auth_service_pb2.LoginResponse(
+            access_token=access_token,
+            refresh_token=self.generate_refresh_token(user.id),
+            expires_in=3600,
+            user=user
+        )
+```
+
+## Interceptors for Authentication
+
+Use gRPC interceptors to handle authentication across all methods:
+
+```python title="auth_interceptor.py"
+import grpc
+import jwt
+from grpc import ServicerContext
+
+class AuthInterceptor(grpc.ServerInterceptor):
+    
+    def __init__(self, jwt_secret, exempt_methods=None):
+        self.jwt_secret = jwt_secret
+        self.exempt_methods = exempt_methods or []
+    
+    def intercept_service(self, continuation, handler_call_details):
+        method_name = handler_call_details.method
+        
+        # Skip authentication for exempt methods
+        if method_name in self.exempt_methods:
+            return continuation(handler_call_details)
+        
+        # Extract metadata
+        metadata = dict(handler_call_details.invocation_metadata)
+        authorization = metadata.get('authorization', '')
+        
+        if not authorization.startswith('Bearer '):
+            return self._unauthenticated_response()
+        
+        token = authorization[7:]  # Remove 'Bearer ' prefix
+        
+        try:
+            # Validate JWT token
+            payload = jwt.decode(token, self.jwt_secret, algorithms=['HS256'])
+            
+            # Add user info to context
+            handler_call_details = handler_call_details._replace(
+                invocation_metadata=handler_call_details.invocation_metadata + (
+                    ('user_id', payload['user_id']),
+                    ('user_email', payload['email']),
+                )
+            )
+            
+            return continuation(handler_call_details)
+            
+        except jwt.ExpiredSignatureError:
+            return self._expired_token_response()
+        except jwt.InvalidTokenError:
+            return self._invalid_token_response()
+    
+    def _unauthenticated_response(self):
+        def abort(ignored_request, context):
+            context.set_code(grpc.StatusCode.UNAUTHENTICATED)
+            context.set_details('Missing or invalid authorization header')
+        return grpc.unary_unary_rpc_method_handler(abort)
+```
+
+## API Key Authentication
+
+Implement API key-based authentication:
+
+```protobuf api_key.proto
+syntax = "proto3";
+
+package auth.v1;
+
+message ApiKeyRequest {
+  string api_key = 1;
+  string service_name = 2;
+}
+
+message ApiKeyResponse {
+  bool valid = 1;
+  string client_id = 2;
+  repeated string permissions = 3;
+  google.protobuf.Timestamp expires_at = 4;
+}
+```
+
+Server implementation:
+
+```python title="api_key_auth.py"
+class ApiKeyAuthInterceptor(grpc.ServerInterceptor):
+    
+    def __init__(self, api_key_store):
+        self.api_key_store = api_key_store
+    
+    def intercept_service(self, continuation, handler_call_details):
+        metadata = dict(handler_call_details.invocation_metadata)
+        api_key = metadata.get('x-api-key', '')
+        
+        if not api_key:
+            return self._unauthorized_response('API key required')
+        
+        # Validate API key
+        key_info = self.api_key_store.get(api_key)
+        if not key_info or key_info.is_expired():
+            return self._unauthorized_response('Invalid or expired API key')
+        
+        # Add client info to context
+        handler_call_details = handler_call_details._replace(
+            invocation_metadata=handler_call_details.invocation_metadata + (
+                ('client_id', key_info.client_id),
+                ('permissions', ','.join(key_info.permissions)),
+            )
+        )
+        
+        return continuation(handler_call_details)
+```
+
+## OAuth2 Integration
+
+Integrate with OAuth2 providers:
+
+```python title="oauth2_auth.py"
+import requests
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
+
+class OAuth2Interceptor(grpc.ServerInterceptor):
+    
+    def __init__(self, google_client_id):
+        self.google_client_id = google_client_id
+    
+    def intercept_service(self, continuation, handler_call_details):
+        metadata = dict(handler_call_details.invocation_metadata)
+        auth_header = metadata.get('authorization', '')
+        
+        if not auth_header.startswith('Bearer '):
+            return self._unauthorized_response()
+        
+        token = auth_header[7:]
+        
+        try:
+            # Verify Google ID token
+            idinfo = id_token.verify_oauth2_token(
+                token, google_requests.Request(), self.google_client_id
+            )
+            
+            # Add user info to context
+            handler_call_details = handler_call_details._replace(
+                invocation_metadata=handler_call_details.invocation_metadata + (
+                    ('user_id', idinfo['sub']),
+                    ('user_email', idinfo['email']),
+                    ('user_name', idinfo.get('name', '')),
+                )
+            )
+            
+            return continuation(handler_call_details)
+            
+        except ValueError:
+            return self._invalid_token_response()
+```
+
+## Client-side Authentication
+
+Configure authentication on the client side:
+
+```python title="client.py"
+import grpc
+
+# TLS with JWT
+def create_authenticated_channel(server_address, jwt_token):
+    credentials = grpc.ssl_channel_credentials()
+    channel = grpc.secure_channel(server_address, credentials)
+    
+    # Add JWT token to all requests
+    def jwt_interceptor(continuation, client_call_details):
+        metadata = list(client_call_details.metadata or [])
+        metadata.append(('authorization', f'Bearer {jwt_token}'))
+        
+        client_call_details = client_call_details._replace(metadata=metadata)
+        return continuation(client_call_details)
+    
+    intercepted_channel = grpc.intercept_channel(channel, jwt_interceptor)
+    return intercepted_channel
+
+# API Key authentication
+def create_api_key_channel(server_address, api_key):
+    credentials = grpc.ssl_channel_credentials()
+    channel = grpc.secure_channel(server_address, credentials)
+    
+    def api_key_interceptor(continuation, client_call_details):
+        metadata = list(client_call_details.metadata or [])
+        metadata.append(('x-api-key', api_key))
+        
+        client_call_details = client_call_details._replace(metadata=metadata)
+        return continuation(client_call_details)
+    
+    intercepted_channel = grpc.intercept_channel(channel, api_key_interceptor)
+    return intercepted_channel
+```
+
+## Role-Based Access Control
+
+Implement RBAC for fine-grained permissions:
+
+```protobuf rbac.proto
+syntax = "proto3";
+
+package auth.v1;
+
+message Permission {
+  string resource = 1;
+  string action = 2;
+}
+
+message Role {
+  string name = 1;
+  repeated Permission permissions = 2;
+}
+
+message UserRoles {
+  string user_id = 1;
+  repeated string role_names = 2;
+}
+```
+
+RBAC interceptor implementation:
+
+```python title="rbac_interceptor.py"
+class RBACInterceptor(grpc.ServerInterceptor):
+    
+    def __init__(self, permission_store):
+        self.permission_store = permission_store
+    
+    def intercept_service(self, continuation, handler_call_details):
+        # Get user info from context (added by auth interceptor)
+        metadata = dict(handler_call_details.invocation_metadata)
+        user_id = metadata.get('user_id')
+        
+        if not user_id:
+            return self._unauthorized_response()
+        
+        # Check permissions for the method
+        method_name = handler_call_details.method
+        required_permission = self._get_required_permission(method_name)
+        
+        if required_permission and not self._has_permission(user_id, required_permission):
+            return self._forbidden_response()
+        
+        return continuation(handler_call_details)
+    
+    def _has_permission(self, user_id, permission):
+        user_roles = self.permission_store.get_user_roles(user_id)
+        for role in user_roles:
+            if permission in role.permissions:
+                return True
+        return False
+```
+
+gRPC's flexible authentication system allows you to implement secure, scalable authentication patterns that work across different environments and use cases. 

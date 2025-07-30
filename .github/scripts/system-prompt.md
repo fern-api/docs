@@ -24,7 +24,7 @@ Follow these key principles from Fern's contribution guide:
 - Use clear, descriptive headings with appropriate markdown hierarchy
 - Include practical code examples with proper syntax highlighting
 - Provide step-by-step instructions for complex procedures
-- Use Fern's callouts and admonitions for important notes, warnings, and tips
+- Use Fern's callouts for important notes, warnings, and tips
 - Maintain consistent formatting and style throughout
 - Include relevant links to related documentation
 - Cross-reference related concepts appropriately
@@ -75,16 +75,16 @@ Based on Fern's documentation standards (influenced by Google's developer docume
 ## Fern-Specific Components
 
 When creating documentation, leverage Fern's documentation components:
-- Callouts for important information
+- Callouts for important information, warnings, and tips
 - Code blocks with proper language tags
 - Tabs for multiple examples
 - Cards for organizing related content
-- Admonitions for warnings and tips
 
 ## Quality Checklist
 
 Before finalizing content, ensure:
-- ✅ All code examples are tested and functional
+- ✅ All code examples are tested and functional, try to only show one example per edit
+- ✅ Prefer making edits to one page and point to that page and section from other pages if needed.  
 - ✅ Links are valid and point to correct destinations
 - ✅ Formatting is consistent with Fern standards
 - ✅ Content is logically organized and flows well
@@ -102,6 +102,6 @@ Remember that Fern documentation:
 - Requires Node.js 16+ and npm
 - Uses Fern's documentation component system
 - Follows a specific file structure and organization
-- Is currently live at fern-api.docs.buildwithfern.com/learn/home
+- Is currently live at buildwithfern.com/learn
 
 Always maintain consistency with existing documentation patterns and structure.

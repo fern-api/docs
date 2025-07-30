@@ -1,0 +1,203 @@
+---
+title: Sync your AsyncAPI Specification
+subtitle: Automatically sync your AsyncAPI spec changes to keep SDKs and docs up to date
+---
+
+Keeping your AsyncAPI specifications in sync with your codebase is crucial for maintaining accurate SDKs and documentation. Fern provides several automation options to streamline this process.
+
+## GitHub Actions
+
+Use Fern's GitHub Action to automatically update SDKs and docs when your AsyncAPI spec changes:
+
+```yaml title=".github/workflows/fern.yml"
+name: Fern
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  fern-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        
+      - name: Check AsyncAPI spec
+        uses: fern-api/action@v0
+        with:
+          command: check
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+
+  fern-generate:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        
+      - name: Generate SDKs and docs
+        uses: fern-api/action@v0
+        with:
+          command: generate
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+```
+
+## Webhook integration
+
+Set up webhooks to trigger SDK generation when your AsyncAPI spec is updated:
+
+```yaml title="generators.yml" {4-8}
+api:
+  specs:
+    - spec: asyncapi.yml
+  github:
+    repository: your-org/your-repo
+  webhooks:
+    - url: https://your-api.com/webhooks/fern
+      events: [generate]
+  generators:
+    - name: fernapi/fern-typescript-node-sdk
+      version: 0.8.8
+      output:
+        location: npm
+        package-name: "@your-org/sdk"
+```
+
+## Auto-sync from source
+
+Configure Fern to automatically pull your AsyncAPI specification from various sources:
+
+### From URL
+```yaml title="generators.yml" {3-4}
+api:
+  specs:
+    - spec: https://api.yourcompany.com/asyncapi.yml
+      auto-sync: true
+  generators:
+    - name: fernapi/fern-typescript-node-sdk
+      version: 0.8.8
+```
+
+### From Git repository
+```yaml title="generators.yml" {3-7}
+api:
+  specs:
+    - spec:
+        git:
+          repository: https://github.com/your-org/api-specs
+          path: asyncapi/api.yml
+          branch: main
+  generators:
+    - name: fernapi/fern-typescript-node-sdk
+      version: 0.8.8
+```
+
+## CI/CD integration
+
+### CircleCI
+```yaml title=".circleci/config.yml" {15-23}
+version: 2.1
+
+orbs:
+  fern: fernapi/fern@1.0
+
+workflows:
+  version: 2
+  build-and-test:
+    jobs:
+      - build
+      - test:
+          requires:
+            - build
+      - fern/generate:
+          requires:
+            - test
+          filters:
+            branches:
+              only: main
+          context:
+            - fern-context
+```
+
+### GitLab CI
+```yaml title=".gitlab-ci.yml" {13-20}
+stages:
+  - build
+  - test
+  - generate
+
+variables:
+  FERN_TOKEN: $FERN_TOKEN
+
+build:
+  stage: build
+  script:
+    - echo "Building application..."
+
+generate-sdks:
+  stage: generate
+  image: fernapi/fern:latest
+  script:
+    - fern generate
+  only:
+    - main
+```
+
+## Scheduled updates
+
+Set up scheduled updates to ensure your SDKs stay current:
+
+```yaml title=".github/workflows/scheduled-update.yml"
+name: Scheduled AsyncAPI Update
+
+on:
+  schedule:
+    - cron: '0 2 * * 1'  # Every Monday at 2 AM UTC
+  workflow_dispatch:
+
+jobs:
+  update-specs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        
+      - name: Update AsyncAPI specs
+        run: |
+          curl -o fern/asyncapi/asyncapi.yml https://api.yourcompany.com/asyncapi.yml
+          
+      - name: Generate with latest spec
+        uses: fern-api/action@v0
+        with:
+          command: generate
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+```
+
+## Monitoring changes
+
+Track changes to your AsyncAPI specification:
+
+```yaml title="generators.yml" {4-9}
+api:
+  specs:
+    - spec: asyncapi.yml
+  change-detection:
+    enabled: true
+    breaking-changes: error
+    notifications:
+      slack: ${{ secrets.SLACK_WEBHOOK }}
+      email: team@yourcompany.com
+  generators:
+    - name: fernapi/fern-typescript-node-sdk
+      version: 0.8.8
+```
+
+This ensures that any breaking changes to your AsyncAPI specification are detected and the appropriate team members are notified before the changes are propagated to your SDKs and documentation. 
