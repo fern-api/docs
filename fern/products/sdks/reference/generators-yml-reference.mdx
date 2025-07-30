@@ -840,11 +840,238 @@ The path to the generated snippets file.
 
 ### API Settings Override
 
-<ParamField path="groups.{groupName}.generators[].api.auth" type="ApiAuthSchema" required={false} toc={true}>
+Override authentication settings in your API spec using the `api` configuration.
+You can specify authentication schemes, reference existing auth configurations,
+and set additional API-specific settings.
+
+#### String Reference
+
+Reference a pre-defined authentication scheme by name.
+
+```yml {6-7}
+groups: 
+  ts-sdk:
+    generators:
+      - name: fernapi/fern-typescript-sdk
+      ...
+        api:
+          auth: "bearer-token"
+```
+
+<ParamField path="auth" type="string" required={false} toc={true}>
+The name of an authentication scheme defined in your API specification.
 </ParamField>
 
-<ParamField path="groups.{groupName}.generators[].api.settings" type="APIDefinitionSettingsSchema" required={false} toc={true}>
+#### Scheme Reference
+
+Reference a specific authentication scheme with optional documentation.
+
+```yml {6-9}
+groups: 
+  ts-sdk:
+    generators:
+      - name: fernapi/fern-typescript-sdk
+      ...
+        api:
+          auth:
+            scheme: "my-auth-scheme"
+            docs: "Custom authentication method"
+```
+
+<ParamField path="scheme" type="string" required={true} toc={true}>
+The name of the authentication scheme to use.
 </ParamField>
+
+<ParamField path="docs" type="string" required={false} toc={true}>
+Documentation describing this authentication configuration.
+</ParamField>
+
+#### Multiple Authentication Options
+
+Allow any of multiple authentication schemes to be used.
+
+```yml {6-12}
+groups: 
+  ts-sdk:
+    generators:
+      - name: fernapi/fern-typescript-sdk
+      ...
+        api:
+          auth:
+            any:
+              - "api-key"
+              - "bearer-token"
+              - scheme: "oauth-flow"
+            docs: "Supports multiple authentication methods"
+```
+
+<ParamField path="any" type="list<string | { scheme: string }>" required={true} toc={true}>
+List of authentication schemes where any one can be used. Can include string references or scheme objects.
+</ParamField>
+
+<ParamField path="docs" type="string" required={false} toc={true}>
+Documentation describing this authentication configuration.
+</ParamField>
+
+#### Custom Authentication Schemes
+
+Define a custom authentication schemes using `auth-schemes`. You define a name for your custom scheme, and then specify the authentication method (`header`, `basic`, `bearer`, or `oauth`).
+
+<AccordionGroup>
+<Accordion title="Header authentication">
+
+Send authentication tokens or API keys in custom HTTP headers.
+
+```yml {8-12}
+groups: 
+  ts-sdk:
+    generators:
+      - name: fernapi/fern-typescript-sdk
+      ...
+        api:
+          auth-schemes:
+            api-key: # User-defined name for your auth schema
+              header: "X-API-Key"
+              type: "string" 
+              prefix: "Bearer "
+              env: "API_KEY"
+```
+
+<ParamField path="header" type="string" required={true} toc={true}>
+The name of the header to send the authentication value in.
+</ParamField>
+
+<ParamField path="type" type="string" required={false} toc={true}>
+The type of the authentication value. Defaults to "string".
+</ParamField>
+
+<ParamField path="prefix" type="string" required={false} toc={true}>
+A prefix to add before the authentication value in the header.
+</ParamField>
+
+<ParamField path="env" type="string" required={false} toc={true}>
+Environment variable name to read the authentication value from.
+</ParamField>
+</Accordion>
+
+<Accordion title="Basic authentication">
+
+Standard HTTP basic authentication using username and password credentials.
+
+```yaml {8-15}
+groups: 
+  ts-sdk:
+    generators:
+      - name: fernapi/fern-typescript-sdk
+      ...
+        api:
+          auth-schemes:
+            basic-auth: # User-defined name for your auth schema
+              scheme: "basic"
+              username:
+                name: "username"
+                env: "AUTH_USERNAME"
+              password:
+                name: "password" 
+                env: "AUTH_PASSWORD"
+```
+<ParamField path="scheme" type="'basic'" required={true} toc={true}>
+Must be set to "basic" for basic authentication.
+</ParamField>
+
+<ParamField path="username" type="{ name: string, env?: string }" required={false} toc={true}>
+Configuration for the username field.
+</ParamField>
+
+<ParamField path="password" type="{ name: string, env?: string }" required={false} toc={true}>
+Configuration for the password field.
+</ParamField>
+</Accordion>
+
+<Accordion title="Bearer Token Authentication">
+
+Authentication using bearer tokens in the Authorization header.
+
+```yml {8-12}
+groups: 
+  ts-sdk:
+    generators:
+      - name: fernapi/fern-typescript-sdk
+      ...
+        api:
+          auth-schemes:
+            bearer:  # User-defined name for your auth schema
+              scheme: "bearer"
+              token:
+                name: "token"
+                env: "BEARER_TOKEN"
+```
+
+<ParamField path="scheme" type="'bearer'" required={true} toc={true}>
+Must be set to "bearer" for bearer token authentication.
+</ParamField>
+
+<ParamField path="token" type="{ name: string, env?: string }" required={false} toc={true}>
+Configuration for the bearer token.
+</ParamField>
+</Accordion>
+
+<Accordion title="OAuth Client Credentials">
+
+OAuth 2.0 client credentials flow for machine-to-machine authentication.
+
+```yml {8-12}
+groups: 
+  ts-sdk:
+    generators:
+      - name: fernapi/fern-typescript-sdk
+      ...
+        api:
+          auth-schemes:
+            oauth:  # User-defined name for your auth schema
+              scheme: "oauth"
+              type: "client-credentials"
+              get-token:
+                endpoint: "auth.get_token"
+```
+
+<ParamField path="scheme" type="'oauth'" required={true} toc={true}>
+Must be set to "oauth" for OAuth authentication.
+</ParamField>
+
+<ParamField path="type" type="'client-credentials'" required={true} toc={true}>
+Must be set to "client-credentials" for OAuth client credentials flow.
+</ParamField>
+
+<ParamField path="scopes" type="list<string>" required={false} toc={true}>
+List of OAuth scopes to request.
+</ParamField>
+
+<ParamField path="client-id-env" type="string" required={false} toc={true}>
+Environment variable name for the OAuth client ID.
+</ParamField>
+
+<ParamField path="client-secret-env" type="string" required={false} toc={true}>
+Environment variable name for the OAuth client secret.
+</ParamField>
+
+<ParamField path="token-prefix" type="string" required={false} toc={true}>
+Sets the token header value prefix. Defaults to 'Bearer'.
+</ParamField>
+
+<ParamField path="token-header" type="string" required={false} toc={true}>
+Sets the token header key name. Defaults to 'Authorization'.
+</ParamField>
+
+<ParamField path="get-token" type="{ endpoint: string, request-properties?: object, response-properties?: object }" required={true} toc={true}>
+Configuration for the token endpoint to get access tokens.
+</ParamField>
+
+<ParamField path="refresh-token" type="{ endpoint: string, request-properties?: object, response-properties?: object }" required={false} toc={true}>
+Configuration for the refresh token endpoint.
+</ParamField>
+</Accordion>
+</AccordionGroup>
 
 ## reviewers
 Who should review generated code.
