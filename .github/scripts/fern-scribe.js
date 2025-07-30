@@ -3,6 +3,7 @@ const Turbopuffer = require('@turbopuffer/turbopuffer').default;
 const fs = require('fs').promises;
 const path = require('path');
 const yaml = require('js-yaml');
+const FernUrlMapper = require('./fern-url-mapper');
 
 class FernScribeGitHub {
   constructor() {
@@ -22,9 +23,8 @@ class FernScribeGitHub {
     
     this.systemPrompt = null;
     
-    // Initialize dynamic path mapping
-    this.dynamicPathMapping = new Map();
-    this.isPathMappingLoaded = false;
+    // Use centralized URL mapper
+    this.urlMapper = new FernUrlMapper(process.env.GITHUB_TOKEN, process.env.REPOSITORY);
   }
 
   async init() {
@@ -502,6 +502,144 @@ Complete updated file content:`;
     }
   }
 
+  async analyzeDocumentationNeeds(context) {
+    if (!this.anthropicApiKey) {
+      console.log('⚠️ No Anthropic API key provided - skipping documentation analysis');
+      return { recommendations: [], reasoning: '' };
+    }
+
+    const prompt = `You are a documentation expert analyzing a GitHub issue and Slack discussion to identify exactly which documentation sections need updates.
+
+## Issue Context
+Title: ${this.issueTitle || 'No title'}
+Description: ${context.requestDescription || 'No description'}
+Additional Context: ${context.additionalContext || 'None'}
+
+## Slack Discussion
+${context.slackThreadContent || 'No Slack discussion provided'}
+
+## Your Task
+Analyze this issue and discussion to:
+1. Identify the core problem or missing documentation
+2. Determine which specific documentation sections/pages should be updated
+3. Suggest additional search terms that would find the right pages
+
+Be specific about page paths. For example:
+- If it's about images, suggest "/learn/docs/writing-content/markdown" (which covers images)
+- If it's about API configuration, suggest specific product pages like "/learn/sdks/generators/[language]/configuration"
+- If it's about navigation features, suggest "/learn/docs/navigation/*" pages
+
+Output your response as JSON:
+{
+  "coreIssue": "Brief description of what's missing or broken",
+  "suggestedPages": [
+    {
+      "path": "/learn/docs/path/to/page",
+      "reason": "Why this page should be updated",
+      "priority": "high|medium|low"
+    }
+  ],
+  "additionalSearchTerms": ["term1", "term2", "term3"],
+  "reasoning": "Your detailed analysis of why these pages were chosen"
+}`;
+
+    try {
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key': this.anthropicApiKey,
+          'Content-Type': 'application/json',
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify({
+          model: 'claude-3-5-sonnet-20241022',
+          max_tokens: 2000,
+          messages: [{
+            role: 'user',
+            content: prompt
+          }]
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Anthropic API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const analysisText = data.content[0]?.text || '{}';
+      
+      try {
+        const analysis = JSON.parse(analysisText);
+        console.log(`💡 Core Issue: ${analysis.coreIssue}`);
+        console.log(`🎯 Suggested ${analysis.suggestedPages?.length || 0} specific pages for updates`);
+        return analysis;
+      } catch (parseError) {
+        console.log('⚠️ Could not parse analysis response as JSON, using fallback');
+        return { 
+          coreIssue: analysisText.slice(0, 200) + '...',
+          suggestedPages: [],
+          additionalSearchTerms: [],
+          reasoning: analysisText 
+        };
+      }
+    } catch (error) {
+      console.error('❌ Documentation analysis failed:', error);
+      return { recommendations: [], reasoning: '' };
+    }
+  }
+
+  async enhanceResultsWithAnalysis(turbopufferResults, analysis) {
+    if (!analysis.suggestedPages || analysis.suggestedPages.length === 0) {
+      return turbopufferResults;
+    }
+
+    console.log('🔍 Searching for AI-suggested documentation pages...');
+    const enhancedResults = [...turbopufferResults];
+    const existingPaths = new Set(turbopufferResults.map(r => r.pathname || r.url));
+
+    // Search for each suggested page
+    for (const suggestion of analysis.suggestedPages) {
+      if (existingPaths.has(suggestion.path)) {
+        console.log(`   ✅ Already found: ${suggestion.path}`);
+        continue;
+      }
+
+      // Try to find the suggested page using targeted search
+      console.log(`   🔍 Searching for suggested page: ${suggestion.path}`);
+      
+      // Extract search terms from the path and reason
+      const searchTerms = [
+        suggestion.path.split('/').filter(Boolean).join(' '),
+        suggestion.reason,
+        ...suggestion.path.split('/').slice(-2) // Last two path segments
+      ].join(' ');
+
+      const targetedResults = await this.queryTurbopuffer(searchTerms, {
+        namespace: process.env.TURBOPUFFER_NAMESPACE || 'default',
+        topK: 3
+      });
+
+      // Look for exact or close matches to the suggested path
+      for (const result of targetedResults) {
+        const resultPath = result.pathname || result.url || '';
+        if (resultPath.includes(suggestion.path) || 
+            suggestion.path.includes(resultPath.replace('/learn', ''))) {
+          console.log(`   ✅ Found suggested page: ${resultPath}`);
+          enhancedResults.push({
+            ...result,
+            aiSuggested: true,
+            priority: suggestion.priority,
+            reason: suggestion.reason
+          });
+          existingPaths.add(resultPath);
+          break;
+        }
+      }
+    }
+
+    return enhancedResults;
+  }
+
   async generateChangelogEntry(context) {
     const prompt = `Generate a changelog entry for the following documentation update:
 
@@ -547,191 +685,9 @@ Changelog entry:`;
     }
   }
 
-  // Load dynamic path mapping from Fern docs structure
-  async loadDynamicPathMapping() {
-    if (this.isPathMappingLoaded) return;
-    
-    try {
-      console.log('Loading Fern docs structure for dynamic path mapping...');
-      
-      // Load main docs.yml
-      const docsContent = await this.fetchFileContent('fern/docs.yml');
-      if (!docsContent) return;
-      
-      const docsConfig = yaml.load(docsContent);
-      if (!docsConfig.products) return;
-      
-      // Process each product
-      for (const product of docsConfig.products) {
-        if (!product.path) continue;
-        
-        // Resolve relative path
-        let resolvedPath = product.path;
-        if (resolvedPath.startsWith('./')) {
-          resolvedPath = `fern/${resolvedPath.substring(2)}`;
-        } else if (!resolvedPath.startsWith('fern/')) {
-          resolvedPath = `fern/${resolvedPath}`;
-        }
-        
-        // Determine the effective slug for URL generation
-        let effectiveSlug = null;
-        if (product['skip-slug'] === true) {
-          // Skip slug entirely - pages will be at root level
-          effectiveSlug = '';
-        } else if (product.slug) {
-          // Use explicit slug
-          effectiveSlug = product.slug;
-        } else {
-          // Derive slug from path or display-name
-          const pathBasename = product.path.split('/').pop().replace(/\.yml$/, '');
-          effectiveSlug = pathBasename;
-        }
-        
-        // Load product config
-        const productContent = await this.fetchFileContent(resolvedPath);
-        if (!productContent) continue;
-        
-        const productConfig = yaml.load(productContent);
-        if (!productConfig.navigation) continue;
-        
-        // Process navigation structure
-        await this.processNavigation(productConfig, effectiveSlug, resolvedPath);
-      }
-      
-      this.isPathMappingLoaded = true;
-      console.log(`Loaded ${this.dynamicPathMapping.size} dynamic path mappings`);
-    } catch (error) {
-      console.error('Failed to load dynamic path mapping:', error);
-    }
-  }
-  
-  async processNavigation(config, productSlug, configPath, parentSections = []) {
-    if (!config.navigation) return;
-
-    // Extract the directory path from the config file path
-    // e.g., "fern/products/fern-def.yml" -> "products/fern-def"
-    const basePath = configPath.replace(/\.yml$/, '').replace('fern/', '');
-    
-    for (const navItem of config.navigation) {
-      if (navItem.page) {
-        // It's a page - check if it has a custom path
-        let pageFilePath;
-        if (navItem.path) {
-          // Use custom path
-          pageFilePath = `fern/${basePath}/pages/${navItem.path}`;
-        } else {
-          // Default path based on page name
-          pageFilePath = `fern/${basePath}/pages/${navItem.page}`;
-        }
-        
-        // Build URL with parent sections
-        const urlParts = [productSlug, ...parentSections, navItem.page].filter(Boolean);
-        const pageUrl = `/${urlParts.join('/')}`;
-        this.dynamicPathMapping.set(pageUrl, pageFilePath);
-      } else if (navItem.section) {
-        // It's a section with pages - create section-based URLs
-        const sectionSlug = navItem.section.toLowerCase().replace(/\s+/g, '-');
-        const newParentSections = [...parentSections, sectionSlug];
-        
-        for (const pageItem of navItem.contents || []) {
-          if (pageItem.page) {
-            let pageFilePath;
-            if (pageItem.path) {
-              // Use custom path
-              pageFilePath = `fern/${basePath}/pages/${pageItem.path}`;
-            } else {
-              // Default path based on page name
-              pageFilePath = `fern/${basePath}/pages/${pageItem.page}`;
-            }
-            
-            // Build URL with all parent sections
-            const urlParts = [productSlug, ...newParentSections, pageItem.page].filter(Boolean);
-            const sectionUrl = `/${urlParts.join('/')}`;
-            this.dynamicPathMapping.set(sectionUrl, pageFilePath);
-            
-            // Also create direct URL for backwards compatibility (without parent sections)
-            const directUrlParts = [productSlug, pageItem.page].filter(Boolean);
-            const directUrl = `/${directUrlParts.join('/')}`;
-            if (!this.dynamicPathMapping.has(directUrl)) {
-              this.dynamicPathMapping.set(directUrl, pageFilePath);
-            }
-          } else if (pageItem.section) {
-            // Handle nested sections recursively
-            const nestedSectionSlug = pageItem.section.toLowerCase().replace(/\s+/g, '-');
-            const nestedParentSections = [...newParentSections, nestedSectionSlug];
-            
-            // Create a temporary config object for recursive processing
-            const nestedConfig = { navigation: pageItem.contents || [] };
-            await this.processNavigation(nestedConfig, productSlug, configPath, nestedParentSections);
-          }
-        }
-      }
-    }
-  }
-  
-  // Transform Turbopuffer URLs to actual GitHub file paths
-  transformTurbopufferUrlToPath(turbopufferUrl) {
-    // Remove /learn prefix and clean up trailing slashes
-    let urlPath = turbopufferUrl.replace('/learn', '').replace(/\/$/, '');
-    
-    // First try to use dynamic mapping
-    if (this.dynamicPathMapping.has(urlPath)) {
-      const mappedPath = this.dynamicPathMapping.get(urlPath);
-      // Add .mdx extension if not present and not already a complete path
-      if (!mappedPath.endsWith('.mdx') && !mappedPath.endsWith('/')) {
-        // Check if it's a known directory case (like changelog)
-        if (mappedPath.endsWith('/changelog') || (mappedPath.includes('/changelog') && !mappedPath.includes('.'))) {
-          return mappedPath; // Return as directory
-        }
-        return `${mappedPath}.mdx`;
-      }
-      return mappedPath;
-    }
-    
-    // Fallback to hardcoded logic for backwards compatibility
-    const pathParts = urlPath.split('/').filter(p => p);
-    if (pathParts.length === 0) return null;
-    
-    const product = pathParts[0]; // docs, sdks, etc.
-    const remainingPath = pathParts.slice(1).join('/');
-    
-    // Build the file path
-    let basePath = `fern/products/${product}`;
-    
-    // Handle special cases and path mapping
-    if (product === 'docs') {
-      if (remainingPath === 'changelog') {
-        // Special case: changelog is a folder
-        return `${basePath}/pages/changelog`;
-      } else if (remainingPath.startsWith('navigation/')) {
-        // navigation/* maps directly
-        const navPath = remainingPath.replace('navigation/', '');
-        return `${basePath}/pages/navigation/${navPath}.mdx`;
-      } else {
-        // Other docs paths
-        return `${basePath}/pages/${remainingPath}.mdx`;
-      }
-    } else if (product === 'sdks') {
-      if (remainingPath.startsWith('generators/')) {
-        // sdks/generators/* maps to overview/
-        const generatorPath = remainingPath.replace('generators/', '');
-        return `${basePath}/overview/${generatorPath}.mdx`;
-      } else {
-        return `${basePath}/pages/${remainingPath}.mdx`;
-      }
-    } else {
-      // Default mapping for other products
-      return `${basePath}/pages/${remainingPath}.mdx`;
-    }
-  }
-
-  // Map Turbopuffer URLs to actual GitHub file paths (now using dynamic mapping)
+  // Map Turbopuffer URLs to actual GitHub file paths (using centralized mapper)
   async mapTurbopufferPathToGitHub(turbopufferPath) {
-    // Ensure dynamic mapping is loaded
-    await this.loadDynamicPathMapping();
-    
-    // Use the improved transformation logic that prioritizes dynamic mapping
-    return this.transformTurbopufferUrlToPath(turbopufferPath) || turbopufferPath;
+    return await this.urlMapper.mapTurbopufferPathToGitHub(turbopufferPath);
   }
 
   // Simple file content fetcher for dynamic mapping (without path transformation)
@@ -891,12 +847,18 @@ ${context.additionalContext ? `**Additional Context:** ${context.additionalConte
       if (context.slackThread) {
         slackThreadContent = await this.fetchSlackThread(context.slackThread);
       }
+      context.slackThreadContent = slackThreadContent;
 
+      // Analyze the issue and Slack discussion to determine documentation gaps
+      console.log('🧠 Analyzing issue and discussion to identify documentation gaps...');
+      const documentationAnalysis = await this.analyzeDocumentationNeeds(context);
+      
       // Create enhanced query text that includes both request description and Slack context
       const enhancedQuery = [
         context.requestDescription,
         slackThreadContent ? `\n\nSlack Discussion Context:\n${slackThreadContent}` : '',
-        context.additionalContext ? `\n\nAdditional Context:\n${context.additionalContext}` : ''
+        context.additionalContext ? `\n\nAdditional Context:\n${context.additionalContext}` : '',
+        documentationAnalysis.additionalSearchTerms ? `\n\nAI-suggested terms: ${documentationAnalysis.additionalSearchTerms.join(', ')}` : ''
       ].filter(Boolean).join('\n');
 
       // Query TurboBuffer for relevant files
@@ -909,23 +871,30 @@ ${context.additionalContext ? `**Additional Context:** ${context.additionalConte
         topK: 3
       });
 
-      console.log(`\n📁 Found ${turbopufferResults.length} relevant files from Turbopuffer:`);
+      // Enhance results with AI-identified sections
+      const enhancedResults = await this.enhanceResultsWithAnalysis(turbopufferResults, documentationAnalysis);
+
+      console.log(`\n📁 Found ${enhancedResults.length} relevant files (${turbopufferResults.length} from Turbopuffer + ${enhancedResults.length - turbopufferResults.length} AI-suggested):`);
       
-      turbopufferResults.forEach((result, index) => {
+      enhancedResults.forEach((result, index) => {
         const path = result.pathname || result.url || 'Unknown path';
         const title = result.title || 'Untitled';
         const url = result.url || `https://${result.domain || ''}${result.pathname || ''}`;
         const relevance = result.$dist !== undefined ? (1 - result.$dist).toFixed(3) : 'N/A';
+        const aiSuggested = result.aiSuggested ? ' 🤖 AI-suggested' : '';
         
-        console.log(`${index + 1}. ${path}`);
+        console.log(`${index + 1}. ${path}${aiSuggested}`);
         console.log(`   Title: ${title}`);
         console.log(`   URL: ${url}`);
         console.log(`   Relevance Score: ${relevance}`);
+        if (result.reason) {
+          console.log(`   AI Reason: ${result.reason}`);
+        }
       });
       console.log('');
 
       // Deduplicate results by URL
-      for (const result of turbopufferResults) {
+      for (const result of enhancedResults) {
         const url = result.url || `https://${result.domain}${result.pathname}${result.hash || ''}`;
         
         if (result.url) {
