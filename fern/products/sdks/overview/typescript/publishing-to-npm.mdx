@@ -94,7 +94,7 @@ groups:
           location: npm
           package-name: your-package-name
         config:
-           namespaceExport: your-client-name
+           namespaceExport: YourClientName
         github: 
           repository: your-org/company-typescript
 ```
@@ -206,84 +206,27 @@ Use [GitHub Actions](https://docs.github.com/en/actions/get-started/quickstart) 
 		1.    **Save** your settings. Now GitHub can run the actions you configure. 
 
 	</Step>
-	<Step title="Set up a publishing workflow">
+	<Step title="Add token to `generators.yml`">
 
-    Use GitHub Actions to set up a workflow that automatically publishes your new releases to npm.
+	Add `token: ${NPM_TOKEN}` to `generators.yml` to tell Fern to use the `NPM_TOKEN` environment variable (which you just configured in your GitHub repo) for authentication when publishing to the npm registry.
 
-    To get started, navigate to the **Actions** tab in your repositiory and select **set up a workflow yourself**. GitHub will automatically set up a blank yml file in a new `.github/workflows` directory.
-
-	Rename this file `ci.yml`. Your file should look like this:
-
-	```yaml title=".github/workflows/ci.yml" maxLines=0
-	name: ci
-
-	on: [push]
-
-	jobs:
-	  compile:
-		runs-on: ubuntu-latest
-
-		steps:
-		- name: Checkout repo
-			uses: actions/checkout@v4
-
-		- name: Set up node
-			uses: actions/setup-node@v3
-
-		- name: Compile
-			run: yarn && yarn build
-
-	  test:
-	    runs-on: ubuntu-latest
-
-	    steps:
-	    - name: Checkout repo
-		  uses: actions/checkout@v4
-
-		- name: Set up node
-		  uses: actions/setup-node@v3
-
-		- name: Compile
-		  run: yarn && yarn test   
-
-	publish:
-	  needs: [ compile, test ]
-	  if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
-	  runs-on: ubuntu-latest
-		steps:
-		- name: Checkout repo
-			uses: actions/checkout@v4
-		- name: Set up node
-			uses: actions/setup-node@v3
-		- name: Install dependencies
-			run: yarn install
-		- name: Build
-			run: yarn build
-
-		- name: Publish to npm
-			run: |
-			  npm config set //registry.npmjs.org/:_authToken ${NPM_TOKEN}
-			  if [[ ${GITHUB_REF} == *alpha* ]]; then
-			   npm publish --access public --tag alpha
-			  elif [[ ${GITHUB_REF} == *beta* ]]; then
-			    npm publish --access public --tag beta
-			  else
-			    npm publish --access public
-			  fi
-			  env:
-			    NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+	```yaml {9}
+	groups: 
+	ts-sdk:
+		generators:
+		- name: fernapi/fern-typescript-sdk
+		  version: <Markdown src="/snippets/typescript-sdk-version.mdx"/>
+		  output:
+			location: npm
+			package-name: name-of-your-package
+			token: ${NPM_TOKEN}
+		  config:
+			namespaceExport: YourClientName
+		  github: 
+			repository: your-org/your-repository
 	```
 
-	For another example, see Vapi's [npm publishing GitHub Action](https://github.com/VapiAI/server-sdk-typescript/blob/main/.github/workflows/ci.yml)
-	</Step>
-
-	<Step title="Update `.fernignore`">
-	Once your workflow is configured, add your new workflow file to `.fernignore` so regenerating releases doesn't overwrite your workflow.
-
-	```diff title=".fernignore"
-    + .github/workflows/ci.yml
-    ```
-
+	When you regenerate your release, Fern will automatically create a workflow in your repository called `.github/workflows/ci.yml` that will automatically publish your release to npm. For an example, see Vapi's [npm publishing GitHub Action](https://github.com/VapiAI/server-sdk-typescript/blob/main/.github/workflows/ci.yml)
 	</Step>
 </Steps>
 
@@ -305,7 +248,7 @@ groups:
           package-name: name-of-your-package
           token: ${NPM_TOKEN}
         config:
-          namespaceExport: your-client-name
+          namespaceExport: YourClientName
         github: 
           repository: your-org/your-repository
 ```
