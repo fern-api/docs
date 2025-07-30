@@ -1,0 +1,221 @@
+---
+title: What is gRPC?
+subtitle: gRPC is a high-performance RPC framework that uses Protocol Buffers
+---
+
+gRPC is a modern, open-source, high-performance Remote Procedure Call (RPC) framework that can run in any environment. It uses Protocol Buffers (protobuf) as the interface definition language and supports multiple programming languages. 
+Fern is compatible with gRPC services and can generate SDKs and documentation from your `.proto` files.
+
+<Info> Need help getting started with gRPC and Fern? Get live support [here](https://fern-community.slack.com/join/shared_invite/zt-2dpftfmif-MuAegl8AfP_PK8s2tx350Q%EF%BB%BF#/shared-invite/email) </Info>
+
+Below is an example of a gRPC service definition: 
+
+```protobuf user_service.proto
+syntax = "proto3";
+
+package userservice.v1;
+
+// User service for managing user accounts
+service UserService {
+  // Create a new user account
+  rpc CreateUser(CreateUserRequest) returns (User);
+  
+  // Get user by ID
+  rpc GetUser(GetUserRequest) returns (User);
+  
+  // List users with pagination
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+  
+  // Update user information
+  rpc UpdateUser(UpdateUserRequest) returns (User);
+  
+  // Delete a user account
+  rpc DeleteUser(DeleteUserRequest) returns (google.protobuf.Empty);
+  
+  // Stream user events (server streaming)
+  rpc StreamUserEvents(StreamUserEventsRequest) returns (stream UserEvent);
+  
+  // Upload user data (client streaming)
+  rpc UploadUserData(stream UploadUserDataRequest) returns (UploadUserDataResponse);
+  
+  // Real-time chat (bidirectional streaming)
+  rpc Chat(stream ChatMessage) returns (stream ChatMessage);
+}
+
+// Messages for user operations
+message User {
+  string id = 1;
+  string email = 2;
+  string name = 3;
+  int32 age = 4;
+  google.protobuf.Timestamp created_at = 5;
+  UserStatus status = 6;
+}
+
+message CreateUserRequest {
+  string email = 1;
+  string name = 2;
+  int32 age = 3;
+}
+
+message GetUserRequest {
+  string id = 1;
+}
+
+message ListUsersRequest {
+  int32 page_size = 1;
+  string page_token = 2;
+  string filter = 3;
+}
+
+message ListUsersResponse {
+  repeated User users = 1;
+  string next_page_token = 2;
+  int32 total_count = 3;
+}
+
+message UpdateUserRequest {
+  string id = 1;
+  User user = 2;
+  google.protobuf.FieldMask update_mask = 3;
+}
+
+message DeleteUserRequest {
+  string id = 1;
+}
+
+message StreamUserEventsRequest {
+  string user_id = 1;
+  repeated UserEventType event_types = 2;
+}
+
+message UserEvent {
+  string id = 1;
+  string user_id = 2;
+  UserEventType type = 3;
+  google.protobuf.Timestamp timestamp = 4;
+  google.protobuf.Any data = 5;
+}
+
+message UploadUserDataRequest {
+  oneof data {
+    UserDataChunk chunk = 1;
+    UserDataMetadata metadata = 2;
+  }
+}
+
+message UserDataChunk {
+  bytes data = 1;
+  int64 offset = 2;
+}
+
+message UserDataMetadata {
+  string filename = 1;
+  int64 total_size = 2;
+  string content_type = 3;
+}
+
+message UploadUserDataResponse {
+  string file_id = 1;
+  int64 bytes_uploaded = 2;
+}
+
+message ChatMessage {
+  string id = 1;
+  string user_id = 2;
+  string room_id = 3;
+  string content = 4;
+  google.protobuf.Timestamp timestamp = 5;
+  ChatMessageType type = 6;
+}
+
+// Enums
+enum UserStatus {
+  USER_STATUS_UNSPECIFIED = 0;
+  USER_STATUS_ACTIVE = 1;
+  USER_STATUS_INACTIVE = 2;
+  USER_STATUS_SUSPENDED = 3;
+}
+
+enum UserEventType {
+  USER_EVENT_TYPE_UNSPECIFIED = 0;
+  USER_EVENT_TYPE_CREATED = 1;
+  USER_EVENT_TYPE_UPDATED = 2;
+  USER_EVENT_TYPE_DELETED = 3;
+  USER_EVENT_TYPE_LOGIN = 4;
+  USER_EVENT_TYPE_LOGOUT = 5;
+}
+
+enum ChatMessageType {
+  CHAT_MESSAGE_TYPE_UNSPECIFIED = 0;
+  CHAT_MESSAGE_TYPE_TEXT = 1;
+  CHAT_MESSAGE_TYPE_IMAGE = 2;
+  CHAT_MESSAGE_TYPE_FILE = 3;
+  CHAT_MESSAGE_TYPE_SYSTEM = 4;
+}
+```
+
+## gRPC Features
+
+gRPC offers several key features that make it ideal for modern applications:
+
+### High Performance
+- Binary protocol with Protocol Buffers
+- HTTP/2 transport for multiplexing and flow control
+- Efficient serialization and deserialization
+
+### Multiple Communication Patterns
+- **Unary RPCs**: Simple request/response
+- **Server Streaming**: Server sends stream of responses
+- **Client Streaming**: Client sends stream of requests  
+- **Bidirectional Streaming**: Both sides send streams
+
+### Cross-Platform Support
+- Native support for 10+ programming languages
+- Generated client libraries and server stubs
+- Consistent API across all platforms
+
+## Setup your fern folder
+
+Start by initializing your fern folder with a gRPC service
+
+<CodeGroup>
+```sh protobuf
+fern init --proto ./path/to/service.proto
+```
+```sh directory
+fern init --proto-directory ./path/to/proto/files
+```
+</CodeGroup>
+
+This will initialize a directory like the following 
+```
+fern/
+  ├─ fern.config.json
+  ├─ generators.yml
+  └─ proto/
+    ├─ user_service.proto
+    └─ common.proto
+```
+
+## gRPC vs REST
+
+| Feature | gRPC | REST |
+|---------|------|------|
+| Protocol | HTTP/2 | HTTP/1.1 |
+| Data Format | Protocol Buffers | JSON |
+| Performance | High | Moderate |
+| Streaming | Native support | Limited |
+| Browser Support | Limited | Full |
+| Schema | Strongly typed | Flexible |
+| Code Generation | Built-in | Third-party tools |
+
+## Common Use Cases
+
+gRPC is particularly well-suited for:
+
+- **Microservices Communication**: High-performance inter-service communication
+- **Real-time Applications**: Streaming for live updates and real-time features
+- **Mobile Applications**: Efficient mobile-to-server communication
+- **IoT Systems**: Lightweight communication for resource-constrained devices
+- **APIs with Strong Contracts**: Type-safe communication with schema evolution 
