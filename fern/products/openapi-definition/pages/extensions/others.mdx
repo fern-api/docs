@@ -1,0 +1,59 @@
+# OpenAPI Extensions and Variables
+
+The Fern OpenAPI parser supports several custom extensions to enhance SDK generation capabilities. These extensions can be specified in your OpenAPI definition using `x-` prefixed fields.
+
+## Core Extensions
+
+### SDK Variables
+The `x-fern-sdk-variables` extension allows you to define variables that can be passed through the SDK constructor and injected into paths and parameters.
+
+```yaml
+x-fern-sdk-variables:
+  project_id:
+    type: string 
+    description: "The project ID"
+    pattern: "^proj_[a-zA-Z0-9]+$"
+```
+
+Variables defined here can be referenced in path parameters using `x-fern-sdk-variable`:
+
+```yaml
+paths:
+  /v1/projects/{project_id}/users:
+    parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+        x-fern-sdk-variable: project_id
+```
+
+### SDK Configuration
+- `x-fern-sdk-group-name` - Groups related endpoints under a common namespace
+- `x-fern-sdk-method-name` - Customizes the generated method name
+- `x-fern-ignore` - Excludes an endpoint from SDK generation
+- `x-fern-sdk-return-value` - Specifies the response field to return
+
+### Pagination Support
+The `x-fern-pagination` extension configures cursor-based pagination:
+
+```yaml
+x-fern-pagination:
+  cursor: "$request.after"
+  next_cursor: "$response.page_info.end_cursor" 
+  results: "$response.data"
+```
+
+### Response Handling
+- `x-fern-error-response` - Defines custom error handling
+- `x-fern-sdk-async` - Marks an endpoint as async/non-blocking
+
+## Usage Notes
+
+- Extensions must be placed at the appropriate level (operation, parameter, etc.)
+- Variable patterns use standard regex syntax
+- Path references use dot notation (e.g. `$response.data`)
+- Generator support may vary by language
+
+For language-specific implementation details, refer to the [SDK Generators](../generators/overview) documentation.
