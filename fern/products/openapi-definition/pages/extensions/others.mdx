@@ -1,0 +1,77 @@
+---
+title: Other Extensions
+description: Documentation for various custom OpenAPI extensions used in Fern
+---
+
+## X-Fern-SDK-Variables
+
+The `x-fern-sdk-variables` extension allows you to define variables that can be injected into paths across your OpenAPI spec. This enables cleaner path definitions and avoids repetition.
+
+### Example Usage
+
+```yaml
+openapi: 3.0.0
+x-fern-sdk-variables:
+  project_id:
+    type: string 
+    description: "The project ID"
+    pattern: "^proj_[a-zA-Z0-9]+$"
+paths:
+  /v1/projects/{project_id}/widgets:
+    parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+        x-fern-sdk-variable: project_id
+```
+
+When using a generated SDK, the variable will be set in the client constructor rather than passed to individual methods:
+
+```typescript
+const client = new Client({
+  projectId: "proj_123" // Set once in constructor
+});
+
+// projectId automatically injected into path
+await client.widgets.list();
+```
+
+### Configuration Options
+
+<ParamField query="type" type="string" required>
+  The type of the variable (string, integer, etc)
+</ParamField>
+
+<ParamField query="description" type="string">
+  Description of what the variable represents
+</ParamField>
+
+<ParamField query="pattern" type="string">
+  Optional regex pattern the variable must match
+</ParamField>
+
+### Parameter Setup
+
+To use a defined variable in a path parameter:
+
+1. Define the variable in `x-fern-sdk-variables`
+2. Add the path parameter normally in your OpenAPI spec
+3. Add `x-fern-sdk-variable: variable_name` to the parameter definition
+
+### Generated SDK Behavior
+
+- Variables are passed via the SDK client constructor
+- The SDK injects variable values automatically into paths
+- Type checking and validation happen at the SDK level
+- Error handling for missing/invalid variables is built in
+
+The SDK will validate the variable values match any defined patterns or constraints before making requests.
+
+### Best Practices
+
+- Use consistent variable names across your API spec
+- Add clear descriptions for what each variable represents
+- Define patterns when variables must match specific formats
+- Consider SDK usability when choosing variable names
