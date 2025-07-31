@@ -13,7 +13,17 @@ Fern can integrate with your authentication flow, allowing users to login and ha
 
 With this feature, you can **create new users of your API** directly from within your documentation. 
 
-## How it works
+## Choosing your auth flow
+
+API key injection can work in two different ways depending on your company's authentication setup: **JWT or OAuth**. 
+
+* **JWT Flow:** You handle the entire auth flow and just give Fern a JWT cookie
+* **OAuth Flow:** You give Fern access, and Fern directly handles the OAuth handshake process
+
+<AccordionGroup>
+<Accordion title="JWT" toc={true}>
+
+### How it works
 
 To enable this feature, you need to configure authentication so that Fern can securely retrieve API keys for your users. The process works as follows:
 
@@ -80,8 +90,38 @@ The JWT should have a structure similar to:
 ## Setting up auto-populated API keys
 
 - [ ] Reach out to Fern to get your secret key 
-- [ ] Send Fern the URL of your authentication page (this is where users will be redirected to after clicking the "Login" button in the API Explorer)
+- [ ] Send Fern the URL of your authentication page. This is where users will be redirected to after clicking the "Login" button in the API Explorer.
 - [ ] Add logic to your service to set the `fern_token` cookie when a user logs in
 
 <Tip>For an example of how to set up the `fern_token` cookie, see our demo implementation [here](https://github.com/fern-api/fern-platform/blob/app/packages/fern-docs/bundle/src/app/%5Bhost%5D/%5Bdomain%5D/api/fern-docs/auth/fern-token-demo/route.ts).</Tip>
+
+</Accordion>
+<Accordion title="OAuth" toc={true}>
+
+### How it works
+
+To enable this feature, you need to configure OAuth authentication so that Fern can securely retrieve API keys for your users through your OAuth provider. Here's how the process works:
+
+1. When a user clicks the "Login" button in the API Explorer, Fern initiates an OAuth flow by making a request to your authorization endpoint.
+1. The user is redirected to your OAuth provider's login page where they authenticate using your existing auth system.
+1. After successful authentication, your OAuth provider redirects back to Fern with an authorization code, which Fern exchanges for an access token at your token endpoint.
+1. Fern uses this token to retrieve the user's API key and automatically populates it in the API Explorer.
+
+### Setting up auto-populated API keys
+
+To enable API key injection, you'll need to:
+- [ ] Set up an authenticated account for Fern so Fern can authorize users on your behalf. Provide Fern with 
+- [ ] Configure your OAuth application to return user API keys when Fern requests them
+
+Then, you'll need to send Fern the following items:
+- The client ID and client secret for Fern's authenticated account
+- The URL of your authentication endpoint. This is where users will be redirected to after clicking the "Login" button in the API Explorer.
+- The URL of your token endpoint. This is where Fern exchanges codes for tokens. 
+
+</Accordion>
+</AccordionGroup>
+
+
+
+
 
