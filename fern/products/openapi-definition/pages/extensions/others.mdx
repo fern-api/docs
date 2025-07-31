@@ -1,0 +1,83 @@
+---
+title: "Other Extensions"
+description: "Details on other common OpenAPI extensions used with Fern"
+---
+
+Fern supports several OpenAPI extensions that provide additional functionality when generating SDKs and documentation. Here is a comprehensive list of extension headers:
+
+## x-fern-sdk-variables
+
+Allows you to define variables that can be passed to the generated SDK client constructor. These variables will be automatically injected into API paths.
+
+```yaml
+components:
+  x-fern-sdk-variables:
+    project_id:
+      type: string
+      description: "The project ID for the API"
+      pattern: "^proj_[a-zA-Z0-9]+$"
+```
+
+## x-fern-sdk-group-name
+
+Groups related endpoints together in the generated SDK under a single namespace/class.
+
+```yaml
+paths:
+  /users:
+    get:
+      x-fern-sdk-group-name: "users"
+```
+
+## x-fern-sdk-method-name
+
+Specifies a custom method name to use in the generated SDK instead of the default operation ID.
+
+```yaml
+paths:
+  /users:
+    get:
+      x-fern-sdk-method-name: "list"
+```
+
+## x-fern-pagination
+
+Configures pagination handling for list endpoints.
+
+```yaml
+paths:
+  /users:
+    get:
+      x-fern-pagination:
+        cursor: "$request.after"
+        next_cursor: "$response.page_info.end_cursor"
+        results: "$response.data"
+```
+
+## x-fern-sdk-return-value
+
+Specifies which part of the response should be returned by the SDK method.
+
+```yaml
+paths:
+  /users/{id}:
+    get:
+      x-fern-sdk-return-value: "data"
+```
+
+## x-fern-ignore
+
+Excludes an endpoint or schema from SDK generation.
+
+```yaml
+paths:
+  /internal/metrics:
+    get:
+      x-fern-ignore: true
+```
+
+These extensions help customize how Fern generates SDKs from your OpenAPI specification while maintaining standard OpenAPI compatibility.
+
+<Note>
+When using these extensions, make sure to validate that your OpenAPI specification remains valid according to the OpenAPI specification.
+</Note>
