@@ -1,0 +1,139 @@
+---
+title: "Other OpenAPI Extensions"
+description: "Overview of additional OpenAPI extensions supported by Fern"
+---
+
+Fern supports several OpenAPI extensions that enable additional functionality beyond the standard OpenAPI specification.
+
+## x-fern-sdk-variables
+
+The `x-fern-sdk-variables` extension allows you to define variables that will be passed to the SDK client constructor and injected into API paths automatically.
+
+```yaml
+openapi: 3.0.0
+x-fern-sdk-variables:
+  project_id:
+    type: string 
+    description: The project ID to use for API requests
+    pattern: "^proj_[a-zA-Z0-9]+$"
+paths:
+  /v1/projects/{project_id}/resources:
+    parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+        x-fern-sdk-variable: project_id
+```
+
+This allows SDK users to provide the variable once in the client constructor rather than passing it to every method:
+
+```python
+client = Client(project_id="proj_123")
+# project_id is automatically injected into paths
+client.resources.list() 
+```
+
+## x-fern-include-empty-arrays
+
+The `x-fern-include-empty-arrays` extension can be added to array properties to ensure they are included in the response even when empty:
+
+```yaml
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        groups:
+          type: array
+          items:
+            type: string
+          x-fern-include-empty-arrays: true
+```
+
+## x-fern-sdk-group-name
+
+The `x-fern-sdk-group-name` extension allows you to organize API operations into logical groups in generated SDKs:
+
+```yaml
+paths:
+  /users:
+    get:
+      x-fern-sdk-group-name: users
+      operationId: listUsers
+```
+
+## x-fern-sdk-method-name
+
+The `x-fern-sdk-method-name` extension lets you customize the method name for an operation in generated SDKs:
+
+```yaml
+paths:
+  /users:
+    get:
+      x-fern-sdk-method-name: list
+      operationId: listUsers
+```
+
+## x-fern-sdk-return-value
+
+The `x-fern-sdk-return-value` extension allows you to specify which part of the response should be returned from SDK methods:
+
+```yaml
+paths:
+  /users:
+    get:
+      x-fern-sdk-return-value: data
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/User'
+```
+
+## x-fern-ignore
+
+The `x-fern-ignore` extension allows you to exclude specific schemas, operations or properties from generated SDKs:
+
+```yaml
+paths:
+  /internal:
+    get:
+      x-fern-ignore: true
+      operationId: internalOperation
+```
+
+## x-fern-paginate
+
+The `x-fern-paginate` extension enables pagination support in generated SDKs:
+
+```yaml
+paths:
+  /users:
+    get:
+      x-fern-paginate:
+        cursor: "$request.after"
+        next_cursor: "$response.page_info.end_cursor" 
+        results: "$response.data"
+```
+
+## x-fern-docs-disable-excerpt
+
+The `x-fern-docs-disable-excerpt` extension disables excerpt generation for a schema in API documentation:
+
+```yaml
+components:
+  schemas:
+    User:
+      x-fern-docs-disable-excerpt: true
+      type: object
+```
+
+For more information on working with OpenAPI extensions in Fern, see our [OpenAPI guide](/learn/openapi-definition/overview).
