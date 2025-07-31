@@ -3,7 +3,59 @@ const Turbopuffer = require('@turbopuffer/turbopuffer').default;
 const fs = require('fs').promises;
 const path = require('path');
 const yaml = require('js-yaml');
+const https = require('https');
+const http = require('http');
 const FernUrlMapper = require('./fern-url-mapper');
+
+// Helper function to replace fetch with Node.js built-in modules
+function httpRequest(url, options = {}) {
+  return new Promise((resolve, reject) => {
+    const urlObj = new URL(url);
+    const isHttps = urlObj.protocol === 'https:';
+    const lib = isHttps ? https : http;
+    
+    const requestOptions = {
+      hostname: urlObj.hostname,
+      port: urlObj.port || (isHttps ? 443 : 80),
+      path: urlObj.pathname + urlObj.search,
+      method: options.method || 'GET',
+      headers: options.headers || {},
+    };
+
+    const req = lib.request(requestOptions, (res) => {
+      const chunks = [];
+      
+      res.on('data', chunk => {
+        chunks.push(chunk);
+      });
+      
+      res.on('end', () => {
+        const buffer = Buffer.concat(chunks);
+        const data = buffer.toString('utf8');
+        
+        const response = {
+          ok: res.statusCode >= 200 && res.statusCode < 300,
+          status: res.statusCode,
+          headers: {
+            get: (name) => res.headers[name.toLowerCase()]
+          },
+          json: () => Promise.resolve(JSON.parse(data)),
+          text: () => Promise.resolve(data),
+          arrayBuffer: () => Promise.resolve(buffer)
+        };
+        resolve(response);
+      });
+    });
+
+    req.on('error', reject);
+    
+    if (options.body) {
+      req.write(options.body);
+    }
+    
+    req.end();
+  });
+}
 
 class FernScribeGitHub {
   constructor() {
@@ -106,7 +158,7 @@ class FernScribeGitHub {
 
     try {
       // Download the file content
-      const response = await fetch(file.url_private, {
+      const response = await httpRequest(file.url_private, {
         headers: {
           'Authorization': `Bearer ${this.slackToken}`
         }
@@ -151,7 +203,7 @@ class FernScribeGitHub {
 
     try {
       // Download image and convert to base64
-      const response = await fetch(imageUrl, {
+      const response = await httpRequest(imageUrl, {
         headers: {
           'Authorization': `Bearer ${this.slackToken}`
         }
@@ -164,7 +216,7 @@ class FernScribeGitHub {
       const mimeType = response.headers.get('content-type') || 'image/jpeg';
 
       // Use Claude to describe the image
-      const claudeResponse = await fetch('https://api.anthropic.com/v1/messages', {
+      const claudeResponse = await httpRequest('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
           'x-api-key': this.anthropicApiKey,
@@ -215,7 +267,7 @@ class FernScribeGitHub {
 
     try {
       // Fetch the thread replies
-      const response = await fetch(`https://slack.com/api/conversations.replies?${new URLSearchParams({
+      const response = await httpRequest(`https://slack.com/api/conversations.replies?${new URLSearchParams({
         channel: parsedUrl.channelId,
         ts: parsedUrl.threadTs,
         inclusive: 'true'
@@ -315,25 +367,117 @@ class FernScribeGitHub {
     }
   }
 
-  async createEmbedding(text) {
-    const response = await fetch('https://api.openai.com/v1/embeddings', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        input: text,
-        model: 'text-embedding-3-large',
-      }),
-    });
+  // Estimate tokens (rough approximation: ~4 chars per token for English)
+  estimateTokens(text) {
+    return Math.ceil(text.length / 4);
+  }
 
-    if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.status}`);
+  // Truncate query intelligently to fit within token limits
+  truncateQuery(text, maxTokens = 8000) { // Leave some buffer below 8192
+    const estimatedTokens = this.estimateTokens(text);
+    
+    if (estimatedTokens <= maxTokens) {
+      return text;
     }
 
-    const data = await response.json();
-    return data.data[0].embedding;
+    console.log(`⚠️  Query too long (${estimatedTokens} tokens), truncating to fit within ${maxTokens} tokens...`);
+    
+    // Try to parse the enhanced query structure
+    const sections = text.split('\n\n');
+    let truncatedText = '';
+    let currentTokens = 0;
+    
+    // Prioritize sections: core request first, Slack discussion last
+    const prioritizedSections = [];
+    
+    for (const section of sections) {
+      if (section.includes('Add a comprehensive list') || section.startsWith('Issue:') || section.startsWith('Request:')) {
+        prioritizedSections.unshift(section); // High priority - add to beginning
+      } else if (section.includes('AI-suggested terms:')) {
+        prioritizedSections.splice(1, 0, section); // Medium-high priority
+      } else if (section.includes('Additional Context:')) {
+        prioritizedSections.splice(-1, 0, section); // Medium priority
+      } else if (section.includes('Slack Discussion Context:')) {
+        prioritizedSections.push(section); // Low priority - add to end
+      } else {
+        prioritizedSections.push(section); // Default priority
+      }
+    }
+    
+    // Build truncated query by adding sections until we hit the limit
+    for (const section of prioritizedSections) {
+      const sectionTokens = this.estimateTokens(section);
+      
+      if (currentTokens + sectionTokens <= maxTokens) {
+        if (truncatedText) truncatedText += '\n\n';
+        truncatedText += section;
+        currentTokens += sectionTokens;
+      } else {
+        // If this is a Slack discussion, try to include a truncated version
+        if (section.includes('Slack Discussion Context:')) {
+          const remainingTokens = maxTokens - currentTokens;
+          const remainingChars = remainingTokens * 4;
+          
+          if (remainingChars > 200) { // Only add if we have meaningful space
+            const truncatedSection = section.slice(0, remainingChars - 50) + '\n\n[... Slack discussion truncated for token limit ...]';
+            if (truncatedText) truncatedText += '\n\n';
+            truncatedText += truncatedSection;
+          }
+        }
+        break;
+      }
+    }
+    
+    const finalTokens = this.estimateTokens(truncatedText);
+    console.log(`✂️  Truncated query: ${text.length} → ${truncatedText.length} chars (${estimatedTokens} → ${finalTokens} tokens)`);
+    
+    return truncatedText;
+  }
+
+  async createEmbedding(text) {
+    console.log(`🔍 Creating embedding for text (${text.length} chars)...`);
+    
+    try {
+      // Truncate if necessary to fit within token limits
+      const truncatedText = this.truncateQuery(text);
+      
+      const response = await httpRequest('https://api.openai.com/v1/embeddings', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          input: truncatedText,
+          model: 'text-embedding-3-large',
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ OpenAI API error details:', errorText);
+        
+        // Try to parse the error as JSON for better understanding
+        try {
+          const errorData = JSON.parse(errorText);
+          console.error('📋 Parsed error data:', JSON.stringify(errorData, null, 2));
+        } catch (e) {
+          console.error('📋 Raw error text:', errorText);
+        }
+        
+        throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log(`✅ Embedding created successfully (${data.data[0]?.embedding?.length} dimensions)`);
+      return data.data[0].embedding;
+      
+    } catch (error) {
+      console.error('❌ createEmbedding failed:', error.message);
+      console.error('📝 Query preview (first 200 chars):', text.slice(0, 200));
+      console.error('🔑 API Key present:', process.env.OPENAI_API_KEY ? `Yes (${process.env.OPENAI_API_KEY.length} chars)` : 'No');
+      throw error;
+    }
   }
 
   reciprocalRankFusion(semanticResults, bm25Results, k = 60) {
@@ -473,7 +617,7 @@ IMPORTANT: Return ONLY the clean file content. Do not include any explanatory te
 Complete updated file content:`;
 
     try {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
+      const response = await httpRequest('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
           'x-api-key': this.anthropicApiKey,
@@ -544,7 +688,7 @@ Output your response as JSON:
 }`;
 
     try {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
+      const response = await httpRequest('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
           'x-api-key': this.anthropicApiKey,
@@ -654,7 +798,7 @@ Example format:
 Changelog entry:`;
 
     try {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
+      const response = await httpRequest('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
           'x-api-key': this.anthropicApiKey,
