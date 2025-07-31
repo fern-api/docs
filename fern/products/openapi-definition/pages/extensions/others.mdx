@@ -1,0 +1,95 @@
+---
+title: "Available Extensions"
+description: "Extensions that can be added to OpenAPI specs"
+---
+
+# Available Extensions 
+
+These extensions modify how Fern interprets and processes your OpenAPI spec. They can be added to different parts of your spec to control code generation behavior.
+
+## x-fern-sdk-variable
+
+The `x-fern-sdk-variable` extension allows you to define variables that will be injected into request paths in the generated SDKs. This prevents redundant path parameters that would otherwise need to be passed to every API call.
+
+```yaml
+x-fern-sdk-variables:
+  project_id:
+    type: string
+    description: "The ID of the project"
+    pattern: "^proj_[a-zA-Z0-9]+$"
+```
+
+You can then reference this variable in your paths:
+
+```yaml
+paths:
+  /v1/projects/{project_id}/resources:
+    parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: "^proj_[a-zA-Z0-9]+$"
+        x-fern-sdk-variable: project_id
+```
+
+## x-fern-sdk-group-name
+
+Use this extension to group related endpoints together in the generated SDK. This helps organize the SDK's API surface.
+
+```yaml
+paths:
+  /users:
+    get:
+      x-fern-sdk-group-name: users
+```
+
+## x-fern-sdk-method-name 
+
+Customize the method name that will be generated in the SDK for a specific operation.
+
+```yaml
+paths:
+  /users:
+    get:
+      x-fern-sdk-method-name: listAll
+```
+
+## x-fern-sdk-return-value
+
+Specify which part of the response should be returned from SDK methods.
+
+```yaml
+paths:
+  /users:
+    get:
+      x-fern-sdk-return-value: data
+```
+
+## x-fern-ignore
+
+Add this extension to exclude specific parts of your OpenAPI spec from code generation.
+
+```yaml
+paths:
+  /internal/debug:
+    get:
+      x-fern-ignore: true
+```
+
+## x-fern-pagination
+
+Configure cursor-based pagination for endpoints that return paginated results.
+
+```yaml
+paths:
+  /users:
+    get:
+      x-fern-pagination:
+        cursor: "$request.after"
+        next_cursor: "$response.page_info.end_cursor" 
+        results: "$response.data"
+```
+
+These extensions give you fine-grained control over how your OpenAPI spec is transformed into SDK code. Use them to optimize the developer experience of your generated SDKs.
