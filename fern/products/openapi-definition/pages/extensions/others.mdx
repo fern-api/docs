@@ -1,0 +1,91 @@
+# OpenAPI Extension Headers
+
+The following extension headers are supported in Fern's OpenAPI implementation:
+
+## x-fern-sdk-variables
+
+Allows defining reusable variables that can be referenced across SDK operations. Variables defined here will be available as client constructor parameters.
+
+```yaml
+x-fern-sdk-variables:
+  project_id:
+    type: string 
+    description: "The project ID"
+    pattern: "^proj_[a-zA-Z0-9]+$"
+```
+
+Variables can then be referenced in path parameters using `x-fern-sdk-variable`:
+
+```yaml
+paths:
+  /v1/projects/{project_id}/users:
+    parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+        x-fern-sdk-variable: project_id
+```
+
+This allows SDK users to provide the variable once during client initialization rather than for each API call.
+
+## x-fern-sdk-group-name
+
+Groups related operations together in the generated SDK. Operations with the same group name will be organized under a common namespace/class.
+
+```yaml
+paths:
+  /users:
+    get:
+      x-fern-sdk-group-name: users
+```
+
+## x-fern-sdk-method-name
+
+Customizes the method name for an operation in the generated SDK.
+
+```yaml
+paths:
+  /users:
+    get:
+      x-fern-sdk-method-name: list
+```
+
+## x-fern-ignore
+
+Excludes an operation from the generated SDK when set to `true`.
+
+```yaml
+paths:
+  /internal/metrics:
+    get:
+      x-fern-ignore: true
+```
+
+## x-fern-pagination
+
+Configures pagination behavior for list operations. Requires specifying cursor and results fields.
+
+```yaml
+paths:
+  /users:
+    get:
+      x-fern-pagination:
+        cursor: "$request.after"
+        next_cursor: "$response.page_info.end_cursor"
+        results: "$response.data"
+```
+
+## x-fern-sdk-return-value
+
+Specifies which part of the response should be returned from SDK methods.
+
+```yaml
+paths:
+  /users/{id}:
+    get:
+      x-fern-sdk-return-value: data
+```
+
+For complete OpenAPI examples using these extensions, see the [OpenAPI Quick Start guide](/openapi-definition/quickstart).
