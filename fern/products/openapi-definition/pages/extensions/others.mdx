@@ -1,0 +1,55 @@
+---
+title: Extensions for Other Tools
+description: Other non-Fern extensions supported in OpenAPI definitions
+---
+
+Fern supports several extension headers that can be used to customize how your OpenAPI definition is processed.
+
+## SDK Variables (`x-fern-sdk-variables`)
+
+The `x-fern-sdk-variables` extension allows you to define variables that will be injected into the generated SDKs. When defined in the root of your OpenAPI spec, the variables will be available across all endpoints.
+
+```yaml
+x-fern-sdk-variables:
+  project_id:
+    type: string 
+    description: "The ID of the project"
+    pattern: "^proj_[a-zA-Z0-9]+$"
+```
+
+Variables are defined with:
+- `type`: The data type (string, number, etc)
+- `description`: A human-readable description
+- `pattern` (optional): A regex pattern to validate values
+
+In your paths, mark parameters to be replaced with variables using `x-fern-sdk-variable`:
+
+```yaml
+paths:
+  /v1/projects/{project_id}/resources:
+    parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+        x-fern-sdk-variable: project_id
+```
+
+## Generated SDK Methods
+
+- `x-fern-sdk-group-name`: Sets the group/namespace for the generated method
+- `x-fern-sdk-method-name`: Sets the method name in the generated SDK
+- `x-fern-sdk-return-value`: Specifies which part of the response to return
+- `x-fern-ignore`: Excludes an endpoint from SDK generation
+
+## Pagination Support 
+
+The `x-fern-pagination` extension configures how paginated endpoints are handled:
+
+```yaml
+x-fern-pagination:
+  cursor: "$request.after"
+  next_cursor: "$response.page_info.end_cursor" 
+  results: "$response.data"
+```
