@@ -1,18 +1,23 @@
 ---
 title: Customize parameter names
-description: Use `x-fern-parameter-name` to customize query parameter, header and path parameter naming.
+description: Use extension headers to customize query parameter, header and path parameter naming.
 ---
 
 <Note>
-  The `x-fern-parameter-name` extension allows you to customize the variable names of parameters in your generated SDKs.
+  These extensions allow you to customize parameter names and behavior in your generated SDKs.
 </Note>
 
-## Headers
+## Available Extensions
 
-In the example below, the header `X-API-Version` is renamed to `version` in the
-generated SDK. The rename makes the SDK more human readable.
+### x-fern-parameter-name
 
-```yaml {8}
+Customize the variable names of parameters in your generated SDKs.
+
+#### Headers
+
+In the example below, the header `X-API-Version` is renamed to `version` in the generated SDK for better readability:
+
+```yaml
 paths:
   "/user":
     get:
@@ -26,16 +31,15 @@ paths:
           required: true
 ```
 
-## Query parameters
+#### Query parameters
 
-In the example below, the query parameter `q` is renamed to `search_terms` in the
-generated SDK. The rename makes the parameter more approachable for end users.
+Rename query parameters to be more descriptive in the SDK:
 
-```yaml {8}
+```yaml
 paths:
   "/user/search":
     get:
-      operationId: search_user
+      operationId: search_user 
       parameters:
         - in: query
           name: q
@@ -45,12 +49,11 @@ paths:
           required: false
 ```
 
-## Path parameters
+#### Path parameters
 
-In the example below, the path parameter `userId` is renamed to `id` in the
-generated SDK. The rename makes the SDK less verbose.
+Make path parameter names more concise in the SDK:
 
-```yaml {8}
+```yaml
 paths:
   "/user/{userId}":
     get:
@@ -63,3 +66,103 @@ paths:
             type: string
           required: false
 ```
+
+### x-fern-sdk-variables
+
+Define variables that can be provided when instantiating the SDK client. This allows setting values that will be automatically injected into API paths.
+
+Example defining a project ID variable:
+
+```yaml
+x-fern-sdk-variables:
+  project_id:
+    type: string
+    description: "The ID of the project"
+    pattern: "^proj_[a-zA-Z0-9]+$"
+```
+
+Then use the variable in paths:
+
+```yaml
+paths:
+  "/v1/connect/{project_id}/accounts":
+    parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+        x-fern-sdk-variable: project_id
+```
+
+The SDK will automatically inject the project ID value provided during client instantiation into the path.
+
+<Note>
+  The variable pattern allows validating the format of values at runtime.
+</Note>
+
+### x-fern-sdk-method-name 
+
+Customize the generated method name in the SDK:
+
+```yaml
+paths:
+  "/users":
+    get:
+      operationId: list_users
+      x-fern-sdk-method-name: getUsers
+```
+
+### x-fern-sdk-group-name
+
+Group related endpoints under a namespace in the SDK:
+
+```yaml
+paths:
+  "/users":
+    get:
+      operationId: list_users
+      x-fern-sdk-group-name: users
+```
+
+### x-fern-ignore
+
+Exclude an endpoint from SDK generation:
+
+```yaml
+paths:
+  "/internal/metrics":
+    get:
+      x-fern-ignore: true
+```
+
+<Note>
+  Use x-fern-ignore sparingly and only for endpoints that should not be exposed in SDKs.
+</Note>
+
+### x-fern-sdk-return-value
+
+Specify what part of the response should be returned:
+
+```yaml
+paths:
+  "/users/{id}":
+    get:
+      x-fern-sdk-return-value: data
+```
+
+### x-fern-pagination
+
+Configure pagination behavior for list endpoints:
+
+```yaml
+paths:
+  "/users":
+    get:
+      x-fern-pagination:
+        cursor: "$request.after"
+        next_cursor: "$response.page_info.end_cursor"
+        results: "$response.data"
+```
+
+This configures how pagination fields map between requests and responses.
