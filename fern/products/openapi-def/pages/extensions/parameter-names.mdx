@@ -1,37 +1,41 @@
 ---
 title: Customize parameter names
-description: Use `x-fern-parameter-name` to customize query parameter, header and path parameter naming.
+description: Use extension headers to customize parameter names and behavior in your generated SDKs.
 ---
 
 <Note>
-  The `x-fern-parameter-name` extension allows you to customize the variable names of parameters in your generated SDKs.
+  Extension headers allow you to customize how parameters are handled in your generated SDKs, including parameter naming and injection behavior.
 </Note>
 
-## Headers
+## Parameter Naming Extensions
 
-In the example below, the header `X-API-Version` is renamed to `version` in the
-generated SDK. The rename makes the SDK more human readable.
+### x-fern-parameter-name
 
-```yaml {8}
+Customize the variable names of parameters in your generated SDKs.
+
+#### Headers
+
+Rename HTTP headers to be more readable in the SDK:
+
+```yaml
 paths:
   "/user":
     get:
       operationId: list_user
       parameters:
         - in: header
-          name: X-API-Version
+          name: X-API-Version 
           x-fern-parameter-name: version
           schema:
             type: string
           required: true
 ```
 
-## Query parameters
+#### Query Parameters 
 
-In the example below, the query parameter `q` is renamed to `search_terms` in the
-generated SDK. The rename makes the parameter more approachable for end users.
+Make query parameter names more descriptive:
 
-```yaml {8}
+```yaml
 paths:
   "/user/search":
     get:
@@ -45,12 +49,11 @@ paths:
           required: false
 ```
 
-## Path parameters
+#### Path Parameters
 
-In the example below, the path parameter `userId` is renamed to `id` in the
-generated SDK. The rename makes the SDK less verbose.
+Simplify path parameter names:
 
-```yaml {8}
+```yaml
 paths:
   "/user/{userId}":
     get:
@@ -63,3 +66,59 @@ paths:
             type: string
           required: false
 ```
+
+### x-fern-sdk-variables
+
+Define variables that can be injected into paths across multiple endpoints:
+
+```yaml
+components:
+  x-fern-sdk-variables:
+    project_id:
+      type: string
+      description: "The project ID to use for all requests"
+      pattern: "^proj_[a-zA-Z0-9]+$"
+
+paths:
+  "/v1/connect/{project_id}/accounts":
+    parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+        x-fern-sdk-variable: project_id
+```
+
+This allows the SDK client to accept the variable in its constructor and automatically inject it into all relevant paths, rather than requiring it as a parameter for each individual method call.
+
+<Note>
+  The variable value provided in the SDK client constructor will be automatically inserted into any path that references that variable name.
+</Note>
+
+### x-fern-sdk-return-value
+
+Specify which part of the response should be returned by the SDK method:
+
+```yaml
+paths:
+  "/user/{id}":
+    get:
+      operationId: get_user
+      x-fern-sdk-return-value: data
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/User"
+```
+
+This extracts just the `data` field from the response before returning it to the SDK user.
+
+<Note>
+  This is useful when your API wraps response data in a container object but you want the SDK to return just the core data.
+</Note>
