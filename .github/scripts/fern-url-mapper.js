@@ -1,4 +1,3 @@
-require('dotenv').config();
 const { Octokit } = require('@octokit/rest');
 const yaml = require('js-yaml');
 const fs = require('fs').promises;
