@@ -77,8 +77,10 @@ If you'd like to see this feature, please upvote [this issue](https://github.com
 </Accordion>
 <Accordion title="OpenAPI">
 
-Use the `x-fern-global-headers` extension to label additional headers as global
-or to alias the names of global headers:
+Use one of the following extensions to specify global configuration:
+
+### x-fern-global-headers
+Use this to label additional headers as global or to alias header names:
 
 ```yaml title="openapi.yml"
 x-fern-global-headers:
@@ -97,5 +99,56 @@ class Client:
 
   def __init__(self, *, apiKey: str, userpoolId: typing.Optional[str])
 ```
+
+### x-fern-sdk-variables
+Use this to specify variables that should be part of the SDK client constructor and injected into paths:
+
+```yaml title="openapi.yml"
+x-fern-sdk-variables:
+  project_id:
+    type: string
+    description: "The ID of the project"
+    pattern: "^proj_[a-zA-Z0-9]+$"
+```
+
+This will generate a client that accepts the variable in the constructor and automatically injects it into paths:
+
+```python
+class Client:
+  def __init__(self, *, project_id: str):
+    # Variable will be injected into paths like /v1/connect/{project_id}/accounts
+```
+
 </Accordion>
 </AccordionGroup>
+
+## Supported Extension Fields
+
+The following extension fields are supported for configuring global headers and variables:
+
+<ParamField query="x-fern-global-headers" type="array">
+  Array of header configurations with fields:
+  - `header`: The original header name
+  - `name`: Optional alias for the header in the SDK
+  - `optional`: Whether the header is optional
+</ParamField>
+
+<ParamField query="x-fern-sdk-variables" type="object">
+  Object mapping variable names to their configuration:
+  - `type`: The variable type (string, integer, etc)
+  - `description`: Description of the variable 
+  - `pattern`: Optional regex pattern for validation
+</ParamField>
+
+## Language Support
+
+Global configuration support varies by language:
+
+- TypeScript/JavaScript: Full support for global headers and variables
+- Python: Full support as of version 4.24.0+
+- Java: Full support for global headers and variables
+- Go: Full support for global headers and variables
+
+<Note>
+Make sure you're using the latest generator versions to access all global configuration features. You can update your generator versions in `generators.yml`.
+</Note>
