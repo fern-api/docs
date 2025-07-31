@@ -1,16 +1,19 @@
 ---
 title: Customize parameter names
-description: Use `x-fern-parameter-name` to customize query parameter, header and path parameter naming.
+description: Use Fern's parameter extensions to customize naming and behavior of parameters in your OpenAPI definition.
 ---
 
 <Note>
-  The `x-fern-parameter-name` extension allows you to customize the variable names of parameters in your generated SDKs.
+  Fern provides several extensions that let you customize how parameters are handled in your OpenAPI definition and generated SDKs.
 </Note>
 
-## Headers
+## x-fern-parameter-name
 
-In the example below, the header `X-API-Version` is renamed to `version` in the
-generated SDK. The rename makes the SDK more human readable.
+The `x-fern-parameter-name` extension allows you to customize the variable names of parameters in your generated SDKs.
+
+### Headers
+
+In the example below, the header `X-API-Version` is renamed to `version` in the generated SDK. The rename makes the SDK more human readable.
 
 ```yaml {8}
 paths:
@@ -26,10 +29,9 @@ paths:
           required: true
 ```
 
-## Query parameters
+### Query parameters
 
-In the example below, the query parameter `q` is renamed to `search_terms` in the
-generated SDK. The rename makes the parameter more approachable for end users.
+In the example below, the query parameter `q` is renamed to `search_terms` in the generated SDK. The rename makes the parameter more approachable for end users.
 
 ```yaml {8}
 paths:
@@ -45,10 +47,9 @@ paths:
           required: false
 ```
 
-## Path parameters
+### Path parameters 
 
-In the example below, the path parameter `userId` is renamed to `id` in the
-generated SDK. The rename makes the SDK less verbose.
+In the example below, the path parameter `userId` is renamed to `id` in the generated SDK. The rename makes the SDK less verbose.
 
 ```yaml {8}
 paths:
@@ -63,3 +64,41 @@ paths:
             type: string
           required: false
 ```
+
+## x-fern-sdk-variables
+
+The `x-fern-sdk-variables` extension allows you to define variables that will be injected into paths when making requests. These variables can be provided once during client initialization rather than passing them with every request.
+
+For example, to automatically inject a project ID into all paths:
+
+```yaml
+components:
+  x-fern-sdk-variables:
+    project_id:
+      type: string
+      description: "The ID of the project"
+      pattern: "^proj_[a-zA-Z0-9]+$"
+
+paths:
+  "/v1/connect/{project_id}/accounts":
+    parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: "^proj_[a-zA-Z0-9]+$"
+        x-fern-sdk-variable: project_id
+```
+
+When using the generated SDK, the `project_id` can be provided once during client initialization:
+
+```python
+client = Client(project_id="proj_123")
+```
+
+And it will automatically be injected into all paths that reference it.
+
+<Note>
+  The `x-fern-sdk-variables` extension is currently supported in Python (version 4.24.0+) and TypeScript SDKs.
+</Note>
