@@ -63,3 +63,40 @@ paths:
             type: string
           required: false
 ```
+
+## SDK Variables
+
+You can define variables that can be passed into the SDK constructor and automatically injected into API paths. This is useful for parameters that are common across many endpoints.
+
+```yaml
+x-fern-sdk-variables:
+  project_id:
+    type: string
+    description: "The ID of the project"
+    pattern: "^proj_[a-zA-Z0-9]+$"
+```
+
+The variable will be available as a constructor parameter and automatically injected into paths that include it:
+
+```yaml
+paths:
+  "/v1/connect/{project_id}/accounts":
+    parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: "^proj_[a-zA-Z0-9]+$"
+```
+
+Now instead of passing `project_id` to every endpoint method, you can provide it once when initializing the SDK client:
+
+```typescript
+const client = new Client({
+  projectId: "proj_123" 
+});
+
+// project_id will be automatically injected
+await client.accounts.list();
+```
