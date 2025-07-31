@@ -11,7 +11,7 @@ groups:
   local:
     generators:
       - name: fernapi/fern-typescript-sdk
-        version: <Markdown src="/snippets/version-number-ts.mdx"/>
+        version: <Markdown src="/snippets/version-number-ts.mdx" />
         config:
           namespaceExport: Acme
 ```
@@ -23,10 +23,19 @@ Allow fields that are not defined in object schemas. This only applies to serde.
 </ParamField>
 
 <ParamField path="bundle" type="boolean" toc={true}>
+When enabled, bundles the SDK into a single file.
 </ParamField>
 
 <ParamField path="defaultTimeoutInSeconds" type="number | 'infinity'" toc={true}>
 The default timeout for network requests. In the generated client, this can be overridden at the request level.
+</ParamField>
+
+<ParamField path="enableExtensions" type="boolean" default="true" toc={true}>
+When enabled, supports the `x-fern-sdk-*` extension properties in your OpenAPI specification. These include:
+- `x-fern-sdk-variable`: Path parameters that should be injected by the client constructor
+- `x-fern-sdk-group-name`: Custom service group name for endpoints
+- `x-fern-sdk-method-name`: Custom method name for endpoints
+- `x-fern-ignore`: Skip generating code for this endpoint/component
 </ParamField>
 
 <ParamField path="enableInlineTypes" type="boolean" default="true" toc={true}>
@@ -130,9 +139,11 @@ Specify extra peer dependencies meta fields in the generated `package.json`:
 ```yaml
 # generators.yml
 config:
-  extraPeerDependencies:
-    react: ">=16.8.0 <19.0.0"
-    "react-dom": ">=16.8.0 <19.0.0"
+  extraPeerDependenciesMeta:
+    react:
+      optional: true
+    "react-dom":
+      optional: true
 ```
 </ParamField>
 
@@ -184,9 +195,11 @@ Includes the content type and content length from binary responses. The user wil
 </ParamField>
 
 <ParamField path="includeOtherInUnionTypes" type="boolean" toc={true}>
+When enabled, union types will include an "other" variant for unrecognized values.
 </ParamField>
 
 <ParamField path="includeUtilsOnUnionMembers" type="boolean" toc={true}>
+When enabled, generates utility functions for union type members.
 </ParamField>
 
 <ParamField path="inlineFileProperties" type="boolean" default="true" toc={true}>
@@ -422,123 +435,4 @@ Fern Definition).
 
 If `skipResponseValidation` is set to `true`, the client will never throw if the response is misshapen. Instead, the client will log the issue using `console.warn` and return the data (casted to the expected response type).
 
-<Warning>Response validation only occurs when the Serde layer is enabled (`noSerdeLayer: false`). The Serde layer is disabled by default (`noSerdeLayer: true`).</Warning>
-
-</ParamField>
-
-<ParamField path="streamType" type="'wrapper' | 'web'" toc={true}>
-Change the type of stream that is used in the generated SDK.
-
-*    `wrapper`: The streams use a wrapper with multiple underlying implementations to support versions of Node.js before Node.js 18.
-*    `web`: The streams use the web standard `ReadableStream`.
-
-The default is `web`.
-</ParamField>
-
-<ParamField path="treatUnknownAsAny" type="boolean" default="false" toc={true}>
-  When `treatUnknownAsAny` is enabled, [unknown types from Fern are generated into TypeScript using `any` instead of the `unknown` type](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-0.html#new-unknown-top-type).
-</ParamField>
-
-<ParamField path="useBigInt" type="boolean" default="false" toc={true}>
-When `useBigInt` is set to `true`, a customized JSON serializer & deserializer is used that will preserve the precision of `bigint`'s, as opposed to the native `JSON.stringify` and `JSON.parse` function which converts `bigint`'s to number's losing precision.
-
-When combining `useBigInt` with our serialization layer (`no-serde: false`), both the request and response properties that are marked as `long` and `bigint` in OpenAPI/Fern spec, will consistently be `bigint`'s.
-However, when disabling the serialization layer (`no-serde: true`), they will be typed as `number | bigint`.
-
-Here's an overview of what to expect from the generated types when combining `useBigInt` and `noSerde` with the following Fern definition:
-
-*Fern definition*:
-
-```yaml
-types:
-  ObjectWithOptionalField:
-    properties:
-      longProp: long
-      bigIntProp: bigint
-```
-
-*TypeScript output*:
-
-```typescript
-// useBigInt: true
-// noSerde: false
-interface ObjectWithLongAndBigInt {
-  longProp: bigint;
-  bigIntProp: bigint;
-}
-
-// useBigInt: true
-// noSerde: true
-interface ObjectWithLongAndBigInt {
-  longProp: bigint | number;
-  bigIntProp: bigint | number;
-}
-
-// useBigInt: false
-// noSerde: false
-interface ObjectWithLongAndBigInt {
-  longProp: number;
-  bigIntProp: string;
-}
-
-// useBigInt: false
-// noSerde: true
-interface ObjectWithLongAndBigInt {
-  longProp: number;
-  bigIntProp: string;
-}
-```
-</ParamField>
-
-<ParamField path="useBrandedStringAliases" type="boolean" default="false" toc={true}>
-
-	When `useBrandedStringAliases` is disabled (the default), string aliases are generated as
-	normal TypeScript aliases:
-
-	```typescript
-	// generated code
-
-	export type MyString = string;
-
-	export type OtherString = string;
-	```
-  When `useBrandedStringAliases` is enabled, string aliases are generated as branded strings. This makes each alias feel like its own type and improves compile-time safety.
-
-	```yaml
-	# fern definition
-
-	types:
-		MyString: string
-		OtherString: string
-	```
-
-	```typescript
-	// generated code
-
-	export type MyString = string & { __MyString: void };
-	export const MyString = (value: string): MyString => value as MyString;
-
-	export type OtherString = string & { __OtherString: void };
-	export const OtherString = (value: string): OtherString => value as OtherString;
-	```
-
-	```typescript
-	// consuming the generated type
-
-	function printMyString(s: MyString): void {
-	  console.log("MyString: " + s);
-	}
-
-	// doesn't compile, "foo" is not assignable to MyString
-	printMyString("foo");
-
-	const otherString = OtherString("other-string");
-	// doesn't compile, otherString is not assignable to MyString
-	printMyString(otherString);
-
-	// compiles
-	const myString = MyString("my-string");
-	printMyString(myString);
-	```
-
-</ParamField>
+<Warning>Response validation only occurs when the
