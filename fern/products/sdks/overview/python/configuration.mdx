@@ -11,7 +11,7 @@ groups:
   local:
     generators:
       - name: fernapi/fern-python
-        version: 0.7.1
+        version: 4.24.0
         config:
           client:
             class_name: "YourClient" 
@@ -19,10 +19,8 @@ groups:
 
 ## SDK Configuration Options
 
-<ParamField path="additional_init_exports" type="array" default="null" required={false} toc={true}>
-</ParamField>
-
 <ParamField path="client" type="ClientConfiguration" default="ClientConfiguration()" required={false} toc={true}>
+  Client configuration options including SDK variable support through `x-fern-sdk-variables` in OpenAPI specs.
 </ParamField>
 
 <ParamField path="default_bytes_stream_chunk_size" type="number" default="null" required={false} toc={true}>
@@ -30,6 +28,7 @@ groups:
 </ParamField>
 
 <ParamField path="exclude_types_from_init_exports" type="bool" default="false" required={false} toc={true}>
+  Whether to exclude types from __init__ exports
 </ParamField>
 
 <ParamField path="extra_dependencies" type="object" default="{}" required={false} toc={true}>
@@ -41,13 +40,8 @@ groups:
   ```
 </ParamField>
 
-<ParamField path="extra_dev_dependencies" type="object" default="{}" required={false} toc={true}>
-</ParamField>
-
-<ParamField path="extras" type="object" default="{}" required={false} toc={true}>
-</ParamField>
-
 <ParamField path="flat_layout" type="bool" default="false" required={false} toc={true}>
+  Whether to use a flat directory layout for generated code
 </ParamField>
 
 <ParamField path="follow_redirects_by_default" type="bool" default="true" required={false} toc={true}>
@@ -62,9 +56,6 @@ groups:
   Whether or not to include legacy wire tests in the generated SDK
 </ParamField>
 
-<ParamField path="include_union_utils" type="bool" default="false" required={false} toc={true}>
-</ParamField>
-
 <ParamField path="inline_path_params" type="bool" default="false" required={false} toc={true}>
   If true, treats path parameters as named parameters in endpoint functions.
 </ParamField>
@@ -74,9 +65,11 @@ groups:
 </ParamField>
 
 <ParamField path="package_name" type="string" default="null" required={false} toc={true}>
+  Custom package name for the generated SDK
 </ParamField>
 
 <ParamField path="pydantic_config" type="SdkPydanticModelCustomConfig" default="SdkPydanticModelCustomConfig()" required={false} toc={true}>
+  Configuration options for Pydantic model generation
 </ParamField>
 
 <ParamField path="pydantic_config.include_union_utils" type="bool" default="false" required={false} toc={true}>
@@ -101,8 +94,6 @@ groups:
     triangle: lambda triangle: do_something_with_triangle(triangle),
   )
   ```
-
-  When enabled, the python generator will not run Black formatting in the generated code. Black is slow so this can potentially speed up code generation quite a bit.
 </ParamField>
 
 <ParamField path="pydantic_config.version" type="'v1' | 'v2' | 'both' | 'v1_on_v2'" default="both" required={false} toc={true}>
@@ -124,14 +115,8 @@ groups:
   <Warning>This changes your declared python dependency, which is not meant to be done often if at all. This is a last resort if any dependencies force you to change your version requirements.</Warning>
 </ParamField>
 
-<ParamField path="pyproject_toml" type="string" default="null" required={false} toc={true}>
-</ParamField>
-
 <ParamField path="should_generate_websocket_clients" type="bool" default="false" required={false} toc={true}>
   Feature flag that enables generation of Python websocket clients.
-</ParamField>
-
-<ParamField path="skip_formatting" type="bool" default="false" required={false} toc={true}>
 </ParamField>
 
 <ParamField path="timeout_in_seconds" type="number | 'infinity'" default="60" required={false} toc={true}>
@@ -139,6 +124,7 @@ groups:
 </ParamField>
 
 <ParamField path="use_api_name_in_package" type="bool" default="false" required={false} toc={true}>
+  Whether to include the API name in the generated package name
 </ParamField>
 
 <ParamField path="use_inheritance_for_extended_models" type="bool" default="true" required={false} toc={true}>
@@ -149,6 +135,31 @@ groups:
   Whether or not to generate `TypedDicts` instead of Pydantic Models for request objects.
 </ParamField>
 
-<ParamField path="use_typeddict_requests_for_file_upload" type="bool" default="false" required={false} toc={true}>
-  Whether or not to generate TypedDicts instead of Pydantic Models for file upload request objects. Note that this flag was only introduced due to an oversight in the `use_typeddict_requests` flag implementation; it should be removed in the future.
+<ParamField path="x-fern-sdk-variables" type="object" default="{}" required={false} toc={true}>
+  An extension field in OpenAPI specs that allows you to define variables for your SDK client. These variables will be available in the generated client constructor. Variables must be defined in the components section of your OpenAPI spec:
+
+  ```yaml
+  components:
+    x-fern-sdk-variables:
+      project_id:
+        type: string
+        description: "The project ID"
+        pattern: "^proj_[a-zA-Z0-9]+$"
+  ```
+
+  Once defined, you can reference these variables in your path parameters with the `x-fern-sdk-variable` extension:
+
+  ```yaml
+  /v1/connect/{project_id}/accounts:
+    parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: "^proj_[a-zA-Z0-9]+$"
+        x-fern-sdk-variable: project_id
+  ```
+
+  The generated SDK will handle injecting these variables into API calls automatically when they are provided to the client constructor.
 </ParamField>
