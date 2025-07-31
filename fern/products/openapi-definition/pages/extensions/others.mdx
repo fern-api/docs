@@ -1,0 +1,92 @@
+---
+title: Other OpenAPI Extensions
+description: Additional extensions supported by Fern when generating SDKs from OpenAPI definitions
+---
+
+# Additional OpenAPI Extensions
+
+## SDK Variables
+
+The `x-fern-sdk-variables` extension allows you to define variables that will be available in the generated SDKs. These variables can be referenced in path parameters and used consistently across your API.
+
+```yaml
+openapi: 3.0.0
+x-fern-sdk-variables:
+  project_id:
+    type: string
+    description: The ID of the project
+    pattern: "^proj_[a-zA-Z0-9]+$"
+```
+
+Any path parameter marked with `x-fern-sdk-variable` will be treated as an SDK variable:
+
+```yaml
+paths:
+  /v1/projects/{project_id}/widgets:
+    parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+        x-fern-sdk-variable: project_id
+```
+
+The generated SDK will include this variable in the client constructor rather than requiring it for each method call.
+
+## Operation Extensions
+
+### x-fern-sdk-group-name
+
+Groups operations into logical SDK services/namespaces:
+
+```yaml
+/users:
+  get:
+    x-fern-sdk-group-name: users
+```
+
+### x-fern-sdk-method-name 
+
+Customizes the generated method name:
+
+```yaml
+/users:
+  get:
+    x-fern-sdk-method-name: list
+```
+
+### x-fern-sdk-return-value
+
+Specifies which part of the response should be returned:
+
+```yaml
+/users/{id}:
+  get:
+    x-fern-sdk-return-value: data
+```
+
+### x-fern-pagination
+
+Configures pagination behavior:
+
+```yaml
+/users:
+  get:
+    x-fern-pagination:
+      cursor: "$request.after"
+      next_cursor: "$response.page_info.end_cursor" 
+      results: "$response.data"
+```
+
+### x-fern-ignore
+
+Excludes an operation from SDK generation:
+
+```yaml
+/internal/metrics:
+  get:
+    x-fern-ignore: true
+```
+
+For additional OpenAPI customization options, refer to the [OpenAPI Configuration](/learn/api-definition/configuration) documentation.
