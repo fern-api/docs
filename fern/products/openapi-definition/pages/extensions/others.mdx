@@ -1,0 +1,103 @@
+---
+title: Other Extensions
+description: Other extensions supported by Fern
+---
+
+# Other Extensions
+
+Fern supports several additional OpenAPI extensions that provide enhanced functionality:
+
+## x-fern-sdk-variables
+
+The `x-fern-sdk-variables` extension allows you to define variables that will be injected into the SDK client at runtime. This is useful for values that are reused across multiple endpoints.
+
+```yaml
+x-fern-sdk-variables:
+  project_id:
+    type: string
+    description: The project identifier
+    pattern: ^proj_[a-zA-Z0-9]+$
+```
+
+The variable can then be referenced in path parameters:
+
+```yaml
+/v1/projects/{project_id}/resources:
+  parameters:
+    - name: project_id
+      in: path
+      required: true
+      x-fern-sdk-variable: project_id
+```
+
+This allows the SDK client to inject the variable value automatically rather than requiring it as a parameter for each API call.
+
+## x-fern-pagination
+
+The `x-fern-pagination` extension configures pagination behavior for list endpoints:
+
+```yaml
+x-fern-pagination:
+  cursor: $request.after
+  next_cursor: $response.page_info.end_cursor
+  results: $response.data
+```
+
+This tells Fern how to handle paginated responses by specifying:
+- The cursor parameter in the request
+- Where to find the next cursor in the response
+- Where to find the results array in the response
+
+## x-fern-sdk-return-value
+
+The `x-fern-sdk-return-value` extension specifies which part of the response should be returned by the SDK:
+
+```yaml
+x-fern-sdk-return-value: data
+```
+
+This is useful when the API wraps responses in a common envelope but you want the SDK to return just the relevant data.
+
+## x-fern-ignore
+
+Add `x-fern-ignore: true` to exclude an endpoint or schema from SDK generation:
+
+```yaml
+/internal/endpoint:
+  x-fern-ignore: true
+```
+
+## x-fern-sdk-method-name
+
+Override the default SDK method name:
+
+```yaml
+/users:
+  get:
+    x-fern-sdk-method-name: listUsers
+```
+
+## x-fern-sdk-group-name 
+
+Group related endpoints together in the SDK:
+
+```yaml
+/users:
+  get:
+    x-fern-sdk-group-name: users
+```
+
+This organizes the SDK methods into logical groups for better discoverability.
+
+## x-fern-headers
+
+Define headers that should be included with requests:
+
+```yaml
+x-fern-headers:
+  X-Custom-Header:
+    type: string
+    required: true
+```
+
+These headers will be automatically included in SDK requests.
