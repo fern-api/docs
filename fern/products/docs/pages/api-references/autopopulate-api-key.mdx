@@ -31,8 +31,6 @@ To enable this feature, you need to configure authentication so that Fern can se
 2. After successful authentication, your system must set a cookie called `fern_token` in the user's browser.
 3. This token should be a [JWT](https://jwt.io) encrypted with a secret key that we provide. The JWT should contain the user's API key.
 
-<Note> See [Role-based access control](/docs/authentication/rbac#architecture-diagrams) for a diagram of the JWT flow.</Note>
-
 The JWT should have a structure similar to:
 
 <CodeBlocks>
@@ -89,6 +87,41 @@ The JWT should have a structure similar to:
 
 </CodeBlocks>
 
+#### Architecture diagram
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant F as Fern Docs
+    participant R as Redirect URL
+    participant A as Auth System
+
+    U->>F: Visit restricted page
+    F->>F: Check fern_token cookie
+    
+    alt Cookie exists
+        F->>F: Decode JWT with secret key
+        F->>F: Extract roles from JWT
+        F->>F: Check if user has required role
+        
+        alt User has required role
+            F->>U: Show restricted content
+        else User lacks required role
+            F->>U: User is shown a 404 page
+        end
+    else No cookie
+        F->>R: Redirect to login page
+        R->>A: Authenticate user
+    end
+    
+    Note over A: User logs in
+    
+    A->>A: Generate JWT with roles
+    A->>F: Set fern_token cookie
+    F->>F: Validate JWT and roles
+    F->>U: Show restricted content
+```
+
 #### Setting up auto-populated API keys
 
 - [ ] Reach out to Fern to get your secret key 
@@ -109,7 +142,38 @@ To enable this feature, you need to configure OAuth authentication so that Fern 
 1. After successful authentication, your OAuth provider redirects back to Fern with an authorization code, which Fern exchanges for an access token at your token endpoint.
 1. Fern uses this token to retrieve the user's API key and automatically populates it in the API Explorer.
 
-<Note> See [Role-based access control](/docs/authentication/rbac#architecture-diagrams) for a diagram of the OAuth flow.</Note>
+### Architecture diagram
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant F as Fern Docs
+    participant A as OAuth2 Provider
+    U->>F: Visit restricted page
+    F->>F: Check fern_token cookie
+    
+    alt Cookie exists
+        F->>F: Decode cookie
+        F->>F: Verify authentication credentials
+        Note over F: Attempt to refresh the token, if expired
+        
+        alt User is properly authenticated
+            F->>U: Show restricted content
+        else User is not properly authenticated
+            F->>U: User is shown a 404 page
+        end
+    else No cookie
+        F->>A: Redirect to `/authenticate` endpoint
+        A->>U: User authenticates
+        U->>F: Authorization code is returned
+        F->>A: Redirect to `/token` endpoint
+        A->>A: Validate token request
+        A->>F: Send authenticated access token
+        F->>F: Set fern_token cookie
+        F->>F: Verify authentication credentials
+        F->>U: Show restricted content
+    end
+```
 
 #### Setting up auto-populated API keys
 

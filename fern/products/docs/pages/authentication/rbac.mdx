@@ -24,83 +24,6 @@ Role-based access control is helpful for scenarios such as:
 
 If a user visits content not marked as visible to the `everyone` role, Fern will check for an authentication cookie to indicate what roles that user has. If the user does not have a role matching the viewers of the page, we will redirect them to the URL you provided during setup.
 
-Below, we walk through each of the steps required to configure RBAC with either JWT or OAuth.
-
-### Architecture diagrams
-
-<Tabs>
-  <Tab title="JWT" toc={true}>
-```mermaid
-sequenceDiagram
-    participant U as User
-    participant F as Fern Docs
-    participant R as Redirect URL
-    participant A as Auth System
-
-    U->>F: Visit restricted page
-    F->>F: Check fern_token cookie
-    
-    alt Cookie exists
-        F->>F: Decode JWT with secret key
-        F->>F: Extract roles from JWT
-        F->>F: Check if user has required role
-        
-        alt User has required role
-            F->>U: Show restricted content
-        else User lacks required role
-            F->>U: User is shown a 404 page
-        end
-    else No cookie
-        F->>R: Redirect to login page
-        R->>A: Authenticate user
-    end
-    
-    Note over A: User logs in
-    
-    A->>A: Generate JWT with roles
-    A->>F: Set fern_token cookie
-    F->>F: Validate JWT and roles
-    F->>U: Show restricted content
-```
-
-  </Tab>
-  <Tab title="OAuth" toc={true}>
-
-```mermaid
-sequenceDiagram
-    participant U as User
-    participant F as Fern Docs
-    participant A as OAuth2 Provider
-    U->>F: Visit restricted page
-    F->>F: Check fern_token cookie
-    
-    alt Cookie exists
-        F->>F: Decode cookie
-        F->>F: Verify authentication credentials
-        Note over F: Attempt to refresh the token, if expired
-        
-        alt User is properly authenticated
-            F->>U: Show restricted content
-        else User is not properly authenticated
-            F->>U: User is shown a 404 page
-        end
-    else No cookie
-        F->>A: Redirect to `/authenticate` endpoint
-        A->>U: User authenticates
-        U->>F: Authorization code is returned
-        F->>A: Redirect to `/token` endpoint
-        A->>A: Validate token request
-        A->>F: Send authenticated access token
-        F->>F: Set fern_token cookie
-        F->>F: Verify authentication credentials
-        F->>U: Show restricted content
-    end
-```
-  </Tab>
-</Tabs>
-
-
-
 ## Set up RBAC
 
 <Steps>
@@ -122,7 +45,11 @@ The `everyone` role is special. Every user has this role (including unauthentica
 
 ### Configure authentication via a `fern_token`
 
-In this step, we will configure authentication so that Fern can understand what roles a particular user has. Fern expects the user's
+In this step, we will configure authentication so that Fern can understand what roles a particular user has. 
+
+<AccordionGroup>
+<Accordion title="JWT">
+Fern expects the user's
 browser session to have a cookie called `fern_token`. If the cookie is not present, the user will be redirected to your company's
 login page.
 
@@ -136,11 +63,22 @@ login page.
 }
 ```
 
+For more information on this flow, see [Auto-populate API keys](/docs/api-references/autopopulate-api-key#jwt)
+</Accordion>
+<Accordion title="OAuth">
+
+Fern initiates an OAuth flow when the user needs authentication, redirecting them to your authentication endpoint.
+You are responsible for configuring your OAuth endpoints to return user role information. 
+
+For more information on this flow, see [Auto-populate API keys](/docs/api-references/autopopulate-api-key#oauth)
+</Accordion>
+</AccordionGroup>
+
+
+
 ### Contact Fern for setup
 
-When you're ready to implement RBAC, **contact support@buildwithfern.com** to receive your secret key for JWT signing.
-
-You'll also need to provide the URL where Fern should send unauthenticated users to log in.
+When you're ready to implement RBAC, **contact support@buildwithfern.com**.
 
 <Note>Optional: If you'd like restricted pages to be visible but locked to unauthenticated users (rather than completely hidden), let us know during this step.</Note>
 
