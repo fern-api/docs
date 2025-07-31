@@ -18,6 +18,47 @@ groups:
             class_name: "YourClient" 
 ```
 
+## Extension Headers
+
+The Python SDK generator supports injection of variables into request paths through the `x-fern-sdk-variables` extension in your OpenAPI spec. This allows you to define variables that will be set once in the client constructor and automatically injected into relevant request paths.
+
+For example, to inject a project ID into all relevant paths:
+
+```yaml
+components:
+  x-fern-sdk-variables:
+    project_id:
+      type: string
+      description: "The ID of the project"
+      pattern: "^proj_[a-zA-Z0-9]+$"
+```
+
+Then in your paths:
+
+```yaml
+/v1/connect/{project_id}/accounts:
+  parameters:
+    - name: project_id
+      in: path
+      required: true 
+      schema:
+        type: string
+      x-fern-sdk-variable: project_id
+```
+
+The generated client will accept the variable in its constructor:
+
+```python
+client = Client(project_id="proj_123")
+```
+
+And automatically inject it into requests:
+
+```python
+# project_id is injected from the client constructor
+accounts = client.accounts.list()
+```
+
 ## SDK Configuration Options
 
 <ParamField path="additional_init_exports" type="array" default="null" required={false} toc={true}>
@@ -72,12 +113,9 @@ groups:
 </ParamField>
 
 <ParamField path="package_name" type="string" default="null" required={false} toc={true}>
-
-Specifies the Python package name that users will import your generated client
-from.
+Specifies the Python package name that users will import your generated client from.
   
-For example, setting `package_name: "my_custom_package"` enables users to use
-`my_custom_package import Client` to import your client:
+For example, setting `package_name: "my_custom_package"` enables users to use `my_custom_package import Client` to import your client:
 
 ```yaml {7-10}
 default-group: local
