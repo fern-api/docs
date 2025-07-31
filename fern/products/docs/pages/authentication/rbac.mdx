@@ -26,8 +26,10 @@ If a user visits content not marked as visible to the `everyone` role, Fern will
 
 Below, we walk through each of the steps required to configure RBAC.
 
-### Architecture diagram
+### Architecture diagrams
 
+<Tabs>
+  <Tab title="RBAC with JWT">
 ```mermaid
 sequenceDiagram
     participant U as User
@@ -60,6 +62,44 @@ sequenceDiagram
     F->>F: Validate JWT and roles
     F->>U: Show restricted content
 ```
+
+  </Tab>
+  <Tab title="RBAC with OAuth">
+  
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant F as Fern Docs
+    participant A as OAuth2 Provider
+    U->>F: Visit restricted page
+    F->>F: Check fern_token cookie
+    
+    alt Cookie exists
+        F->>F: Decode cookie
+        F->>F: Verify authentication credentials
+        Note over F: Attempt to refresh the token, if expired
+        
+        alt User is properly authenticated
+            F->>U: Show restricted content
+        else User is not properly authenticated
+            F->>U: User is shown a 404 page
+        end
+    else No cookie
+        F->>A: Redirect to `/authenticate` endpoint
+        A->>U: User authenticates
+        U->>F: Authorization code is returned
+        F->>A: Redirect to `/token` endpoint
+        A->>A: Validate token request
+        A->>F: Send authenticated access token
+        F->>F: Set fern_token cookie
+        F->>F: Verify authentication credentials
+        F->>U: Show restricted content
+    end
+```
+  </Tab>
+</Tabs>
+
+
 
 ## Set up RBAC
 
