@@ -3,7 +3,6 @@ title: "Docs.yml"
 subtitle: "Customize your documentation using the docs.yml file"
 description: "Learn how to configure your Fern documentation site with the docs.yml file. Customize colors, typography, layout, analytics and more."
 ---
-
 ### YAML Schema Validation
 
 To enable intelligent YAML validation and autocompletion in your editor, add this line at the top of your `docs.yml` file:
@@ -13,6 +12,25 @@ To enable intelligent YAML validation and autocompletion in your editor, add thi
 ```
 
 This enables real-time schema validation and autocompletion based on our [complete schema](https://github.com/fern-api/fern/blob/09555d587294fd3dc77ceb35f21e8976a5a2b7a2/fern/apis/docs-yml/definition/docs.yml#L110).
+
+### API Definition Validation
+
+You can also add validation rules to your Fern API definition by using the `validation` property on type references. This allows you to enforce constraints on your API types and ensure data consistency.
+
+```yaml definition.yml
+types:
+  User:
+    properties:
+      email:
+        type: string
+        validation:
+          pattern: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+      age:
+        type: integer
+        validation:
+          minimum: 0
+          maximum: 120
+```
 
 ## Core configuration
 
@@ -201,198 +219,6 @@ logo:
   The URL that users will be directed to when clicking the logo. Typically your company's homepage or app.
 </ParamField>
 
-<ParamField path="logo.dark" type="string" required={false}>
-  Path to your dark mode logo file, relative to the docs root. SVG format is recommended for optimal quality. Example: `assets/images/logo-dark.svg`
-</ParamField>
-
-<ParamField path="logo.light" type="string" required={false}>
-  Path to your light mode logo file, relative to the docs root. SVG format is recommended for optimal quality. Example: `assets/images/logo-light.svg`
-</ParamField>
-
-## Redirects configuration
-
-```yaml docs.yml
-redirects:
-  - source: "/old-path"
-    destination: "/new-path"
-  - source: "/old-folder/*"
-    destination: "/new-folder/*"
-```
-
-<ParamField path="source" type="string" required={true}>
-  The path that you want to redirect from.
-</ParamField>
-
-<ParamField path="destination" type="string" required={true}>
-  The path that you want to redirect to.
-</ParamField>
-
-<ParamField path="permanent" type="boolean" required={false}>
-  Toggle between **permanent** and **temporary** redirect (default `false`). When true, the status code is 308. When false the status code is 307.
-</ParamField>
-
-## NavBar links configuration
-
-```yaml docs.yml
-navbar-links:
-  - type: minimal
-    text: Contact support
-    href: https://example.com/support
-  - type: filled
-    text: Login
-    href: https://example.com/login
-    rounded: false
-```
-
-<ParamField path="type" type="enum" required={false}>
-  One of `outlined`, `minimal`, or `filled`. This value controls the styling of the button. 
-</ParamField>
-
-<ParamField path="href" type="string" required={false}>
-  The url once you click on the button. Example: https://buildwithfern.com/contact
-</ParamField>
-
-<ParamField path="text" type="string" required={false}>
-  Text inside the button.
-</ParamField>
-
-<ParamField path="rounded" type="boolean" required={false} default="false">
-  When `true`, the border radius of the button will be fully rounded.
-</ParamField>
-
-<ParamField path="icon" type="string" required={false}>
-  The [Font Awesome icon](https://fontawesome.com/icons) to be used in the button. This icon will appear to the **left** of the text content. Pro and Brand Icons from Font Awesome are supported.
-</ParamField>
-
-<ParamField path="rightIcon" type="string" required={false}>
-  The [Font Awesome icon](https://fontawesome.com/icons) to be used in the button. This icon will appear to the **right** of the text content. Pro and Brand Icons from Font Awesome are supported.
-
-  By default, the `rightIcon` for a `filled` button is set to `arrow-right`.
-</ParamField>
-
-## Background image configuration
-
-```yaml docs.yml
-background-image: 
-  light: ./path/to/bg-light.svg
-  dark: ./path/to/bg-dark.svg
-```
-
-<ParamField path="background-image.light" type="string" required={false}>
-  Relative filepath to the light-mode background image. 
-</ParamField>
-
-<ParamField path="background-image.dark" type="string" required={false}>
-  Relative filepath to the dark-mode background image.
-</ParamField>
-
-
-## Typography configuration 
-
-```yaml docs.yml
-typography:
-  # Font for headings and titles
-  headingsFont:
-    name: Inter-Bold
-    paths: 
-      - path: ./fonts/Inter-Bold.woff2
-        weight: 700
-        style: normal
-  
-  # Font for body text
-  bodyFont:
-    name: Inter-Regular
-    path: fonts/Inter-Regular.woff2
-    style: normal
-  
-  # Font for code snippets
-  codeFont: 
-    name: JetBrains-Mono
-    path: ./fonts/JetBrains-Mono-Regular.woff2
-```
-
-<ParamField path="typography.bodyFont" type="object" required={false}>
-  The font used for all body text including paragraphs, lists, and general content. 
-  For optimal performance, use WOFF2 format.
-</ParamField>
-
-<ParamField path="typography.headingsFont" type="object" required={false}>
-  The font used for headings, titles, and other prominent text elements. Can be the same as your body font 
-  if you prefer a unified look. Supports multiple weights for different heading levels.
-</ParamField>
-
-<ParamField path="typography.codeFont" type="object" required={false}>
-  The font used for code blocks and inline code. Monospace fonts are recommended for better code readability. 
-  Popular choices include JetBrains Mono, Fira Code, and Source Code Pro.
-</ParamField>
-
-### Font configuration
-
-<Tabs>
-<Tab title="Single Weight">
-```yaml
-typography:
-  bodyFont:
-    name: Inter-Regular
-    path: fonts/Inter-Regular.woff2
-    style: normal
-```
-</Tab>
-
-<Tab title="Variable Font">
-```yaml
-typography:
-  headingsFont:
-    name: Inter-Variable
-    paths: 
-      - path: ./fonts/Inter-Variable.woff2
-      weight: 400 700  # Supports range of weights
-      style: normal
-```
-</Tab>
-
-<Tab title="Multiple Files">
-```yaml
-typography:
-  headingsFont:
-    name: Inter
-    paths: 
-      - path: ./fonts/Inter-Regular.woff2
-      weight: 400
-      style: normal
-    - path: ./fonts/Inter-Bold.woff2
-      weight: 700
-      style: normal
-    - path: ./fonts/Inter-Italic.woff2
-      weight: 400
-      style: italic
-```
-</Tab>
-</Tabs>
-
-<ParamField path="name" type="string" required={false}>
-  The name of the font. Defaults to a generated name that will be used to reference your custom font in the eventually injected CSS. 
-</ParamField>
-
-<ParamField path="path" type="string" required={false}>
-  The path to your font file, relative to your docs folder. Use this when you have a single font file. For multiple font files (like separate files for bold, italic etc), use `paths` instead.
-</ParamField>
-
-<ParamField path="weight" type="string | number" required={false}>
-  The weight of the font. Can be a number (400, 700) or a range for variable fonts (400 700). 
-  Common values: 400 (normal), 700 (bold).
-</ParamField>
-
-<ParamField path="style" type="string" required={false}>
-  The font style, either "normal" or "italic". Defaults to "normal" if not specified.
-</ParamField>
-
-<ParamField path="paths" type="object" required={false}>
-  A list of font files for particular weights. Each element in the list includes a `path`, `weight`, and `style` property.
-</ParamField>
-
-## Layout configuration 
-
 ```yaml docs.yml
 layout:
   header-height: 70px
@@ -442,167 +268,27 @@ layout:
 </ParamField>
 
 <ParamField path="layout.disable-header" type="boolean" required={false}>
-  If set to true, the header will not be rendered. Instead, the logo will be rendered as part of the sidebar,
-  and a 1px border will separate the sidebar from the content.
+  When set to true, disables the header component entirely. This will also disable any header-dependent features like the searchbar placement.
 </ParamField>
 
-## GitHub configuration
+<ParamField path="validation" type="object" required={false}>
+  Add validation rules to type references in your Fern Definition. Can include rules like minimum/maximum values, string patterns, required fields and more.
 
-<Tabs>
-<Tab title="Single Instance">
-```yaml
-instances:
-  - url: plantstore.docs.buildwithfern.com
-    edit-this-page:
-      github: 
-        owner: fern
-        repo: plant-store-docs
-        branch: main
-```
-</Tab>
-
-<Tab title="Multiple Instances">
-```yaml
-# Configure edit-this-page per instance
-instances:
-  - url: plantstore.docs.buildwithfern.com
-    custom-domain: docs.plantstore.com
-    edit-this-page:
-      github:
-        owner: fern
-        repo: plant-store-docs
-        branch: production
-  - url: plantstore-staging.docs.buildwithfern.com
-    edit-this-page:
-      github:
-        owner: fern
-        repo: plant-store-docs
-        branch: staging
-```
-</Tab>
-</Tabs>
-
-<Warning>
-The GitHub repository must be **public** for the "Edit this page" feature to work correctly.
-</Warning>
-
-<ParamField path="github.owner" type="string" required={true}>
-  The GitHub organization that owns the documentation repository.
+  ```yaml
+  types:
+    User:
+      properties:
+        age:
+          type: integer
+          validation:
+            min: 0
+            max: 120
+        email: 
+          type: string
+          validation:
+            pattern: "^[\\w-\\.]+@([\\w-]+\\.)+[\\w-]{2,4}$"
+  ```
 </ParamField>
-
-<ParamField path="github.repo" type="string" required={true}>
-  The name of the GitHub repository containing your fern folder.
-</ParamField>
-
-<ParamField path="github.branch" type="string" required={true}>
-  The branch of the repository you would like the GitHub editor to open a PR to. Default is `main`. 
-</ParamField>
-
-## Landing page configuration
-
-```yaml docs.yml
-landing-page: 
-  page: Page Title
-  path: path/to/landing-page.mdx
-```
-
-<ParamField path="page" type="string" required={true}>
-  The name of the landing page. 
-</ParamField>
-
-<ParamField path="path" type="string" required={true}>
-  Relative filepath to the desired landing page Markdown file. 
-</ParamField>
-
-See [Vapi's landing page live](https://docs.vapi.ai/) and the associated [Markdown file](https://github.com/VapiAI/docs/blob/main/fern/quickstart/introduction.mdx?plain=1).
-
-## Metadata configuration
-
-```yaml docs.yml
-metadata:
-  # Core platform identity
-  og:site_name: "Square Developer Documentation"
-  og:title: "Square Developer Platform | Payments, Commerce & Banking APIs"
-  og:description: "Build with Square's suite of APIs and SDKs. Accept payments, manage inventory, create loyalty programs, and access financial services. Complete documentation for developers building the future of commerce."
-  og:url: "https://developer.squareup.com/docs"
-
-  # Social sharing assets
-  og:image: "https://developer.squareup.com/images/docs-social-card.png"
-  og:image:width: 1200
-  og:image:height: 630
-  og:locale: "en_US"
-  og:logo: "https://developer.squareup.com/images/square-logo.png"
-
-  # Twitter (I mean X) optimization
-  twitter:title: "Square Developer Platform Documentation"
-  twitter:description: "Integrate payments, point-of-sale, inventory, and financial services into your applications with Square's developer platform. Get started with our APIs, SDKs, and comprehensive guides."
-  twitter:handle: "@SquareDev"
-  twitter:image: "https://developer.squareup.com/images/twitter-card.png"
-  twitter:site: "@Square"
-  twitter:card: "summary_large_image"
-```
-
-<ParamField path="metadata.og:site_name" type="string" required={false}>
-  The name of your website for Open Graph tags.
-</ParamField>
-
-<ParamField path="metadata.og:title" type="string" required={false}>
-  The title shown in social media previews.
-</ParamField>
-
-<ParamField path="metadata.og:description" type="string" required={false}>
-  The description shown in social media previews.
-</ParamField>
-
-<ParamField path="metadata.og:url" type="string" required={false}>
-  The canonical URL of your documentation.
-</ParamField>
-
-<ParamField path="metadata.og:image" type="string" required={false}>
-  The image shown in social media previews. Recommended size is 1200x630 pixels.
-</ParamField>
-
-<ParamField path="metadata.og:image:width" type="number" required={false}>
-  The width of your Open Graph image in pixels.
-</ParamField>
-
-<ParamField path="metadata.og:image:height" type="number" required={false}>
-  The height of your Open Graph image in pixels.
-</ParamField>
-
-<ParamField path="metadata.og:locale" type="string" required={false}>
-  The locale of your content (e.g., "en_US").
-</ParamField>
-
-<ParamField path="metadata.og:logo" type="string" required={false}>
-  URL to your company logo.
-</ParamField>
-
-<ParamField path="metadata.twitter:title" type="string" required={false}>
-  The title shown in Twitter Card previews.
-</ParamField>
-
-<ParamField path="metadata.twitter:description" type="string" required={false}>
-  The description shown in Twitter Card previews.
-</ParamField>
-
-<ParamField path="metadata.twitter:handle" type="string" required={false}>
-  Your company's Twitter handle.
-</ParamField>
-
-<ParamField path="metadata.twitter:image" type="string" required={false}>
-  The image shown in Twitter Card previews.
-</ParamField>
-
-<ParamField path="metadata.twitter:site" type="string" required={false}>
-  The Twitter handle for your website.
-</ParamField>
-
-<ParamField path="metadata.twitter:card" type="string" required={false}>
-  The Twitter Card type. Options are `summary`, `summary_large_image`, `app`, or `player`.
-</ParamField>
-
-## Analytics configuration
 
 ```yaml docs.yml
 analytics:
@@ -628,4 +314,48 @@ analytics:
 
 <ParamField path="analytics.posthog.api-key" type="string" required={false}>
   Your PostHog project API key. Defaults to the api-host of "https://us.i.posthog.com".
-</ParamField> 
+</ParamField>
+
+## Type Validation
+
+You can add validation rules to type references in your Fern Definition using the `validation` property:
+
+```yaml
+types:
+  User:
+    properties:
+      email:
+        type: string
+        validation:
+          pattern: "[a-z0-9._%+-]+@[a-z0-9.-]+\\.[a-z]{2,}$"
+      age:
+        type: integer
+        validation:
+          minimum: 0
+          maximum: 120
+      username:
+        type: string
+        validation:
+          minLength: 3
+          maxLength: 20
+```
+
+<ParamField path="validation.pattern" type="string" required={false}>
+  A regular expression pattern that the value must match.
+</ParamField>
+
+<ParamField path="validation.minimum" type="number" required={false}>
+  The minimum value for numeric types.
+</ParamField>
+
+<ParamField path="validation.maximum" type="number" required={false}>
+  The maximum value for numeric types.
+</ParamField>
+
+<ParamField path="validation.minLength" type="number" required={false}>
+  The minimum length for string types.
+</ParamField>
+
+<ParamField path="validation.maxLength" type="number" required={false}>
+  The maximum length for string types.
+</ParamField>
