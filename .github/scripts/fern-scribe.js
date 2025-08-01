@@ -3,7 +3,106 @@ const Turbopuffer = require('@turbopuffer/turbopuffer').default;
 const fs = require('fs').promises;
 const path = require('path');
 const yaml = require('js-yaml');
+const https = require('https');
+const http = require('http');
 const FernUrlMapper = require('./fern-url-mapper');
+const fsSync = require('fs'); // For synchronous read
+
+// Parse the Product Root Directories section from my-mappings.md
+function parseProductRootMapping(mappingsPath = path.join(__dirname, 'my-mappings.md')) {
+  const slugToDir = {};
+  if (!fsSync.existsSync(mappingsPath)) return slugToDir;
+  const content = fsSync.readFileSync(mappingsPath, 'utf-8');
+  const rootSection = content.split('## Product Root Directories')[1]?.split('##')[0] || '';
+  rootSection.split('\n').forEach(line => {
+    const match = line.match(/^([\w-]+):\s*([\w-]+)/);
+    if (match) {
+      slugToDir[match[1].trim()] = match[2].trim();
+    }
+  });
+  return slugToDir;
+}
+
+// Helper to parse my-mappings.md and build slug->dir mapping
+function buildProductSlugToDirMap(mappingsPath = path.join(__dirname, 'my-mappings.md')) {
+  const slugToDir = {};
+  if (!fsSync.existsSync(mappingsPath)) return slugToDir;
+  const content = fsSync.readFileSync(mappingsPath, 'utf-8');
+  // Regex: /learn/<slug>... → fern/products/<dir>/pages
+  const regex = /\/learn\/([\w-]+)[^`]*?→\s*fern\/products\/([\w-]+)\/pages/g;
+  let match;
+  while ((match = regex.exec(content)) !== null) {
+    const slug = match[1];
+    const dir = match[2];
+    slugToDir[slug] = dir;
+  }
+  return slugToDir;
+}
+
+// Parse all /learn/... → file path mappings from my-mappings.md
+function parseLearnToFileMapping(mappingsPath = path.join(__dirname, 'my-mappings.md')) {
+  const learnToFile = {};
+  if (!fsSync.existsSync(mappingsPath)) return learnToFile;
+  const content = fsSync.readFileSync(mappingsPath, 'utf-8');
+  const mappingLines = content.split('\n').filter(line => line.trim().startsWith('- `'));
+  for (const line of mappingLines) {
+    const match = line.match(/- `([^`]+)` → `([^`]+)`/);
+    if (match) {
+      learnToFile[match[1].trim()] = match[2].trim();
+    }
+  }
+  return learnToFile;
+}
+
+// Helper function to replace fetch with Node.js built-in modules
+function httpRequest(url, options = {}) {
+  return new Promise((resolve, reject) => {
+    const urlObj = new URL(url);
+    const isHttps = urlObj.protocol === 'https:';
+    const lib = isHttps ? https : http;
+    
+    const requestOptions = {
+      hostname: urlObj.hostname,
+      port: urlObj.port || (isHttps ? 443 : 80),
+      path: urlObj.pathname + urlObj.search,
+      method: options.method || 'GET',
+      headers: options.headers || {},
+    };
+
+    const req = lib.request(requestOptions, (res) => {
+      const chunks = [];
+      
+      res.on('data', chunk => {
+        chunks.push(chunk);
+      });
+      
+      res.on('end', () => {
+        const buffer = Buffer.concat(chunks);
+        const data = buffer.toString('utf8');
+        
+        const response = {
+          ok: res.statusCode >= 200 && res.statusCode < 300,
+          status: res.statusCode,
+          headers: {
+            get: (name) => res.headers[name.toLowerCase()]
+          },
+          json: () => Promise.resolve(JSON.parse(data)),
+          text: () => Promise.resolve(data),
+          arrayBuffer: () => Promise.resolve(buffer)
+        };
+        resolve(response);
+      });
+    });
+
+    req.on('error', reject);
+    
+    if (options.body) {
+      req.write(options.body);
+    }
+    
+    req.end();
+  });
+}
 
 class FernScribeGitHub {
   constructor() {
@@ -25,6 +124,11 @@ class FernScribeGitHub {
     
     // Use centralized URL mapper
     this.urlMapper = new FernUrlMapper(process.env.GITHUB_TOKEN, process.env.REPOSITORY);
+    this.productSlugToDir = parseProductRootMapping();
+    this.learnToFile = parseLearnToFileMapping();
+    
+    // Track files that failed MDX validation
+    this.mdxValidationFailures = [];
   }
 
   async init() {
@@ -106,7 +210,7 @@ class FernScribeGitHub {
 
     try {
       // Download the file content
-      const response = await fetch(file.url_private, {
+      const response = await httpRequest(file.url_private, {
         headers: {
           'Authorization': `Bearer ${this.slackToken}`
         }
@@ -151,7 +255,7 @@ class FernScribeGitHub {
 
     try {
       // Download image and convert to base64
-      const response = await fetch(imageUrl, {
+      const response = await httpRequest(imageUrl, {
         headers: {
           'Authorization': `Bearer ${this.slackToken}`
         }
@@ -164,7 +268,7 @@ class FernScribeGitHub {
       const mimeType = response.headers.get('content-type') || 'image/jpeg';
 
       // Use Claude to describe the image
-      const claudeResponse = await fetch('https://api.anthropic.com/v1/messages', {
+      const claudeResponse = await httpRequest('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
           'x-api-key': this.anthropicApiKey,
@@ -215,7 +319,7 @@ class FernScribeGitHub {
 
     try {
       // Fetch the thread replies
-      const response = await fetch(`https://slack.com/api/conversations.replies?${new URLSearchParams({
+      const response = await httpRequest(`https://slack.com/api/conversations.replies?${new URLSearchParams({
         channel: parsedUrl.channelId,
         ts: parsedUrl.threadTs,
         inclusive: 'true'
@@ -315,25 +419,117 @@ class FernScribeGitHub {
     }
   }
 
-  async createEmbedding(text) {
-    const response = await fetch('https://api.openai.com/v1/embeddings', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        input: text,
-        model: 'text-embedding-3-large',
-      }),
-    });
+  // Estimate tokens (rough approximation: ~4 chars per token for English)
+  estimateTokens(text) {
+    return Math.ceil(text.length / 4);
+  }
 
-    if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.status}`);
+  // Truncate query intelligently to fit within token limits
+  truncateQuery(text, maxTokens = 8000) { // Leave some buffer below 8192
+    const estimatedTokens = this.estimateTokens(text);
+    
+    if (estimatedTokens <= maxTokens) {
+      return text;
     }
 
-    const data = await response.json();
-    return data.data[0].embedding;
+    console.log(`⚠️  Query too long (${estimatedTokens} tokens), truncating to fit within ${maxTokens} tokens...`);
+    
+    // Try to parse the enhanced query structure
+    const sections = text.split('\n\n');
+    let truncatedText = '';
+    let currentTokens = 0;
+    
+    // Prioritize sections: core request first, Slack discussion last
+    const prioritizedSections = [];
+    
+    for (const section of sections) {
+      if (section.includes('Add a comprehensive list') || section.startsWith('Issue:') || section.startsWith('Request:')) {
+        prioritizedSections.unshift(section); // High priority - add to beginning
+      } else if (section.includes('AI-suggested terms:')) {
+        prioritizedSections.splice(1, 0, section); // Medium-high priority
+      } else if (section.includes('Additional Context:')) {
+        prioritizedSections.splice(-1, 0, section); // Medium priority
+      } else if (section.includes('Slack Discussion Context:')) {
+        prioritizedSections.push(section); // Low priority - add to end
+      } else {
+        prioritizedSections.push(section); // Default priority
+      }
+    }
+    
+    // Build truncated query by adding sections until we hit the limit
+    for (const section of prioritizedSections) {
+      const sectionTokens = this.estimateTokens(section);
+      
+      if (currentTokens + sectionTokens <= maxTokens) {
+        if (truncatedText) truncatedText += '\n\n';
+        truncatedText += section;
+        currentTokens += sectionTokens;
+      } else {
+        // If this is a Slack discussion, try to include a truncated version
+        if (section.includes('Slack Discussion Context:')) {
+          const remainingTokens = maxTokens - currentTokens;
+          const remainingChars = remainingTokens * 4;
+          
+          if (remainingChars > 200) { // Only add if we have meaningful space
+            const truncatedSection = section.slice(0, remainingChars - 50) + '\n\n[... Slack discussion truncated for token limit ...]';
+            if (truncatedText) truncatedText += '\n\n';
+            truncatedText += truncatedSection;
+          }
+        }
+        break;
+      }
+    }
+    
+    const finalTokens = this.estimateTokens(truncatedText);
+    console.log(`✂️  Truncated query: ${text.length} → ${truncatedText.length} chars (${estimatedTokens} → ${finalTokens} tokens)`);
+    
+    return truncatedText;
+  }
+
+  async createEmbedding(text) {
+    console.log(`🔍 Creating embedding for text (${text.length} chars)...`);
+    
+    try {
+      // Truncate if necessary to fit within token limits
+      const truncatedText = this.truncateQuery(text);
+      
+      const response = await httpRequest('https://api.openai.com/v1/embeddings', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          input: truncatedText,
+          model: 'text-embedding-3-large',
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ OpenAI API error details:', errorText);
+        
+        // Try to parse the error as JSON for better understanding
+        try {
+          const errorData = JSON.parse(errorText);
+          console.error('📋 Parsed error data:', JSON.stringify(errorData, null, 2));
+        } catch (e) {
+          console.error('📋 Raw error text:', errorText);
+        }
+        
+        throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log(`✅ Embedding created successfully (${data.data[0]?.embedding?.length} dimensions)`);
+      return data.data[0].embedding;
+      
+    } catch (error) {
+      console.error('❌ createEmbedding failed:', error.message);
+      console.error('📝 Query preview (first 200 chars):', text.slice(0, 200));
+      console.error('🔑 API Key present:', process.env.OPENAI_API_KEY ? `Yes (${process.env.OPENAI_API_KEY.length} chars)` : 'No');
+      throw error;
+    }
   }
 
   reciprocalRankFusion(semanticResults, bm25Results, k = 60) {
@@ -449,6 +645,17 @@ class FernScribeGitHub {
   }
 
   async generateContent(filePath, existingContent, context, fernStructure) {
+    // Check if content needs chunking
+    const CHUNK_THRESHOLD = 12000; // Chars threshold to decide when to chunk
+    if (existingContent.length <= CHUNK_THRESHOLD) {
+      return this.generateSingleContent(filePath, existingContent, context, fernStructure);
+    } else {
+      console.log(`   📊 Large file detected (${existingContent.length} chars) - using chunked processing`);
+      return this.generateChunkedContent(filePath, existingContent, context, fernStructure);  
+    }
+  }
+
+  async generateSingleContent(filePath, existingContent, context, fernStructure) {
     const prompt = `${this.systemPrompt}
 
 ## Context
@@ -468,12 +675,20 @@ ${existingContent}
 ## Instructions
 Update this file to address the documentation request. Use the Slack discussion context to understand the specific pain points and requirements mentioned by users. Follow Fern documentation best practices and maintain consistency with the existing structure.
 
+CRITICAL MDX SYNTAX REQUIREMENTS:
+- ALL opening tags MUST have corresponding closing tags (e.g., <ParamField> must have </ParamField>)
+- Self-closing tags must use proper syntax (e.g., <ParamField param="value" />)
+- Preserve existing MDX component structure exactly
+- When adding new ParamField, CodeBlock, or other components, ensure they are properly closed
+- Check that every < has a matching >
+- Validate that nested components are properly structured
+
 IMPORTANT: Return ONLY the clean file content. Do not include any explanatory text, meta-commentary, or descriptions about what you're doing. Start directly with the frontmatter (---) or first line of the file content.
 
 Complete updated file content:`;
 
     try {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
+      const response = await httpRequest('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
           'x-api-key': this.anthropicApiKey,
@@ -491,15 +706,315 @@ Complete updated file content:`;
       });
 
       if (!response.ok) {
-        throw new Error(`Anthropic API error: ${response.status}`);
+        const errorText = await response.text();
+        console.error('❌ Anthropic API error details (generateContent):', errorText);
+        throw new Error(`Anthropic API error: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
-      return data.content[0]?.text || '';
+      const generatedContent = data.content[0]?.text || '';
+      
+      // Basic MDX validation
+      const validationResult = this.validateMDXContent(generatedContent);
+      if (!validationResult.isValid) {
+        console.warn(`⚠️  MDX validation warnings for ${filePath}:`, validationResult.warnings);
+      }
+      
+      return generatedContent;
     } catch (error) {
       console.error('Claude API error:', error);
       return existingContent; // Return original if AI fails
     }
+  }
+
+  async generateChunkedContent(filePath, existingContent, context, fernStructure) {
+    const chunks = this.chunkContent(existingContent, 8000);
+    const updatedChunks = [];
+    let hasChanges = false;
+
+    console.log(`   🧩 Processing ${chunks.length} chunks for ${filePath}`);
+
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i];
+      console.log(`   📝 Processing chunk ${i + 1}/${chunks.length}${chunk.section ? ` (${chunk.section})` : ''}`);
+
+      const chunkPrompt = `${this.systemPrompt}
+
+## Context
+File: ${filePath}
+Chunk: ${i + 1} of ${chunks.length}${chunk.section ? ` - Section: "${chunk.section}"` : ''}
+Request: ${context.requestDescription}
+Existing Instructions: ${context.existingInstructions}
+Why Current Approach Doesn't Work: ${context.whyNotWork}
+Additional Context: ${context.additionalContext}
+${context.slackThreadContent ? `\n## Slack Discussion Context\n${context.slackThreadContent}` : ''}
+
+## Fern Docs Structure Reference
+${fernStructure}
+
+## Current Chunk Content
+${chunk.content}
+
+## Instructions
+${chunk.isComplete ? 
+  'This is the final chunk of the file. Update this section to address the documentation request.' :
+  `This is chunk ${i + 1} of ${chunks.length} from a larger file. Update only this section as needed to address the documentation request. Do not add or remove section headers unless specifically needed for this chunk.`
+}
+
+Focus on:
+- Addressing the specific documentation gaps mentioned in the request
+- Improving clarity and completeness within this chunk
+- Maintaining consistency with Fern documentation patterns
+- Preserving the existing structure and flow
+
+CRITICAL MDX SYNTAX REQUIREMENTS:
+- ALL opening tags MUST have corresponding closing tags (e.g., <ParamField> must have </ParamField>)
+- Self-closing tags must use proper syntax (e.g., <ParamField param="value" />)
+- Preserve existing MDX component structure exactly
+- When adding new ParamField, CodeBlock, or other components, ensure they are properly closed
+- Check that every < has a matching >
+- Validate that nested components are properly structured
+
+IMPORTANT: Return ONLY the updated chunk content. Do not include any explanatory text, meta-commentary, or descriptions about what you're doing.
+
+Updated chunk content:`;
+
+      try {
+        const response = await httpRequest('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'x-api-key': this.anthropicApiKey,
+            'content-type': 'application/json',
+            'anthropic-version': '2023-06-01'
+          },
+          body: JSON.stringify({
+            model: 'claude-3-5-sonnet-20241022',
+            max_tokens: 4096,
+            messages: [{
+              role: 'user',
+              content: chunkPrompt
+            }]
+          })
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`❌ Anthropic API error for chunk ${i + 1}:`, errorText);
+          updatedChunks.push(chunk.content); // Use original chunk
+          continue;
+        }
+
+        const data = await response.json();
+        const updatedChunkContent = data.content[0]?.text || chunk.content;
+        
+        // Validate the chunk
+        const validationResult = this.validateMDXContent(updatedChunkContent);
+        if (!validationResult.isValid) {
+          console.warn(`⚠️  MDX validation warnings for chunk ${i + 1}:`, validationResult.warnings);
+          updatedChunks.push(chunk.content); // Use original chunk if validation fails
+        } else {
+          updatedChunks.push(updatedChunkContent);
+          if (updatedChunkContent !== chunk.content) {
+            hasChanges = true;
+            console.log(`   ✅ Updated chunk ${i + 1} (${chunk.content.length} → ${updatedChunkContent.length} chars)`);
+          } else {
+            console.log(`   ℹ️  No changes for chunk ${i + 1}`);
+          }
+        }
+
+      } catch (error) {
+        console.error(`❌ Error processing chunk ${i + 1}:`, error.message);
+        updatedChunks.push(chunk.content); // Use original chunk
+      }
+
+      // Add a small delay between chunks to be respectful to the API
+      if (i < chunks.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+
+    // Reassemble the chunks
+    const finalContent = this.reassembleChunks(updatedChunks, chunks);
+    
+    console.log(`   🔧 Reassembled content: ${existingContent.length} → ${finalContent.length} chars`);
+    
+    return hasChanges ? finalContent : existingContent;
+  }
+
+  reassembleChunks(updatedChunks, originalChunks) {
+    // If there's only one chunk, return it directly
+    if (updatedChunks.length === 1) {
+      return updatedChunks[0];
+    }
+
+    // For multiple chunks, we need to carefully reassemble
+    let reassembled = '';
+    
+    for (let i = 0; i < updatedChunks.length; i++) {
+      const chunk = updatedChunks[i];
+      const originalChunk = originalChunks[i];
+      
+      if (i === 0) {
+        // First chunk should include frontmatter if present
+        reassembled = chunk;
+      } else {
+        // For subsequent chunks, remove frontmatter if it was duplicated
+        let cleanChunk = chunk;
+        if (cleanChunk.startsWith('---\n') && reassembled.includes('---\n')) {
+          // Remove frontmatter from subsequent chunks
+          const frontmatterEnd = cleanChunk.indexOf('---\n', 4);
+          if (frontmatterEnd !== -1) {
+            cleanChunk = cleanChunk.substring(frontmatterEnd + 4);
+          }
+        }
+        
+        // Add proper spacing between chunks
+        if (reassembled.trim() && cleanChunk.trim()) {
+          reassembled += '\n\n' + cleanChunk;
+        } else {
+          reassembled += cleanChunk;
+        }
+      }
+    }
+
+    return reassembled;
+  }
+
+  // Basic MDX validation to catch common issues
+  validateMDXContent(content) {
+    const warnings = [];
+    
+    // Check for unclosed ParamField tags
+    const paramFieldMatches = content.match(/<ParamField[^>]*>/g) || [];
+    const paramFieldCloses = content.match(/<\/ParamField>/g) || [];
+    if (paramFieldMatches.length !== paramFieldCloses.length) {
+      warnings.push(`Mismatched ParamField tags: ${paramFieldMatches.length} opening, ${paramFieldCloses.length} closing`);
+    }
+    
+    // Check for unclosed CodeBlock tags
+    const codeBlockMatches = content.match(/<CodeBlock[^>]*>/g) || [];
+    const codeBlockCloses = content.match(/<\/CodeBlock>/g) || [];
+    if (codeBlockMatches.length !== codeBlockCloses.length) {
+      warnings.push(`Mismatched CodeBlock tags: ${codeBlockMatches.length} opening, ${codeBlockCloses.length} closing`);
+    }
+    
+    // Check for other common unclosed tags
+    const commonTags = ['Accordion', 'AccordionItem', 'Tab', 'Tabs', 'Card'];
+    for (const tag of commonTags) {
+      const openTags = content.match(new RegExp(`<${tag}[^>]*>`, 'g')) || [];
+      const closeTags = content.match(new RegExp(`<\/${tag}>`, 'g')) || [];
+      if (openTags.length !== closeTags.length) {
+        warnings.push(`Mismatched ${tag} tags: ${openTags.length} opening, ${closeTags.length} closing`);
+      }
+    }
+    
+    return {
+      isValid: warnings.length === 0,
+      warnings
+    };
+  }
+
+  // Intelligent content chunking for large files
+  chunkContent(content, maxChunkSize = 8000) {
+    // If content is small enough, return as single chunk
+    if (content.length <= maxChunkSize) {
+      return [{ content, isComplete: true, chunkIndex: 0, totalChunks: 1 }];
+    }
+
+    const chunks = [];
+    const lines = content.split('\n');
+    let currentChunk = '';
+    let frontmatter = '';
+    let inFrontmatter = false;
+    let frontmatterEnded = false;
+
+    // Extract frontmatter first
+    if (lines[0] === '---') {
+      inFrontmatter = true;
+      for (let i = 0; i < lines.length; i++) {
+        if (i > 0 && lines[i] === '---') {
+          inFrontmatter = false;
+          frontmatterEnded = true;
+          frontmatter = lines.slice(0, i + 1).join('\n') + '\n';
+          break;
+        }
+      }
+    }
+
+    // Start processing from after frontmatter
+    const startIndex = frontmatterEnded ? lines.findIndex((line, idx) => idx > 0 && line === '---') + 1 : 0;
+    const contentLines = lines.slice(startIndex);
+
+    let sectionBuffer = [];
+    let currentSection = null;
+
+    for (let i = 0; i < contentLines.length; i++) {
+      const line = contentLines[i];
+      
+      // Detect section headers (## or ###)
+      if (line.match(/^#{2,3}\s+/)) {
+        // If we have accumulated content and adding this section would exceed limit
+        if (sectionBuffer.length > 0 && (currentChunk + sectionBuffer.join('\n')).length > maxChunkSize) {
+          // Save current chunk
+          chunks.push({
+            content: (chunks.length === 0 ? frontmatter : '') + currentChunk.trim(),
+            isComplete: false,
+            chunkIndex: chunks.length,
+            section: currentSection,
+            hasMore: true
+          });
+          currentChunk = '';
+          currentSection = null;
+        }
+        
+        // Start new section
+        currentSection = line.replace(/^#+\s+/, '').trim();
+        sectionBuffer = [line];
+      } else {
+        sectionBuffer.push(line);
+      }
+
+      // Check if we need to break at this point
+      const potentialChunk = currentChunk + sectionBuffer.join('\n') + '\n';
+      if (potentialChunk.length > maxChunkSize && currentChunk.length > 0) {
+        // Save current chunk without the current section
+        chunks.push({
+          content: (chunks.length === 0 ? frontmatter : '') + currentChunk.trim(),
+          isComplete: false,
+          chunkIndex: chunks.length,
+          section: chunks.length > 0 ? currentSection : null,
+          hasMore: true
+        });
+        currentChunk = sectionBuffer.join('\n') + '\n';
+        sectionBuffer = [];
+      } else {
+        currentChunk += sectionBuffer.join('\n') + '\n';
+        sectionBuffer = [];
+      }
+    }
+
+    // Add remaining content as final chunk
+    if (currentChunk.trim()) {
+      chunks.push({
+        content: (chunks.length === 0 ? frontmatter : '') + currentChunk.trim(),
+        isComplete: true,
+        chunkIndex: chunks.length,
+        section: currentSection,
+        hasMore: false
+      });
+    }
+
+    // Update totalChunks for all chunks
+    chunks.forEach(chunk => {
+      chunk.totalChunks = chunks.length;
+    });
+
+    console.log(`   📊 Split content into ${chunks.length} chunks (${content.length} chars total)`);
+    chunks.forEach((chunk, i) => {
+      console.log(`      Chunk ${i + 1}: ${chunk.content.length} chars${chunk.section ? ` (${chunk.section})` : ''}`);
+    });
+
+    return chunks;
   }
 
   async analyzeDocumentationNeeds(context) {
@@ -544,7 +1059,7 @@ Output your response as JSON:
 }`;
 
     try {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
+      const response = await httpRequest('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
           'x-api-key': this.anthropicApiKey,
@@ -562,7 +1077,9 @@ Output your response as JSON:
       });
 
       if (!response.ok) {
-        throw new Error(`Anthropic API error: ${response.status}`);
+        const errorText = await response.text();
+        console.error('❌ Anthropic API error details (analyzeDocumentationNeeds):', errorText);
+        throw new Error(`Anthropic API error: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
@@ -654,7 +1171,7 @@ Example format:
 Changelog entry:`;
 
     try {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
+      const response = await httpRequest('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
           'x-api-key': this.anthropicApiKey,
@@ -674,7 +1191,9 @@ Changelog entry:`;
       });
 
       if (!response.ok) {
-        throw new Error(`Anthropic API error: ${response.status}`);
+        const errorText = await response.text();
+        console.error('❌ Anthropic API error details (generateChangelogEntry):', errorText);
+        throw new Error(`Anthropic API error: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
@@ -688,6 +1207,186 @@ Changelog entry:`;
   // Map Turbopuffer URLs to actual GitHub file paths (using centralized mapper)
   async mapTurbopufferPathToGitHub(turbopufferPath) {
     return await this.urlMapper.mapTurbopufferPathToGitHub(turbopufferPath);
+  }
+
+  // Returns the canonical product file path for a new file, using the mapping from my-mappings.md
+  getCanonicalProductFilePath(slugOrUrl, relPath) {
+    // Try to construct the /learn/... URL
+    let slug = null;
+    if (slugOrUrl) {
+      const match = /learn\/([\w-]+)/.exec(slugOrUrl);
+      if (match) slug = match[1];
+    }
+    if (!slug) slug = slugOrUrl;
+    // Build the canonical /learn/... URL
+    let learnUrl = `/learn/${slug}/${relPath.replace(/\.mdx$/, '').replace(/\/+/, '/')}`;
+    // Remove any double slashes
+    learnUrl = learnUrl.replace(/\/+/g, '/');
+    // Remove trailing .mdx if present
+    learnUrl = learnUrl.replace(/\.mdx$/, '');
+    // Look up the mapping
+    const mappedPath = this.learnToFile[learnUrl];
+    if (mappedPath) {
+      console.log(`[DEBUG] Using mapping: ${learnUrl} → ${mappedPath}`);
+      return mappedPath;
+    } else {
+      console.warn(`[DEBUG] No mapping found for ${learnUrl}, skipping file creation.`);
+      return null;
+    }
+  }
+
+  // Find the appropriate product YAML file based on the file path
+  getProductYamlPath(filePath) {
+    if (filePath.includes('openapi-def') || filePath.includes('openapi-definition')) {
+      return 'fern/products/openapi-def/openapi-def.yml';
+    } else if (filePath.includes('fern-def') || filePath.includes('fern-definition')) {
+      return 'fern/products/fern-def/fern-def.yml';
+    } else if (filePath.includes('sdks')) {
+      return 'fern/products/sdks/sdks.yml';
+    } else if (filePath.includes('docs')) {
+      return 'fern/products/docs/docs.yml';
+    } else if (filePath.includes('ask-fern')) {
+      return 'fern/products/ask-fern/ask-fern.yml';
+    } else if (filePath.includes('cli-api-reference')) {
+      return 'fern/products/cli-api-reference/cli-api-reference.yml';
+    } else if (filePath.includes('asyncapi-def')) {
+      return 'fern/products/asyncapi-def/asyncapi-def.yml';
+    } else if (filePath.includes('openrpc-def')) {
+      return 'fern/products/openrpc-def/openrpc-def.yml';
+    } else if (filePath.includes('grpc-def')) {
+      return 'fern/products/grpc-def/grpc-def.yml';
+    }
+    return null;
+  }
+
+  // Extract the page information from a file path for YAML navigation
+  extractPageInfo(filePath, title) {
+    const pathParts = filePath.split('/');
+    const fileName = pathParts[pathParts.length - 1].replace('.mdx', '');
+    
+    // Create a slug from the file name
+    const slug = fileName;
+    
+    // Extract the relative path after 'fern/products/[product]/'
+    let relativePath = null;
+    const fernProductsIndex = pathParts.indexOf('products');
+    if (fernProductsIndex >= 0 && fernProductsIndex + 2 < pathParts.length) {
+      // Get the path after 'fern/products/[product-name]/'
+      const pathAfterProduct = pathParts.slice(fernProductsIndex + 2).join('/');
+      relativePath = './' + pathAfterProduct;
+    }
+    
+    // Try to find the appropriate section based on path
+    let section = null;
+    if (filePath.includes('extensions')) {
+      section = 'extensions';
+    } else if (filePath.includes('configuration')) {
+      section = 'configuration';
+    } else if (filePath.includes('generators')) {
+      section = 'generators';
+    } else if (filePath.includes('overview')) {
+      section = 'overview';
+    }
+    
+    return {
+      slug,
+      title: title || fileName.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+      section,
+      path: relativePath
+    };
+  }
+
+  // Update product YAML file to include new page
+  async updateProductYaml(filePath, pageTitle, newPageCreated = false) {
+    if (!newPageCreated) {
+      return; // Only update YAML for new pages
+    }
+
+    const yamlPath = this.getProductYamlPath(filePath);
+    if (!yamlPath) {
+      console.log(`   ⚠️  Could not determine product YAML for ${filePath}`);
+      return;
+    }
+
+    try {
+      console.log(`   📝 Updating product navigation: ${yamlPath}`);
+      
+      // Fetch current YAML content
+      const currentYaml = await this.fetchFileContent(yamlPath);
+      if (!currentYaml) {
+        console.log(`   ⚠️  Could not fetch YAML file: ${yamlPath}`);
+        return;
+      }
+
+      // Parse YAML
+      const yamlData = yaml.load(currentYaml);
+      const pageInfo = this.extractPageInfo(filePath, pageTitle);
+      
+      // Find the appropriate section to add the new page
+      let targetSection = null;
+      if (yamlData.navigation) {
+        // Look for existing section
+        for (const item of yamlData.navigation) {
+          if (item.section === pageInfo.section) {
+            targetSection = item;
+            break;
+          }
+        }
+        
+        // If no specific section found, add to the end
+        if (!targetSection && yamlData.navigation.length > 0) {
+          // Find a good parent section or create one
+          if (pageInfo.section === 'extensions') {
+            targetSection = yamlData.navigation.find(item => 
+              item.section === 'extensions' || 
+              item.title?.toLowerCase().includes('extension')
+            );
+          }
+          
+          if (!targetSection) {
+            // Add to the last section that has children
+            targetSection = yamlData.navigation.find(item => item.contents);
+          }
+        }
+      }
+
+      // Add the new page
+      const newPageEntry = {
+        page: pageInfo.slug,
+        title: pageInfo.title,
+        path: pageInfo.path
+      };
+
+      if (targetSection && targetSection.contents) {
+        targetSection.contents.push(newPageEntry);
+      } else if (yamlData.navigation) {
+        // Create a new section if needed
+        yamlData.navigation.push({
+          section: pageInfo.section || 'other',
+          contents: [newPageEntry]
+        });
+      } else {
+        // Fallback: create basic navigation structure
+        yamlData.navigation = [{
+          section: pageInfo.section || 'main',
+          contents: [newPageEntry]
+        }];
+      }
+
+      // Convert back to YAML
+      const updatedYaml = yaml.dump(yamlData, { 
+        indent: 2,
+        lineWidth: -1,
+        noRefs: true
+      });
+
+      console.log(`   ✅ Added page "${pageInfo.title}" to ${yamlPath}`);
+      return { yamlPath, updatedYaml };
+
+    } catch (error) {
+      console.error(`   ❌ Error updating YAML for ${filePath}:`, error.message);
+      return null;
+    }
   }
 
   // Simple file content fetcher for dynamic mapping (without path transformation)
@@ -798,7 +1497,9 @@ Changelog entry:`;
 
   async createPullRequest(branchName, context, filesUpdated) {
     const title = `🌿 Fern Scribe: ${context.requestDescription.substring(0, 50)}...`;
-    const body = `## 🌿 Fern Scribe Documentation Update
+    
+    // Build the main PR body
+    let body = `## 🌿 Fern Scribe Documentation Update
 
 **Original Request:** ${context.requestDescription}
 
@@ -809,9 +1510,37 @@ ${filesUpdated.map(file => `- \`${file}\``).join('\n')}
 
 ${context.slackThread ? `**Related Discussion:** ${context.slackThread}` : ''}
 
-${context.additionalContext ? `**Additional Context:** ${context.additionalContext}` : ''}
+${context.additionalContext ? `**Additional Context:** ${context.additionalContext}` : ''}`;
 
----
+    // Add section for files that failed MDX validation
+    if (this.mdxValidationFailures.length > 0) {
+      body += `\n\n## ⚠️ Files with MDX Validation Issues
+
+The following files could not be updated due to MDX validation failures after 3 attempts:
+
+${this.mdxValidationFailures.map((failure, index) => {
+  const warnings = failure.warnings.map(w => `  - ${w}`).join('\n');
+  const truncatedContent = failure.suggestedContent && failure.suggestedContent.length > 4000 
+    ? failure.suggestedContent.substring(0, 4000) + '\n\n... [Content truncated due to length]'
+    : failure.suggestedContent;
+  
+  return `### ${index + 1}. **\`${failure.filePath}\`** (${failure.title || 'Untitled'})
+
+- **URL**: ${failure.url || 'N/A'}
+- **Validation Issues**:
+${warnings}
+
+**Suggested Content** (needs manual MDX fixes):
+
+\`\`\`mdx
+${truncatedContent || 'No suggested content available'}
+\`\`\``;
+}).join('\n\n')}
+
+**Note**: These files require manual review and correction of their MDX component structure before the content can be applied.`;
+    }
+
+    body += `\n\n---
 *This PR was automatically generated by Fern Scribe based on issue #${this.issueNumber}*
 
 **Please review the changes carefully before merging.**`;
@@ -953,7 +1682,48 @@ ${context.additionalContext ? `**Additional Context:** ${context.additionalConte
           };
           
           console.log(`   🤖 Generating AI suggestions based on context...`);
-          const suggestedContent = await this.generateContent(filePath, currentContent, contextWithDocument, fernStructure);
+          let suggestedContent = null;
+          let valid = false;
+          let attempts = 0;
+          while (attempts < 3 && !valid) {
+            suggestedContent = await this.generateContent(filePath, currentContent, contextWithDocument, fernStructure);
+            const validationResult = this.validateMDXContent(suggestedContent);
+            if (validationResult.isValid) {
+              valid = true;
+            } else {
+              attempts++;
+              console.warn(`⚠️  MDX validation failed for ${filePath} (attempt ${attempts}):`, validationResult.warnings);
+              // Optionally: try to auto-fix here (not implemented yet)
+            }
+          }
+          if (!valid) {
+            const validationResult = this.validateMDXContent(suggestedContent);
+            const msg = `❌ Skipping file due to invalid MDX after 3 attempts: ${filePath}\nWarnings: ${JSON.stringify(validationResult.warnings)}`;
+            console.warn(msg);
+            
+            // Track this failure for the PR description
+            this.mdxValidationFailures.push({
+              filePath,
+              warnings: validationResult.warnings,
+              attempts: 3,
+              url: result.url,
+              title: result.title,
+              suggestedContent: suggestedContent // Store the suggested content despite validation issues
+            });
+            
+            // If running in GitHub Actions, comment on the issue
+            if (process.env.GITHUB_TOKEN && process.env.REPOSITORY && process.env.ISSUE_NUMBER) {
+              const [owner, repo] = process.env.REPOSITORY.split('/');
+              const octokit = this.octokit;
+              await octokit.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: this.issueNumber,
+                body: msg
+              });
+            }
+            continue; // Skip this file
+          }
           
           if (suggestedContent && suggestedContent !== currentContent) {
             analysisResults.push({
@@ -1055,17 +1825,63 @@ ${context.additionalContext ? `**Additional Context:** ${context.additionalConte
           // Update files with suggested content
           for (const result of analysisResults) {
             try {
-              const actualPath = await this.mapTurbopufferPathToGitHub(result.filePath);
+              let actualPath;
+              const isNewFile = result.currentContent.length === 0;
+              if (isNewFile) {
+                // Use mapping to get correct product directory for new files
+                let slug = null;
+                if (result.url) {
+                  const match = /learn\/([\w-]+)/.exec(result.url);
+                  if (match) slug = match[1];
+                }
+                if (!slug && result.filePath) {
+                  const match = /learn\/([\w-]+)/.exec(result.filePath);
+                  if (match) slug = match[1];
+                }
+                // Extract relative path after /learn/<slug>/
+                let relPath = '';
+                if (result.url) {
+                  const relMatch = result.url.match(/learn\/[\w-]+\/(.*)/);
+                  if (relMatch) relPath = relMatch[1];
+                }
+                if (!relPath && result.filePath) {
+                  const relMatch = result.filePath.match(/learn\/[\w-]+\/(.*)/);
+                  if (relMatch) relPath = relMatch[1];
+                }
+                relPath = relPath.replace(/\.mdx$/, '') + '.mdx';
+                actualPath = this.getCanonicalProductFilePath(slug, relPath);
+                if (!actualPath) {
+                  console.warn(`[DEBUG] Skipping file creation for ${result.url || result.filePath} (no mapping found)`);
+                  continue;
+                }
+              } else {
+                actualPath = await this.mapTurbopufferPathToGitHub(result.filePath);
+              }
               
-              console.log(`   📝 Updating file: ${actualPath}`);
+              console.log(`   📝 Updating file: ${actualPath}${isNewFile ? ' (new file)' : ''}`);
               await this.updateFile(
                 actualPath,
                 result.suggestedContent,
                 branchName,
-                `Update ${path.basename(actualPath)} based on issue #${this.issueNumber}`
+                `${isNewFile ? 'Create' : 'Update'} ${path.basename(actualPath)} based on issue #${this.issueNumber}`
               );
               
               filesUpdated.push(actualPath);
+              
+              // Update product YAML if this is a new file
+              if (isNewFile) {
+                const yamlUpdate = await this.updateProductYaml(actualPath, result.title, true);
+                if (yamlUpdate) {
+                  console.log(`   📝 Updating navigation: ${yamlUpdate.yamlPath}`);
+                  await this.updateFile(
+                    yamlUpdate.yamlPath,
+                    yamlUpdate.updatedYaml,
+                    branchName,
+                    `Add ${result.title} page to navigation`
+                  );
+                  filesUpdated.push(yamlUpdate.yamlPath);
+                }
+              }
             } catch (error) {
               console.error(`   ⚠️  Could not update ${result.filePath}: ${error.message}`);
             }

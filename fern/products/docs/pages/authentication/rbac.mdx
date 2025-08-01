@@ -24,43 +24,6 @@ Role-based access control is helpful for scenarios such as:
 
 If a user visits content not marked as visible to the `everyone` role, Fern will check for an authentication cookie to indicate what roles that user has. If the user does not have a role matching the viewers of the page, we will redirect them to the URL you provided during setup.
 
-Below, we walk through each of the steps required to configure RBAC.
-
-### Architecture diagram
-
-```mermaid
-sequenceDiagram
-    participant U as User
-    participant F as Fern Docs
-    participant R as Redirect URL
-    participant A as Auth System
-
-    U->>F: Visit restricted page
-    F->>F: Check fern_token cookie
-    
-    alt Cookie exists
-        F->>F: Decode JWT with secret key
-        F->>F: Extract roles from JWT
-        F->>F: Check if user has required role
-        
-        alt User has required role
-            F->>U: Show restricted content
-        else User lacks required role
-            F->>U: User is shown a 404 page
-        end
-    else No cookie
-        F->>R: Redirect to login page
-        R->>A: Authenticate user
-    end
-    
-    Note over A: User logs in
-    
-    A->>A: Generate JWT with roles
-    A->>F: Set fern_token cookie
-    F->>F: Validate JWT and roles
-    F->>U: Show restricted content
-```
-
 ## Set up RBAC
 
 <Steps>
@@ -82,10 +45,16 @@ The `everyone` role is special. Every user has this role (including unauthentica
 
 ### Configure authentication via a `fern_token`
 
-In this step, we will configure authentication so that Fern can understand what roles a particular user has. Fern expects the user's
-browser session to have a cookie called `fern_token`. If the cookie is not present, the user will be redirected to your company's
-login page.
+In this step, we will configure authentication so that Fern can understand what roles a particular user has. 
 
+Fern expects the user's browser session to have a cookie called `fern_token`. If
+the cookie is not present, the user will be redirected to your company's login
+page.
+
+Below, we walk through each of the steps required to configure RBAC with either JWT or OAuth.
+
+<AccordionGroup>
+<Accordion title="JWT">
 **You are responsible for creating and setting the `fern_token` cookie in your authentication system.** Upon login, you must set a JWT for the user using a secret key that we will provide. The JWT must have a `fern` claim with a key called `roles`.
 
 ```json
@@ -96,11 +65,22 @@ login page.
 }
 ```
 
+<Markdown src="/snippets/jwt-auth-diagram.mdx"/>
+
+</Accordion>
+<Accordion title="OAuth">
+
+Fern initiates an OAuth flow when the user needs authentication, redirecting them to your authentication endpoint. Fern creates and sets the `fern-token` cookie after completing this flow. 
+You are responsible for configuring your OAuth endpoints to return user role information. 
+
+<Markdown src="/snippets/oauth-diagram.mdx"/>
+
+</Accordion>
+</AccordionGroup>
+
 ### Contact Fern for setup
 
-When you're ready to implement RBAC, **contact support@buildwithfern.com** to receive your secret key for JWT signing.
-
-You'll also need to provide the URL where Fern should send unauthenticated users to log in.
+When you're ready to implement RBAC, **contact support@buildwithfern.com**.
 
 <Note>Optional: If you'd like restricted pages to be visible but locked to unauthenticated users (rather than completely hidden), let us know during this step.</Note>
 
