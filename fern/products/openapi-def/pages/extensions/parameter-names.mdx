@@ -1,22 +1,63 @@
 ---
 title: Customize parameter names
-description: Use `x-fern-parameter-name` to customize query parameter, header and path parameter naming.
+description: Use Fern's extensions to customize parameter naming in your generated SDKs.
 ---
 
 <Note>
-  The `x-fern-parameter-name` extension allows you to customize the variable names of parameters in your generated SDKs.
+  Fern provides extensions to customize how parameters are named and handled in your generated SDKs.
 </Note>
 
-## Headers
+## Parameter Name Customization
 
-In the example below, the header `X-API-Version` is renamed to `version` in the
-generated SDK. The rename makes the SDK more human readable.
+### x-fern-parameter-name
 
-```yaml {8}
+Use `x-fern-parameter-name` to rename parameters in your generated SDKs to be more human-readable and intuitive.
+
+```yaml
+paths:
+  "/users":
+    get:
+      parameters:
+        - in: header
+          name: X-API-Version 
+          x-fern-parameter-name: version
+          schema:
+            type: string
+```
+
+### x-fern-sdk-variables
+
+Use `x-fern-sdk-variables` to define variables that can be set once and reused across multiple endpoints. This is useful for values like project IDs or API versions that are used consistently.
+
+```yaml
+components:
+  x-fern-sdk-variables:
+    project_id:
+      type: string
+      description: The project identifier
+      pattern: "^proj_[a-zA-Z0-9]+$"
+
+paths:
+  "/v1/projects/{project_id}/users":
+    parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+        x-fern-sdk-variable: project_id
+```
+
+## Examples
+
+### Headers
+
+Rename headers to be more readable in your SDK:
+
+```yaml
 paths:
   "/user":
     get:
-      operationId: list_user
       parameters:
         - in: header
           name: X-API-Version
@@ -26,16 +67,14 @@ paths:
           required: true
 ```
 
-## Query parameters
+### Query Parameters 
 
-In the example below, the query parameter `q` is renamed to `search_terms` in the
-generated SDK. The rename makes the parameter more approachable for end users.
+Make query parameter names more descriptive:
 
-```yaml {8}
+```yaml
 paths:
   "/user/search":
     get:
-      operationId: search_user
       parameters:
         - in: query
           name: q
@@ -45,16 +84,14 @@ paths:
           required: false
 ```
 
-## Path parameters
+### Path Parameters
 
-In the example below, the path parameter `userId` is renamed to `id` in the
-generated SDK. The rename makes the SDK less verbose.
+Simplify path parameter names:
 
-```yaml {8}
+```yaml
 paths:
   "/user/{userId}":
     get:
-      operationId: get_user
       parameters:
         - in: path
           name: userId
@@ -63,3 +100,38 @@ paths:
             type: string
           required: false
 ```
+
+### SDK Variables
+
+Define a reusable variable for project ID:
+
+```yaml
+components:
+  x-fern-sdk-variables:
+    project_id:
+      type: string 
+      description: "Project identifier"
+      pattern: "^proj_[a-zA-Z0-9]+$"
+
+paths:
+  "/v1/projects/{project_id}/resources":
+    parameters:
+      - name: project_id
+        in: path
+        required: true 
+        schema:
+          type: string
+        x-fern-sdk-variable: project_id
+```
+
+<Note>
+  SDK variables are supported in Fern generators version 4.24.0 and later. Make sure you're using a compatible version in your generators.yml file.
+</Note>
+
+## Best Practices
+
+- Use consistent naming conventions across your API spec
+- Choose descriptive names that reflect the parameter's purpose
+- Consider backwards compatibility when renaming parameters
+- Document any custom naming patterns for maintainability
+- Test SDK variable usage across different generators
