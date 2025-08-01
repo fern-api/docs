@@ -673,7 +673,10 @@ ${fernStructure}
 ${existingContent}
 
 ## Instructions
-Update this file to address the documentation request. Use the Slack discussion context to understand the specific pain points and requirements mentioned by users. Follow Fern documentation best practices and maintain consistency with the existing structure.
+${context.isNewFile ? 
+  'Create a new documentation file to address the documentation request. Use the Slack discussion context to understand the specific pain points and requirements mentioned by users. Follow Fern documentation best practices and create a well-structured guide.' :
+  'Update this file to address the documentation request. Use the Slack discussion context to understand the specific pain points and requirements mentioned by users. Follow Fern documentation best practices and maintain consistency with the existing structure.'
+}
 
 CRITICAL MDX SYNTAX REQUIREMENTS:
 - ALL opening tags MUST have corresponding closing tags (e.g., <ParamField> must have </ParamField>)
@@ -756,9 +759,11 @@ ${fernStructure}
 ${chunk.content}
 
 ## Instructions
-${chunk.isComplete ? 
-  'This is the final chunk of the file. Update this section to address the documentation request.' :
-  `This is chunk ${i + 1} of ${chunks.length} from a larger file. Update only this section as needed to address the documentation request. Do not add or remove section headers unless specifically needed for this chunk.`
+${context.isNewFile ? 
+  `This is chunk ${i + 1} of ${chunks.length} for a new documentation file. Create comprehensive content for this section to address the documentation request.` :
+  chunk.isComplete ? 
+    'This is the final chunk of the file. Update this section to address the documentation request.' :
+    `This is chunk ${i + 1} of ${chunks.length} from a larger file. Update only this section as needed to address the documentation request. Do not add or remove section headers unless specifically needed for this chunk.`
 }
 
 Focus on:
@@ -1137,6 +1142,7 @@ Output your response as JSON:
       });
 
       // Look for exact or close matches to the suggested path
+      let foundMatch = false;
       for (const result of targetedResults) {
         const resultPath = result.pathname || result.url || '';
         if (resultPath.includes(suggestion.path) || 
@@ -1149,12 +1155,52 @@ Output your response as JSON:
             reason: suggestion.reason
           });
           existingPaths.add(resultPath);
+          foundMatch = true;
           break;
         }
+      }
+
+      // If no good match found, suggest creating a new file
+      if (!foundMatch && this.shouldSuggestNewFile(suggestion, turbopufferResults)) {
+        console.log(`   💡 Suggesting new file creation: ${suggestion.path}`);
+        enhancedResults.push({
+          pathname: suggestion.path,
+          url: suggestion.path,
+          title: this.generateTitleFromPath(suggestion.path),
+          isNewFile: true,
+          aiSuggested: true,
+          priority: suggestion.priority,
+          reason: suggestion.reason,
+          document: '', // Empty content for new file
+        });
       }
     }
 
     return enhancedResults;
+  }
+
+  shouldSuggestNewFile(suggestion, existingResults) {
+    // Only suggest new files for high priority suggestions
+    if (suggestion.priority !== 'high') return false;
+    
+    // Check if we have very few relevant results (weak matches)
+    const highRelevanceResults = existingResults.filter(r => r.$dist && (1 - r.$dist) > 0.7);
+    if (highRelevanceResults.length >= 2) return false;
+    
+    // Check if the suggested path looks like it should exist based on the pattern
+    const pathSegments = suggestion.path.split('/').filter(Boolean);
+    if (pathSegments.length < 3) return false; // Need at least /learn/product/page
+    
+    return true;
+  }
+
+  generateTitleFromPath(path) {
+    const segments = path.split('/').filter(Boolean);
+    const lastSegment = segments[segments.length - 1];
+    return lastSegment
+      .split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
   }
 
   async generateChangelogEntry(context) {
@@ -1224,15 +1270,61 @@ Changelog entry:`;
     learnUrl = learnUrl.replace(/\/+/g, '/');
     // Remove trailing .mdx if present
     learnUrl = learnUrl.replace(/\.mdx$/, '');
-    // Look up the mapping
+    
+    // Look up the mapping first
     const mappedPath = this.learnToFile[learnUrl];
     if (mappedPath) {
-      console.log(`[DEBUG] Using mapping: ${learnUrl} → ${mappedPath}`);
+      console.log(`[DEBUG] Using existing mapping: ${learnUrl} → ${mappedPath}`);
       return mappedPath;
-    } else {
-      console.warn(`[DEBUG] No mapping found for ${learnUrl}, skipping file creation.`);
+    } 
+    
+    // Fallback: generate path based on product structure patterns
+    const fallbackPath = this.generateFallbackPath(slug, relPath);
+    if (fallbackPath) {
+      console.log(`[DEBUG] Using fallback mapping: ${learnUrl} → ${fallbackPath}`);
+      return fallbackPath;
+    }
+    
+    console.warn(`[DEBUG] No mapping found for ${learnUrl}, skipping file creation.`);
+    return null;
+  }
+  
+  // Generate fallback path for new files based on existing patterns
+  generateFallbackPath(slug, relPath) {
+    // Map learn slugs to product directories (from my-mappings.md patterns)
+    const productMap = {
+      'sdks': 'sdks',
+      'docs': 'docs', 
+      'openapi-definition': 'openapi-def',
+      'fern-definition': 'fern-def',
+      'cli-api': 'cli-api-reference',
+      'asyncapi-definition': 'asyncapi-def',
+      'openrpc-definition': 'openrpc-def',
+      'grpc-definition': 'grpc-def',
+      'ask-fern': 'ask-fern',
+      'home': 'home'
+    };
+    
+    const productDir = productMap[slug];
+    if (!productDir) {
       return null;
     }
+    
+    // Clean up the relative path
+    let cleanRelPath = relPath.replace(/\.mdx$/, '');
+    if (!cleanRelPath.endsWith('.mdx')) {
+      cleanRelPath += '.mdx';
+    }
+    
+    // For SDKs, check if it's a generator-specific path
+    if (slug === 'sdks' && cleanRelPath.includes('generators/')) {
+      // Handle generator-specific paths: generators/typescript/... -> overview/typescript/...
+      const generatorPath = cleanRelPath.replace('generators/', 'overview/');
+      return `fern/products/${productDir}/${generatorPath}`;
+    }
+    
+    // Default pattern: fern/products/{product}/pages/{path}
+    return `fern/products/${productDir}/pages/${cleanRelPath}`;
   }
 
   // Find the appropriate product YAML file based on the file path
@@ -1352,8 +1444,7 @@ Changelog entry:`;
 
       // Add the new page
       const newPageEntry = {
-        page: pageInfo.slug,
-        title: pageInfo.title,
+        page: pageInfo.title,
         path: pageInfo.path
       };
 
@@ -1611,13 +1702,17 @@ ${truncatedContent || 'No suggested content available'}
         const url = result.url || `https://${result.domain || ''}${result.pathname || ''}`;
         const relevance = result.$dist !== undefined ? (1 - result.$dist).toFixed(3) : 'N/A';
         const aiSuggested = result.aiSuggested ? ' 🤖 AI-suggested' : '';
+        const isNewFile = result.isNewFile ? ' 📄 NEW FILE' : '';
         
-        console.log(`${index + 1}. ${path}${aiSuggested}`);
+        console.log(`${index + 1}. ${path}${aiSuggested}${isNewFile}`);
         console.log(`   Title: ${title}`);
         console.log(`   URL: ${url}`);
         console.log(`   Relevance Score: ${relevance}`);
         if (result.reason) {
           console.log(`   AI Reason: ${result.reason}`);
+        }
+        if (result.isNewFile) {
+          console.log(`   📝 Will create new documentation file`);
         }
       });
       console.log('');
@@ -1637,8 +1732,30 @@ ${truncatedContent || 'No suggested content available'}
       }
       
       if (searchResults.length === 0) {
-        console.log('❌ No relevant files found');
-        return;
+        console.log('❌ No relevant files found from search');
+        
+        // Try to suggest a new file based on the documentation analysis
+        if (documentationAnalysis.suggestedPages && documentationAnalysis.suggestedPages.length > 0) {
+          console.log('💡 Suggesting new file creation based on AI analysis...');
+          const highPrioritySuggestion = documentationAnalysis.suggestedPages.find(p => p.priority === 'high') || 
+                                         documentationAnalysis.suggestedPages[0];
+          
+          searchResults.push({
+            pathname: highPrioritySuggestion.path,
+            url: highPrioritySuggestion.path,
+            title: this.generateTitleFromPath(highPrioritySuggestion.path),
+            isNewFile: true,
+            aiSuggested: true,
+            priority: highPrioritySuggestion.priority,
+            reason: highPrioritySuggestion.reason,
+            document: '', // Empty content for new file
+          });
+          
+          console.log(`   📄 Suggested new file: ${highPrioritySuggestion.path}`);
+        } else {
+          console.log('❌ No relevant files found and no suggestions for new files');
+          return;
+        }
       }
 
       console.log(`📁 Processing ${searchResults.length} relevant files for documentation updates...`);
@@ -1673,12 +1790,19 @@ ${truncatedContent || 'No suggested content available'}
         console.log(`   URL: ${result.url}`);
         
         try {
-          const currentContent = await this.getCurrentFileContent(filePath);
+          let currentContent;
+          if (result.isNewFile) {
+            console.log(`   💡 New file suggested - generating from scratch`);
+            currentContent = '';
+          } else {
+            currentContent = await this.getCurrentFileContent(filePath);
+          }
           
           const contextWithDocument = {
             ...context,
             currentDocument: result.document || '',
-            slackThreadContent
+            slackThreadContent,
+            isNewFile: result.isNewFile || false
           };
           
           console.log(`   🤖 Generating AI suggestions based on context...`);
@@ -1725,17 +1849,23 @@ ${truncatedContent || 'No suggested content available'}
             continue; // Skip this file
           }
           
-          if (suggestedContent && suggestedContent !== currentContent) {
+          if (suggestedContent && (suggestedContent !== currentContent || result.isNewFile)) {
             analysisResults.push({
               filePath,
               currentContent,
               suggestedContent,
               title: result.title,
-              url: result.url
+              url: result.url,
+              isNewFile: result.isNewFile || false
             });
             
-            console.log(`   ✅ Changes suggested for: ${filePath}`);
-            console.log(`   📊 Original: ${currentContent.length} chars → Suggested: ${suggestedContent.length} chars`);
+            if (result.isNewFile) {
+              console.log(`   ✅ New file content generated: ${filePath}`);
+              console.log(`   📊 Generated: ${suggestedContent.length} chars`);
+            } else {
+              console.log(`   ✅ Changes suggested for: ${filePath}`);
+              console.log(`   📊 Original: ${currentContent.length} chars → Suggested: ${suggestedContent.length} chars`);
+            }
           } else {
             console.log(`   ℹ️  No changes suggested for this file`);
           }
@@ -1826,7 +1956,7 @@ ${truncatedContent || 'No suggested content available'}
           for (const result of analysisResults) {
             try {
               let actualPath;
-              const isNewFile = result.currentContent.length === 0;
+              const isNewFile = result.isNewFile || result.currentContent.length === 0;
               if (isNewFile) {
                 // Use mapping to get correct product directory for new files
                 let slug = null;
@@ -1887,30 +2017,42 @@ ${truncatedContent || 'No suggested content available'}
             }
           }
           
-          // Update changelog if requested
+          // Create new changelog entry if requested
           if (context.changelogRequired && changelogEntry) {
             try {
-              // Find the main changelog file
-              const changelogPath = 'CHANGELOG.md'; // or detect dynamically
+              // Create a new changelog entry file instead of updating existing changelog
+              const timestamp = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+              const changelogPath = `changelog-entries/${timestamp}-issue-${this.issueNumber}.md`;
               
-              try {
-                const currentChangelog = await this.fetchFileContent(changelogPath);
-                const updatedChangelog = this.addChangelogEntry(currentChangelog, changelogEntry);
-                
-                console.log(`   📋 Updating changelog: ${changelogPath}`);
-                await this.updateFile(
-                  changelogPath,
-                  updatedChangelog,
-                  branchName,
-                  `Add changelog entry for issue #${this.issueNumber}`
-                );
-                
-                filesUpdated.push(changelogPath);
-              } catch (error) {
-                console.error(`   ⚠️  Could not update changelog: ${error.message}`);
-              }
+              const changelogContent = `# Changelog Entry - Issue #${this.issueNumber}
+
+**Date**: ${timestamp}
+**Priority**: ${context.priority}
+**Issue**: ${context.requestDescription}
+
+## Entry
+
+${changelogEntry}
+
+## Files Updated
+
+${filesUpdated.map(file => `- \`${file}\``).join('\n')}
+
+---
+*Generated by Fern Scribe for issue #${this.issueNumber}*
+`;
+              
+              console.log(`   📋 Creating changelog entry: ${changelogPath}`);
+              await this.updateFile(
+                changelogPath,
+                changelogContent,
+                branchName,
+                `Add changelog entry for issue #${this.issueNumber}`
+              );
+              
+              filesUpdated.push(changelogPath);
             } catch (error) {
-              console.error(`   ⚠️  Error processing changelog: ${error.message}`);
+              console.error(`   ⚠️  Error creating changelog entry: ${error.message}`);
             }
           }
           
