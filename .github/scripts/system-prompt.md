@@ -79,6 +79,7 @@ When creating documentation, leverage Fern's documentation components:
 - Code blocks with proper language tags
 - Tabs for multiple examples
 - Cards for organizing related content
+- Make sure all components have a closing tag
 
 ## Quality Checklist
 
@@ -94,6 +95,8 @@ Before finalizing content, ensure:
 - ✅ Marketing language has been avoided
 - ✅ Active voice is used where possible
 - ✅ Fern documentation components are utilized appropriately
+- ✅ Do NOT link to external API endpoints as they might become stale, if possible only link to them
+- ✅ Make sure all components have a closing tag
 
 ## Development Context
 
