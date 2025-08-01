@@ -126,6 +126,9 @@ class FernScribeGitHub {
     this.urlMapper = new FernUrlMapper(process.env.GITHUB_TOKEN, process.env.REPOSITORY);
     this.productSlugToDir = parseProductRootMapping();
     this.learnToFile = parseLearnToFileMapping();
+    
+    // Track files that failed MDX validation
+    this.mdxValidationFailures = [];
   }
 
   async init() {
@@ -642,6 +645,17 @@ class FernScribeGitHub {
   }
 
   async generateContent(filePath, existingContent, context, fernStructure) {
+    // Check if content needs chunking
+    const CHUNK_THRESHOLD = 12000; // Chars threshold to decide when to chunk
+    if (existingContent.length <= CHUNK_THRESHOLD) {
+      return this.generateSingleContent(filePath, existingContent, context, fernStructure);
+    } else {
+      console.log(`   📊 Large file detected (${existingContent.length} chars) - using chunked processing`);
+      return this.generateChunkedContent(filePath, existingContent, context, fernStructure);  
+    }
+  }
+
+  async generateSingleContent(filePath, existingContent, context, fernStructure) {
     const prompt = `${this.systemPrompt}
 
 ## Context
@@ -713,6 +727,159 @@ Complete updated file content:`;
     }
   }
 
+  async generateChunkedContent(filePath, existingContent, context, fernStructure) {
+    const chunks = this.chunkContent(existingContent, 8000);
+    const updatedChunks = [];
+    let hasChanges = false;
+
+    console.log(`   🧩 Processing ${chunks.length} chunks for ${filePath}`);
+
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i];
+      console.log(`   📝 Processing chunk ${i + 1}/${chunks.length}${chunk.section ? ` (${chunk.section})` : ''}`);
+
+      const chunkPrompt = `${this.systemPrompt}
+
+## Context
+File: ${filePath}
+Chunk: ${i + 1} of ${chunks.length}${chunk.section ? ` - Section: "${chunk.section}"` : ''}
+Request: ${context.requestDescription}
+Existing Instructions: ${context.existingInstructions}
+Why Current Approach Doesn't Work: ${context.whyNotWork}
+Additional Context: ${context.additionalContext}
+${context.slackThreadContent ? `\n## Slack Discussion Context\n${context.slackThreadContent}` : ''}
+
+## Fern Docs Structure Reference
+${fernStructure}
+
+## Current Chunk Content
+${chunk.content}
+
+## Instructions
+${chunk.isComplete ? 
+  'This is the final chunk of the file. Update this section to address the documentation request.' :
+  `This is chunk ${i + 1} of ${chunks.length} from a larger file. Update only this section as needed to address the documentation request. Do not add or remove section headers unless specifically needed for this chunk.`
+}
+
+Focus on:
+- Addressing the specific documentation gaps mentioned in the request
+- Improving clarity and completeness within this chunk
+- Maintaining consistency with Fern documentation patterns
+- Preserving the existing structure and flow
+
+CRITICAL MDX SYNTAX REQUIREMENTS:
+- ALL opening tags MUST have corresponding closing tags (e.g., <ParamField> must have </ParamField>)
+- Self-closing tags must use proper syntax (e.g., <ParamField param="value" />)
+- Preserve existing MDX component structure exactly
+- When adding new ParamField, CodeBlock, or other components, ensure they are properly closed
+- Check that every < has a matching >
+- Validate that nested components are properly structured
+
+IMPORTANT: Return ONLY the updated chunk content. Do not include any explanatory text, meta-commentary, or descriptions about what you're doing.
+
+Updated chunk content:`;
+
+      try {
+        const response = await httpRequest('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'x-api-key': this.anthropicApiKey,
+            'content-type': 'application/json',
+            'anthropic-version': '2023-06-01'
+          },
+          body: JSON.stringify({
+            model: 'claude-3-5-sonnet-20241022',
+            max_tokens: 4096,
+            messages: [{
+              role: 'user',
+              content: chunkPrompt
+            }]
+          })
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`❌ Anthropic API error for chunk ${i + 1}:`, errorText);
+          updatedChunks.push(chunk.content); // Use original chunk
+          continue;
+        }
+
+        const data = await response.json();
+        const updatedChunkContent = data.content[0]?.text || chunk.content;
+        
+        // Validate the chunk
+        const validationResult = this.validateMDXContent(updatedChunkContent);
+        if (!validationResult.isValid) {
+          console.warn(`⚠️  MDX validation warnings for chunk ${i + 1}:`, validationResult.warnings);
+          updatedChunks.push(chunk.content); // Use original chunk if validation fails
+        } else {
+          updatedChunks.push(updatedChunkContent);
+          if (updatedChunkContent !== chunk.content) {
+            hasChanges = true;
+            console.log(`   ✅ Updated chunk ${i + 1} (${chunk.content.length} → ${updatedChunkContent.length} chars)`);
+          } else {
+            console.log(`   ℹ️  No changes for chunk ${i + 1}`);
+          }
+        }
+
+      } catch (error) {
+        console.error(`❌ Error processing chunk ${i + 1}:`, error.message);
+        updatedChunks.push(chunk.content); // Use original chunk
+      }
+
+      // Add a small delay between chunks to be respectful to the API
+      if (i < chunks.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+
+    // Reassemble the chunks
+    const finalContent = this.reassembleChunks(updatedChunks, chunks);
+    
+    console.log(`   🔧 Reassembled content: ${existingContent.length} → ${finalContent.length} chars`);
+    
+    return hasChanges ? finalContent : existingContent;
+  }
+
+  reassembleChunks(updatedChunks, originalChunks) {
+    // If there's only one chunk, return it directly
+    if (updatedChunks.length === 1) {
+      return updatedChunks[0];
+    }
+
+    // For multiple chunks, we need to carefully reassemble
+    let reassembled = '';
+    
+    for (let i = 0; i < updatedChunks.length; i++) {
+      const chunk = updatedChunks[i];
+      const originalChunk = originalChunks[i];
+      
+      if (i === 0) {
+        // First chunk should include frontmatter if present
+        reassembled = chunk;
+      } else {
+        // For subsequent chunks, remove frontmatter if it was duplicated
+        let cleanChunk = chunk;
+        if (cleanChunk.startsWith('---\n') && reassembled.includes('---\n')) {
+          // Remove frontmatter from subsequent chunks
+          const frontmatterEnd = cleanChunk.indexOf('---\n', 4);
+          if (frontmatterEnd !== -1) {
+            cleanChunk = cleanChunk.substring(frontmatterEnd + 4);
+          }
+        }
+        
+        // Add proper spacing between chunks
+        if (reassembled.trim() && cleanChunk.trim()) {
+          reassembled += '\n\n' + cleanChunk;
+        } else {
+          reassembled += cleanChunk;
+        }
+      }
+    }
+
+    return reassembled;
+  }
+
   // Basic MDX validation to catch common issues
   validateMDXContent(content) {
     const warnings = [];
@@ -745,6 +912,109 @@ Complete updated file content:`;
       isValid: warnings.length === 0,
       warnings
     };
+  }
+
+  // Intelligent content chunking for large files
+  chunkContent(content, maxChunkSize = 8000) {
+    // If content is small enough, return as single chunk
+    if (content.length <= maxChunkSize) {
+      return [{ content, isComplete: true, chunkIndex: 0, totalChunks: 1 }];
+    }
+
+    const chunks = [];
+    const lines = content.split('\n');
+    let currentChunk = '';
+    let frontmatter = '';
+    let inFrontmatter = false;
+    let frontmatterEnded = false;
+
+    // Extract frontmatter first
+    if (lines[0] === '---') {
+      inFrontmatter = true;
+      for (let i = 0; i < lines.length; i++) {
+        if (i > 0 && lines[i] === '---') {
+          inFrontmatter = false;
+          frontmatterEnded = true;
+          frontmatter = lines.slice(0, i + 1).join('\n') + '\n';
+          break;
+        }
+      }
+    }
+
+    // Start processing from after frontmatter
+    const startIndex = frontmatterEnded ? lines.findIndex((line, idx) => idx > 0 && line === '---') + 1 : 0;
+    const contentLines = lines.slice(startIndex);
+
+    let sectionBuffer = [];
+    let currentSection = null;
+
+    for (let i = 0; i < contentLines.length; i++) {
+      const line = contentLines[i];
+      
+      // Detect section headers (## or ###)
+      if (line.match(/^#{2,3}\s+/)) {
+        // If we have accumulated content and adding this section would exceed limit
+        if (sectionBuffer.length > 0 && (currentChunk + sectionBuffer.join('\n')).length > maxChunkSize) {
+          // Save current chunk
+          chunks.push({
+            content: (chunks.length === 0 ? frontmatter : '') + currentChunk.trim(),
+            isComplete: false,
+            chunkIndex: chunks.length,
+            section: currentSection,
+            hasMore: true
+          });
+          currentChunk = '';
+          currentSection = null;
+        }
+        
+        // Start new section
+        currentSection = line.replace(/^#+\s+/, '').trim();
+        sectionBuffer = [line];
+      } else {
+        sectionBuffer.push(line);
+      }
+
+      // Check if we need to break at this point
+      const potentialChunk = currentChunk + sectionBuffer.join('\n') + '\n';
+      if (potentialChunk.length > maxChunkSize && currentChunk.length > 0) {
+        // Save current chunk without the current section
+        chunks.push({
+          content: (chunks.length === 0 ? frontmatter : '') + currentChunk.trim(),
+          isComplete: false,
+          chunkIndex: chunks.length,
+          section: chunks.length > 0 ? currentSection : null,
+          hasMore: true
+        });
+        currentChunk = sectionBuffer.join('\n') + '\n';
+        sectionBuffer = [];
+      } else {
+        currentChunk += sectionBuffer.join('\n') + '\n';
+        sectionBuffer = [];
+      }
+    }
+
+    // Add remaining content as final chunk
+    if (currentChunk.trim()) {
+      chunks.push({
+        content: (chunks.length === 0 ? frontmatter : '') + currentChunk.trim(),
+        isComplete: true,
+        chunkIndex: chunks.length,
+        section: currentSection,
+        hasMore: false
+      });
+    }
+
+    // Update totalChunks for all chunks
+    chunks.forEach(chunk => {
+      chunk.totalChunks = chunks.length;
+    });
+
+    console.log(`   📊 Split content into ${chunks.length} chunks (${content.length} chars total)`);
+    chunks.forEach((chunk, i) => {
+      console.log(`      Chunk ${i + 1}: ${chunk.content.length} chars${chunk.section ? ` (${chunk.section})` : ''}`);
+    });
+
+    return chunks;
   }
 
   async analyzeDocumentationNeeds(context) {
@@ -1227,7 +1497,9 @@ Changelog entry:`;
 
   async createPullRequest(branchName, context, filesUpdated) {
     const title = `🌿 Fern Scribe: ${context.requestDescription.substring(0, 50)}...`;
-    const body = `## 🌿 Fern Scribe Documentation Update
+    
+    // Build the main PR body
+    let body = `## 🌿 Fern Scribe Documentation Update
 
 **Original Request:** ${context.requestDescription}
 
@@ -1238,9 +1510,37 @@ ${filesUpdated.map(file => `- \`${file}\``).join('\n')}
 
 ${context.slackThread ? `**Related Discussion:** ${context.slackThread}` : ''}
 
-${context.additionalContext ? `**Additional Context:** ${context.additionalContext}` : ''}
+${context.additionalContext ? `**Additional Context:** ${context.additionalContext}` : ''}`;
 
----
+    // Add section for files that failed MDX validation
+    if (this.mdxValidationFailures.length > 0) {
+      body += `\n\n## ⚠️ Files with MDX Validation Issues
+
+The following files could not be updated due to MDX validation failures after 3 attempts:
+
+${this.mdxValidationFailures.map((failure, index) => {
+  const warnings = failure.warnings.map(w => `  - ${w}`).join('\n');
+  const truncatedContent = failure.suggestedContent && failure.suggestedContent.length > 4000 
+    ? failure.suggestedContent.substring(0, 4000) + '\n\n... [Content truncated due to length]'
+    : failure.suggestedContent;
+  
+  return `### ${index + 1}. **\`${failure.filePath}\`** (${failure.title || 'Untitled'})
+
+- **URL**: ${failure.url || 'N/A'}
+- **Validation Issues**:
+${warnings}
+
+**Suggested Content** (needs manual MDX fixes):
+
+\`\`\`mdx
+${truncatedContent || 'No suggested content available'}
+\`\`\``;
+}).join('\n\n')}
+
+**Note**: These files require manual review and correction of their MDX component structure before the content can be applied.`;
+    }
+
+    body += `\n\n---
 *This PR was automatically generated by Fern Scribe based on issue #${this.issueNumber}*
 
 **Please review the changes carefully before merging.**`;
@@ -1397,8 +1697,20 @@ ${context.additionalContext ? `**Additional Context:** ${context.additionalConte
             }
           }
           if (!valid) {
-            const msg = `❌ Skipping file due to invalid MDX after 3 attempts: ${filePath}\nWarnings: ${JSON.stringify(this.validateMDXContent(suggestedContent).warnings)}`;
+            const validationResult = this.validateMDXContent(suggestedContent);
+            const msg = `❌ Skipping file due to invalid MDX after 3 attempts: ${filePath}\nWarnings: ${JSON.stringify(validationResult.warnings)}`;
             console.warn(msg);
+            
+            // Track this failure for the PR description
+            this.mdxValidationFailures.push({
+              filePath,
+              warnings: validationResult.warnings,
+              attempts: 3,
+              url: result.url,
+              title: result.title,
+              suggestedContent: suggestedContent // Store the suggested content despite validation issues
+            });
+            
             // If running in GitHub Actions, comment on the issue
             if (process.env.GITHUB_TOKEN && process.env.REPOSITORY && process.env.ISSUE_NUMBER) {
               const [owner, repo] = process.env.REPOSITORY.split('/');
