@@ -1,41 +1,55 @@
 ---
 title: Customize parameter names
-description: Use `x-fern-parameter-name` to customize query parameter, header and path parameter naming.
+description: Use extensions to customize parameter naming in your generated SDKs.
 ---
 
 <Note>
-  The `x-fern-parameter-name` extension allows you to customize the variable names of parameters in your generated SDKs.
+  Extensions allow you to customize how parameters are named and handled in your generated SDKs to improve readability and usability.
 </Note>
 
-## Headers
+## Header Extensions
 
-In the example below, the header `X-API-Version` is renamed to `version` in the
-generated SDK. The rename makes the SDK more human readable.
+### x-fern-parameter-name
+Renames a header parameter in the generated SDK for better readability.
 
-```yaml {8}
+```yaml
 paths:
   "/user":
     get:
-      operationId: list_user
       parameters:
         - in: header
-          name: X-API-Version
+          name: X-API-Version 
           x-fern-parameter-name: version
           schema:
             type: string
           required: true
 ```
 
-## Query parameters
-
-In the example below, the query parameter `q` is renamed to `search_terms` in the
-generated SDK. The rename makes the parameter more approachable for end users.
+### x-fern-sdk-header
+Marks a header to be provided in the SDK client constructor rather than per-request.
 
 ```yaml {8}
 paths:
+  "/user":
+    get:
+      parameters:
+        - in: header
+          name: X-API-Key
+          schema:
+            x-fern-sdk-header: api_key
+            type: string
+          required: true
+```
+
+## Query Parameter Extensions
+
+### x-fern-parameter-name
+Renames a query parameter in the generated SDK to be more descriptive.
+
+```yaml
+paths:
   "/user/search":
     get:
-      operationId: search_user
       parameters:
         - in: query
           name: q
@@ -45,21 +59,61 @@ paths:
           required: false
 ```
 
-## Path parameters
-
-In the example below, the path parameter `userId` is renamed to `id` in the
-generated SDK. The rename makes the SDK less verbose.
+### x-fern-sdk-variable
+Marks a query parameter to be provided in the SDK client constructor.
 
 ```yaml {8}
 paths:
+  "/user/search":
+    get: 
+      parameters:
+        - in: query
+          name: org_id
+          schema:
+            x-fern-sdk-variable: organization_id
+            type: string
+          required: true
+```
+
+## Path Parameter Extensions
+
+### x-fern-parameter-name
+Renames a path parameter in the generated SDK for conciseness.
+
+```yaml
+paths:
   "/user/{userId}":
     get:
-      operationId: get_user
       parameters:
         - in: path
           name: userId
           x-fern-parameter-name: id
           schema:
             type: string
-          required: false
+          required: true
 ```
+
+### x-fern-sdk-variable
+Marks a path parameter to be provided in the SDK client constructor. This is useful for values that are common across many endpoints.
+
+```yaml
+paths:
+  "/projects/{project_id}/users":
+    get:
+      parameters:
+        - in: path
+          name: project_id
+          schema:
+            x-fern-sdk-variable: project_id
+            type: string
+            pattern: "^proj_[a-zA-Z0-9]+$"
+          required: true
+```
+
+<Note>
+  When using `x-fern-sdk-variable` or `x-fern-sdk-header`, the specified value will be provided once in the client constructor rather than needing to be passed to each individual API call.
+</Note>
+
+<Tip>
+  Use these extensions strategically to create a more ergonomic SDK. Consider renaming cryptic parameter names to be more descriptive, and moving commonly used values like API keys or project IDs to the client constructor.
+</Tip>
