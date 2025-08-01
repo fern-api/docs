@@ -6,6 +6,53 @@ const yaml = require('js-yaml');
 const https = require('https');
 const http = require('http');
 const FernUrlMapper = require('./fern-url-mapper');
+const fsSync = require('fs'); // For synchronous read
+
+// Parse the Product Root Directories section from my-mappings.md
+function parseProductRootMapping(mappingsPath = path.join(__dirname, 'my-mappings.md')) {
+  const slugToDir = {};
+  if (!fsSync.existsSync(mappingsPath)) return slugToDir;
+  const content = fsSync.readFileSync(mappingsPath, 'utf-8');
+  const rootSection = content.split('## Product Root Directories')[1]?.split('##')[0] || '';
+  rootSection.split('\n').forEach(line => {
+    const match = line.match(/^([\w-]+):\s*([\w-]+)/);
+    if (match) {
+      slugToDir[match[1].trim()] = match[2].trim();
+    }
+  });
+  return slugToDir;
+}
+
+// Helper to parse my-mappings.md and build slug->dir mapping
+function buildProductSlugToDirMap(mappingsPath = path.join(__dirname, 'my-mappings.md')) {
+  const slugToDir = {};
+  if (!fsSync.existsSync(mappingsPath)) return slugToDir;
+  const content = fsSync.readFileSync(mappingsPath, 'utf-8');
+  // Regex: /learn/<slug>... → fern/products/<dir>/pages
+  const regex = /\/learn\/([\w-]+)[^`]*?→\s*fern\/products\/([\w-]+)\/pages/g;
+  let match;
+  while ((match = regex.exec(content)) !== null) {
+    const slug = match[1];
+    const dir = match[2];
+    slugToDir[slug] = dir;
+  }
+  return slugToDir;
+}
+
+// Parse all /learn/... → file path mappings from my-mappings.md
+function parseLearnToFileMapping(mappingsPath = path.join(__dirname, 'my-mappings.md')) {
+  const learnToFile = {};
+  if (!fsSync.existsSync(mappingsPath)) return learnToFile;
+  const content = fsSync.readFileSync(mappingsPath, 'utf-8');
+  const mappingLines = content.split('\n').filter(line => line.trim().startsWith('- `'));
+  for (const line of mappingLines) {
+    const match = line.match(/- `([^`]+)` → `([^`]+)`/);
+    if (match) {
+      learnToFile[match[1].trim()] = match[2].trim();
+    }
+  }
+  return learnToFile;
+}
 
 // Helper function to replace fetch with Node.js built-in modules
 function httpRequest(url, options = {}) {
@@ -77,6 +124,8 @@ class FernScribeGitHub {
     
     // Use centralized URL mapper
     this.urlMapper = new FernUrlMapper(process.env.GITHUB_TOKEN, process.env.REPOSITORY);
+    this.productSlugToDir = parseProductRootMapping();
+    this.learnToFile = parseLearnToFileMapping();
   }
 
   async init() {
@@ -612,6 +661,14 @@ ${existingContent}
 ## Instructions
 Update this file to address the documentation request. Use the Slack discussion context to understand the specific pain points and requirements mentioned by users. Follow Fern documentation best practices and maintain consistency with the existing structure.
 
+CRITICAL MDX SYNTAX REQUIREMENTS:
+- ALL opening tags MUST have corresponding closing tags (e.g., <ParamField> must have </ParamField>)
+- Self-closing tags must use proper syntax (e.g., <ParamField param="value" />)
+- Preserve existing MDX component structure exactly
+- When adding new ParamField, CodeBlock, or other components, ensure they are properly closed
+- Check that every < has a matching >
+- Validate that nested components are properly structured
+
 IMPORTANT: Return ONLY the clean file content. Do not include any explanatory text, meta-commentary, or descriptions about what you're doing. Start directly with the frontmatter (---) or first line of the file content.
 
 Complete updated file content:`;
@@ -635,15 +692,59 @@ Complete updated file content:`;
       });
 
       if (!response.ok) {
-        throw new Error(`Anthropic API error: ${response.status}`);
+        const errorText = await response.text();
+        console.error('❌ Anthropic API error details (generateContent):', errorText);
+        throw new Error(`Anthropic API error: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
-      return data.content[0]?.text || '';
+      const generatedContent = data.content[0]?.text || '';
+      
+      // Basic MDX validation
+      const validationResult = this.validateMDXContent(generatedContent);
+      if (!validationResult.isValid) {
+        console.warn(`⚠️  MDX validation warnings for ${filePath}:`, validationResult.warnings);
+      }
+      
+      return generatedContent;
     } catch (error) {
       console.error('Claude API error:', error);
       return existingContent; // Return original if AI fails
     }
+  }
+
+  // Basic MDX validation to catch common issues
+  validateMDXContent(content) {
+    const warnings = [];
+    
+    // Check for unclosed ParamField tags
+    const paramFieldMatches = content.match(/<ParamField[^>]*>/g) || [];
+    const paramFieldCloses = content.match(/<\/ParamField>/g) || [];
+    if (paramFieldMatches.length !== paramFieldCloses.length) {
+      warnings.push(`Mismatched ParamField tags: ${paramFieldMatches.length} opening, ${paramFieldCloses.length} closing`);
+    }
+    
+    // Check for unclosed CodeBlock tags
+    const codeBlockMatches = content.match(/<CodeBlock[^>]*>/g) || [];
+    const codeBlockCloses = content.match(/<\/CodeBlock>/g) || [];
+    if (codeBlockMatches.length !== codeBlockCloses.length) {
+      warnings.push(`Mismatched CodeBlock tags: ${codeBlockMatches.length} opening, ${codeBlockCloses.length} closing`);
+    }
+    
+    // Check for other common unclosed tags
+    const commonTags = ['Accordion', 'AccordionItem', 'Tab', 'Tabs', 'Card'];
+    for (const tag of commonTags) {
+      const openTags = content.match(new RegExp(`<${tag}[^>]*>`, 'g')) || [];
+      const closeTags = content.match(new RegExp(`<\/${tag}>`, 'g')) || [];
+      if (openTags.length !== closeTags.length) {
+        warnings.push(`Mismatched ${tag} tags: ${openTags.length} opening, ${closeTags.length} closing`);
+      }
+    }
+    
+    return {
+      isValid: warnings.length === 0,
+      warnings
+    };
   }
 
   async analyzeDocumentationNeeds(context) {
@@ -706,7 +807,9 @@ Output your response as JSON:
       });
 
       if (!response.ok) {
-        throw new Error(`Anthropic API error: ${response.status}`);
+        const errorText = await response.text();
+        console.error('❌ Anthropic API error details (analyzeDocumentationNeeds):', errorText);
+        throw new Error(`Anthropic API error: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
@@ -818,7 +921,9 @@ Changelog entry:`;
       });
 
       if (!response.ok) {
-        throw new Error(`Anthropic API error: ${response.status}`);
+        const errorText = await response.text();
+        console.error('❌ Anthropic API error details (generateChangelogEntry):', errorText);
+        throw new Error(`Anthropic API error: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
@@ -832,6 +937,186 @@ Changelog entry:`;
   // Map Turbopuffer URLs to actual GitHub file paths (using centralized mapper)
   async mapTurbopufferPathToGitHub(turbopufferPath) {
     return await this.urlMapper.mapTurbopufferPathToGitHub(turbopufferPath);
+  }
+
+  // Returns the canonical product file path for a new file, using the mapping from my-mappings.md
+  getCanonicalProductFilePath(slugOrUrl, relPath) {
+    // Try to construct the /learn/... URL
+    let slug = null;
+    if (slugOrUrl) {
+      const match = /learn\/([\w-]+)/.exec(slugOrUrl);
+      if (match) slug = match[1];
+    }
+    if (!slug) slug = slugOrUrl;
+    // Build the canonical /learn/... URL
+    let learnUrl = `/learn/${slug}/${relPath.replace(/\.mdx$/, '').replace(/\/+/, '/')}`;
+    // Remove any double slashes
+    learnUrl = learnUrl.replace(/\/+/g, '/');
+    // Remove trailing .mdx if present
+    learnUrl = learnUrl.replace(/\.mdx$/, '');
+    // Look up the mapping
+    const mappedPath = this.learnToFile[learnUrl];
+    if (mappedPath) {
+      console.log(`[DEBUG] Using mapping: ${learnUrl} → ${mappedPath}`);
+      return mappedPath;
+    } else {
+      console.warn(`[DEBUG] No mapping found for ${learnUrl}, skipping file creation.`);
+      return null;
+    }
+  }
+
+  // Find the appropriate product YAML file based on the file path
+  getProductYamlPath(filePath) {
+    if (filePath.includes('openapi-def') || filePath.includes('openapi-definition')) {
+      return 'fern/products/openapi-def/openapi-def.yml';
+    } else if (filePath.includes('fern-def') || filePath.includes('fern-definition')) {
+      return 'fern/products/fern-def/fern-def.yml';
+    } else if (filePath.includes('sdks')) {
+      return 'fern/products/sdks/sdks.yml';
+    } else if (filePath.includes('docs')) {
+      return 'fern/products/docs/docs.yml';
+    } else if (filePath.includes('ask-fern')) {
+      return 'fern/products/ask-fern/ask-fern.yml';
+    } else if (filePath.includes('cli-api-reference')) {
+      return 'fern/products/cli-api-reference/cli-api-reference.yml';
+    } else if (filePath.includes('asyncapi-def')) {
+      return 'fern/products/asyncapi-def/asyncapi-def.yml';
+    } else if (filePath.includes('openrpc-def')) {
+      return 'fern/products/openrpc-def/openrpc-def.yml';
+    } else if (filePath.includes('grpc-def')) {
+      return 'fern/products/grpc-def/grpc-def.yml';
+    }
+    return null;
+  }
+
+  // Extract the page information from a file path for YAML navigation
+  extractPageInfo(filePath, title) {
+    const pathParts = filePath.split('/');
+    const fileName = pathParts[pathParts.length - 1].replace('.mdx', '');
+    
+    // Create a slug from the file name
+    const slug = fileName;
+    
+    // Extract the relative path after 'fern/products/[product]/'
+    let relativePath = null;
+    const fernProductsIndex = pathParts.indexOf('products');
+    if (fernProductsIndex >= 0 && fernProductsIndex + 2 < pathParts.length) {
+      // Get the path after 'fern/products/[product-name]/'
+      const pathAfterProduct = pathParts.slice(fernProductsIndex + 2).join('/');
+      relativePath = './' + pathAfterProduct;
+    }
+    
+    // Try to find the appropriate section based on path
+    let section = null;
+    if (filePath.includes('extensions')) {
+      section = 'extensions';
+    } else if (filePath.includes('configuration')) {
+      section = 'configuration';
+    } else if (filePath.includes('generators')) {
+      section = 'generators';
+    } else if (filePath.includes('overview')) {
+      section = 'overview';
+    }
+    
+    return {
+      slug,
+      title: title || fileName.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+      section,
+      path: relativePath
+    };
+  }
+
+  // Update product YAML file to include new page
+  async updateProductYaml(filePath, pageTitle, newPageCreated = false) {
+    if (!newPageCreated) {
+      return; // Only update YAML for new pages
+    }
+
+    const yamlPath = this.getProductYamlPath(filePath);
+    if (!yamlPath) {
+      console.log(`   ⚠️  Could not determine product YAML for ${filePath}`);
+      return;
+    }
+
+    try {
+      console.log(`   📝 Updating product navigation: ${yamlPath}`);
+      
+      // Fetch current YAML content
+      const currentYaml = await this.fetchFileContent(yamlPath);
+      if (!currentYaml) {
+        console.log(`   ⚠️  Could not fetch YAML file: ${yamlPath}`);
+        return;
+      }
+
+      // Parse YAML
+      const yamlData = yaml.load(currentYaml);
+      const pageInfo = this.extractPageInfo(filePath, pageTitle);
+      
+      // Find the appropriate section to add the new page
+      let targetSection = null;
+      if (yamlData.navigation) {
+        // Look for existing section
+        for (const item of yamlData.navigation) {
+          if (item.section === pageInfo.section) {
+            targetSection = item;
+            break;
+          }
+        }
+        
+        // If no specific section found, add to the end
+        if (!targetSection && yamlData.navigation.length > 0) {
+          // Find a good parent section or create one
+          if (pageInfo.section === 'extensions') {
+            targetSection = yamlData.navigation.find(item => 
+              item.section === 'extensions' || 
+              item.title?.toLowerCase().includes('extension')
+            );
+          }
+          
+          if (!targetSection) {
+            // Add to the last section that has children
+            targetSection = yamlData.navigation.find(item => item.contents);
+          }
+        }
+      }
+
+      // Add the new page
+      const newPageEntry = {
+        page: pageInfo.slug,
+        title: pageInfo.title,
+        path: pageInfo.path
+      };
+
+      if (targetSection && targetSection.contents) {
+        targetSection.contents.push(newPageEntry);
+      } else if (yamlData.navigation) {
+        // Create a new section if needed
+        yamlData.navigation.push({
+          section: pageInfo.section || 'other',
+          contents: [newPageEntry]
+        });
+      } else {
+        // Fallback: create basic navigation structure
+        yamlData.navigation = [{
+          section: pageInfo.section || 'main',
+          contents: [newPageEntry]
+        }];
+      }
+
+      // Convert back to YAML
+      const updatedYaml = yaml.dump(yamlData, { 
+        indent: 2,
+        lineWidth: -1,
+        noRefs: true
+      });
+
+      console.log(`   ✅ Added page "${pageInfo.title}" to ${yamlPath}`);
+      return { yamlPath, updatedYaml };
+
+    } catch (error) {
+      console.error(`   ❌ Error updating YAML for ${filePath}:`, error.message);
+      return null;
+    }
   }
 
   // Simple file content fetcher for dynamic mapping (without path transformation)
@@ -1097,7 +1382,36 @@ ${context.additionalContext ? `**Additional Context:** ${context.additionalConte
           };
           
           console.log(`   🤖 Generating AI suggestions based on context...`);
-          const suggestedContent = await this.generateContent(filePath, currentContent, contextWithDocument, fernStructure);
+          let suggestedContent = null;
+          let valid = false;
+          let attempts = 0;
+          while (attempts < 3 && !valid) {
+            suggestedContent = await this.generateContent(filePath, currentContent, contextWithDocument, fernStructure);
+            const validationResult = this.validateMDXContent(suggestedContent);
+            if (validationResult.isValid) {
+              valid = true;
+            } else {
+              attempts++;
+              console.warn(`⚠️  MDX validation failed for ${filePath} (attempt ${attempts}):`, validationResult.warnings);
+              // Optionally: try to auto-fix here (not implemented yet)
+            }
+          }
+          if (!valid) {
+            const msg = `❌ Skipping file due to invalid MDX after 3 attempts: ${filePath}\nWarnings: ${JSON.stringify(this.validateMDXContent(suggestedContent).warnings)}`;
+            console.warn(msg);
+            // If running in GitHub Actions, comment on the issue
+            if (process.env.GITHUB_TOKEN && process.env.REPOSITORY && process.env.ISSUE_NUMBER) {
+              const [owner, repo] = process.env.REPOSITORY.split('/');
+              const octokit = this.octokit;
+              await octokit.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: this.issueNumber,
+                body: msg
+              });
+            }
+            continue; // Skip this file
+          }
           
           if (suggestedContent && suggestedContent !== currentContent) {
             analysisResults.push({
@@ -1199,17 +1513,63 @@ ${context.additionalContext ? `**Additional Context:** ${context.additionalConte
           // Update files with suggested content
           for (const result of analysisResults) {
             try {
-              const actualPath = await this.mapTurbopufferPathToGitHub(result.filePath);
+              let actualPath;
+              const isNewFile = result.currentContent.length === 0;
+              if (isNewFile) {
+                // Use mapping to get correct product directory for new files
+                let slug = null;
+                if (result.url) {
+                  const match = /learn\/([\w-]+)/.exec(result.url);
+                  if (match) slug = match[1];
+                }
+                if (!slug && result.filePath) {
+                  const match = /learn\/([\w-]+)/.exec(result.filePath);
+                  if (match) slug = match[1];
+                }
+                // Extract relative path after /learn/<slug>/
+                let relPath = '';
+                if (result.url) {
+                  const relMatch = result.url.match(/learn\/[\w-]+\/(.*)/);
+                  if (relMatch) relPath = relMatch[1];
+                }
+                if (!relPath && result.filePath) {
+                  const relMatch = result.filePath.match(/learn\/[\w-]+\/(.*)/);
+                  if (relMatch) relPath = relMatch[1];
+                }
+                relPath = relPath.replace(/\.mdx$/, '') + '.mdx';
+                actualPath = this.getCanonicalProductFilePath(slug, relPath);
+                if (!actualPath) {
+                  console.warn(`[DEBUG] Skipping file creation for ${result.url || result.filePath} (no mapping found)`);
+                  continue;
+                }
+              } else {
+                actualPath = await this.mapTurbopufferPathToGitHub(result.filePath);
+              }
               
-              console.log(`   📝 Updating file: ${actualPath}`);
+              console.log(`   📝 Updating file: ${actualPath}${isNewFile ? ' (new file)' : ''}`);
               await this.updateFile(
                 actualPath,
                 result.suggestedContent,
                 branchName,
-                `Update ${path.basename(actualPath)} based on issue #${this.issueNumber}`
+                `${isNewFile ? 'Create' : 'Update'} ${path.basename(actualPath)} based on issue #${this.issueNumber}`
               );
               
               filesUpdated.push(actualPath);
+              
+              // Update product YAML if this is a new file
+              if (isNewFile) {
+                const yamlUpdate = await this.updateProductYaml(actualPath, result.title, true);
+                if (yamlUpdate) {
+                  console.log(`   📝 Updating navigation: ${yamlUpdate.yamlPath}`);
+                  await this.updateFile(
+                    yamlUpdate.yamlPath,
+                    yamlUpdate.updatedYaml,
+                    branchName,
+                    `Add ${result.title} page to navigation`
+                  );
+                  filesUpdated.push(yamlUpdate.yamlPath);
+                }
+              }
             } catch (error) {
               console.error(`   ⚠️  Could not update ${result.filePath}: ${error.message}`);
             }

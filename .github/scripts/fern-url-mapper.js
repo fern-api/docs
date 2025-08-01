@@ -5,7 +5,9 @@ const fs = require('fs').promises;
 class FernUrlMapper {
   constructor(githubToken = null, repository = null) {
     this.dynamicPathMapping = new Map();
+    this.staticPathMapping = new Map();
     this.isPathMappingLoaded = false;
+    this.isStaticMappingLoaded = false;
     
     // Initialize GitHub client if credentials provided
     if (githubToken && repository) {
@@ -37,6 +39,35 @@ class FernUrlMapper {
     } catch (error) {
       console.log(`Could not fetch ${filePath}: ${error.message}`);
       return null;
+    }
+  }
+
+  // Load static path mapping from my-mappings.md
+  async loadStaticPathMapping() {
+    if (this.isStaticMappingLoaded) return;
+    
+    try {
+      const mappingsContent = await fs.readFile('my-mappings.md', 'utf-8');
+      console.log('Loading static path mappings from my-mappings.md...');
+      
+      // Parse the markdown file for URL mappings
+      const lines = mappingsContent.split('\n');
+      let mappingCount = 0;
+      
+      for (const line of lines) {
+        // Look for lines that match the mapping pattern: - `/learn/...` → `fern/...`
+        const match = line.match(/^-\s+`([^`]+)`\s+→\s+`([^`]+)`/);
+        if (match) {
+          const [, url, path] = match;
+          this.staticPathMapping.set(url, path);
+          mappingCount++;
+        }
+      }
+      
+      this.isStaticMappingLoaded = true;
+      console.log(`Loaded ${mappingCount} static path mappings from my-mappings.md`);
+    } catch (error) {
+      console.error('Failed to load static path mapping:', error.message);
     }
   }
 
@@ -222,10 +253,15 @@ class FernUrlMapper {
   
   // Transform Turbopuffer URLs to actual GitHub file paths
   transformTurbopufferUrlToPath(turbopufferUrl) {
-    // Clean up trailing slashes but keep the /learn prefix for dynamic mapping lookup
+    // Clean up trailing slashes but keep the /learn prefix for mapping lookup
     let cleanUrl = turbopufferUrl.replace(/\/$/, '');
     
-    // First try to use dynamic mapping with full URL (including /learn)
+    // First try to use static mapping from my-mappings.md
+    if (this.staticPathMapping.has(cleanUrl)) {
+      return this.staticPathMapping.get(cleanUrl);
+    }
+    
+    // Second try to use dynamic mapping with full URL (including /learn)
     if (this.dynamicPathMapping.has(cleanUrl)) {
       const mappedPath = this.dynamicPathMapping.get(cleanUrl);
       // Add .mdx extension if not present and not already a complete path
@@ -279,22 +315,33 @@ class FernUrlMapper {
     }
   }
 
-  // Map Turbopuffer URLs to actual GitHub file paths (now using dynamic mapping)
+  // Map Turbopuffer URLs to actual GitHub file paths (now using static mapping first, then dynamic)
   async mapTurbopufferPathToGitHub(turbopufferPath) {
-    // Ensure dynamic mapping is loaded
+    // Ensure static mapping is loaded first
+    await this.loadStaticPathMapping();
+    // Ensure dynamic mapping is loaded as fallback
     await this.loadDynamicPathMapping();
     
-    // Use the improved transformation logic that prioritizes dynamic mapping
+    // Use the improved transformation logic that prioritizes static mapping, then dynamic mapping
     return this.transformTurbopufferUrlToPath(turbopufferPath) || turbopufferPath;
   }
 
   // Get all mappings as an object for external use
   async getAllMappings() {
+    await this.loadStaticPathMapping();
     await this.loadDynamicPathMapping();
     const mappings = {};
+    
+    // Add dynamic mappings first
     for (const [url, path] of this.dynamicPathMapping) {
       mappings[url] = path;
     }
+    
+    // Override with static mappings (they take priority)
+    for (const [url, path] of this.staticPathMapping) {
+      mappings[url] = path;
+    }
+    
     return mappings;
   }
 
@@ -341,6 +388,7 @@ class FernUrlMapper {
 
   // Test specific URL mappings
   async testMappings(testUrls = []) {
+    await this.loadStaticPathMapping();
     await this.loadDynamicPathMapping();
     
     console.log('\n=== TESTING URL MAPPINGS ===');
