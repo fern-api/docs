@@ -11,7 +11,7 @@ groups:
   local:
     generators:
       - name: fernapi/fern-typescript-sdk
-        version: <Markdown src="/snippets/version-number-ts.mdx"/>
+        version: <Markdown src="/snippets/version-number-ts.mdx" />
         config:
           namespaceExport: Acme
 ```
@@ -130,10 +130,25 @@ Specify extra peer dependencies meta fields in the generated `package.json`:
 ```yaml
 # generators.yml
 config:
-  extraPeerDependencies:
-    react: ">=16.8.0 <19.0.0"
-    "react-dom": ">=16.8.0 <19.0.0"
+  extraPeerDependenciesMeta:
+    react:
+      optional: true
+    "react-dom": 
+      optional: true
 ```
+</ParamField>
+
+<ParamField path="extensionHeaders" type="Record<string, string>" toc={true}>
+Add custom extension headers to every request made by the client. For example, to inject a project ID into the path:
+
+```yaml
+# generators.yml
+config:
+  extensionHeaders:
+    "x-fern-sdk-variables": '{"project_id": "proj_abc123"}'
+```
+
+This would automatically inject the project_id variable into any path that uses it as a parameter.
 </ParamField>
 
 <ParamField path="fetchSupport" type="'node-fetch' | 'native'" toc={true}>
@@ -165,7 +180,6 @@ Choose whether you want to support Node.js 16 and above (`Node16`), or Node.js 1
 </ParamField>
 
 <ParamField path="includeContentHeadersOnFileDownloadResponse" type="boolean" toc={true}>
-
 Includes the content type and content length from binary responses. The user will receive an object of the following type:
 
 ```typescript
@@ -426,119 +440,4 @@ If `skipResponseValidation` is set to `true`, the client will never throw if the
 
 </ParamField>
 
-<ParamField path="streamType" type="'wrapper' | 'web'" toc={true}>
-Change the type of stream that is used in the generated SDK.
-
-*    `wrapper`: The streams use a wrapper with multiple underlying implementations to support versions of Node.js before Node.js 18.
-*    `web`: The streams use the web standard `ReadableStream`.
-
-The default is `web`.
-</ParamField>
-
-<ParamField path="treatUnknownAsAny" type="boolean" default="false" toc={true}>
-  When `treatUnknownAsAny` is enabled, [unknown types from Fern are generated into TypeScript using `any` instead of the `unknown` type](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-0.html#new-unknown-top-type).
-</ParamField>
-
-<ParamField path="useBigInt" type="boolean" default="false" toc={true}>
-When `useBigInt` is set to `true`, a customized JSON serializer & deserializer is used that will preserve the precision of `bigint`'s, as opposed to the native `JSON.stringify` and `JSON.parse` function which converts `bigint`'s to number's losing precision.
-
-When combining `useBigInt` with our serialization layer (`no-serde: false`), both the request and response properties that are marked as `long` and `bigint` in OpenAPI/Fern spec, will consistently be `bigint`'s.
-However, when disabling the serialization layer (`no-serde: true`), they will be typed as `number | bigint`.
-
-Here's an overview of what to expect from the generated types when combining `useBigInt` and `noSerde` with the following Fern definition:
-
-*Fern definition*:
-
-```yaml
-types:
-  ObjectWithOptionalField:
-    properties:
-      longProp: long
-      bigIntProp: bigint
-```
-
-*TypeScript output*:
-
-```typescript
-// useBigInt: true
-// noSerde: false
-interface ObjectWithLongAndBigInt {
-  longProp: bigint;
-  bigIntProp: bigint;
-}
-
-// useBigInt: true
-// noSerde: true
-interface ObjectWithLongAndBigInt {
-  longProp: bigint | number;
-  bigIntProp: bigint | number;
-}
-
-// useBigInt: false
-// noSerde: false
-interface ObjectWithLongAndBigInt {
-  longProp: number;
-  bigIntProp: string;
-}
-
-// useBigInt: false
-// noSerde: true
-interface ObjectWithLongAndBigInt {
-  longProp: number;
-  bigIntProp: string;
-}
-```
-</ParamField>
-
-<ParamField path="useBrandedStringAliases" type="boolean" default="false" toc={true}>
-
-	When `useBrandedStringAliases` is disabled (the default), string aliases are generated as
-	normal TypeScript aliases:
-
-	```typescript
-	// generated code
-
-	export type MyString = string;
-
-	export type OtherString = string;
-	```
-  When `useBrandedStringAliases` is enabled, string aliases are generated as branded strings. This makes each alias feel like its own type and improves compile-time safety.
-
-	```yaml
-	# fern definition
-
-	types:
-		MyString: string
-		OtherString: string
-	```
-
-	```typescript
-	// generated code
-
-	export type MyString = string & { __MyString: void };
-	export const MyString = (value: string): MyString => value as MyString;
-
-	export type OtherString = string & { __OtherString: void };
-	export const OtherString = (value: string): OtherString => value as OtherString;
-	```
-
-	```typescript
-	// consuming the generated type
-
-	function printMyString(s: MyString): void {
-	  console.log("MyString: " + s);
-	}
-
-	// doesn't compile, "foo" is not assignable to MyString
-	printMyString("foo");
-
-	const otherString = OtherString("other-string");
-	// doesn't compile, otherString is not assignable to MyString
-	printMyString(otherString);
-
-	// compiles
-	const myString = MyString("my-string");
-	printMyString(myString);
-	```
-
-</ParamField>
+<ParamField path="streamType" type="'wrapper' | 'web'" toc
