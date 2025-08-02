@@ -2,7 +2,6 @@
 title: generators.yml Configuration Schema
 description: Reference for the generators.yml configuration
 ---
-
 The `generators.yml` file configures how Fern generates SDKs from your API
 specification, including which languages to generate, where to publish them, and
 how to customize each SDK. This document describes the complete configuration
@@ -18,6 +17,10 @@ api:
         title-as-schema-name: true
         inline-path-parameters: false
         respect-forward-compatible-enums: true
+  headers:
+    X-Version:
+      name: version
+      type: literal<"1234">
 
 whitelabel:
   github:
@@ -76,6 +79,10 @@ api:
       settings:
         title-as-schema-name: true
         inline-path-parameters: false
+  headers:
+    X-Version:
+      name: version
+      type: literal<"1234">
 ```
 
 ### General Configuration Options
@@ -91,7 +98,9 @@ api:
     - asyncapi: "./events.yml"
       namespace: "events"
   headers:
-    Authorization: "Bearer ${API_TOKEN}"
+    X-Version:
+      name: version
+      type: literal<"1234">
   environments:
     production: "https://api.prod.com"
     staging: "https://api.staging.com"
@@ -105,8 +114,8 @@ api:
   Authentication configuration for the API.
 </ParamField>
 
-<ParamField path="api.headers" type="map<string, string>" toc={true}>
-  Default headers to include with API requests.
+<ParamField path="api.headers" type="map<string, HeaderConfig>" toc={true}>
+  Global headers to include with API requests. Each header can be configured with a name and type.
 </ParamField>
 
 <ParamField path="api.environments" type="EnvironmentsSchema" toc={true}>
@@ -254,20 +263,6 @@ api:
   AsyncAPI-specific generation settings.
 </ParamField>
 
-<ParamField path="settings.message-naming" type="MessageNamingSettingsSchema" default="v1" toc={true}>
-  What version of message naming to use for AsyncAPI messages. Options: `v1`, `v2`.
-</ParamField>
-
-<ParamField path="settings.title-as-schema-name" type="boolean" default="true" toc={true}>
-  Whether to use the titles of schemas within an AsyncAPI definition as the names of types within Fern.
-</ParamField>
-
-<ParamField path="settings.respect-nullable-schemas" type="boolean" default="false" toc={true}>
-  Preserves nullable schemas in API definition settings. When false, nullable schemas are treated as optional.
-</ParamField>
-
-#### Protocol Buffers
-
 ```yaml
 api:
   specs:
@@ -335,18 +330,23 @@ whitelabel:
 ```
 
 <ParamField path="whitelabel" type="WhitelabelConfigurationSchema" required={false} toc={true}>
+  Configuration for customizing SDK branding and publishing settings.
 </ParamField>
 
 <ParamField path="whitelabel.github" type="WhitelabelGithubConfigurationSchema" required={false} toc={true}>
+  GitHub-specific configuration for publishing SDKs.
 </ParamField>
 
 <ParamField path="whitelabel.github.username" type="string" required={true} toc={true}>
+  GitHub username used for publishing.
 </ParamField>
 
 <ParamField path="whitelabel.github.email" type="string" required={true} toc={true}>
+  Email associated with the GitHub account.
 </ParamField>
 
 <ParamField path="whitelabel.github.token" type="string" required={true} toc={true}>
+  GitHub personal access token with required permissions.
 </ParamField>
 
 ## metadata
@@ -363,22 +363,27 @@ metadata:
 ```
 
 <ParamField path="metadata" type="OutputMetadataSchema" required={false} toc={true}>
+  Global metadata configuration for all SDKs in this group.
 </ParamField>
 
 <ParamField path="metadata.description" type="string" required={false} toc={true}>
+  A description of your SDK that will appear in package managers.
 </ParamField>
 
 <ParamField path="metadata.authors" type="list<OutputMetadataAuthor>" required={false} toc={true}>
+  List of authors to be included in SDK package metadata.
 </ParamField>
 
 <ParamField path="metadata.authors[].name" type="string" required={true} toc={true}>
+  Name of an author.
 </ParamField>
 
 <ParamField path="metadata.authors[].email" type="string" required={true} toc={true}>
+  Email of an author.
 </ParamField>
 
 ## readme
-Controls what goes into the generated README files across all SDKs, allowing you to customize the content and structure of your SDK documentation.
+Controls what goes into the generated README files across all SDKs.
 
 ```yaml
 readme:
@@ -401,28 +406,28 @@ readme:
         path: "/users"
 ```
 
-<ParamField path="bannerLink" type="string" required={false} toc={true}>
+<ParamField path="readme.bannerLink" type="string" required={false} toc={true}>
   URL for a banner image or link that appears at the top of the README.
 </ParamField>
 
-<ParamField path="introduction" type="string" required={false} toc={true}>
+<ParamField path="readme.introduction" type="string" required={false} toc={true}>
   Custom introduction text that appears at the beginning of the README.
 </ParamField>
 
-<ParamField path="apiReferenceLink" type="string" required={false} toc={true}>
+<ParamField path="readme.apiReferenceLink" type="string" required={false} toc={true}>
   URL to your external API documentation or reference guide.
 </ParamField>
 
-<ParamField path="defaultEndpoint" type="ReadmeEndpointSchema" required={false} toc={true}>
-  Specifies which endpoint's code snippet to showcase as the primary example in the README.
+<ParamField path="readme.defaultEndpoint" type="ReadmeEndpointSchema" required={false} toc={true}>
+  Specifies which endpoint's code snippet to showcase as the primary example.
 </ParamField>
 
-<ParamField path="features" type="map<string, list<ReadmeEndpointSchema>>" required={false} toc={true}>
-  Groups endpoints by feature name for organized README sections. Each feature becomes a section in the README with example code snippets for the listed endpoints.
+<ParamField path="readme.features" type="map<string, list<ReadmeEndpointSchema>>" required={false} toc={true}>
+  Groups endpoints by feature name for organized README sections. Each feature becomes a section with example code snippets.
 </ParamField>
 
 ### defaultEndpoint
-Specifies which endpoint's code snippet to showcase as the primary example in the README.
+Configure which endpoint to showcase in the main example.
 
 <ParamField path="method" type="string" required={true} toc={true}>
   HTTP method of the default endpoint (e.g., `GET`, `POST`, `PUT`, `DELETE`).
@@ -444,10 +449,11 @@ default-group: "production"
 ```
 
 <ParamField path="default-group" type="string" required={false} toc={true}>
+  The default generator group to use when no specific group is specified.
 </ParamField>
 
 ## groups
-Organizes different sets of generators (like "production" vs "staging" vs "internal")
+Organizes different sets of generators (like "production" vs "staging" vs "internal").
 
 ```yaml
 groups:
@@ -463,53 +469,26 @@ groups:
         github:
           repository: "myorg/typescript-sdk"
           mode: "release"
-        config:
-          clientName: "MyApiClient"
-          packageName: "@myorg/api-sdk"
-        metadata:
-          package-description: "Official TypeScript SDK"
-          author: "MyOrg SDK Team"
-        keywords: ["CustomKeyword"]
-        snippets:
-          path: "./snippets"
-        smart-casing: true
-        api:
-          settings:
-            inline-path-parameters: true
-      - name: fernapi/fern-python-sdk
-        version: 2.0.0
-        output:
-          location: pypi
-          package-name: "myorg-api-sdk"
-          token: "${PYPI_TOKEN}"
-          metadata:
-            keywords: ["api", "sdk"]
-            documentation-link: "https://docs.myorg.com"
-    metadata:
-      description: "Production SDKs for MyAPI"
-      authors:
-        - name: "SDK Team"
-          email: "sdk@myorg.com"
-    reviewers:
-      teams:
-        - name: "sdk-team"
-      users:
-        - name: "john-doe"
 ```
 
 <ParamField path="groups" type="map<string, GeneratorGroupSchema>" required={false} toc={true}>
+  Map of named generator groups and their configurations.
 </ParamField>
 
 <ParamField path="groups.{groupName}" type="GeneratorGroupSchema" required={false} toc={true}>
+  Configuration for a specific generator group.
 </ParamField>
 
 <ParamField path="groups.{groupName}.audiences" type="string[]" required={false} toc={true}>
+  List of audiences this group targets (e.g., "external", "internal").
 </ParamField>
 
 <ParamField path="groups.{groupName}.generators" type="list<GeneratorInvocationSchema>" required={true} toc={true}>
+  List of SDK generators to run for this group.
 </ParamField>
 
 <ParamField path="groups.{groupName}.metadata" type="OutputMetadataSchema" required={false} toc={true}>
+  Group-specific metadata that overrides global metadata.
 </ParamField>
 
 <ParamField path="groups.{groupName}.reviewers" type="ReviewersSchema" required={false} toc={true}>
@@ -548,6 +527,15 @@ groups:
 </ParamField>
 
 <ParamField path="groups.{groupName}.generators[].api" type="GeneratorAPISettingsSchema" required={false} toc={true}>
+Add global headers that will be included in all API requests. Headers can be configured either here or in your OpenAPI specification.
+
+```yml
+api:
+  headers:
+    X-Version:
+      name: version
+      type: literal<"1234">
+```
 </ParamField>
 
 <ParamField path="groups.{groupName}.generators[].disable-examples" type="boolean" required={false} toc={true}>
@@ -689,7 +677,6 @@ SDK code. You can also configure a branch name, license, and reviewers.
 
 <Note>Make sure the [Fern GitHub app](https://github.com/apps/fern-api) is installed on your destination repository</Note>
 
-
 #### Release (recommended)
 
 Fern generates your code, commits it to main, and tags a new release.
@@ -723,289 +710,31 @@ Specify which teams and users should review generated code. See [reviewers confi
 
 #### Pull request
 
-Fern generates your code, commits to a new branch, and opens a PR for review. To publish, you must merge the PR and tag a GitHub release. 
-
 ```yml {6-8}
 groups: 
   ts-sdk:
     generators:
       - name: fernapi/fern-typescript-sdk
       ...
-        github: 
-          repository: "your-org/your-repo-name"
-          mode: "pull-request"
-```
-
-<ParamField path="repository" type="string" required={true} toc={true}>
-</ParamField>
-
-<ParamField path="mode" type="'pull-request'" required={false} toc={true}>
-</ParamField>
-
-<ParamField path="branch" type="string" required={false} toc={true}>
-</ParamField>
-
-<ParamField path="license" type="'MIT' | 'Apache-2.0' | { custom: 'Custom License Name' }" required={false} toc={true}>
-</ParamField>
-
-<ParamField path="reviewers" type="{ teams: list<string>, users: list<string> }" required={false} toc={true}>
-Specify which teams and users should review generated code. See [reviewers configuration](#reviewers-1).
-</ParamField>
-
-#### Push
-
-Fern generates your code and pushes it to the branch you specify. 
-
-```yml {6-8}
-groups: 
-  ts-sdk:
-    generators:
-      - name: fernapi/fern-typescript-sdk
-      ...
-        github: 
-          repository: "your-org/your-repo-name"
-          mode: "push"
-          branch: "your-branch-name" # required for `mode: push`
-```
-<ParamField path="repository" type="string" required={true} toc={true}>
-</ParamField>
-
-<ParamField path="mode" type="'push'" required={false} toc={true}>
-</ParamField>
-
-<ParamField path="branch" type="string" required={true} toc={true}>
-</ParamField>
-
-<ParamField path="license" type="'MIT' | 'Apache-2.0' | { custom: 'Custom License Name' }" required={false} toc={true}>
-</ParamField>
-
-<ParamField path="reviewers" type="{ teams: list<string>, users: list<string> }" required={false} toc={true}>
-Specify which teams and users should review generated code. See [reviewers configuration](#reviewers-1).
-</ParamField>
-
-### Generator Metadata
-
-Specify metadata for your SDK generator.
-
-```yml {6-10}
-groups: 
-  ts-sdk:
-    generators:
-      - name: fernapi/fern-typescript-sdk
-      ...
-        metadata: 
-          package-description: "Description of your SDK"
-          email: "sdk@example.com"
-          reference-url: "https://docs.example.com/sdks"
-          license: "MIT"
-```
-
-<ParamField path="package-description" type="string" required={false} toc={true}>
-A brief description of what your generated SDK does and its key features. This appears in the `package.json` description field and package registry listings.
-</ParamField>
-
-<ParamField path="email" type="string" required={false} toc={true}>
-Contact email for the package maintainer or support team. 
-</ParamField>
-
-<ParamField path="reference-url" type="string" required={false} toc={true}>
-URL pointing to comprehensive documentation, API reference, or getting started guide for the SDK.
-</ParamField>
-
-<ParamField path="author" type="string" required={false} toc={true}>
-Name of the individual developer, team, or organization that created and maintains the SDK.
-</ParamField>
-
-<ParamField path="license" type="'MIT' | 'Apache-2.0' | { custom: 'Custom License Name' }" required={false} toc={true}>
-Software license for the generated SDK.
-</ParamField>
-
-### Snippets Configuration
-
-Configures snippets for a particular generator.
-
-```yml {6-8}
-groups: 
-  ts-sdk:
-    generators:
-      - name: fernapi/fern-typescript-sdk
-      ...
-        snippets: 
-          path: "./snippets"
-```
-
-<ParamField path="path" type="string" required={true} toc={true}>
-The path to the generated snippets file.
-</ParamField>
-
-### API Settings Override
-
-Override authentication settings in your API spec using the `api` configuration.
-You can specify authentication schemes, reference existing auth configurations,
-and set additional API-specific settings.
-
-#### String Reference
-
-Reference a pre-defined authentication scheme by name.
-
-```yml {6-7}
-groups: 
-  ts-sdk:
-    generators:
-      - name: fernapi/fern-typescript-sdk
-      ...
         api:
-          auth: "bearer-token"
-```
+          headers:
+            X-Version:
+              name: "version" # codegen name of the variable  
+              type: "literal<'1234'>" # type of the header
 
-<ParamField path="auth" type="string" required={false} toc={true}>
-The name of an authentication scheme defined in your API specification.
-</ParamField>
-
-#### Scheme Reference
-
-Reference a specific authentication scheme with optional documentation.
-
-```yml {6-9}
-groups: 
-  ts-sdk:
-    generators:
-      - name: fernapi/fern-typescript-sdk
-      ...
-        api:
-          auth:
-            scheme: "my-auth-scheme"
-            docs: "Custom authentication method"
-```
-
-<ParamField path="scheme" type="string" required={true} toc={true}>
-The name of the authentication scheme to use.
-</ParamField>
-
-<ParamField path="docs" type="string" required={false} toc={true}>
-Documentation describing this authentication configuration.
-</ParamField>
-
-#### Multiple Authentication Options
-
-Allow any of multiple authentication schemes to be used.
-
-```yml {6-12}
-groups: 
-  ts-sdk:
-    generators:
-      - name: fernapi/fern-typescript-sdk
-      ...
-        api:
-          auth:
-            any:
-              - "api-key"
-              - "bearer-token"
-              - scheme: "oauth-flow"
-            docs: "Supports multiple authentication methods"
-```
-
-<ParamField path="any" type="list<string | { scheme: string }>" required={true} toc={true}>
-List of authentication schemes where any one can be used. Can include string references or scheme objects.
-</ParamField>
-
-<ParamField path="docs" type="string" required={false} toc={true}>
-Documentation describing this authentication configuration.
-</ParamField>
-
-#### Custom Authentication Schemes
-
-Define a custom authentication schemes using `auth-schemes`. You define a name for your custom scheme, and then specify the authentication method (`header`, `basic`, `bearer`, or `oauth`).
-
-<AccordionGroup>
-<Accordion title="Header authentication">
-
-Send authentication tokens or API keys in custom HTTP headers.
-
-```yml {8-12}
-groups: 
-  ts-sdk:
-    generators:
-      - name: fernapi/fern-typescript-sdk
-      ...
-        api:
           auth-schemes:
-            api-key: # User-defined name for your auth schema
-              header: "X-API-Key"
-              type: "string" 
-              prefix: "Bearer "
-              env: "API_KEY"
-```
-
-<ParamField path="header" type="string" required={true} toc={true}>
-The name of the header to send the authentication value in.
-</ParamField>
-
-<ParamField path="type" type="string" required={false} toc={true}>
-The type of the authentication value. Defaults to "string".
-</ParamField>
-
-<ParamField path="prefix" type="string" required={false} toc={true}>
-A prefix to add before the authentication value in the header.
-</ParamField>
-
-<ParamField path="env" type="string" required={false} toc={true}>
-Environment variable name to read the authentication value from.
-</ParamField>
-</Accordion>
-
-<Accordion title="Basic authentication">
-
-Standard HTTP basic authentication using username and password credentials.
-
-```yaml {8-15}
-groups: 
-  ts-sdk:
-    generators:
-      - name: fernapi/fern-typescript-sdk
-      ...
-        api:
-          auth-schemes:
-            basic-auth: # User-defined name for your auth schema
-              scheme: "basic"
-              username:
-                name: "username"
-                env: "AUTH_USERNAME"
-              password:
-                name: "password" 
-                env: "AUTH_PASSWORD"
-```
-<ParamField path="scheme" type="'basic'" required={true} toc={true}>
-Must be set to "basic" for basic authentication.
-</ParamField>
-
-<ParamField path="username" type="{ name: string, env?: string }" required={false} toc={true}>
-Configuration for the username field.
-</ParamField>
-
-<ParamField path="password" type="{ name: string, env?: string }" required={false} toc={true}>
-Configuration for the password field.
-</ParamField>
-</Accordion>
-
-<Accordion title="Bearer Token Authentication">
-
-Authentication using bearer tokens in the Authorization header.
-
-```yml {8-12}
-groups: 
-  ts-sdk:
-    generators:
-      - name: fernapi/fern-typescript-sdk
-      ...
-        api:
-          auth-schemes:
-            bearer:  # User-defined name for your auth schema
+            bearer-token:
               scheme: "bearer"
               token:
                 name: "token"
-                env: "BEARER_TOKEN"
+                env: "AUTH_TOKEN"
 ```
+
+<ParamField path="headers" type="Record<string, HeaderConfig>" required={false} toc={true}>
+  Configure global headers that will be sent with every request. Each header can specify:
+  - `name`: The variable name used in the generated code
+  - `type`: The type of the header value (e.g. string, literal, etc)
+</ParamField>
 
 <ParamField path="scheme" type="'bearer'" required={true} toc={true}>
 Must be set to "bearer" for bearer token authentication.
@@ -1014,64 +743,116 @@ Must be set to "bearer" for bearer token authentication.
 <ParamField path="token" type="{ name: string, env?: string }" required={false} toc={true}>
 Configuration for the bearer token.
 </ParamField>
-</Accordion>
 
-<Accordion title="OAuth Client Credentials">
+### API URL Override
 
-OAuth 2.0 client credentials flow for machine-to-machine authentication.
+Override the base URL for API requests.
 
-```yml {8-12}
+```yml {6-7}
 groups: 
   ts-sdk:
     generators:
       - name: fernapi/fern-typescript-sdk
       ...
         api:
-          auth-schemes:
-            oauth:  # User-defined name for your auth schema
-              scheme: "oauth"
-              type: "client-credentials"
-              get-token:
-                endpoint: "auth.get_token"
+          url: "https://api.example.com/v1"
 ```
 
-<ParamField path="scheme" type="'oauth'" required={true} toc={true}>
-Must be set to "oauth" for OAuth authentication.
+<ParamField path="url" type="string" required={false} toc={true}>
+The base URL to use for all API requests.
 </ParamField>
 
-<ParamField path="type" type="'client-credentials'" required={true} toc={true}>
-Must be set to "client-credentials" for OAuth client credentials flow.
+### Namespacing
+
+Configure how services and types are namespaced in the generated SDK.
+
+```yml {6-8}
+groups: 
+  ts-sdk:
+    generators:
+      - name: fernapi/fern-typescript-sdk
+      ...
+        namespacing:
+          enabled: true
+          package-prefix: "@example"
+```
+
+<ParamField path="enabled" type="boolean" required={false} toc={true}>
+Whether to enable namespacing. Defaults to true.
 </ParamField>
 
-<ParamField path="scopes" type="list<string>" required={false} toc={true}>
-List of OAuth scopes to request.
+<ParamField path="package-prefix" type="string" required={false} toc={true}>
+A prefix to add to all package names when namespacing is enabled.
 </ParamField>
 
-<ParamField path="client-id-env" type="string" required={false} toc={true}>
-Environment variable name for the OAuth client ID.
+### Custom SDK Configuration
+
+Add custom configuration specific to individual SDK generators.
+
+```yml {6-9}
+groups: 
+  ts-sdk:
+    generators:
+      - name: fernapi/fern-typescript-sdk
+      ...
+        config:
+          bundler: "tsc"
+          browser: true
+          outputEsm: true
+```
+
+<ParamField path="config" type="Record<string, any>" required={false} toc={true}>
+Generator-specific configuration options. See the documentation for your specific generator for available options.
 </ParamField>
 
-<ParamField path="client-secret-env" type="string" required={false} toc={true}>
-Environment variable name for the OAuth client secret.
+### Reviewers Configuration
+
+Configure which teams and users should review generated code PRs.
+
+```yml {6-11}
+groups: 
+  ts-sdk:
+    generators:
+      - name: fernapi/fern-typescript-sdk
+      ...
+        reviewers:
+          teams:
+            - "api-team"
+            - "sdk-team"
+          users:
+            - "username1"
+```
+
+<ParamField path="teams" type="list<string>" required={false} toc={true}>
+GitHub team slugs that should be requested as reviewers.
 </ParamField>
 
-<ParamField path="token-prefix" type="string" required={false} toc={true}>
-Sets the token header value prefix. Defaults to 'Bearer'.
+<ParamField path="users" type="list<string>" required={false} toc={true}>
+GitHub usernames that should be requested as reviewers.
 </ParamField>
 
-<ParamField path="token-header" type="string" required={false} toc={true}>
-Sets the token header key name. Defaults to 'Authorization'.
+```yaml
+api:
+  headers:
+    X-Version:
+      name: "version"
+      type: 'literal<"1234">'  # Example of a literal header value
+    Authorization:
+      name: "auth"
+      type: "string"
+```
+
+<ParamField path="headers" type="Record<string, HeaderConfig>" required={false} toc={true}>
+  Global headers to be included with all API requests. Can be configured either here or in the OpenAPI spec.
 </ParamField>
 
-<ParamField path="get-token" type="{ endpoint: string, request-properties?: object, response-properties?: object }" required={true} toc={true}>
-Configuration for the token endpoint to get access tokens.
+<ParamField path="headers.[header-name].name" type="string" required={true} toc={true}>
+  The name to use for this header in the generated code.
 </ParamField>
 
-<ParamField path="refresh-token" type="{ endpoint: string, request-properties?: object, response-properties?: object }" required={false} toc={true}>
-Configuration for the refresh token endpoint.
+<ParamField path="headers.[header-name].type" type="string" required={true} toc={true}>
+  The type of the header value. Can be a basic type like "string" or a literal type like 'literal<"value">'.
 </ParamField>
-</Accordion>
-</AccordionGroup>
 
 ## reviewers
 Who should review generated code.
@@ -1096,4 +877,43 @@ reviewers:
 
 <ParamField path="name" type="string" required={true} toc={true}>
 Name of a GitHub team or a user.
+</ParamField>
+
+## readme
+Configuration for the generated README.md file.
+
+```yaml
+readme:
+  title: "My API Client"
+  description: "A client library for the My API service"
+  examples:
+    - title: "Basic Usage"
+      code: |
+        const client = new MyApiClient();
+        const response = await client.users.getUser("123");
+    - title: "Authentication"
+      code: |
+        const client = new MyApiClient({
+          token: "YOUR_API_TOKEN"
+        });
+```
+
+<ParamField path="readme.title" type="string" required={false} toc={true}>
+  The title to display at the top of the README.
+</ParamField>
+
+<ParamField path="readme.description" type="string" required={false} toc={true}>
+  A description of your API client library.
+</ParamField>
+
+<ParamField path="readme.examples" type="Array<Example>" required={false} toc={true}>
+  Code examples to include in the README.
+</ParamField>
+
+<ParamField path="readme.examples[].title" type="string" required={true} toc={true}>
+  The title for this example.
+</ParamField>
+
+<ParamField path="readme.examples[].code" type="string" required={true} toc={true}>
+  The code snippet for this example.
 </ParamField>
