@@ -279,13 +279,47 @@ groups:
     repository and tagged with the version you specified. Log back into npm and
     navigate to **Packages** to see your new release. 
 
-## Release using GitHub workflows
+## Release using GitHub workflows (optional, recommended)
 
-Add a GitHub action to trigger SDK releases for each language. Trigger new releases directly from your repo instead of your local machine. 
+Update your release workflow to use GitHub Actions Add a GitHub action to trigger SDK releases for each language. Trigger new releases directly from your repo instead of your local machine. 
 
-In your repo, navigate to Actions and select New workflow, then Set up workflow yourself. 
+-add NPM Token to GitHub
+-Add Fern token to GitHub
+
+In your repo, navigate to Actions and select New workflow, then Set up workflow yourself. Set up a workflow dispatch that is similar to this:
+
+```yaml title="TypeScript" maxLines=0
+name: Publish TypeScript SDK
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "The version of the TypeScript SDK that you would like to release"
+        required: true
+        type: string
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install Fern CLI
+        run: npm install -g fern-api
+
+      - name: Release TypeScript SDK
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          fern generate --group ts-sdk --version ${{ inputs.version }} --log-level debug
+```
 
 Navigate to Actions tab and click run workflow
+
+
 <Accordion title="Option 1: Configure authentication via GitHub Actions">
 
 Use [GitHub Actions](https://docs.github.com/en/actions/get-started/quickstart) to automatically publish new SDK versions to npm when you push code changes. 
