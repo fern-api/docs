@@ -1,0 +1,111 @@
+---
+title: "FastAPI Integration"
+description: "Configure Pydantic validation for FastAPI applications using Fern-generated Python SDKs"
+---
+
+# FastAPI Integration Guide
+
+When using Fern-generated Python SDKs with FastAPI, you may need to configure Pydantic validation to properly handle serialization and deserialization of models. This guide covers common scenarios and solutions.
+
+## Handling Model Validation
+
+### Configuring Model Aliases
+
+When working with camelCase API fields and snake_case Python models, you'll need to properly configure field aliases:
+
+```python
+from pydantic import Field
+from typing_extensions import Annotated
+import datetime as dt
+
+class MyModel(FernABC):
+    # Correct way to define aliased fields
+    created_at: Annotated[dt.datetime, FieldMetadata(_alias_="createdAt")] = Field(alias="createdAt")
+    org_id: Annotated[str, FieldMetadata(_alias_="orgId")] = Field(alias="orgId")
+```
+
+### FastAPI Request Handling
+
+For FastAPI endpoints that receive Fern-generated models:
+
+```python
+from fastapi import FastAPI, Request
+from your_fern_sdk.types import ServerMessage, ServerMessageResponse
+
+app = FastAPI()
+
+@app.post("/webhook")
+async def handle_webhook(message: ServerMessage) -> ServerMessageResponse:
+    # FastAPI will automatically validate the incoming JSON against your model
+    return ServerMessageResponse(
+        # Your response fields
+    )
+```
+
+### Timestamp Handling
+
+For endpoints that need to handle timestamp fields:
+
+```python
+from pydantic import BaseModel, Field
+from datetime import datetime
+
+class TimestampModel(BaseModel):
+    # Handle both string and integer timestamps
+    timestamp: datetime = Field(...)
+    
+    class Config:
+        json_encoders = {
+            datetime: lambda dt: int(dt.timestamp() * 1000)
+        }
+```
+
+## Troubleshooting
+
+<Note>
+If you encounter validation errors with camelCase to snake_case conversion, verify that all model fields have both the `FieldMetadata(_alias_)` annotation and `Field(alias=)` parameter properly configured.
+</Note>
+
+### Common Issues
+
+Here are some typical validation errors and their solutions:
+
+1. **String Type Errors for Timestamps**
+```python
+# Solution: Ensure proper datetime conversion
+from pydantic import validator
+
+class MyModel(FernABC):
+    timestamp: datetime
+
+    @validator("timestamp", pre=True)
+    def parse_timestamp(cls, value):
+        if isinstance(value, int):
+            return datetime.fromtimestamp(value / 1000)
+        return value
+```
+
+2. **Missing Required Fields**
+```python
+# Solution: Properly define all required fields with aliases
+class CallModel(FernABC):
+    org_id: Annotated[str, FieldMetadata(_alias_="orgId")] = Field(alias="orgId")
+    created_at: Annotated[datetime, FieldMetadata(_alias_="createdAt")] = Field(alias="createdAt")
+    updated_at: Annotated[datetime, FieldMetadata(_alias_="updatedAt")] = Field(alias="updatedAt")
+```
+
+<Warning>
+Remember to test your FastAPI endpoints with both serialization (Python objects to JSON) and deserialization (JSON to Python objects) to ensure proper validation in both directions.
+</Warning>
+
+## Best Practices
+
+1. Always include both `FieldMetadata(_alias_)` and `Field(alias=)` for camelCase fields
+2. Test validation with sample payloads before deploying
+3. Add custom validators when needed for complex type conversions
+4. Use middleware for global transformation needs
+5. Keep model definitions consistent with your API schema
+
+<Note>
+If you need to handle complex nested objects, ensure all nested models also follow these alias configuration patterns.
+</Note>
