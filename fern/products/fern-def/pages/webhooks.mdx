@@ -4,11 +4,11 @@ description: Learn how to define webhooks in the Fern Definition
 ---
 
 In Fern, you can specify webhooks in your API definition. The webhooks will be included 
-in both the generated SDKs and the API documentation.
+in both the generated SDKs and the API documentation. Fern supports both its native webhook definition format and OpenAPI 3.1 webhooks.
 
-## Webhook definition
+## Fern Webhook Definition
 
-Each webhook defines:
+Each webhook in the Fern format defines:
 
 1. **Method**: The HTTP Method that the webhook will use (either `GET` or `POST`)
 2. **Headers**: The headers that the webhook will send
@@ -37,9 +37,9 @@ Each webhook defines:
   ```
 </CodeBlock>
 
-### Inlined payloads
+### Inlined Payloads
 
-You can inline the schema of the payload by doing the following: 
+You can inline the schema of the payload in the Fern format:
 
 <CodeBlock title='webhooks.yml'>
   ```yaml
@@ -63,3 +63,26 @@ You can inline the schema of the payload by doing the following:
   ```
 </CodeBlock>
 
+## OpenAPI 3.1 Webhooks
+
+Fern also supports OpenAPI 3.1 webhook definitions. When using OpenAPI format, each webhook operation must include an `operationId`:
+
+<CodeBlock title='openapi.yml'>
+  ```yaml
+  webhooks:
+    newPet:
+      post:
+        operationId: newPetWebhook
+        requestBody:
+          description: Information about a new pet in the system
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pet'
+        responses:
+          '200':
+            description: Return a 200 status to indicate that the data was received successfully
+  ```
+</CodeBlock>
+
+The webhook definition follows the OpenAPI 3.1 specification, with the key requirement that each webhook operation must include an `operationId` for proper SDK generation.
