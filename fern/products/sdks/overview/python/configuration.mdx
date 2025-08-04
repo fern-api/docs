@@ -5,7 +5,7 @@ description: Configuration options for the Fern Python SDK.
 
 You can customize the behavior of the Python SDK generator in `generators.yml`:
 
-```yaml {7-10}
+```yaml {7-12}
 default-group: local
 groups:
   local:
@@ -16,6 +16,8 @@ groups:
           package_name: "your_package"
           client:
             class_name: "YourClient" 
+          pydantic-config:
+            skip_validation: true
 ```
 
 ## SDK Configuration Options
@@ -159,38 +161,41 @@ Configure Pydantic model generation settings for your Python SDK.
 ```yaml
 config:
   pydantic-config:
-    frozen: true
-    orm_mode: false
-    smart_union: true
-    include_union_utils: false
-    require_optional_fields: false
-    use_pydantic_field_aliases: false
-    include_validators: true
+    enum_type: "literals"
     extra_fields: "forbid"
+    frozen: true
+    include_union_utils: false
+    include_validators: true
+    orm_mode: false
+    require_optional_fields: false
     skip_formatting: false
-    skip_validation: false
+    skip_validation: true
+    smart_union: true
+    union_naming: "v0"
+    use_inheritance_for_extended_models: true
+    use_pydantic_field_aliases: false
     use_provided_defaults: true
     use_str_enums: true
-    enum_type: "literals"
-    wrapped_aliases: false
-    union_naming: "v0"
     use_typeddict_requests: false
-    use_inheritance_for_extended_models: true
+    wrapped_aliases: false
 ```
 
-<ParamField path="frozen" type="bool" default="true">
+<ParamField path="enum_type" type="'literals' | 'forward_compatible_python_enums' | 'python_enums'" default="literals"  toc={true}>
+  The type of enums to use in the generated models:
+  - `literals`: Use Python Literal types, e.g. `MyEnum = Literal["foo", "bar"]`
+  - `forward_compatible_python_enums`: Use Python Enum classes, with a `MyEnum._UNKNOWN` member for forward compatibility. `MyEnum._UNKNOWN.value` contains the raw unrecognized value.
+  - `python_enums`: Your vanilla Python enum class, with the members defined within your API.
+</ParamField>
+
+<ParamField path="extra_fields" type="literal<'allow' | 'forbid' | 'ignore'>" default="allow"  toc={true}>
+  How to handle extra fields not defined in the model schema.
+</ParamField>
+
+<ParamField path="frozen" type="bool" default="true" toc={true}>
   Whether Pydantic models should be frozen (immutable after creation).
 </ParamField>
 
-<ParamField path="orm_mode" type="bool" default="false">
-  Enable ORM mode for Pydantic models to work with ORMs like SQLAlchemy.
-</ParamField>
-
-<ParamField path="smart_union" type="bool" default="true">
-  Enable smart union handling in Pydantic models for better type discrimination.
-</ParamField>
-
-<ParamField path="include_union_utils" type="bool" default="false">
+<ParamField path="include_union_utils" type="bool" default="false" toc={true}>
   When enabled, the generator will output a Pydantic `__root__` class that will contain utilities to visit the union. For example, for the following union type:
 
   ```
@@ -214,73 +219,37 @@ config:
   ```
 </ParamField>
 
-<ParamField path="require_optional_fields" type="bool" default="false">
-  Whether optional fields must be explicitly provided (cannot be omitted).
-</ParamField>
-
-<ParamField path="use_pydantic_field_aliases" type="bool" default="false">
-  Use Pydantic field aliases for property names that differ from wire format.
-</ParamField>
-
-<ParamField path="include_validators" type="bool" default="false">
+<ParamField path="include_validators" type="bool" default="false" toc={true}>
   Include custom validators in generated Pydantic models.
 </ParamField>
 
-<ParamField path="forbid_extra_fields" type="bool" deprecated={true}>
-  Use `extra_fields` instead.
+<ParamField path="orm_mode" type="bool" default="false" toc={true}>
+  Enable ORM mode for Pydantic models to work with ORMs like SQLAlchemy.
 </ParamField>
 
-<ParamField path="extra_fields" type="literal<'allow' | 'forbid' | 'ignore'>" default="allow">
-  How to handle extra fields not defined in the model schema.
-</ParamField>
-
-<ParamField path="skip_formatting" type="bool" default="false">
-  Skip code formatting for generated Pydantic models.
-</ParamField>
-
-<ParamField path="package_name" type="string" required={false}>
+<ParamField path="package_name" type="string" required={false} toc={true}>
   Custom package name for the generated models.
 </ParamField>
 
-<ParamField path="skip_validation" type="bool" default="false">
+<ParamField path="require_optional_fields" type="bool" default="false" toc={true}>
+  Whether optional fields must be explicitly provided (cannot be omitted).
+</ParamField>
+
+<ParamField path="skip_formatting" type="bool" default="false" toc={true}>
+  Skip code formatting for generated Pydantic models.
+</ParamField>
+
+<ParamField path="skip_validation" type="bool" default="false" toc={true}>
   When enabled, disables Pydantic validation for API responses. This ensures that Pydantic does not immediately fail if the model being returned from an API does not exactly match the Pydantic model. 
   
   This is meant to add flexibility should your SDK fall behind your API, but should be used sparingly, as the type-hinting for users will still reflect the Pydantic model exactly.
 </ParamField>
 
-<ParamField path="use_provided_defaults" type="bool" default="false">
-  Leverage defaults specified in the API specification.
+<ParamField path="smart_union" type="bool" default="true" toc={true}>
+  Enable smart union handling in Pydantic models for better type discrimination.
 </ParamField>
 
-<ParamField path="use_typeddict_requests" type="bool" default="false">
-  Generate TypedDicts instead of Pydantic Models for request objects.
-</ParamField>
-
-<ParamField path="version" type="'v1' | 'v2' | 'both' | 'v1_on_v2'" default="both">
-  By default, the generator generates pydantic models that are v1 and v2 compatible. However you can override them to:
-  - `v1`: strictly use Pydantic v1
-  - `v2`: strictly use Pydantic v2
-  - `both`: maintain compatibility with both versions
-  - `v1_on_v2`: use Pydantic v1 compatibility layer on v2
-
-</ParamField>
-
-<ParamField path="use_str_enums" type="bool" default="true" deprecated={true}>
-  Use `enum_type` instead. This is equivalent to `enum_type: "literals"`.
-</ParamField>
-
-<ParamField path="enum_type" type="'literals' | 'forward_compatible_python_enums' | 'python_enums'" default="literals">
-  The type of enums to use in the generated models:
-  - `literals`: Use Python Literal types, e.g. `MyEnum = Literal["foo", "bar"]`
-  - `forward_compatible_python_enums`: Use Python Enum classes, with a `MyEnum._UNKNOWN` member for forward compatibility. `MyEnum._UNKNOWN.value` contains the raw unrecognized value.
-  - `python_enums`: Your vanilla Python enum class, with the members defined within your API.
-</ParamField>
-
-<ParamField path="wrapped_aliases" type="bool" default="false">
-  Enable wrapped aliases for Pydantic models. Only supported in Pydantic V1, V1_ON_V2, or V2.
-</ParamField>
-
-<ParamField path="union_naming" type="'v0' | 'v1'" default="v0">
+<ParamField path="union_naming" type="'v0' | 'v1'" default="v0"  toc={true}>
   Control union naming strategy. If you are dealing with discriminated union members that already have the discriminant property on them (and they're only used in one union), you should prefer the global API config within your `generators.yml`:
   ```yaml
   - name: fernapi/fern-python-sdk
@@ -291,6 +260,31 @@ config:
   ```
 </ParamField>
 
-<ParamField path="use_inheritance_for_extended_models" type="bool" default="true">
+<ParamField path="use_pydantic_field_aliases" type="bool" default="false" toc={true}>
+  Use Pydantic field aliases for property names that differ from wire format.
+</ParamField>
+
+<ParamField path="use_provided_defaults" type="bool" default="false" toc={true}>
+  Leverage defaults specified in the API specification.
+</ParamField>
+
+<ParamField path="use_typeddict_requests" type="bool" default="false" toc={true}>
+  Generate TypedDicts instead of Pydantic Models for request objects.
+</ParamField>
+
+<ParamField path="version" type="'v1' | 'v2' | 'both' | 'v1_on_v2'" default="both" toc={true}>
+  By default, the generator generates pydantic models that are v1 and v2 compatible. However you can override them to:
+  - `v1`: strictly use Pydantic v1
+  - `v2`: strictly use Pydantic v2
+  - `both`: maintain compatibility with both versions
+  - `v1_on_v2`: use Pydantic v1 compatibility layer on v2
+
+</ParamField>
+
+<ParamField path="wrapped_aliases" type="bool" default="false"  toc={true}>
+  Enable wrapped aliases for Pydantic models. Only supported in Pydantic V1, V1_ON_V2, or V2.
+</ParamField>
+
+<ParamField path="use_inheritance_for_extended_models" type="bool" default="true"  toc={true}>
   Generate Pydantic models that implement inheritance when a model utilizes the Fern `extends` keyword.
 </ParamField>
