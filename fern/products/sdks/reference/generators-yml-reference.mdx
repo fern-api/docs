@@ -57,9 +57,272 @@ groups:
 ```
 
 ## auth-schemes
-Configures authentication methods for your API.
+Define authentication methods for your API. Create named authentication schemes that your endpoints can reference.
 
-<ParamField path="auth-schemes" type="map<string, AuthSchemeDeclarationSchema>" required={false} toc={true}>
+Choose from OAuth 2.0, custom headers (API keys), HTTP Basic, or Bearer token authentication.
+
+```yaml
+auth-schemes:
+  # User-defined scheme name - OAuth with minimal configuration
+  simple-oauth:
+    scheme: oauth
+    type: client-credentials
+    get-token:
+      endpoint: "auth.token"
+    
+  # User-defined scheme name - Header auth with custom configuration
+  custom-header:
+    name: "Custom Auth"
+    header: "X-Custom-Auth"
+    prefix: "Custom "
+    env: "CUSTOM_TOKEN"
+    
+  # User-defined scheme name - Basic auth
+  http-basic:
+    scheme: basic
+    
+  # User-defined scheme name - Bearer token
+  jwt-bearer:
+    scheme: bearer
+```
+
+### OAuth Authentication
+
+Configure OAuth 2.0 client credentials authentication.
+
+```yaml
+auth-schemes:
+  my-oauth: # User-defined scheme name
+    scheme: oauth
+    type: client-credentials
+    scopes:
+      - "read:users"
+      - "write:users"
+    client-id-env: "OAUTH_CLIENT_ID"
+    client-secret-env: "OAUTH_CLIENT_SECRET"
+    token-prefix: "Bearer"
+    token-header: "Authorization"
+    get-token:
+      endpoint: "auth.get_token"
+      request-properties:
+        client-id: "clientId"
+        client-secret: "clientSecret"
+        scopes: "scope"
+      response-properties:
+        access-token: "access_token"
+        expires-in: "expires_in"
+        refresh-token: "refresh_token"
+    refresh-token:
+      endpoint: "auth.refresh_token"
+      request-properties:
+        refresh-token: "refreshToken"
+      response-properties:
+        access-token: "access_token"
+        expires-in: "expires_in"
+        refresh-token: "refresh_token"
+```
+
+<ParamField path="scheme" type="'oauth'" required={true}>
+  Must be set to `"oauth"` for OAuth authentication schemes.
+</ParamField>
+<ParamField path="type" type="literal<'client-credentials'>" required={true}>
+  The OAuth flow type. Currently only `"client-credentials"` is supported.
+</ParamField>
+<ParamField path="scopes" type="list<string>" required={false}>
+  List of OAuth scopes to request during authentication.
+</ParamField>
+<ParamField path="client-id-env" type="string" required={false}>
+  Environment variable name containing the OAuth client ID.
+</ParamField>
+<ParamField path="client-secret-env" type="string" required={false}>
+  Environment variable name containing the OAuth client secret.
+</ParamField>
+<ParamField path="token-prefix" type="string" default="Bearer">
+  Sets the token header value prefix.
+</ParamField>
+<ParamField path="token-header" type="string" default="Authorization">
+  Sets the token header key name.
+</ParamField>
+
+#### get-token
+
+Configuration for the token acquisition endpoint.
+
+```yaml
+auth-schemes:
+  my-oauth:
+    scheme: oauth
+    # ... other OAuth config
+    get-token:
+      endpoint: "auth.get_token"
+      request-properties:
+        client-id: "clientId"
+        client-secret: "clientSecret"
+      response-properties:
+        access-token: "access_token"
+        expires-in: "expires_in"
+```
+
+<ParamField path="endpoint" type="string" required={true}>
+  The endpoint to get the access token, such as `'auth.get_token'`.
+</ParamField>
+<ParamField path="request-properties" type="object" required={false}>
+  Customizes the property names used in the token request.
+</ParamField>
+<ParamField path="client-id" type="string" required={false}>
+  The property name for the client ID in the request.
+</ParamField>
+<ParamField path="client-secret" type="string" required={false}>
+  The property name for the client secret in the request.
+</ParamField>
+<ParamField path="scopes" type="string" required={false}>
+  The property name for the scopes in the request.
+</ParamField>
+<ParamField path="response-properties" type="object" required={false}>
+  Maps custom property names in your OAuth token response (e.g., if your API returns `accessToken` instead of `access_token`).
+</ParamField>
+<ParamField path="access-token" type="string" required={false}>
+  The property name for the access token in the response.
+</ParamField>
+<ParamField path="expires-in" type="string" required={false}>
+  The property name for the expires in property in the response.
+</ParamField>
+<ParamField path="refresh-token" type="string" required={false}>
+  The property name for the refresh token in the response.
+</ParamField>
+
+#### refresh-token
+
+Configuration for the token refresh endpoint.
+
+```yaml
+auth-schemes:
+  my-oauth:
+    scheme: oauth
+    # ... other OAuth config
+    refresh-token:
+      endpoint: "auth.refresh_token"
+      request-properties:
+        refresh-token: "refreshToken"
+      response-properties:
+        access-token: "access_token"
+        expires-in: "expires_in"
+```
+
+<ParamField path="endpoint" type="string" required={true}>
+  The endpoint to refresh the access token, such as `'auth.refresh_token'`.
+</ParamField>
+<ParamField path="request-properties" type="object" required={false}>
+  Maps custom property names in your refresh token request.
+</ParamField>
+<ParamField path="refresh-token" type="string" required={true}>
+  The property name for the refresh token in the request.
+</ParamField>
+<ParamField path="response-properties" type="object" required={false}>
+  Maps custom property names in your refresh token response.
+</ParamField>
+<ParamField path="access-token" type="string" required={false}>
+  The property name for the access token in the response.
+</ParamField>
+<ParamField path="expires-in" type="string" required={false}>
+  The property name for the expires in property in the response.
+</ParamField>
+<ParamField path="refresh-token" type="string" required={false}>
+  The property name for the refresh token in the response.
+</ParamField>
+
+### Header Authentication
+
+Configure authentication using custom HTTP headers, such as API keys or tokens.
+
+```yaml
+auth-schemes:
+  api-key: # User-defined scheme name
+    name: "API Key Authentication"
+    header: "X-API-Key"
+    type: "string"
+    prefix: "ApiKey "
+    env: "MY_API_KEY"
+```
+
+<ParamField path="header" type="string" required={true}>
+  The name of the HTTP header to use for authentication.
+</ParamField>
+<ParamField path="name" type="string" required={false}>
+  A descriptive name for this authentication scheme.
+</ParamField>
+<ParamField path="type" type="string" default="string">
+  The type of the header value.
+</ParamField>
+<ParamField path="prefix" type="string" required={false}>
+  A prefix to prepend to the header value (e.g., `"Bearer "` or `"Token "`).
+</ParamField>
+<ParamField path="env" type="string" required={false}>
+  Environment variable name containing the authentication value.
+</ParamField>
+
+### Basic Authentication
+
+Configure HTTP Basic authentication using username and password credentials.
+
+```yaml
+auth-schemes:
+  basic-auth: # User-defined scheme name
+    scheme: basic
+    username:
+      name: "Username"
+      env: "BASIC_AUTH_USERNAME"
+    password:
+      name: "Password"
+      env: "BASIC_AUTH_PASSWORD"
+```
+
+<ParamField path="scheme" type="'basic'" required={true}>
+  Must be set to `"basic"` for Basic authentication schemes.
+</ParamField>
+<ParamField path="username" type="object" required={false}>
+  Configuration for the username credential.
+</ParamField>
+<ParamField path="name" type="string" required={false}>
+  A descriptive name for the username.
+</ParamField>
+<ParamField path="env" type="string" required={false}>
+  Environment variable name containing the username.
+</ParamField>
+<ParamField path="password" type="object" required={false}>
+  Configuration for the password credential.
+</ParamField>
+<ParamField path="name" type="string" required={false}>
+  A descriptive name for the password.
+</ParamField>
+<ParamField path="env" type="string" required={false}>
+  Environment variable name containing the password.
+</ParamField>
+
+### Bearer Token Authentication
+
+Configure Bearer token authentication for API access.
+
+```yaml
+auth-schemes:
+  bearer-token: # User-defined scheme name
+    scheme: bearer
+    token:
+      name: "Access Token"
+      env: "BEARER_TOKEN"
+```
+
+<ParamField path="scheme" type="'bearer'" required={true}>
+  Must be set to `"bearer"` for Bearer token authentication schemes.
+</ParamField>
+<ParamField path="token" type="object" required={false}>
+  Configuration for the bearer token.
+</ParamField>
+<ParamField path="token.name" type="string" required={false}>
+  A descriptive name for the token.
+</ParamField>
+<ParamField path="token.env" type="string" required={false}>
+  Environment variable name containing the bearer token.
 </ParamField>
 
 ## api
