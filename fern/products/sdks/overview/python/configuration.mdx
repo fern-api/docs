@@ -72,7 +72,6 @@ groups:
 </ParamField>
 
 <ParamField path="package_name" type="string" default="null" required={false} toc={true}>
-
 Specifies the Python package name that users will import your generated client
 from.
   
@@ -92,6 +91,7 @@ groups:
 </ParamField>
 
 <ParamField path="pydantic_config" type="SdkPydanticModelCustomConfig" default="SdkPydanticModelCustomConfig()" required={false} toc={true}>
+  Configuration options for Pydantic model generation and validation behavior.
 </ParamField>
 
 <ParamField path="pydantic_config.include_union_utils" type="bool" default="false" required={false} toc={true}>
@@ -121,7 +121,7 @@ groups:
 </ParamField>
 
 <ParamField path="pydantic_config.version" type="'v1' | 'v2' | 'both' | 'v1_on_v2'" default="both" required={false} toc={true}>
-  By default, the generator generates pydantic models that are v1 and v2 compatible. However you can override them to:
+  Controls which version of Pydantic to use for model generation. Available options:
   - `v1`: strictly use Pydantic v1
   - `v2`: strictly use Pydantic v2
   - `both`: maintain compatibility with both versions
@@ -131,7 +131,23 @@ groups:
   ```yaml
   config:
     pydantic_config:
-      version: v1 # or v2 or "both"
+      version: v2
+  ```
+</ParamField>
+
+<ParamField path="pydantic_config.use_construct" type="bool" default="false" required={false} toc={true}>
+  When enabled, the generator will include the Pydantic `_alias_` field in model generation to properly handle camelCase to snake_case field name conversion. This is particularly useful when working with FastAPI or other frameworks that rely on Pydantic validation.
+
+  Example:
+  ```yaml
+  config:
+    pydantic_config:
+      use_construct: true
+  ```
+
+  This ensures proper deserialization of fields like `createdAt` to `created_at`:
+  ```python
+  created_at: typing_extensions.Annotated[dt.datetime, FieldMetadata(_alias_="createdAt")] = pydantic.Field(_alias_="createdAt")
   ```
 </ParamField>
 
