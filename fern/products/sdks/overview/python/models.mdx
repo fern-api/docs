@@ -1,0 +1,131 @@
+---
+title: "Pydantic Configuration"
+description: "Configure Pydantic validation behavior in your Python SDK"
+---
+
+# Pydantic Configuration
+
+When using the Python SDK with Pydantic models, there are several important configuration options to ensure proper serialization and deserialization of data.
+
+## Field Aliases
+
+By default, Fern generates snake_case field names for Python models while preserving camelCase aliases for JSON serialization. To explicitly configure field aliases:
+
+```python
+from pydantic import Field
+from datetime import datetime
+import typing_extensions
+
+class MyModel(BaseModel):
+    created_at: typing_extensions.Annotated[datetime, FieldMetadata(_alias_="createdAt")] = Field(alias="createdAt")
+```
+
+## Timestamp Handling
+
+For fields that handle timestamps:
+
+```python
+class Message(BaseModel):
+    # For string timestamps
+    timestamp: str = Field(alias="timestamp")
+    
+    # For integer timestamps
+    timestamp: int = Field(alias="timestamp")
+    
+    # For datetime objects
+    timestamp: datetime = Field(alias="timestamp")
+```
+
+## FastAPI Integration
+
+When using the SDK with FastAPI, you may need to configure your endpoints to handle serialization:
+
+```python
+from fastapi import FastAPI
+from your_sdk import ServerMessage, ServerMessageResponse
+
+app = FastAPI()
+
+@app.post("/webhook")
+async def handle_webhook(message: ServerMessage) -> ServerMessageResponse:
+    # Handle incoming message
+    return ServerMessageResponse(
+        # Your response fields
+    )
+```
+
+<Note>
+  When using FastAPI, ensure your models use the `alias` parameter in Field declarations for proper serialization/deserialization.
+</Note>
+
+## Recursive Model Validation
+
+For nested objects, ensure all child models also have proper alias configurations:
+
+```python
+class ChildModel(BaseModel):
+    user_id: str = Field(alias="userId")
+    created_at: datetime = Field(alias="createdAt")
+
+class ParentModel(BaseModel):
+    child: ChildModel
+    updated_at: datetime = Field(alias="updatedAt")
+```
+
+## Custom Serialization
+
+For advanced cases, you can customize serialization behavior:
+
+```python
+class CustomModel(BaseModel):
+    class Config:
+        allow_population_by_field_name = True
+        alias_generator = lambda field_name: "".join(
+            word.capitalize() if i > 0 else word
+            for i, word in enumerate(field_name.split("_"))
+        )
+```
+
+<Note>
+  The Config class settings affect all fields in the model. Use field-specific aliases when you need different behavior for individual fields.
+</Note>
+
+## Troubleshooting
+
+Common validation issues and solutions:
+
+1. **Missing Field Aliases**: Ensure all fields that need to match camelCase JSON have proper aliases configured.
+
+```python
+# Correct
+user_id: str = Field(alias="userId")
+
+# Incorrect
+user_id: str = Field()  # Will not match camelCase JSON
+```
+
+2. **Timestamp Type Mismatches**: Match the field type to your data format:
+
+```python
+# For integer timestamps
+timestamp: int = Field(alias="timestamp")
+
+# For ISO format strings
+timestamp: str = Field(alias="timestamp")
+```
+
+3. **Nested Object Validation**: Configure aliases at all levels of nested objects:
+
+```python
+class Address(BaseModel):
+    street_name: str = Field(alias="streetName")
+    postal_code: str = Field(alias="postalCode")
+
+class User(BaseModel):
+    user_id: str = Field(alias="userId")
+    home_address: Address = Field(alias="homeAddress")
+```
+
+<Note>
+  Always test your models with sample data that matches your production environment to ensure proper validation behavior.
+</Note>
