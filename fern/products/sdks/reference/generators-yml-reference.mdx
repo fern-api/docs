@@ -59,7 +59,7 @@ groups:
 ## auth-schemes
 Define authentication methods for your API. Create named authentication schemes that your endpoints can reference.
 
-Choose from OAuth 2.0, custom headers (API keys), HTTP Basic, or Bearer token authentication.
+Choose from custom headers (API keys), HTTP Basic, Bearer token, or OAuth 2.0 authentication.
 
 ```yaml
 auth-schemes:
@@ -86,41 +86,20 @@ auth-schemes:
     scheme: bearer
 ```
 
+### Header Authentication
+
+<Markdown src="/products/sdks/snippets/header-auth-params.mdx" />
+
+### Basic Authentication
+
+<Markdown src="/products/sdks/snippets/basic-auth-params.mdx" />
+
+### Bearer Token Authentication
+
+<Markdown src="/products/sdks/snippets/bearer-auth-params.mdx" />
+
 ### OAuth Authentication
 
-Configure OAuth 2.0 client credentials authentication.
-
-```yaml
-auth-schemes:
-  my-oauth: # User-defined scheme name
-    scheme: oauth
-    type: client-credentials
-    scopes:
-      - "read:users"
-      - "write:users"
-    client-id-env: "OAUTH_CLIENT_ID"
-    client-secret-env: "OAUTH_CLIENT_SECRET"
-    token-prefix: "Bearer"
-    token-header: "Authorization"
-    get-token:
-      endpoint: "auth.get_token"
-      request-properties:
-        client-id: "clientId"
-        client-secret: "clientSecret"
-        scopes: "scope"
-      response-properties:
-        access-token: "access_token"
-        expires-in: "expires_in"
-        refresh-token: "refresh_token"
-    refresh-token:
-      endpoint: "auth.refresh_token"
-      request-properties:
-        refresh-token: "refreshToken"
-      response-properties:
-        access-token: "access_token"
-        expires-in: "expires_in"
-        refresh-token: "refresh_token"
-```
 <Markdown src="/products/sdks/snippets/oauth-params.mdx" />
 
 #### get-token
@@ -130,100 +109,6 @@ auth-schemes:
 #### refresh-token
 
 <Markdown src="/products/sdks/snippets/oauth-refresh-token.mdx" />
-
-### Header Authentication
-
-Configure authentication using custom HTTP headers, such as API keys or tokens.
-
-```yaml
-auth-schemes:
-  api-key: # User-defined scheme name
-    name: "API Key Authentication"
-    header: "X-API-Key"
-    type: "string"
-    prefix: "ApiKey "
-    env: "MY_API_KEY"
-```
-
-<ParamField path="header" type="string" required={true}>
-  The name of the HTTP header to use for authentication.
-</ParamField>
-<ParamField path="name" type="string" required={false}>
-  A descriptive name for this authentication scheme.
-</ParamField>
-<ParamField path="type" type="string" default="string">
-  The type of the header value.
-</ParamField>
-<ParamField path="prefix" type="string" required={false}>
-  A prefix to prepend to the header value (e.g., `"Bearer "` or `"Token "`).
-</ParamField>
-<ParamField path="env" type="string" required={false}>
-  Environment variable name containing the authentication value.
-</ParamField>
-
-### Basic Authentication
-
-Configure HTTP Basic authentication using username and password credentials.
-
-```yaml
-auth-schemes:
-  basic-auth: # User-defined scheme name
-    scheme: basic
-    username:
-      name: "Username"
-      env: "BASIC_AUTH_USERNAME"
-    password:
-      name: "Password"
-      env: "BASIC_AUTH_PASSWORD"
-```
-
-<ParamField path="scheme" type="'basic'" required={true}>
-  Must be set to `"basic"` for Basic authentication schemes.
-</ParamField>
-<ParamField path="username" type="object" required={false}>
-  Configuration for the username credential.
-</ParamField>
-<ParamField path="name" type="string" required={false}>
-  A descriptive name for the username.
-</ParamField>
-<ParamField path="env" type="string" required={false}>
-  Environment variable name containing the username.
-</ParamField>
-<ParamField path="password" type="object" required={false}>
-  Configuration for the password credential.
-</ParamField>
-<ParamField path="name" type="string" required={false}>
-  A descriptive name for the password.
-</ParamField>
-<ParamField path="env" type="string" required={false}>
-  Environment variable name containing the password.
-</ParamField>
-
-### Bearer Token Authentication
-
-Configure Bearer token authentication for API access.
-
-```yaml
-auth-schemes:
-  bearer-token: # User-defined scheme name
-    scheme: bearer
-    token:
-      name: "Access Token"
-      env: "BEARER_TOKEN"
-```
-
-<ParamField path="scheme" type="'bearer'" required={true}>
-  Must be set to `"bearer"` for Bearer token authentication schemes.
-</ParamField>
-<ParamField path="token" type="object" required={false}>
-  Configuration for the bearer token.
-</ParamField>
-<ParamField path="token.name" type="string" required={false}>
-  A descriptive name for the token.
-</ParamField>
-<ParamField path="token.env" type="string" required={false}>
-  Environment variable name containing the bearer token.
-</ParamField>
 
 ## api
 
@@ -1084,81 +969,6 @@ Documentation describing this authentication configuration.
 
 Define a custom authentication schemes using `auth-schemes`. You define a name for your custom scheme, and then specify the authentication method (`header`, `basic`, `bearer`, or `oauth`).
 
-<AccordionGroup>
-<Accordion title="Header authentication">
-
-Send authentication tokens or API keys in custom HTTP headers.
-
-```yml {8-12}
-groups: 
-  ts-sdk:
-    generators:
-      - name: fernapi/fern-typescript-sdk
-      ...
-        api:
-          auth-schemes:
-            api-key: # User-defined name for your auth schema
-              header: "X-API-Key"
-              type: "string" 
-              prefix: "Bearer "
-              env: "API_KEY"
-```
-
-<ParamField path="header" type="string" required={true} toc={true}>
-The name of the header to send the authentication value in.
-</ParamField>
-
-<ParamField path="type" type="string" required={false} toc={true}>
-The type of the authentication value. Defaults to "string".
-</ParamField>
-
-<ParamField path="prefix" type="string" required={false} toc={true}>
-A prefix to add before the authentication value in the header.
-</ParamField>
-
-<ParamField path="env" type="string" required={false} toc={true}>
-Environment variable name to read the authentication value from.
-</ParamField>
-</Accordion>
-
-<Accordion title="Basic authentication">
-
-Standard HTTP basic authentication using username and password credentials.
-
-```yaml {8-15}
-groups: 
-  ts-sdk:
-    generators:
-      - name: fernapi/fern-typescript-sdk
-      ...
-        api:
-          auth-schemes:
-            basic-auth: # User-defined name for your auth schema
-              scheme: "basic"
-              username:
-                name: "username"
-                env: "AUTH_USERNAME"
-              password:
-                name: "password" 
-                env: "AUTH_PASSWORD"
-```
-<ParamField path="scheme" type="'basic'" required={true} toc={true}>
-Must be set to "basic" for basic authentication.
-</ParamField>
-
-<ParamField path="username" type="{ name: string, env?: string }" required={false} toc={true}>
-Configuration for the username field.
-</ParamField>
-
-<ParamField path="password" type="{ name: string, env?: string }" required={false} toc={true}>
-Configuration for the password field.
-</ParamField>
-</Accordion>
-
-<Accordion title="Bearer Token Authentication">
-
-Authentication using bearer tokens in the Authorization header.
-
 ```yml {8-12}
 groups: 
   ts-sdk:
@@ -1174,33 +984,24 @@ groups:
                 env: "BEARER_TOKEN"
 ```
 
-<ParamField path="scheme" type="'bearer'" required={true} toc={true}>
-Must be set to "bearer" for bearer token authentication.
-</ParamField>
+<AccordionGroup>
+<Accordion title="Header authentication">
 
-<ParamField path="token" type="{ name: string, env?: string }" required={false} toc={true}>
-Configuration for the bearer token.
-</ParamField>
+<Markdown src="/products/sdks/snippets/header-auth-params.mdx" />
+</Accordion>
+
+<Accordion title="Basic authentication">
+
+<Markdown src="/products/sdks/snippets/basic-auth-params.mdx" />
+
+</Accordion>
+
+<Accordion title="Bearer Token Authentication">
+
+<Markdown src="/products/sdks/snippets/bearer-auth-params.mdx" />
 </Accordion>
 
 <Accordion title="OAuth Client Credentials">
-
-Configure OAuth 2.0 client credentials authentication.
-
-```yml {8-12}
-groups: 
-  ts-sdk:
-    generators:
-      - name: fernapi/fern-typescript-sdk
-      ...
-        api:
-          auth-schemes:
-            oauth:  # User-defined name for your auth schema
-              scheme: "oauth"
-              type: "client-credentials"
-              get-token:
-                endpoint: "auth.get_token"
-```
 
 <Markdown src="/products/sdks/snippets/oauth-params.mdx" />
 
