@@ -121,115 +121,15 @@ auth-schemes:
         expires-in: "expires_in"
         refresh-token: "refresh_token"
 ```
-
-<ParamField path="scheme" type="'oauth'" required={true}>
-  Must be set to `"oauth"` for OAuth authentication schemes.
-</ParamField>
-<ParamField path="type" type="literal<'client-credentials'>" required={true}>
-  The OAuth flow type. Currently only `"client-credentials"` is supported.
-</ParamField>
-<ParamField path="scopes" type="list<string>" required={false}>
-  List of OAuth scopes to request during authentication.
-</ParamField>
-<ParamField path="client-id-env" type="string" required={false}>
-  Environment variable name containing the OAuth client ID.
-</ParamField>
-<ParamField path="client-secret-env" type="string" required={false}>
-  Environment variable name containing the OAuth client secret.
-</ParamField>
-<ParamField path="token-prefix" type="string" default="Bearer">
-  Sets the token header value prefix.
-</ParamField>
-<ParamField path="token-header" type="string" default="Authorization">
-  Sets the token header key name.
-</ParamField>
+<Markdown src="/snippets/oauth-params.mdx" />
 
 #### get-token
 
-Configuration for the token acquisition endpoint.
-
-```yaml
-auth-schemes:
-  my-oauth:
-    scheme: oauth
-    # ... other OAuth config
-    get-token:
-      endpoint: "auth.get_token"
-      request-properties:
-        client-id: "clientId"
-        client-secret: "clientSecret"
-      response-properties:
-        access-token: "access_token"
-        expires-in: "expires_in"
-```
-
-<ParamField path="endpoint" type="string" required={true}>
-  The endpoint to get the access token, such as `'auth.get_token'`.
-</ParamField>
-<ParamField path="request-properties" type="object" required={false}>
-  Customizes the property names used in the token request.
-</ParamField>
-<ParamField path="client-id" type="string" required={false}>
-  The property name for the client ID in the request.
-</ParamField>
-<ParamField path="client-secret" type="string" required={false}>
-  The property name for the client secret in the request.
-</ParamField>
-<ParamField path="scopes" type="string" required={false}>
-  The property name for the scopes in the request.
-</ParamField>
-<ParamField path="response-properties" type="object" required={false}>
-  Maps custom property names in your OAuth token response (e.g., if your API returns `accessToken` instead of `access_token`).
-</ParamField>
-<ParamField path="access-token" type="string" required={false}>
-  The property name for the access token in the response.
-</ParamField>
-<ParamField path="expires-in" type="string" required={false}>
-  The property name for the expires in property in the response.
-</ParamField>
-<ParamField path="refresh-token" type="string" required={false}>
-  The property name for the refresh token in the response.
-</ParamField>
+<Markdown src="/snippets/oauth-get-token.mdx" />
 
 #### refresh-token
 
-Configuration for the token refresh endpoint.
-
-```yaml
-auth-schemes:
-  my-oauth:
-    scheme: oauth
-    # ... other OAuth config
-    refresh-token:
-      endpoint: "auth.refresh_token"
-      request-properties:
-        refresh-token: "refreshToken"
-      response-properties:
-        access-token: "access_token"
-        expires-in: "expires_in"
-```
-
-<ParamField path="endpoint" type="string" required={true}>
-  The endpoint to refresh the access token, such as `'auth.refresh_token'`.
-</ParamField>
-<ParamField path="request-properties" type="object" required={false}>
-  Maps custom property names in your refresh token request.
-</ParamField>
-<ParamField path="refresh-token" type="string" required={true}>
-  The property name for the refresh token in the request.
-</ParamField>
-<ParamField path="response-properties" type="object" required={false}>
-  Maps custom property names in your refresh token response.
-</ParamField>
-<ParamField path="access-token" type="string" required={false}>
-  The property name for the access token in the response.
-</ParamField>
-<ParamField path="expires-in" type="string" required={false}>
-  The property name for the expires in property in the response.
-</ParamField>
-<ParamField path="refresh-token" type="string" required={false}>
-  The property name for the refresh token in the response.
-</ParamField>
+<Markdown src="/snippets/oauth-refresh-token.mdx" />
 
 ### Header Authentication
 
@@ -595,30 +495,26 @@ api:
 </ParamField>
 
 ## whitelabel
-Branding/publishing configuration (like GitHub credentials for publishing).
+
+Configuration for publishing generated SDKs without Fern branding. When enabled, removes all mentions of Fern from the generated code and allows publishing under your own brand.
 
 ```yaml
 whitelabel:
   github:
-    username: "my-github-username"
+    username: "company-github-username"
     email: "my-email@example.com"
     token: "ghp_xxxxxxxxxxxx"
-```
 
-<ParamField path="whitelabel" type="WhitelabelConfigurationSchema" required={false} toc={true}>
+<ParamField path="username" type="string" required={true} toc={true}>
+  The GitHub username that will be used for committing and publishing the whitelabeled SDK code to GitHub repositories. This should be the username of the account that has write access to your target repositories.
+</ParamField>
+<ParamField path="email" type="string" required={true} toc={true}>
+  The email address associated with the GitHub account. This email will be used in Git commits when publishing the whitelabeled SDK code and should match the email configured in your GitHub account settings.
+</ParamField>
+<ParamField path="token" type="string" required={true} toc={true}>
+  A GitHub Personal Access Token (PAT) with appropriate permissions for repository access. The token should have `repo` scope permissions to allow reading from and writing to your repositories for publishing whitelabeled SDKs.
 </ParamField>
 
-<ParamField path="whitelabel.github" type="WhitelabelGithubConfigurationSchema" required={false} toc={true}>
-</ParamField>
-
-<ParamField path="whitelabel.github.username" type="string" required={true} toc={true}>
-</ParamField>
-
-<ParamField path="whitelabel.github.email" type="string" required={true} toc={true}>
-</ParamField>
-
-<ParamField path="whitelabel.github.token" type="string" required={true} toc={true}>
-</ParamField>
 
 ## metadata
 Package metadata like description and authors that gets included in generated SDKs.
@@ -633,19 +529,19 @@ metadata:
       email: "jane@example.com"
 ```
 
-<ParamField path="metadata" type="OutputMetadataSchema" required={false} toc={true}>
+<ParamField path="description" type="string" required={false} toc={true}>
+  A brief description of the SDK that will be included in package metadata. This description helps users understand what your SDK does when they discover it in package repositories.
 </ParamField>
 
-<ParamField path="metadata.description" type="string" required={false} toc={true}>
+### authors
+  A list of authors who will be credited in the generated SDK's package metadata.
+
+<ParamField path="name" type="string" required={true} toc={true}>
+  The full name of the author to be credited in the SDK package metadata.
 </ParamField>
 
-<ParamField path="metadata.authors" type="list<OutputMetadataAuthor>" required={false} toc={true}>
-</ParamField>
-
-<ParamField path="metadata.authors[].name" type="string" required={true} toc={true}>
-</ParamField>
-
-<ParamField path="metadata.authors[].email" type="string" required={true} toc={true}>
+<ParamField path="email" type="string" required={true} toc={true}>
+  The email address of the author. This will be included in package metadata and may be used by package managers for contact information.
 </ParamField>
 
 ## readme
@@ -1289,7 +1185,7 @@ Configuration for the bearer token.
 
 <Accordion title="OAuth Client Credentials">
 
-OAuth 2.0 client credentials flow for machine-to-machine authentication.
+Configure OAuth 2.0 client credentials authentication.
 
 ```yml {8-12}
 groups: 
@@ -1306,41 +1202,16 @@ groups:
                 endpoint: "auth.get_token"
 ```
 
-<ParamField path="scheme" type="'oauth'" required={true} toc={true}>
-Must be set to "oauth" for OAuth authentication.
-</ParamField>
+<Markdown src="/snippets/oauth-params.mdx">
 
-<ParamField path="type" type="'client-credentials'" required={true} toc={true}>
-Must be set to "client-credentials" for OAuth client credentials flow.
-</ParamField>
+##### get-token
 
-<ParamField path="scopes" type="list<string>" required={false} toc={true}>
-List of OAuth scopes to request.
-</ParamField>
+<Markdown src="/snippets/oauth-get-token.mdx">
 
-<ParamField path="client-id-env" type="string" required={false} toc={true}>
-Environment variable name for the OAuth client ID.
-</ParamField>
+##### refresh-token
 
-<ParamField path="client-secret-env" type="string" required={false} toc={true}>
-Environment variable name for the OAuth client secret.
-</ParamField>
+<Markdown src="/snippets/oauth-refresh-token.mdx">
 
-<ParamField path="token-prefix" type="string" required={false} toc={true}>
-Sets the token header value prefix. Defaults to 'Bearer'.
-</ParamField>
-
-<ParamField path="token-header" type="string" required={false} toc={true}>
-Sets the token header key name. Defaults to 'Authorization'.
-</ParamField>
-
-<ParamField path="get-token" type="{ endpoint: string, request-properties?: object, response-properties?: object }" required={true} toc={true}>
-Configuration for the token endpoint to get access tokens.
-</ParamField>
-
-<ParamField path="refresh-token" type="{ endpoint: string, request-properties?: object, response-properties?: object }" required={false} toc={true}>
-Configuration for the refresh token endpoint.
-</ParamField>
 </Accordion>
 </AccordionGroup>
 
