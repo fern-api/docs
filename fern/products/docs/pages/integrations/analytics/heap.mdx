@@ -1,0 +1,73 @@
+---
+title: Heap
+description: >-
+  Learn how to integrate Fern Docs with Heap to track user behavior and
+  analytics.
+---
+
+## Add Heap to your Docs
+
+To add Heap to your Docs, you need to create a custom JavaScript file and configure it in your `docs.yml` file using your Heap environment ID.
+
+### Get your Heap Environment ID
+
+1. Log in to your Heap account.
+2. Navigate to the project you want to track.
+3. Go to **Install Heap** > **Web Installation**.
+4. Copy your **Environment ID** from the installation snippet (it will look like a numeric ID such as `358239876`).
+
+### Integration Steps
+
+1. **Create a scripts folder**: Under your `fern` directory, create a `scripts` folder if it doesn't already exist.
+
+2. **Create the Heap script**: In the `scripts` folder, create a file named `heap.js`.
+
+3. **Add the Heap tracking code**: In your `heap.js` file, add the following script (replace `YOUR_ENVIRONMENT_ID` with your actual environment ID):
+
+<CodeBlock title="fern/scripts/heap.js">
+```js
+// Heap Analytics Integration
+window.heapReadyCb=window.heapReadyCb||[],window.heap=window.heap||[],heap.load=function(e,t){window.heap.envId=e,window.heap.clientConfig=t=t||{},window.heap.clientConfig.shouldFetchServerConfig=!1;var a=document.createElement("script");a.type="text/javascript",a.async=!0,a.src="https://cdn.us.heap-api.com/config/"+e+"/heap_config.js";var r=document.getElementsByTagName("script")[0];r.parentNode.insertBefore(a,r);var n=["init","startTracking","stopTracking","track","resetIdentity","identify","getSessionId","getUserId","getIdentity","addUserProperties","addEventProperties","removeEventProperty","clearEventProperties","addAccountProperties","addAdapter","addTransformer","addTransformerFn","onReady","addPageviewProperties","removePageviewProperty","clearPageviewProperties","trackPageview"],i=function(e){return function(){var t=Array.prototype.slice.call(arguments,0);window.heapReadyCb.push({name:e,fn:function(){heap[e]&&heap[e].apply(heap,t)}})}};for(var p=0;p<n.length;p++)heap[n[p]]=i(n[p])};
+
+// Initialize Heap with your environment ID
+heap.load("YOUR_ENVIRONMENT_ID");
+```
+</CodeBlock>
+
+4. **Configure your docs.yml**: In your `docs.yml` file, add the JavaScript file configuration:
+
+<CodeBlock title="docs.yml">
+```yaml
+js:
+  - path: ./scripts/heap.js
+    strategy: beforeInteractive
+```
+</CodeBlock>
+
+### Security Considerations
+
+Since Heap tracking is implemented using client-side JavaScript, your environment ID will be visible in the browser's source code. This is normal and expected behavior for client-side analytics implementations. Heap environment IDs are designed to be publicly visible and are safe to expose on the client side.
+
+### Testing Your Integration
+
+1. **Start your development server**: Run `fern docs dev` to build and start your Fern docs locally (typically on `http://localhost:3000`).
+
+2. **Verify script loading**: Open your browser's developer tools and check the Console and Network tabs to confirm the Heap script is loading correctly. Look for successful requests to `heap-api.com`.
+
+3. **Test event tracking**: Navigate through your docs site and verify that events are being tracked. Heap automatically captures page views, clicks, and form interactions.
+
+4. **Check Heap dashboard**: Go to your Heap project dashboard to verify that events are being received correctly. The setup page should indicate when data is being received.
+
+### What Heap Automatically Tracks
+
+Once integrated, Heap will automatically capture:
+
+- **Page views**: Every page visit with full URL information
+- **Click events**: All button clicks, link clicks, and interactive elements  
+- **Form interactions**: Form submissions and field changes
+- **Session data**: User sessions, return visits, and session duration
+- **User behavior**: Scroll depth, time on page, and navigation patterns
+
+### Additional Resources
+
+For more information on Heap's JavaScript SDK and advanced configuration options, visit the [Heap JavaScript SDK documentation](https://developers.heap.io/reference/web). You can also explore [Heap's getting started guide](https://help.heap.io/hc/en-us/categories/13662488537116-Getting-Started) for more comprehensive setup instructions. 
