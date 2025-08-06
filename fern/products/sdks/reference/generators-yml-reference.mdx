@@ -499,11 +499,12 @@ default-group: "production"
 </ParamField>
 
 ## groups
-Organizes different sets of generators (like "production" vs "staging" vs "internal")
+
+Organizes user-defined sets of generators, typically grouped by environment (like "production", "staging") or language (like "typescript", "python").
 
 ```yaml
 groups:
-  production:
+  company-typescript: # User-defined name
     audiences: ["external"]
     generators:
       - name: fernapi/fern-typescript-node-sdk
@@ -513,226 +514,308 @@ groups:
           package-name: "@myorg/api-sdk"
           token: "${NPM_TOKEN}"
         github:
-          repository: "myorg/typescript-sdk"
-          mode: "release"
-        config:
-          clientName: "MyApiClient"
-          packageName: "@myorg/api-sdk"
-        metadata:
-          package-description: "Official TypeScript SDK"
-          author: "MyOrg SDK Team"
-        keywords: ["CustomKeyword"]
-        snippets:
-          path: "./snippets"
-        smart-casing: true
-        api:
-          settings:
-            inline-path-parameters: true
-      - name: fernapi/fern-python-sdk
-        version: 2.0.0
-        output:
-          location: pypi
-          package-name: "myorg-api-sdk"
-          token: "${PYPI_TOKEN}"
-          metadata:
-            keywords: ["api", "sdk"]
-            documentation-link: "https://docs.myorg.com"
+          repository: your-organization/company-typescript
+          mode: "pull-request"
     metadata:
-      description: "Production SDKs for MyAPI"
+      description: "TypeScript SDK for MyAPI"
       authors:
         - name: "SDK Team"
           email: "sdk@myorg.com"
     reviewers:
       teams:
         - name: "sdk-team"
-      users:
-        - name: "john-doe"
 ```
 
-<ParamField path="groups" type="map<string, GeneratorGroupSchema>" required={false} toc={true}>
+<ParamField path="audiences" type="string[]" required={false}>
+Target audiences for this generator group (e.g., "external", "internal")
 </ParamField>
 
-<ParamField path="groups.{groupName}" type="GeneratorGroupSchema" required={false} toc={true}>
+
+### reviewers
+
+Who should review generated code for a specific group.
+
+<Markdown src="/products/sdks/snippets/reviewers-params.mdx" />
+
+### generators
+
+```yaml
+groups:
+  company-typescript: # User-defined name
+    audiences: ["external"]
+    generators:
+      - name: fernapi/fern-typescript-node-sdk
+        version: 0.9.0
+```
+
+Individual generator settings within a group.
+
+<ParamField path="name" type="string" required={true}>
+The Fern generator package name (e.g., fernapi/fern-typescript-node-sdk)
 </ParamField>
 
-<ParamField path="groups.{groupName}.audiences" type="string[]" required={false} toc={true}>
+<ParamField path="version" type="string" required={true}>
+Specific version of the generator to use
 </ParamField>
 
-<ParamField path="groups.{groupName}.generators" type="list<GeneratorInvocationSchema>" required={true} toc={true}>
+#### output
+
+Configuration for where and how to publish the generated SDK
+
+```yaml
+groups:
+  company-typescript: # User-defined name
+    audiences: ["external"]
+    generators:
+      - name: fernapi/fern-typescript-node-sdk
+        version: 0.9.0
+        output:
+          location: npm
+          package-name: "@myorg/api-sdk"
+          token: "${NPM_TOKEN}"
+```
+
+<AccordionGroup>
+<Accordion title="npm Output">
+
+Publish TypeScript/JavaScript SDKs to NPM registry.
+
+```yaml
+output:
+  location: npm
+  package-name: "@myorg/api-sdk"
+  token: "${NPM_TOKEN}"
+```
+
+<ParamField path="location" type="'npm'" required={true}>
+Set to "npm" for NPM publishing
 </ParamField>
 
-<ParamField path="groups.{groupName}.metadata" type="OutputMetadataSchema" required={false} toc={true}>
+<ParamField path="url" type="string" required={false} default="npmjs.com">
+Custom NPM registry URL 
 </ParamField>
 
-<ParamField path="groups.{groupName}.reviewers" type="ReviewersSchema" required={false} toc={true}>
+<ParamField path="package-name" type="string" required={true}>
+NPM package name (e.g., "@myorg/api-sdk")
 </ParamField>
 
-### Generator Configuration
+<ParamField path="token" type="string" required={false}>
+NPM authentication token for publishing
+</ParamField>
+</Accordion>
+<Accordion title="Maven Output">
 
-<ParamField path="groups.{groupName}.generators[].name" type="string" required={true} toc={true}>
+Publish Java SDKs to Maven repository.
+
+```yaml
+output:
+  location: maven
+  coordinate: "com.myorg:api-sdk"
+  username: "${MAVEN_USERNAME}"
+  password: "${MAVEN_PASSWORD}"
+  signature:
+    keyId: "ABC123"
+    password: "${GPG_PASSWORD}"
+    secretKey: "${GPG_SECRET_KEY}"
+```
+
+<ParamField path="location" type="'maven'" required={true}>
+Set to "maven" for Maven publishing
 </ParamField>
 
-<ParamField path="groups.{groupName}.generators[].version" type="string" required={true} toc={true}>
+<ParamField path="url" type="string" required={false} default="npmjs.com">
+Maven repository URL (optional, defaults to Maven Central)
 </ParamField>
 
-<ParamField path="groups.{groupName}.generators[].output" type="GeneratorOutputSchema" required={false} toc={true}>
+<ParamField path="coordinate" type="string" required={true}>
+Maven artifact coordinate in "groupId:artifactId" format
 </ParamField>
 
-<ParamField path="groups.{groupName}.generators[].github" type="GithubConfigurationSchema" required={false} toc={true}>
+<ParamField path="username" type="string" required={false}>
+Repository authentication username
 </ParamField>
 
-<ParamField path="groups.{groupName}.generators[].config" type="unknown" required={false} toc={true}>
+<ParamField path="password" type="string" required={false}>
+Repository authentication password
 </ParamField>
 
-<ParamField path="groups.{groupName}.generators[].metadata" type="GeneratorPublishMetadataSchema" required={false} toc={true}>
+<ParamField path="signature" type="object" required={false}>
+GPG signature configuration for package signing
 </ParamField>
 
-<ParamField path="groups.{groupName}.generators[].keywords" type="string[]" required={false} toc={true}>
+<ParamField path="signature.keyId" type="string" required={true}>
+GPG key ID for package signing
 </ParamField>
 
-<ParamField path="groups.{groupName}.generators[].snippets" type="GeneratorSnippetsSchema" required={false} toc={true}>
+<ParamField path="signature.password" type="string" required={true}>
+GPG key password
 </ParamField>
 
-<ParamField path="groups.{groupName}.generators[].ir-version" type="string" required={false} toc={true}>
+<ParamField path="signature.secretKey" type="string" required={true}>
+GPG secret key content
+</ParamField>
+</Accordion>
+<Accordion title="PyPI Output">
+
+Publish Python SDKs to Python Package Index.
+
+```yaml
+output:
+  location: pypi
+  package-name: "myorg-api-sdk"
+  token: "${PYPI_TOKEN}"
+  metadata:
+    keywords: ["api", "sdk", "client"]
+    documentation-link: "https://docs.myorg.com"
+    homepage-link: "https://myorg.com"
+```
+
+<ParamField path="location" type="'pypi'" required={true}>
+Set to "pypi" for PyPI publishing
 </ParamField>
 
-<ParamField path="groups.{groupName}.generators[].smart-casing" type="boolean" required={false} toc={true}>
+<ParamField path="url" type="string" required={false}>
+Custom PyPI registry URL (optional, defaults to PyPI)
 </ParamField>
 
-<ParamField path="groups.{groupName}.generators[].api" type="GeneratorAPISettingsSchema" required={false} toc={true}>
+<ParamField path="package-name" type="string" required={true}>
+Python package name (e.g., "myorg-api-sdk")
 </ParamField>
 
-<ParamField path="groups.{groupName}.generators[].disable-examples" type="boolean" required={false} toc={true}>
+<ParamField path="token" type="string" required={false}>
+PyPI authentication token for publishing
 </ParamField>
 
-### Output Locations
-
-#### NPM Output
-
-<ParamField path="groups.{groupName}.generators[].output.location" type="'npm'" required={true} toc={true}>
+<ParamField path="username" type="string" required={false}>
+PyPI username (alternative to token authentication)
 </ParamField>
 
-<ParamField path="groups.{groupName}.generators[].output.url" type="string" required={false} toc={true}>
+<ParamField path="password" type="string" required={false}>
+PyPI password (alternative to token authentication)
 </ParamField>
 
-<ParamField path="groups.{groupName}.generators[].output.package-name" type="string" required={true} toc={true}>
+<ParamField path="metadata" type="objecta" required={false}>
+Additional PyPI-specific metadata for the package
 </ParamField>
 
-<ParamField path="groups.{groupName}.generators[].output.token" type="string" required={false} toc={true}>
+<ParamField path="metadata.keywords" type="string[]" required={false}>
+Package keywords for PyPI search and discovery
 </ParamField>
 
-#### Maven Output
-
-<ParamField path="groups.{groupName}.generators[].output.location" type="'maven'" required={true} toc={true}>
+<ParamField path="metadata.documentation-link" type="string" required={false}>
+Link to package documentation
 </ParamField>
 
-<ParamField path="groups.{groupName}.generators[].output.url" type="string" required={false} toc={true}>
+<ParamField path="metadata.homepage-link" type="string" required={false}>
+Link to project homepage
+</ParamField>
+</Accordion>
+
+<Accordion title="NuGet Output">
+
+Publish .NET SDKs to NuGet repository.
+
+```yaml
+output:
+  location: nuget
+  package-name: "MyOrg.ApiSdk"
+  api-key: "${NUGET_API_KEY}"
+```
+
+<ParamField path="location" type="'nuget'" required={true}>
+Set to "nuget" for NuGet publishing
 </ParamField>
 
-<ParamField path="groups.{groupName}.generators[].output.coordinate" type="string" required={true} toc={true}>
+<ParamField path="url" type="string" required={false}>
+Custom NuGet feed URL (optional, defaults to nuget.org)
 </ParamField>
 
-<ParamField path="groups.{groupName}.generators[].output.username" type="string" required={false} toc={true}>
+<ParamField path="package-name" type="string" required={true}>
+NuGet package name (e.g., "MyOrg.ApiSdk")
 </ParamField>
 
-<ParamField path="groups.{groupName}.generators[].output.password" type="string" required={false} toc={true}>
+<ParamField path="api-key" type="string" required={false}>
+NuGet API key for publishing to the feed
+</ParamField>
+</Accordion>
+<Accordion title="RubyGems Output">
+
+Publish Ruby SDKs to RubyGems registry.
+
+```yaml
+output:
+  location: rubygems
+  package-name: "myorg_api_sdk"
+  api-key: "${RUBYGEMS_API_KEY}"
+```
+
+<ParamField path="location" type="'rubygems'" required={true}>
+Set to "rubygems" for RubyGems publishing
 </ParamField>
 
-<ParamField path="groups.{groupName}.generators[].output.signature" type="MavenOutputSignatureSchema" required={false} toc={true}>
+<ParamField path="url" type="string" required={false}>
+Custom RubyGems registry URL (optional, defaults to rubygems.org)
 </ParamField>
 
-<ParamField path="groups.{groupName}.generators[].output.signature.keyId" type="string" required={true} toc={true}>
+<ParamField path="package-name" type="string" required={true}>
+Ruby gem package name (e.g., "myorg_api_sdk")
 </ParamField>
 
-<ParamField path="groups.{groupName}.generators[].output.signature.password" type="string" required={true} toc={true}>
+<ParamField path="api-key" type="string" required={false}>
+RubyGems API key for publishing (requires "Push rubygem" permission)
 </ParamField>
 
-<ParamField path="groups.{groupName}.generators[].output.signature.secretKey" type="string" required={true} toc={true}>
+> **Note**: RubyGems API keys need "Push rubygem" permission and ideally "index" and "yank rubygem" permissions. If MFA is enabled, ensure MFA settings don't require MFA for API key usage.
+</Accordion>
+<Accordion title="Postman Output">
+
+Publish API collections to Postman workspace.
+
+```yaml
+output:
+  location: postman
+  api-key: "${POSTMAN_API_KEY}"
+  workspace-id: "12345678-1234-1234-1234-123456789abc"
+  collection-id: "87654321-4321-4321-4321-cba987654321"
+```
+
+<ParamField path="location" type="'postman'" required={true}>
+Set to "postman" for Postman publishing
 </ParamField>
 
-#### PyPI Output
-
-<ParamField path="groups.{groupName}.generators[].output.location" type="'pypi'" required={true} toc={true}>
+<ParamField path="api-key" type="string" required={true}>
+Postman API key for workspace access
 </ParamField>
 
-<ParamField path="groups.{groupName}.generators[].output.url" type="string" required={false} toc={true}>
+<ParamField path="workspace-id" type="string" required={true}>
+Target Postman workspace ID where collection will be published
 </ParamField>
 
-<ParamField path="groups.{groupName}.generators[].output.package-name" type="string" required={true} toc={true}>
+<ParamField path="collection-id" type="string" required={false}>
+Existing collection ID to update (creates new collection if not specified)
+</ParamField>
+</Accordion>
+<Accordion title="Local File System Output">
+
+Save generated SDKs to local file system instead of publishing.
+
+```yaml
+output:
+  location: local-file-system
+  path: "./generated-sdks/typescript"
+```
+
+<ParamField path="location" type="'local-file-system'" required={true}>
+Set to "local-file-system" for local output
 </ParamField>
 
-<ParamField path="groups.{groupName}.generators[].output.token" type="string" required={false} toc={true}>
+<ParamField path="path" type="string" required={true}>
+Local directory path where generated files will be saved
 </ParamField>
+</Accordion>
+</AccordionGroup>
 
-<ParamField path="groups.{groupName}.generators[].output.username" type="string" required={false} toc={true}>
-</ParamField>
-
-<ParamField path="groups.{groupName}.generators[].output.password" type="string" required={false} toc={true}>
-</ParamField>
-
-<ParamField path="groups.{groupName}.generators[].output.metadata" type="PypiOutputMetadataSchema" required={false} toc={true}>
-</ParamField>
-
-<ParamField path="groups.{groupName}.generators[].output.metadata.keywords" type="string[]" required={false} toc={true}>
-</ParamField>
-
-<ParamField path="groups.{groupName}.generators[].output.metadata.documentation-link" type="string" required={false} toc={true}>
-</ParamField>
-
-<ParamField path="groups.{groupName}.generators[].output.metadata.homepage-link" type="string" required={false} toc={true}>
-</ParamField>
-
-#### NuGet Output
-
-<ParamField path="groups.{groupName}.generators[].output.location" type="'nuget'" required={true} toc={true}>
-</ParamField>
-
-<ParamField path="groups.{groupName}.generators[].output.url" type="string" required={false} toc={true}>
-</ParamField>
-
-<ParamField path="groups.{groupName}.generators[].output.package-name" type="string" required={true} toc={true}>
-</ParamField>
-
-<ParamField path="groups.{groupName}.generators[].output.api-key" type="string" required={false} toc={true}>
-</ParamField>
-
-#### RubyGems Output
-
-<ParamField path="groups.{groupName}.generators[].output.location" type="'rubygems'" required={true} toc={true}>
-</ParamField>
-
-<ParamField path="groups.{groupName}.generators[].output.url" type="string" required={false} toc={true}>
-</ParamField>
-
-<ParamField path="groups.{groupName}.generators[].output.package-name" type="string" required={true} toc={true}>
-</ParamField>
-
-<ParamField path="groups.{groupName}.generators[].output.api-key" type="string" required={false} toc={true}>
-</ParamField>
-
-#### Postman Output
-
-<ParamField path="groups.{groupName}.generators[].output.location" type="'postman'" required={true} toc={true}>
-</ParamField>
-
-<ParamField path="groups.{groupName}.generators[].output.api-key" type="string" required={true} toc={true}>
-</ParamField>
-
-<ParamField path="groups.{groupName}.generators[].output.workspace-id" type="string" required={true} toc={true}>
-</ParamField>
-
-<ParamField path="groups.{groupName}.generators[].output.collection-id" type="string" required={false} toc={true}>
-</ParamField>
-
-#### Local File System Output
-
-<ParamField path="groups.{groupName}.generators[].output.location" type="'local-file-system'" required={true} toc={true}>
-</ParamField>
-
-<ParamField path="groups.{groupName}.generators[].output.path" type="string" required={true} toc={true}>
-</ParamField>
-
-### GitHub Configuration
+#### github
 
 Specify how your SDKs are generated in GitHub using the `github` configuration.
 Designate the `mode` to specifiy how Fern handles your code changes. For all of the
@@ -741,8 +824,8 @@ SDK code. You can also configure a branch name, license, and reviewers.
 
 <Note>Make sure the [Fern GitHub app](https://github.com/apps/fern-api) is installed on your destination repository</Note>
 
-
-#### Release (recommended)
+<AccordionGroup>
+<Accordion title="Release (recommended)">
 
 Fern generates your code, commits it to main, and tags a new release.
 
@@ -772,8 +855,8 @@ groups:
 <ParamField path="reviewers" type="{ teams: list<string>, users: list<string> }" required={false} toc={true}>
 Specify which teams and users should review generated code. See [reviewers configuration](#reviewers-1).
 </ParamField>
-
-#### Pull request
+</Accordion>
+<Accordion title="Pull request">
 
 Fern generates your code, commits to a new branch, and opens a PR for review. To publish, you must merge the PR and tag a GitHub release. 
 
@@ -803,8 +886,8 @@ groups:
 <ParamField path="reviewers" type="{ teams: list<string>, users: list<string> }" required={false} toc={true}>
 Specify which teams and users should review generated code. See [reviewers configuration](#reviewers-1).
 </ParamField>
-
-#### Push
+</Accordion>
+<Accordion title="Push">
 
 Fern generates your code and pushes it to the branch you specify. 
 
@@ -834,8 +917,10 @@ groups:
 <ParamField path="reviewers" type="{ teams: list<string>, users: list<string> }" required={false} toc={true}>
 Specify which teams and users should review generated code. See [reviewers configuration](#reviewers-1).
 </ParamField>
+</Accordion>
+</AccordionGroup>
 
-### Generator Metadata
+#### metadata
 
 Specify metadata for your SDK generator.
 
@@ -872,7 +957,7 @@ Name of the individual developer, team, or organization that created and maintai
 Software license for the generated SDK.
 </ParamField>
 
-### Snippets Configuration
+#### snippets
 
 Configures snippets for a particular generator.
 
@@ -896,7 +981,8 @@ Override authentication settings in your API spec using the `api` configuration.
 You can specify authentication schemes, reference existing auth configurations,
 and set additional API-specific settings.
 
-#### Single Authentication Scheme
+<AccordionGroup>
+<Accordion title="Single Authentication Scheme">
 
 Reference a pre-defined authentication scheme by name.
 
@@ -913,8 +999,8 @@ groups:
 <ParamField path="auth" type="string | { scheme: string }" required={false} toc={true}>
 The authentication scheme to use. Can be either a string reference (`"bearer-token"`) or scheme object (`scheme: "bearer-token"`).
 </ParamField>
-
-#### Multiple Authentication Options
+</Accordion>
+<Accordion title="Multiple Authentication Options">
 
 Allow users to authenticate with any of several methods:
 
@@ -935,9 +1021,9 @@ groups:
 <ParamField path="any" type="list<string | { scheme: string }>" required={true} toc={true}>
 A list of authentication schemes where users can choose any one method. Each item can be either a string reference (`"api-key"`) or scheme object (`scheme: "api-key"`).
 </ParamField>
+</Accordion>
 
-
-#### Custom Authentication Schemes
+<Accordion title="Custom Authentication Schemes">
 
 Define a custom authentication schemes using `auth-schemes`. You define a name for your custom scheme, and then specify the authentication method (`header`, `basic`, `bearer`, or `oauth`).
 
@@ -988,27 +1074,11 @@ groups:
 </Accordion>
 </AccordionGroup>
 
-## reviewers
-Who should review generated code.
+</Accordion>
+</AccordionGroup>
 
-```yaml
-reviewers:
-  teams:
-    - name: "sdk-team"
-    - name: "api-team"
-  users:
-    - name: "john-doe"
-    - name: "jane-smith"
-```
+### reviewers
 
-<ParamField path="teams" type="list<string>" required={false} toc={true}>
-  GitHub team names that should review generated code.
-</ParamField>
+Who should review generated code for all groups.
 
-<ParamField path="users" type="list<string>" required={false} toc={true}>
-  GitHub users that should review generated code.
-</ParamField>
-
-<ParamField path="name" type="string" required={true} toc={true}>
-Name of a GitHub team or a user.
-</ParamField>
+<Markdown src="/products/sdks/snippets/reviewers-params.mdx" />
