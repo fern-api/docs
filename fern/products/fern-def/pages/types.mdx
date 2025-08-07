@@ -279,3 +279,293 @@ interface Person {
 }
 ```
 </CodeBlock>
+### Validation
+
+You can add validation constraints to your types to ensure data integrity and provide better error messages in generated SDKs. You can add validation rules to both type aliases and type references.
+
+### String validation
+
+String types support several validation constraints:
+
+<ParamField path="minLength" type="integer">
+  Minimum number of characters required
+</ParamField>
+
+<ParamField path="maxLength" type="integer">
+  Maximum number of characters allowed
+</ParamField>
+
+<ParamField path="pattern" type="string">
+  Regular expression pattern that the string must match
+</ParamField>
+
+<ParamField path="format" type="string">
+  String format specification (e.g., "email", "uri", "date-time")
+</ParamField>
+
+#### Example: String validation on type alias
+
+```yaml
+types:
+  Email:
+    type: string
+    validation:
+      format: email
+      maxLength: 254
+
+  Username:
+    type: string
+    validation:
+      minLength: 3
+      maxLength: 20
+      pattern: "^[a-zA-Z0-9_]+$"
+
+  PhoneNumber:
+    type: string
+    validation:
+      pattern: "^\\+?[1-9]\\d{1,14}$"
+```
+
+#### Example: String validation on object properties
+
+```yaml
+types:
+  User:
+    properties:
+      email:
+        type: string
+        validation:
+          format: email
+          maxLength: 254
+      username:
+        type: string
+        validation:
+          minLength: 3
+          maxLength: 20
+          pattern: "^[a-zA-Z0-9_]+$"
+      bio:
+        type: optional<string>
+        validation:
+          maxLength: 500
+```
+
+### Number validation
+
+Number types (including `integer`, `long`, and `double`) support validation constraints:
+
+<ParamField path="min" type="number">
+  Minimum value (inclusive by default)
+</ParamField>
+
+<ParamField path="max" type="number">
+  Maximum value (inclusive by default)
+</ParamField>
+
+<ParamField path="exclusiveMin" type="boolean">
+  When true, the minimum value is exclusive (value must be greater than min)
+</ParamField>
+
+<ParamField path="exclusiveMax" type="boolean">
+  When true, the maximum value is exclusive (value must be less than max)
+</ParamField>
+
+<ParamField path="multipleOf" type="number">
+  Value must be a multiple of this number
+</ParamField>
+
+#### Example: Number validation on type alias
+
+```yaml
+types:
+  Age:
+    type: integer
+    validation:
+      min: 0
+      max: 150
+```
+  Price:
+    type: double
+    validation:
+      min: 0
+      exclusiveMin: true  # Price must be greater than 0
+      multipleOf: 0.01    # Price must be in cents
+
+  Percentage:
+    type: double
+    validation:
+      min: 0
+      max: 100
+```
+
+#### Example: Number validation on object properties
+
+```yaml
+types:
+  Product:
+    properties:
+      name: string
+      price:
+        type: double
+        validation:
+          min: 0
+          exclusiveMin: true
+          multipleOf: 0.01
+      quantity:
+        type: integer
+        validation:
+          min: 1
+          max: 1000
+      discount:
+        type: optional<double>
+        validation:
+          min: 0
+          max: 100
+```
+
+### Validation in generated SDKs
+
+When you add validation constraints to your Fern Definition, they are automatically enforced in generated SDKs:
+
+<CodeBlocks>
+```python title="Python SDK"
+from your_api import YourApiClient
+from your_api.errors import ValidationError
+
+client = YourApiClient(api_key="your-api-key")
+
+try:
+    # This will raise a ValidationError
+    user = client.users.create(
+        email="invalid-email",  # Fails email format validation
+        username="ab",          # Fails minLength validation
+        age=-5                  # Fails min value validation
+    )
+except ValidationError as e:
+    print(f"Validation failed: {e}")
+```
+
+```typescript title="TypeScript SDK"
+import { YourApiClient, ValidationError } from "your-api-sdk";
+
+const client = new YourApiClient({
+  apiKey: "your-api-key"
+});
+
+try {
+  // This will throw a ValidationError
+  const user = await client.users.create({
+    email: "invalid-email",  // Fails email format validation
+    username: "ab",          // Fails minLength validation
+    age: -5                  // Fails min value validation
+  });
+} catch (error) {
+  if (error instanceof ValidationError) {
+    console.log(`Validation failed: ${error.message}`);
+  }
+}
+```
+
+```java title="Java SDK"
+import com.yourapi.YourApiClient;
+import com.yourapi.core.ValidationException;
+
+YourApiClient client = YourApiClient.builder()
+    .apiKey("your-api-key")
+    .build();
+
+try {
+    // This will throw a ValidationException
+    User user = client.users().create(CreateUserRequest.builder()
+        .email("invalid-email")  // Fails email format validation
+        .username("ab")          // Fails minLength validation
+        .age(-5)                 // Fails min value validation
+        .build());
+} catch (ValidationException e) {
+    System.out.println("Validation failed: " + e.getMessage());
+}
+```
+</CodeBlocks>
+
+### Best practices
+
+<Tip>
+  **Use validation to improve API reliability**: Validation constraints help catch errors early and provide clear feedback to API consumers.
+</Tip>
+
+<Tip>
+  **Be consistent with formats**: Use standard format values like "email", "uri", "date-time" for better interoperability.
+</Tip>
+
+<Tip>
+  **Document your patterns**: When using regex patterns, consider adding documentation to explain the expected format.
+</Tip>
+
+```yaml
+types:
+  ProductCode:
+    docs: Product code must be 3 uppercase letters followed by 4 digits (e.g., ABC1234)
+    type: string
+    validation:
+      pattern: "^[A-Z]{3}\\d{4}$"
+```
+
+<Warning>
+  **Regex escaping**: Remember to properly escape backslashes in YAML strings. Use `\\d` instead of `\d` for digit patterns.
+</Warning>
+
+### Common validation patterns
+
+Here are some commonly used validation patterns:
+
+```yaml
+types:
+  # Email validation
+  Email:
+    type: string
+    validation:
+      format: email
+      maxLength: 254
+
+  # URL validation
+  WebsiteUrl:
+    type: string
+    validation:
+      format: uri
+      pattern: "^https?://"
+
+  # Phone number (international format)
+  PhoneNumber:
+    type: string
+    validation:
+      pattern: "^\\+?[1-9]\\d{1,14}$"
+
+  # Credit card number (basic format)
+  CreditCardNumber:
+    type: string
+    validation:
+      pattern: "^\\d{13,19}$"
+      minLength: 13
+      maxLength: 19
+
+  # Positive currency amount
+  Amount:
+    type: double
+    validation:
+      min: 0
+      exclusiveMin: true
+      multipleOf: 0.01
+
+  # Percentage (0-100)
+  Percentage:
+    type: double
+    validation:
+      min: 0
+      max: 100
+
+  # Port number
+  Port:
+    type: integer
+    validation:
+      min: 1
+      max: 65535
+```
