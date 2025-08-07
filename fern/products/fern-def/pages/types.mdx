@@ -282,19 +282,56 @@ interface Person {
 
 ### Validating types
 
-You can add validation constraints to your types (both aliases and references) to ensure data integrity and provide better error messages in generated SDKs:
+You can add validation constraints to your types (both aliases and references) to ensure data integrity. Validation constracts are automatically enforced in generated SDKs.
 
-```yaml {4-6}
+<CodeBlock title="Fern Definition">
+```yaml {8-11, 15-17}
 types:
-  Sentence:
-    type: string
-    validation:
-      minLength: 4
-      maxLength: 256
+  Person:
+    docs: A person represents a human being
+    properties:
+      name:
+        docs: The person's full name
+        type: string
+        validation:
+          minLength: 2
+          maxLength: 100
+          pattern: "^[A-Za-z ]+$"
+      age:
+        docs: Age in years
+        type: integer
+        validation:
+          min: 0
+          max: 150
 ```
+</CodeBlock>
+<CodeBlock title="Generated TypeScript SDK from Fern Definition">
+
+```typescript
+interface Person {
+  /** The person's full name */
+  name: string;
+  /** Age in years */
+  age: number;
+}
+
+// Validation is automatically enforced when creating Person objects
+const client = new YourApiClient();
+try {
+  const person = await client.createPerson({
+    name: "A",           // Fails minLength validation
+    age: -5,             // Fails min validation
+  });
+} catch (error) {
+  if (error instanceof ValidationError) {
+    console.log(`Validation failed: ${error.message}`);
+  }
+}
+```
+</CodeBlock>
 
 <AccordionGroup>
-<Accordion title="String validation">
+<Accordion title="String validation reference">
 
 String types support several validation constraints.
 
@@ -338,7 +375,7 @@ types:
 
 </Accordion>
 
-<Accordion title="Number validation">
+<Accordion title="Number validation reference">
 
 Number types (including `integer`, `long`, and `double`) support several validation constraints.
 
@@ -388,51 +425,4 @@ types:
 </Accordion>
 </AccordionGroup>
 
-#### Validation in generated SDKs
 
-When you add validation constraints to your Fern Definition, they are automatically enforced in generated SDKs:
-
-<CodeBlock title="Fern Definition">
-```yaml {8-11, 15-17}
-types:
-  Person:
-    docs: A person represents a human being
-    properties:
-      name:
-        docs: The person's full name
-        type: string
-        validation:
-          minLength: 2
-          maxLength: 100
-          pattern: "^[A-Za-z ]+$"
-      age:
-        docs: Age in years
-        type: integer
-        validation:
-          min: 0
-          max: 150
-```
-</CodeBlock>
-<CodeBlock title="Generated TypeScript SDK from Fern Definition">
-```typescript
-interface Person {
-  /** The person's full name */
-  name: string;
-  /** Age in years */
-  age: number;
-}
-
-// Validation is automatically enforced when creating Person objects
-const client = new YourApiClient();
-try {
-  const person = await client.createPerson({
-    name: "A",           // Fails minLength validation
-    age: -5,             // Fails min validation
-  });
-} catch (error) {
-  if (error instanceof ValidationError) {
-    console.log(`Validation failed: ${error.message}`);
-  }
-}
-```
-</CodeBlock>
