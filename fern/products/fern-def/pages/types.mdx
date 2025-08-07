@@ -279,13 +279,46 @@ interface Person {
 }
 ```
 </CodeBlock>
-### Validation
 
-You can add validation constraints to your types to ensure data integrity and provide better error messages in generated SDKs. You can add validation rules to both type aliases and type references.
+### Validating types
 
-### String validation
+You can add validation constraints to your types (both aliases and references) to ensure data integrity and provide better error messages in generated SDKs:
 
-String types support several validation constraints:
+```yaml {4-6}
+types:
+  Sentence:
+    type: string
+    validation:
+      minLength: 4
+      maxLength: 256
+```
+
+<AccordionGroup>
+<Accordion title="String validation">
+
+String types support several validation constraints.
+
+```yaml {4-6, 11-13, 16-19}
+types:
+  Word:
+    type: string
+    validation:
+      minLength: 2
+      maxLength: 26
+  User:
+    properties:
+      email:
+        type: string
+        validation:
+          format: email
+          maxLength: 254
+      username:
+        type: string
+        validation:
+          minLength: 3
+          maxLength: 20
+          pattern: "^[a-zA-Z0-9_]+$"
+```
 
 <ParamField path="minLength" type="integer">
   Minimum number of characters required
@@ -303,55 +336,34 @@ String types support several validation constraints:
   String format specification (e.g., "email", "uri", "date-time")
 </ParamField>
 
-#### Example: String validation on type alias
+</Accordion>
 
-```yaml
+<Accordion title="Number validation">
+
+Number types (including `integer`, `long`, and `double`) support several validation constraints.
+
+```yaml {4-6, 12-15, 18-20}
 types:
-  Email:
-    type: string
+  Age:
+    type: integer
     validation:
-      format: email
-      maxLength: 254
-
-  Username:
-    type: string
-    validation:
-      minLength: 3
-      maxLength: 20
-      pattern: "^[a-zA-Z0-9_]+$"
-
-  PhoneNumber:
-    type: string
-    validation:
-      pattern: "^\\+?[1-9]\\d{1,14}$"
-```
-
-#### Example: String validation on object properties
-
-```yaml
-types:
-  User:
+      min: 0
+      max: 150
+  Product:
     properties:
-      email:
-        type: string
+      name: string
+      price:
+        type: double
         validation:
-          format: email
-          maxLength: 254
-      username:
-        type: string
+          min: 0
+          exclusiveMin: true
+          multipleOf: 0.01
+      quantity:
+        type: integer
         validation:
-          minLength: 3
-          maxLength: 20
-          pattern: "^[a-zA-Z0-9_]+$"
-      bio:
-        type: optional<string>
-        validation:
-          maxLength: 500
+          min: 1
+          max: 1000
 ```
-
-### Number validation
-
-Number types (including `integer`, `long`, and `double`) support validation constraints:
 
 <ParamField path="min" type="number">
   Minimum value (inclusive by default)
@@ -373,90 +385,49 @@ Number types (including `integer`, `long`, and `double`) support validation cons
   Value must be a multiple of this number
 </ParamField>
 
-#### Example: Number validation on type alias
+</Accordion>
+</AccordionGroup>
 
-```yaml
-types:
-  Age:
-    type: integer
-    validation:
-      min: 0
-      max: 150
-```
-  Price:
-    type: double
-    validation:
-      min: 0
-      exclusiveMin: true  # Price must be greater than 0
-      multipleOf: 0.01    # Price must be in cents
-
-  Percentage:
-    type: double
-    validation:
-      min: 0
-      max: 100
-```
-
-#### Example: Number validation on object properties
-
-```yaml
-types:
-  Product:
-    properties:
-      name: string
-      price:
-        type: double
-        validation:
-          min: 0
-          exclusiveMin: true
-          multipleOf: 0.01
-      quantity:
-        type: integer
-        validation:
-          min: 1
-          max: 1000
-      discount:
-        type: optional<double>
-        validation:
-          min: 0
-          max: 100
-```
-
-### Validation in generated SDKs
+#### Validation in generated SDKs
 
 When you add validation constraints to your Fern Definition, they are automatically enforced in generated SDKs:
 
-<CodeBlocks>
-```python title="Python SDK"
-from your_api import YourApiClient
-from your_api.errors import ValidationError
-
-client = YourApiClient(api_key="your-api-key")
-
-try:
-    # This will raise a ValidationError
-    user = client.users.create(
-        email="invalid-email",  # Fails email format validation
-        username="ab",          # Fails minLength validation
-        age=-5                  # Fails min value validation
-    )
-except ValidationError as e:
-    print(f"Validation failed: {e}")
+<CodeBlock title="Fern Definition">
+```yaml {8-11, 15-17}
+types:
+  Person:
+    docs: A person represents a human being
+    properties:
+      name:
+        docs: The person's full name
+        type: string
+        validation:
+          minLength: 2
+          maxLength: 100
+          pattern: "^[A-Za-z ]+$"
+      age:
+        docs: Age in years
+        type: integer
+        validation:
+          min: 0
+          max: 150
 ```
+</CodeBlock>
+<CodeBlock title="Generated TypeScript SDK from Fern Definition">
+```typescript
+interface Person {
+  /** The person's full name */
+  name: string;
+  /** Age in years */
+  age: number;
+}
 
-```typescript title="TypeScript SDK"
-import { YourApiClient, ValidationError } from "your-api-sdk";
-
-const client = new YourApiClient({
-  apiKey: "your-api-key"
-});
-
+// Validation is automatically enforced when creating Person objects
+const client = new YourApiClient();
 try {
-  // This will throw a ValidationError
-  const user = await client.users.create({
-    email: "invalid-email",  // Fails email format validation
-    username: "ab",          // Fails minLength validation
-    age: -5                  // Fails min value validation
+  const person = await client.createPerson({
+    name: "A",           // Fails minLength validation
+    age: -5,             // Fails min validation
   });
 } catch (error) {
   if (error instanceof ValidationError) {
@@ -464,108 +435,4 @@ try {
   }
 }
 ```
-
-```java title="Java SDK"
-import com.yourapi.YourApiClient;
-import com.yourapi.core.ValidationException;
-
-YourApiClient client = YourApiClient.builder()
-    .apiKey("your-api-key")
-    .build();
-
-try {
-    // This will throw a ValidationException
-    User user = client.users().create(CreateUserRequest.builder()
-        .email("invalid-email")  // Fails email format validation
-        .username("ab")          // Fails minLength validation
-        .age(-5)                 // Fails min value validation
-        .build());
-} catch (ValidationException e) {
-    System.out.println("Validation failed: " + e.getMessage());
-}
-```
-</CodeBlocks>
-
-### Best practices
-
-<Tip>
-  **Use validation to improve API reliability**: Validation constraints help catch errors early and provide clear feedback to API consumers.
-</Tip>
-
-<Tip>
-  **Be consistent with formats**: Use standard format values like "email", "uri", "date-time" for better interoperability.
-</Tip>
-
-<Tip>
-  **Document your patterns**: When using regex patterns, consider adding documentation to explain the expected format.
-</Tip>
-
-```yaml
-types:
-  ProductCode:
-    docs: Product code must be 3 uppercase letters followed by 4 digits (e.g., ABC1234)
-    type: string
-    validation:
-      pattern: "^[A-Z]{3}\\d{4}$"
-```
-
-<Warning>
-  **Regex escaping**: Remember to properly escape backslashes in YAML strings. Use `\\d` instead of `\d` for digit patterns.
-</Warning>
-
-### Common validation patterns
-
-Here are some commonly used validation patterns:
-
-```yaml
-types:
-  # Email validation
-  Email:
-    type: string
-    validation:
-      format: email
-      maxLength: 254
-
-  # URL validation
-  WebsiteUrl:
-    type: string
-    validation:
-      format: uri
-      pattern: "^https?://"
-
-  # Phone number (international format)
-  PhoneNumber:
-    type: string
-    validation:
-      pattern: "^\\+?[1-9]\\d{1,14}$"
-
-  # Credit card number (basic format)
-  CreditCardNumber:
-    type: string
-    validation:
-      pattern: "^\\d{13,19}$"
-      minLength: 13
-      maxLength: 19
-
-  # Positive currency amount
-  Amount:
-    type: double
-    validation:
-      min: 0
-      exclusiveMin: true
-      multipleOf: 0.01
-
-  # Percentage (0-100)
-  Percentage:
-    type: double
-    validation:
-      min: 0
-      max: 100
-
-  # Port number
-  Port:
-    type: integer
-    validation:
-      min: 1
-      max: 65535
-```
+</CodeBlock>
