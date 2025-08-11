@@ -3,7 +3,7 @@ title: Authentication
 subtitle: Model auth schemes such as bearer, basic, custom headers, and oauth. 
 ---
 
-Configuring authentication schemes happens in the `api.yml` file. 
+Configuring authentication schemes happens in the `api.yml` file. All Fern-generated SDKs support both direct configuration and environment variables for authentication credentials.
 
 ```bash {5}
 fern/
@@ -32,7 +32,33 @@ auth-schemes:
 ```
 </Note>
 
-## Bearer authentication
+## Environment Variables Support
+
+All authentication schemes in Fern support environment variables through the `env` property. This allows your SDK users to configure authentication using environment variables instead of hard-coding credentials.
+
+For example, to configure an API key to be read from an environment variable:
+
+```yaml title="api.yml"
+auth-schemes:
+  ApiKeyAuth:
+    header: X-API-Key
+    type: string
+    env: MY_API_KEY  # SDK will check for this environment variable
+```
+
+The SDK will automatically check for the specified environment variable before requiring explicit configuration:
+
+```typescript
+// Uses process.env.MY_API_KEY if available
+const client = new Client();
+
+// Or explicitly provide the key
+const client = new Client({
+  xApiKey: "your-api-key"
+});
+```
+
+## Bearer Authentication
 
 Start by defining a `Bearer` authentication scheme in `api.yml`: 
 
@@ -68,7 +94,6 @@ auth-schemes:
 The generated SDK would look like: 
 
 ```ts index.ts
-
 // Uses process.env.PLANTSTORE_API_KEY
 let client = new Client(); 
 
@@ -78,7 +103,7 @@ client = new Client({
 })
 ```
 
-## Basic authentication
+## Basic Authentication
 
 Start by defining a `Basic` authentication scheme in `api.yml`: 
 
@@ -90,11 +115,11 @@ auth-schemes:
 ```
 
 This will generate an SDK where the user would have to provide 
-a mandatory arguments called `username` and `password`. 
+mandatory arguments called `username` and `password`. 
 
 ```ts index.ts
 const client = new Client({
-  username: "joeschmoe"
+  username: "joeschmoe",
   password: "ey34..."
 })
 ```
@@ -118,7 +143,6 @@ auth-schemes:
 The generated SDK would look like: 
 
 ```ts index.ts
-
 // Uses process.env.PLANTSTORE_CLIENT_ID and process.env.PLANTSTORE_CLIENT_SECRET
 let client = new Client(); 
 
@@ -129,7 +153,7 @@ client = new Client({
 })
 ```
 
-## Custom header (e.g. API key)
+## Custom Header (e.g. API Key)
 
 You can also create your own authentication scheme with customized headers. 
 
@@ -166,7 +190,6 @@ auth-schemes:
 The generated SDK would look like: 
 
 ```ts index.ts
-
 // Uses process.env.PLANTSTORE_API_KEY
 let client = new Client(); 
 
@@ -176,7 +199,7 @@ client = new Client({
 })
 ```
 
-## OAuth client credentials
+## OAuth Client Credentials
 
 If your API uses OAuth, you can specify an oauth scheme. Note that you'll need to define a token retrieval endpoint. 
 
@@ -198,7 +221,6 @@ auth-schemes:
       response-properties:
         access-token: $response.access_token 
         expires-in: $response.expires_in    
-
 ```
 
 If the `expires-in` property is set, the generated OAuth token provider will automatically refresh the token when it expires.
