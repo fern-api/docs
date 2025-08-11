@@ -1,9 +1,13 @@
 ---
 title: Authentication
-subtitle: Model auth schemes such as bearer, basic, and api key. 
+subtitle: Model auth schemes such as bearer, basic, and api key with environment variable support
 ---
 
-Configuring authentication schemes happens in the `components.securitySchemes` section of OpenAPI. 
+Configuring authentication schemes in your OpenAPI definition allows you to control how users authenticate with your API. All Fern-generated SDKs support both direct configuration and environment variables for authentication credentials.
+
+## Authentication Methods Overview
+
+Authentication is configured in the `components.securitySchemes` section of your OpenAPI spec:
 
 ```yml title="openapi.yml" {2-3}
 components: 
@@ -24,31 +28,24 @@ security:
 ```
 </Note>
 
+## Environment Variable Support
+
+All authentication methods in Fern-generated SDKs support environment variables by default. You can:
+
+1. Configure custom environment variable names
+2. Fall back to direct configuration when environment variables aren't present
+3. Override environment variables with direct configuration
+
+This flexibility allows your SDK users to:
+- Use environment variables in production
+- Hard-code credentials in development
+- Mix and match as needed
+
 ## Bearer security scheme
 
 Start by defining a `bearer` security scheme in your `openapi.yml`: 
 
-```yml title="openapi.yml" {3-5}
-components:
-  securitySchemes:
-    BearerAuth:
-      type: http
-      scheme: bearer
-```
-
-This will generate an SDK where the user would have to provide 
-a mandatory argument called `token`. 
-
-```ts index.ts
-const client = new Client({
-  token: "ey34..."
-})
-```
-
-If you want to control variable naming and the environment variable to scan, 
-use the configuration below: 
-
-```yaml title="openapi.yml" {6-8}
+```yml title="openapi.yml" {3-8}
 components:
   securitySchemes:
     BearerAuth:
@@ -59,14 +56,13 @@ components:
         env: PLANTSTORE_API_KEY
 ```
 
-The generated SDK would look like: 
+SDK users can authenticate using either approach:
 
 ```ts index.ts
-
-// Uses process.env.PLANTSTORE_API_KEY
+// Option 1: Use environment variable PLANTSTORE_API_KEY
 let client = new Client(); 
 
-// token has been renamed to apiKey
+// Option 2: Direct configuration (overrides environment variable)
 client = new Client({
   apiKey: "ey34..."
 })
@@ -74,30 +70,9 @@ client = new Client({
 
 ## Basic security scheme
 
-Start by defining a `basic` security scheme in your `openapi.yml`: 
+Define a `basic` security scheme with environment variable support: 
 
-```yaml title="openapi.yml" {3-5}
-components:
-  securitySchemes:
-    BasicAuth:
-      type: http
-      scheme: basic
-```
-
-This will generate an SDK where the user would have to provide 
-a mandatory arguments called `username` and `password`. 
-
-```ts index.ts
-const client = new Client({
-  username: "joeschmoe"
-  password: "ey34..."
-})
-```
-
-If you want to control variable naming and environment variables to scan, 
-use the configuration below: 
-
-```yaml title="openapi.yml" {6-12}
+```yaml title="openapi.yml" {3-12}
 components:
   securitySchemes:
     BasicAuth:
@@ -112,14 +87,13 @@ components:
           env: PLANTSTORE_CLIENT_SECRET
 ```
 
-The generated SDK would look like: 
+SDK users can authenticate using either approach:
 
 ```ts index.ts
-
-// Uses process.env.PLANTSTORE_CLIENT_ID and process.env.PLANTSTORE_CLIENT_SECRET
+// Option 1: Use environment variables PLANTSTORE_CLIENT_ID and PLANTSTORE_CLIENT_SECRET
 let client = new Client(); 
 
-// parameters have been renamed
+// Option 2: Direct configuration (overrides environment variables)
 client = new Client({
   clientId: "joeschmoe", 
   clientSecret: "ey34..."
@@ -128,30 +102,9 @@ client = new Client({
 
 ## ApiKey security scheme
 
-Start by defining an `apiKey` security scheme in your `openapi.yml`: 
+Define an `apiKey` security scheme with environment variable support:
 
-```yml title="openapi.yml" {3-5}
-components: 
-  securitySchemes: 
-    ApiKey: 
-      type: apiKey
-      in: header
-      name: X_API_KEY
-```
-
-This will generate an SDK where the user would have to provide 
-a mandatory argument called `apiKey`. 
-
-```ts index.ts
-const client = new Client({
-  apiKey: "ey34..."
-})
-```
-
-If you want to control variable naming and environment variables to scan, 
-use the configuration below: 
-
-```yaml title="openapi.yml" {7-10}
+```yaml title="openapi.yml" {3-10}
 components: 
   securitySchemes: 
     ApiKey: 
@@ -164,14 +117,13 @@ components:
         prefix: "Token " # Optional      
 ```
 
-The generated SDK would look like: 
+SDK users can authenticate using either approach:
 
 ```ts index.ts
-
-// Uses process.env.PLANTSTORE_API_KEY
+// Option 1: Use environment variable PLANTSTORE_API_KEY
 let client = new Client(); 
 
-// parameters have been renamed
+// Option 2: Direct configuration (overrides environment variable)
 client = new Client({
   apiToken: "ey34..."
 })
@@ -179,18 +131,28 @@ client = new Client({
 
 ## Multiple security schemes
 
-If you would like to define multiple security schemes, simply 
-list them under `components.securitySchemes`. For example, if you wanted to support 
-`basic` and `apiKey` security schemes, see the example below: 
+You can define multiple security schemes with environment variables by listing them under `components.securitySchemes`:
 
-```yaml title="openapi.yml" {3,6}
+```yaml title="openapi.yml" {3-15}
 components: 
   securitySchemes: 
     BearerAuth:
       type: http
-      scheme: bearer  
+      scheme: bearer
+      x-fern-bearer:
+        name: bearerToken
+        env: API_BEARER_TOKEN
     ApiKey: 
       type: apiKey
       in: header
-      name: X_API_KEY   
+      name: X_API_KEY
+      x-fern-header:
+        name: apiKey
+        env: API_KEY
 ```
+
+The SDK will check for the specified environment variables first, then fall back to direct configuration if needed.
+
+<Note>
+Environment variable names are case-sensitive. Make sure to use the exact names specified in your OpenAPI definition.
+</Note>
