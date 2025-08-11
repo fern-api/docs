@@ -5,7 +5,7 @@ description: Configuration options for the Fern Python SDK.
 
 You can customize the behavior of the Python SDK generator in `generators.yml`:
 
-```yaml {7-12}
+```yaml {7-16}
 default-group: local
 groups:
   local:
@@ -16,16 +16,45 @@ groups:
           package_name: "your_package"
           client:
             class_name: "YourClient" 
+          additional_init_exports:
+            - from: file_with_custom_function
+              imports:
+                - custom_function
           pydantic-config:
             skip_validation: true
 ```
 
 ## SDK Configuration Options
 
-<ParamField path="additional_init_exports" type="array" default="null" required={false} toc={true}>
+<ParamField path="additional_init_exports" type="array of objects" default="null" required={false} toc={true}>
 Additional modules or classes to export from the package's `__init__.py` file. This allows you to customize what's available when users import your package.
-</ParamField>
 
+Each object should specify which file to import from and what to import:
+```yaml
+config:
+  additional_init_exports:
+    - from: core.oauth_flow
+      imports:
+        - validate_token
+    - from: utils.helpers
+      imports:
+        - format_currency
+        - PhoneValidator
+```
+
+This enables users to access your custom functions directly:
+```python
+from my_package import validate_token, format_currency, PhoneValidator
+```
+</ParamField>
+<ParamField path="additional_init_exports[].from" type="string" required={true}>
+The module path to import from, using Python dot notation. Omit the `.py` extension and replace path separators with dots.
+
+For example, if you want to import from the file `core/oauth_flow.py`, specify that as `- from: core.oauth_flow`.
+</ParamField>
+<ParamField path="additional_init_exports[].imports" type="array of strings" required={true}>
+List of class names, function names, or other objects to import from the specified file.
+</ParamField>
 <ParamField path="default_bytes_stream_chunk_size" type="number" default="null" required={false} toc={true}>
   The chunk size to use (if any) when processing a response bytes stream within `iter_bytes` or `aiter_bytes` results in: `for chunk in response.iter_bytes(chunk_size=<default_bytes_stream_chunk_size>):`
 </ParamField>
