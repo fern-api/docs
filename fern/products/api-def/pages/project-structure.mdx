@@ -8,77 +8,42 @@ generators, and your CLI version.
 
 ## Directory structure
 
-When you run `fern init`, your Fern folder will be initialized with the following files:
+When you run `fern init` (for the Fern Definition) or `fern init --spec-type path/to/spec`, your fern folder will be initialized with the following files:
+
 ```bash
 fern/
-  ├─ fern.config.json
-  ├─ generators.yml
-  └─ definition/
-    ├─ api.yml
-    └─ imdb.yml
+  ├─ fern.config.json # Root-level configuration for entire Fern project
+  ├─ generators.yml # Defines what SDKs and docs to generate from your API
+  └─ spec-folder/ # definition, openapi, asyncapi, etc
+    └─ spec-file.yml # API specification file
 ```
 
-If you want to initialize Fern with an OpenAPI Specification, run `fern init --openapi path/to/openapi` instead.
-```yaml
-fern/
-  ├─ fern.config.json
-  ├─ generators.yml # required on Fern version 0.41.0 and above
-  └─ openapi/
-    ├─ openapi.yml
-```
+<Info>
+  For Fern Definition, your API configuration is split across two files: `api.yml` for API-wide configuration and separate `.yml` files for your actual endpoint and type definitions. See [What is a Fern Definition?](/api-definitions/ferndef/overview) for more information. 
 
-### `fern.config.json`
+  For other specification formats (OpenAPI, AsyncAPI), you'll have a single self-contained specification file. 
+</Info>
+
+<AccordionGroup>
+<Accordion title="What is the fern.config.json file?">
 
 Every fern folder has a single `fern.config.json` file. This file stores the organization and
 the version of the Fern CLI that you are using. 
 
 ```json
 {
-    "organization": "imdb",
+    "organization": "your-organization",
     "version": "0.31.2"
 }
 ```
 
 Every time you run a fern CLI command, the CLI downloads itself at the correct version to ensure 
 determinism. 
-
-<Note>To upgrade the CLI, run `fern upgrade`. This will update the version field in `fern.config.json` </Note>
-
-### `generators.yml`
-
-The `generators.yml` file can include information about where your API specification is located, along with which generators you are using, where each package gets published, as well as configuration specific to each generator. 
-
-<AccordionGroup>
-<Accordion title="generators.yml for Python + TypeScript SDKs">
-```yaml
-api: 
-  path: ./path/to/openapi.yml
-groups:
-  public:
-    generators:
-      - name: fernapi/fern-python-sdk
-        version: 3.0.0
-        output:
-          location: pypi
-          package-name: imdb
-          token: ${PYPI_TOKEN}
-        github:
-          repository: imdb/imdb-python
-        config:
-          client_class_name: imdb
-      - name: fernapi/fern-typescript-sdk
-        version: 2.3.1
-        output:
-          location: npm
-          package-name: imdb
-          token: ${NPM_TOKEN}
-        github:
-          repository: imdb/imdb-node
-        config:
-          namespaceExport: imdb
-```
 </Accordion>
-<Accordion title="generators.yml for locating an API definition">
+<Accordion title="What is the generators.yml file?">
+
+The `generators.yml` file includes information about where your API definition file is located. It also configures the SDKs you're generating for your API. 
+
 ```yaml
 api: 
   path: ./path/to/openapi.yml
@@ -88,41 +53,21 @@ api:
 
 ## Multiple APIs
 
-The Fern folder is capable of housing multiple API definitions. Instead of placing your API definition at the top-level, you can nest them within an `apis` folder. Be sure to include a `generators.yml` file within each API folder that specifies the location of the API definition. 
+The fern folder can house multiple API definitions. When you have multiple APIs, nest your definition files within an `apis` folder. 
 
-<Tabs>
-<Tab title="OpenAPI Definition">
+Each API must also have a separate `generators.yml` file that specifies the location of the API definition and contains information about that API's SDKs.
+
 ```bash
 fern/
   ├─ fern.config.json
-  ├─ generators.yml
+  ├─ generators.yml # Optional: contains top-level configuration for all APIs
   └─ apis/
-    └─ imdb/
-        ├─ generators.yml
+    └─ first-api/ # First API
+        ├─ generators.yml # Required: points to API spec
         └─ openapi/
-          ├─ openapi.yml
-    └─ disney/
-        ├─ generators.yml
+          ├─ openapi.yml # API Definition file
+    └─ second-api/ # Second API
+        ├─ generators.yml # Required: points to API spec
         └─ openapi/
-          ├─ openapi.yml
+          ├─ openapi.yml # API Definition file
 ```
-</Tab>
-<Tab title="Fern Definition">
-```bash
-fern/
-  ├─ fern.config.json
-  ├─ generators.yml
-  └─ apis/
-    └─ imdb/
-        ├─ generators.yml
-        └─ definition/
-          ├─ api.yml
-          └─ imdb.yml
-    └─ disney/
-        ├─ generators.yml
-        └─ definition/
-          ├─ api.yml
-          └─ disney.yml
-```
-</Tab>
-</Tabs>
