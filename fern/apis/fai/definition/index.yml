@@ -11,6 +11,8 @@ service:
       docs: Index a document for a given domain
       path: /{domain}
       method: POST
+      audiences:
+        - customers
       path-parameters:
         domain: string
       request:
@@ -27,7 +29,7 @@ service:
             context:
               type: list<string>
               docs: The context of the document, as a list of strings, that will be indexed.
-            content:
+            document:
               type: string
               docs: The content of the document that will be returned in the tool response
       errors:
@@ -54,6 +56,8 @@ service:
       docs: Update a document for a given domain
       path: /{domain}/update
       method: POST
+      audiences:
+        - customers
       path-parameters:
         domain: string
       request:
@@ -68,10 +72,28 @@ service:
           context:
             type: list<string>
             docs: The context of the document, as a list of strings, that will be indexed.
-          content:
+          document:
             type: string
             docs: The content of the document that will be returned in the tool response. If not provided, the document will be removed from the index.
       response: ContextResponse
+      errors:
+        - commons.BadRequestError
+        - commons.InternalError
+
+    syncToQueryIndex:
+      docs: Sync an index with the query index
+      path: /{domain}/sync
+      method: POST
+      audiences:
+        - internal
+      path-parameters:
+        domain: string
+      request:
+        name: SyncIndexRequest
+        query-parameters:
+          index_name:
+            type: string
+            docs: The name of the index to sync
       errors:
         - commons.BadRequestError
         - commons.InternalError
@@ -83,7 +105,7 @@ types:
       domain: string
       context_id: string
       context: list<string>
-      content: string
+      document: string
       is_active: boolean
       created_at: datetime
       updated_at: datetime
