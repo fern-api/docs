@@ -1,0 +1,472 @@
+---
+title: Sync your gRPC Specification
+subtitle: Automatically sync your Protocol Buffer changes to keep SDKs and docs up to date
+---
+
+Keeping your gRPC specifications in sync with your codebase is crucial for maintaining accurate SDKs and documentation. Fern provides several automation options to streamline this process.
+
+## GitHub Actions
+
+Use Fern's GitHub Action to automatically update SDKs and docs when your Protocol Buffer files change:
+
+```yaml title=".github/workflows/fern.yml"
+name: Fern
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'proto/**/*.proto'
+      - 'fern/**/*.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'proto/**/*.proto'
+      - 'fern/**/*.yml'
+
+jobs:
+  fern-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        
+      - name: Check gRPC spec
+        uses: fern-api/action@v0
+        with:
+          command: check
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+
+  fern-generate:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        
+      - name: Generate SDKs and docs
+        uses: fern-api/action@v0
+        with:
+          command: generate
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+```
+
+## Protocol Buffer validation
+
+Add validation steps for your Protocol Buffer files:
+
+```yaml title=".github/workflows/proto-validation.yml"
+name: Protocol Buffer Validation
+
+on:
+  push:
+    paths:
+      - 'proto/**/*.proto'
+  pull_request:
+    paths:
+      - 'proto/**/*.proto'
+
+jobs:
+  validate-proto:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        
+      - name: Setup Protocol Buffer Compiler
+        uses: arduino/setup-protoc@v2
+        with:
+          version: '23.4'
+          
+      - name: Validate Protocol Buffer files
+        run: |
+          find proto -name "*.proto" -exec protoc --proto_path=proto --descriptor_set_out=/dev/null {} \;
+          
+      - name: Check for breaking changes
+        run: |
+          # Use buf for breaking change detection
+          buf breaking --against '.git#branch=main'
+          
+      - name: Generate and validate with Fern
+        uses: fern-api/action@v0
+        with:
+          command: check
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+```
+
+## Auto-sync from source
+
+Configure Fern to automatically pull Protocol Buffer files from various sources:
+
+### From Git repository
+```yaml title="generators.yml" {3-7}
+api:
+  specs:
+    - spec:
+        git:
+          repository: https://github.com/your-org/proto-definitions
+          path: services/user_service.proto
+          branch: main
+  generators:
+    - name: fernapi/fern-typescript-node-sdk
+      version: 0.8.8
+```
+
+### From local directory
+```yaml title="generators.yml" {3-4}
+api:
+  specs:
+    - spec: proto/user_service.proto
+      auto-sync: true
+  generators:
+    - name: fernapi/fern-typescript-node-sdk
+      version: 0.8.8
+```
+
+## CI/CD integration
+
+### CircleCI
+```yaml title=".circleci/config.yml" {15-26}
+version: 2.1
+
+orbs:
+  fern: fernapi/fern@1.0
+
+workflows:
+  version: 2
+  build-and-generate:
+    jobs:
+      - build
+      - test:
+          requires:
+            - build
+      - validate-proto:
+          requires:
+            - build
+      - fern/generate:
+          requires:
+            - test
+            - validate-proto
+          filters:
+            branches:
+              only: main
+          context:
+            - fern-context
+
+jobs:
+  validate-proto:
+    docker:
+      - image: namely/protoc-all:1.51_1
+    steps:
+      - checkout
+      - run:
+          name: Validate Protocol Buffers
+          command: |
+            find proto -name "*.proto" -exec protoc --proto_path=proto --descriptor_set_out=/dev/null {} \;
+```
+
+### GitLab CI
+```yaml title=".gitlab-ci.yml" {13-25}
+stages:
+  - build
+  - test
+  - validate
+  - generate
+
+variables:
+  FERN_TOKEN: $FERN_TOKEN
+
+build:
+  stage: build
+  script:
+    - echo "Building gRPC service..."
+
+validate-proto:
+  stage: validate
+  image: namely/protoc-all:1.51_1
+  script:
+    - find proto -name "*.proto" -exec protoc --proto_path=proto --descriptor_set_out=/dev/null {} \;
+  only:
+    changes:
+      - proto/**/*.proto
+
+generate-sdks:
+  stage: generate
+  image: fernapi/fern:latest
+  script:
+    - fern generate
+  only:
+    - main
+```
+
+## Scheduled updates
+
+Set up scheduled updates to ensure your SDKs stay current:
+
+```yaml title=".github/workflows/scheduled-update.yml"
+name: Scheduled gRPC Update
+
+on:
+  schedule:
+    - cron: '0 2 * * 1'  # Every Monday at 2 AM UTC
+  workflow_dispatch:
+
+jobs:
+  update-proto:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        
+      - name: Sync Protocol Buffer files
+        run: |
+          # Sync from upstream proto repository
+          git subtree pull --prefix=proto https://github.com/your-org/proto-definitions main --squash
+          
+      - name: Generate with latest spec
+        uses: fern-api/action@v0
+        with:
+          command: generate
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+          
+      - name: Create PR if changes
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: update Protocol Buffer definitions"
+          title: "Update Protocol Buffer definitions"
+          body: "Automated update of Protocol Buffer definitions from upstream repository"
+```
+
+## Code generation from gRPC server
+
+For servers that can generate their own Protocol Buffer definitions:
+
+```yaml title=".github/workflows/auto-generate.yml"
+name: Auto-generate from gRPC server
+
+on:
+  push:
+    paths:
+      - 'src/**/*.py'  # Trigger on server code changes
+      - 'src/**/*.go'
+      - 'src/**/*.java'
+
+jobs:
+  generate-proto:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        
+      - name: Setup environment
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+          
+      - name: Install dependencies
+        run: |
+          pip install grpcio-tools
+          
+      - name: Generate Protocol Buffer files
+        run: |
+          python -m grpc_tools.protoc \
+            --proto_path=src/protos \
+            --python_out=. \
+            --grpc_python_out=. \
+            --descriptor_set_out=proto/service.protoset \
+            src/protos/*.proto
+          
+      - name: Convert to Protocol Buffer text format
+        run: |
+          protoc --decode_raw < proto/service.protoset > proto/user_service.proto
+          
+      - name: Generate SDKs
+        uses: fern-api/action@v0
+        with:
+          command: generate
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+```
+
+## Monitoring changes
+
+Track changes to your Protocol Buffer specifications:
+
+```yaml title="generators.yml" {4-9}
+api:
+  specs:
+    - spec: proto/user_service.proto
+  change-detection:
+    enabled: true
+    breaking-changes: error
+    notifications:
+      slack: ${{ secrets.SLACK_WEBHOOK }}
+      email: team@yourcompany.com
+  generators:
+    - name: fernapi/fern-typescript-node-sdk
+      version: 0.8.8
+```
+
+## Multi-service sync
+
+Sync different Protocol Buffer services for different components:
+
+```yaml title="generators.yml" {3-7, 12-16, 21-25}
+environments:
+  user-service:
+    specs:
+      - spec: proto/user_service.proto
+        overlays:
+          - user-service-overlay.yml
+    generators:
+      - name: fernapi/fern-typescript-node-sdk
+        version: 0.8.8
+        output:
+          location: npm
+          package-name: "@yourcompany/user-service-sdk"
+  order-service:
+    specs:
+      - spec: proto/order_service.proto
+        overlays:
+          - order-service-overlay.yml
+    generators:
+      - name: fernapi/fern-typescript-node-sdk
+        version: 0.8.8
+        output:
+          location: npm
+          package-name: "@yourcompany/order-service-sdk"
+  payment-service:
+    specs:
+      - spec: proto/payment_service.proto
+    generators:
+      - name: fernapi/fern-typescript-node-sdk
+        version: 0.8.8
+        output:
+          location: npm
+          package-name: "@yourcompany/payment-service-sdk"
+```
+
+## Buf integration
+
+Use Buf for Protocol Buffer management and sync:
+
+```yaml title="buf.yaml"
+version: v1
+deps:
+  - buf.build/googleapis/googleapis
+  - buf.build/envoyproxy/protoc-gen-validate
+lint:
+  use:
+    - DEFAULT
+  except:
+    - UNARY_RPC
+breaking:
+  use:
+    - FILE
+```
+
+```yaml title=".github/workflows/buf-sync.yml"
+name: Buf Sync
+
+on:
+  push:
+    paths:
+      - 'proto/**/*.proto'
+      - 'buf.yaml'
+
+jobs:
+  buf-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        
+      - name: Setup Buf
+        uses: bufbuild/buf-setup-action@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Lint Protocol Buffers
+        run: buf lint
+        
+      - name: Check for breaking changes
+        run: buf breaking --against '.git#branch=main'
+        
+      - name: Generate and push to Buf Registry
+        run: |
+          buf generate
+          buf push
+        env:
+          BUF_TOKEN: ${{ secrets.BUF_TOKEN }}
+          
+      - name: Generate SDKs with Fern
+        uses: fern-api/action@v0
+        with:
+          command: generate
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+```
+
+## gRPC reflection sync
+
+For services with gRPC reflection enabled:
+
+```python title="scripts/sync_from_reflection.py"
+import grpc
+from grpc_reflection.v1alpha import reflection_pb2
+from grpc_reflection.v1alpha import reflection_pb2_grpc
+import subprocess
+
+def sync_from_grpc_reflection(server_address, output_dir):
+    """Sync Protocol Buffer definitions from gRPC reflection"""
+    
+    channel = grpc.insecure_channel(server_address)
+    reflection_stub = reflection_pb2_grpc.ServerReflectionStub(channel)
+    
+    # List services
+    request = reflection_pb2.ServerReflectionRequest(
+        list_services=""
+    )
+    
+    response = reflection_stub.ServerReflectionInfo(iter([request]))
+    
+    for resp in response:
+        if resp.HasField('list_services_response'):
+            for service in resp.list_services_response.service:
+                print(f"Found service: {service.name}")
+                
+                # Get file descriptor for service
+                file_request = reflection_pb2.ServerReflectionRequest(
+                    file_containing_symbol=service.name
+                )
+                
+                file_response = reflection_stub.ServerReflectionInfo(iter([file_request]))
+                
+                for file_resp in file_response:
+                    if file_resp.HasField('file_descriptor_response'):
+                        # Save descriptor to file
+                        descriptor_path = f"{output_dir}/{service.name}.protoset"
+                        with open(descriptor_path, 'wb') as f:
+                            f.write(file_resp.file_descriptor_response.file_descriptor_proto[0])
+                        
+                        # Convert to text format
+                        proto_path = f"{output_dir}/{service.name}.proto"
+                        subprocess.run([
+                            'protoc',
+                            '--decode_raw',
+                            '--proto_path', output_dir,
+                            descriptor_path
+                        ], stdout=open(proto_path, 'w'))
+
+if __name__ == "__main__":
+    sync_from_grpc_reflection("localhost:50051", "proto/")
+```
+
+This ensures that any changes to your gRPC services are automatically reflected in your SDKs and documentation, maintaining consistency across your entire API ecosystem. 

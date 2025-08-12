@@ -1,0 +1,228 @@
+---
+title: SDK Method Names
+subtitle: Use `x-fern-sdk-method-name` to customize SDK method names for JSON-RPC methods
+---
+
+By default, Fern generates SDK method names based on your OpenRPC method names. You can override this behavior using the `x-fern-sdk-method-name` extension.
+
+## Customize method names
+
+Use `x-fern-sdk-method-name` to specify custom method names for your JSON-RPC methods:
+
+```yaml title="openrpc.yml" {4-5, 12-13}
+methods:
+  - name: user.getById
+    summary: Get user by ID
+    x-fern-sdk-method-name: getUser
+    params:
+      - name: id
+        schema:
+          type: string
+        required: true
+    result:
+      name: user
+      schema:
+        $ref: '#/components/schemas/User'
+  - name: order.createNew
+    summary: Create a new order
+    x-fern-sdk-method-name: create
+    params:
+      - name: orderData
+        schema:
+          $ref: '#/components/schemas/CreateOrderRequest'
+        required: true
+    result:
+      name: order
+      schema:
+        $ref: '#/components/schemas/Order'
+```
+
+This will generate SDK methods like:
+
+```typescript
+// Instead of client.user.getById()
+const user = await client.user.getUser({ id: "user_123" });
+
+// Instead of client.order.createNew()
+const order = await client.order.create({ orderData: {...} });
+```
+
+## Method naming conventions
+
+Follow these conventions when naming SDK methods:
+
+### CRUD operations
+Use standard CRUD naming:
+
+```yaml title="openrpc.yml" {4-5}
+methods:
+  - name: user.createUser
+    summary: Create a new user
+    x-fern-sdk-method-name: create
+    # Generates: client.user.create()
+    
+  - name: user.getUserById
+    summary: Get user by ID
+    x-fern-sdk-method-name: get
+    # Generates: client.user.get()
+    
+  - name: user.updateUser
+    summary: Update user information
+    x-fern-sdk-method-name: update
+    # Generates: client.user.update()
+    
+  - name: user.deleteUser
+    summary: Delete a user
+    x-fern-sdk-method-name: delete
+    # Generates: client.user.delete()
+```
+
+### List operations
+Use descriptive names for list operations:
+
+```yaml title="openrpc.yml" {4-5}
+methods:
+  - name: user.getAllUsers
+    summary: Get all users
+    x-fern-sdk-method-name: list
+    # Generates: client.user.list()
+    
+  - name: user.searchUsers
+    summary: Search for users
+    x-fern-sdk-method-name: search
+    # Generates: client.user.search()
+    
+  - name: order.getUserOrders
+    summary: Get orders for a user
+    x-fern-sdk-method-name: listByUser
+    # Generates: client.order.listByUser()
+```
+
+### Action operations
+Use action-oriented names:
+
+```yaml title="openrpc.yml" {4-5}
+methods:
+  - name: email.sendNotification
+    summary: Send email notification
+    x-fern-sdk-method-name: send
+    # Generates: client.email.send()
+    
+  - name: payment.processPayment
+    summary: Process a payment
+    x-fern-sdk-method-name: process
+    # Generates: client.payment.process()
+    
+  - name: cache.invalidateCache
+    summary: Invalidate cache entries
+    x-fern-sdk-method-name: invalidate
+    # Generates: client.cache.invalidate()
+```
+
+## Language-specific method names
+
+You can specify different method names for different programming languages:
+
+```yaml title="openrpc.yml" {4-9}
+methods:
+  - name: user.getUserPreferences
+    summary: Get user preferences
+    x-fern-sdk-method-name:
+      python: get_preferences
+      typescript: getPreferences
+      go: GetPreferences
+      java: getPreferences
+      csharp: GetPreferences
+    params:
+      - name: userId
+        schema:
+          type: string
+        required: true
+    result:
+      name: preferences
+      schema:
+        $ref: '#/components/schemas/UserPreferences'
+```
+
+## Namespaced method names
+
+For methods with namespace prefixes, customize the final method name:
+
+```yaml title="openrpc.yml" {4-5, 12-13}
+methods:
+  - name: analytics.track.pageView
+    summary: Track page view event
+    x-fern-sdk-method-name: trackPageView
+    params:
+      - name: eventData
+        schema:
+          $ref: '#/components/schemas/PageViewEvent'
+        required: true
+  - name: analytics.track.conversion
+    summary: Track conversion event
+    x-fern-sdk-method-name: trackConversion
+    params:
+      - name: eventData
+        schema:
+          $ref: '#/components/schemas/ConversionEvent'
+        required: true
+```
+
+Generates:
+```typescript
+await client.analytics.trackPageView({ eventData: {...} });
+await client.analytics.trackConversion({ eventData: {...} });
+```
+
+## Notification method names
+
+For notification methods (one-way calls), use appropriate naming:
+
+```yaml title="openrpc.yml" {4-5, 12-13}
+methods:
+  - name: log.recordError
+    summary: Record an error event
+    x-fern-sdk-method-name: logError
+    params:
+      - name: errorData
+        schema:
+          $ref: '#/components/schemas/ErrorData'
+        required: true
+    # No result - this is a notification
+  - name: metrics.incrementCounter
+    summary: Increment a metric counter
+    x-fern-sdk-method-name: increment
+    params:
+      - name: metric
+        schema:
+          type: string
+        required: true
+      - name: value
+        schema:
+          type: number
+          default: 1
+    # No result - this is a notification
+```
+
+## Async method naming
+
+For methods that return promises or futures, consider async naming:
+
+```yaml title="openrpc.yml" {4-5}
+methods:
+  - name: report.generateReport
+    summary: Generate a report (long-running)
+    x-fern-sdk-method-name: generateAsync
+    params:
+      - name: reportConfig
+        schema:
+          $ref: '#/components/schemas/ReportConfig'
+        required: true
+    result:
+      name: jobId
+      schema:
+        type: string
+        description: Job ID for tracking report generation
+```
+
+This ensures method names follow the conventions of each target language while maintaining clear and intuitive APIs for developers. 

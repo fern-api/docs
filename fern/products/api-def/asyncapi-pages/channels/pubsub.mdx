@@ -1,0 +1,105 @@
+---
+title: Publish/Subscribe Operations
+subtitle: Document event-driven APIs with publish and subscribe operations
+---
+
+Operations in AsyncAPI are defined underneath the `operations` key, with channels defined under the `channels` key. Below is an example of defining publish and subscribe operations: 
+
+```yml title="asyncapi.yml" maxLines=0 {2-22}
+channels:
+  user/notifications:
+    address: user/notifications
+    messages:
+      UserNotification:
+        $ref: '#/components/messages/UserNotification'
+
+operations:
+  onUserNotification:
+    action: receive
+    channel:
+      $ref: '#/channels/user~1notifications'
+    summary: Receive user notifications
+    description: Subscribe to user notification events
+  sendUserNotification:
+    action: send
+    channel:
+      $ref: '#/channels/user~1notifications'
+    summary: Send user notification
+    description: Publish a user notification event
+```
+
+## Message examples
+
+You can provide examples of messages by using the `examples` key in your message definitions:   
+
+```yaml title="asyncapi.yml" {8-15}
+components:
+  messages:
+    UserNotification:
+      name: UserNotification
+      title: User Notification
+      summary: Notification sent to a user
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/Notification'
+      examples:
+        - name: EmailNotification
+          summary: Example email notification
+          payload:
+            userId: "123e4567-e89b-12d3-a456-426614174000"
+            type: "email"
+            message: "Welcome to our service!"
+            priority: "medium"
+```
+
+## Publish operations
+
+Publish operations represent messages that your service sends to a channel:
+
+```yml title="asyncapi.yml" {2-8}
+operations:
+  publishOrderStatus:
+    action: send
+    channel:
+      $ref: '#/channels/order~1status'
+    summary: Publish order status update
+    description: Send order status updates to subscribers
+    message:
+      $ref: '#/components/messages/OrderStatus'
+```
+
+## Subscribe operations
+
+Subscribe operations represent messages that your service receives from a channel:
+
+```yml title="asyncapi.yml" {2-8}
+operations:
+  subscribeToUserSignups:
+    action: receive
+    channel:
+      $ref: '#/channels/user~1signup'
+    summary: Subscribe to user signups
+    description: Receive notifications when users sign up
+    message:
+      $ref: '#/components/messages/UserSignup'
+```
+
+## Bi-directional communication
+
+You can define both publish and subscribe operations for the same channel to enable bi-directional communication:
+
+```yml title="asyncapi.yml" {2-15}
+operations:
+  sendChatMessage:
+    action: send
+    channel:
+      $ref: '#/channels/chat~1room'
+    summary: Send chat message
+    description: Send a message to a chat room
+  receiveChatMessage:
+    action: receive
+    channel:
+      $ref: '#/channels/chat~1room'
+    summary: Receive chat message
+    description: Receive messages from a chat room
+``` 

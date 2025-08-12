@@ -1,0 +1,94 @@
+---
+title: SDK Method Names
+subtitle: Use `x-fern-sdk-method-name` to customize SDK method names for operations
+---
+
+By default, Fern generates SDK method names based on your operation names in AsyncAPI. You can override this behavior using the `x-fern-sdk-method-name` extension.
+
+## Customize operation method names
+
+Use `x-fern-sdk-method-name` to specify custom method names for your operations:
+
+```yaml title="asyncapi.yml" {6-7, 13-14}
+operations:
+  subscribeToUserEvents:
+    action: receive
+    channel:
+      $ref: '#/channels/user~1events'
+    x-fern-sdk-method-name: onUserEvent
+    summary: Subscribe to user events
+  publishOrderUpdate:
+    action: send
+    channel:
+      $ref: '#/channels/order~1updates'
+    x-fern-sdk-method-name: sendOrderUpdate
+    summary: Publish order update
+```
+
+This will generate SDK methods like:
+
+```typescript
+// Instead of client.subscribeToUserEvents()
+client.onUserEvent((event) => {
+  // Handle user event
+});
+
+// Instead of client.publishOrderUpdate()
+client.sendOrderUpdate(orderData);
+```
+
+## Method naming conventions
+
+Follow these conventions when naming SDK methods:
+
+### Subscribe operations
+Use descriptive names that indicate the action:
+
+```yaml title="asyncapi.yml" {4-5}
+operations:
+  subscribeToNotifications:
+    action: receive
+    x-fern-sdk-method-name: onNotification
+    # Generates: client.onNotification()
+    
+  subscribeToOrderUpdates:
+    action: receive
+    x-fern-sdk-method-name: watchOrders
+    # Generates: client.watchOrders()
+```
+
+### Publish operations
+Use action-oriented names:
+
+```yaml title="asyncapi.yml" {4-5}
+operations:
+  publishUserSignup:
+    action: send
+    x-fern-sdk-method-name: createUser
+    # Generates: client.createUser()
+    
+  publishNotification:
+    action: send
+    x-fern-sdk-method-name: notify
+    # Generates: client.notify()
+```
+
+## Language-specific method names
+
+You can specify different method names for different programming languages:
+
+```yaml title="asyncapi.yml" {6-11}
+operations:
+  subscribeToEvents:
+    action: receive
+    channel:
+      $ref: '#/channels/events'
+    x-fern-sdk-method-name:
+      python: on_event
+      typescript: onEvent
+      go: OnEvent
+      java: onEvent
+      csharp: OnEvent
+```
+
+This ensures method names follow the conventions of each target language. 

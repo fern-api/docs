@@ -1,0 +1,419 @@
+---
+title: gRPC Services
+subtitle: Define gRPC services with RPCs, messages, and Protocol Buffer schemas
+---
+
+gRPC services are the core building blocks of your API. Each service defines a collection of remote procedure calls (RPCs) that clients can invoke, along with the message types used for requests and responses.
+
+## Service Definition
+
+Define a gRPC service in a `.proto` file:
+
+```protobuf title="user_service.proto"
+syntax = "proto3";
+
+package userservice.v1;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/field_mask.proto";
+
+// User management service
+service UserService {
+  // Create a new user account
+  rpc CreateUser(CreateUserRequest) returns (User) {
+    option deprecated = false;
+  }
+  
+  // Get user by ID
+  rpc GetUser(GetUserRequest) returns (User);
+  
+  // Update user information
+  rpc UpdateUser(UpdateUserRequest) returns (User);
+  
+  // Delete a user account
+  rpc DeleteUser(DeleteUserRequest) returns (google.protobuf.Empty);
+  
+  // List users with pagination
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+  
+  // Search users by various criteria
+  rpc SearchUsers(SearchUsersRequest) returns (SearchUsersResponse);
+}
+
+// User message definition
+message User {
+  string id = 1;
+  string email = 2;
+  string name = 3;
+  int32 age = 4;
+  UserStatus status = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp updated_at = 7;
+  repeated string roles = 8;
+  UserPreferences preferences = 9;
+}
+
+// User status enumeration
+enum UserStatus {
+  USER_STATUS_UNSPECIFIED = 0;
+  USER_STATUS_ACTIVE = 1;
+  USER_STATUS_INACTIVE = 2;
+  USER_STATUS_SUSPENDED = 3;
+  USER_STATUS_DELETED = 4;
+}
+
+// Nested message for user preferences
+message UserPreferences {
+  bool email_notifications = 1;
+  string timezone = 2;
+  string language = 3;
+  ThemeMode theme = 4;
+}
+
+enum ThemeMode {
+  THEME_MODE_UNSPECIFIED = 0;
+  THEME_MODE_LIGHT = 1;
+  THEME_MODE_DARK = 2;
+  THEME_MODE_AUTO = 3;
+}
+```
+
+## Request and Response Messages
+
+Define clear request and response message types:
+
+```protobuf title="user_messages.proto"
+// Create user request
+message CreateUserRequest {
+  string email = 1 [(validate.rules).string.email = true];
+  string name = 2 [(validate.rules).string.min_len = 1];
+  int32 age = 3 [(validate.rules).int32.gte = 0];
+  UserPreferences preferences = 4;
+}
+
+// Get user request
+message GetUserRequest {
+  string id = 1 [(validate.rules).string.uuid = true];
+}
+
+// Update user request
+message UpdateUserRequest {
+  string id = 1 [(validate.rules).string.uuid = true];
+  User user = 2;
+  google.protobuf.FieldMask update_mask = 3;
+}
+
+// Delete user request
+message DeleteUserRequest {
+  string id = 1 [(validate.rules).string.uuid = true];
+}
+
+// List users request with pagination
+message ListUsersRequest {
+  int32 page_size = 1 [(validate.rules).int32 = {gte: 1, lte: 100}];
+  string page_token = 2;
+  string filter = 3;
+  string order_by = 4;
+}
+
+// List users response
+message ListUsersResponse {
+  repeated User users = 1;
+  string next_page_token = 2;
+  int32 total_count = 3;
+}
+
+// Search users request
+message SearchUsersRequest {
+  string query = 1 [(validate.rules).string.min_len = 1];
+  repeated UserStatus status_filter = 2;
+  repeated string role_filter = 3;
+  int32 page_size = 4 [(validate.rules).int32 = {gte: 1, lte: 100}];
+  string page_token = 5;
+}
+
+// Search users response
+message SearchUsersResponse {
+  repeated User users = 1;
+  string next_page_token = 2;
+  int32 total_count = 3;
+  SearchMetadata metadata = 4;
+}
+
+message SearchMetadata {
+  int32 search_time_ms = 1;
+  repeated string suggested_corrections = 2;
+}
+```
+
+## Service Implementation
+
+Implement the service in your preferred language:
+
+```python title="user_service.py"
+import grpc
+from grpc import ServicerContext
+import user_service_pb2
+import user_service_pb2_grpc
+from google.protobuf import empty_pb2
+from typing import Iterator
+
+class UserServiceServicer(user_service_pb2_grpc.UserServiceServicer):
+    
+    def __init__(self, user_repository):
+        self.user_repository = user_repository
+    
+    def CreateUser(
+        self, 
+        request: user_service_pb2.CreateUserRequest, 
+        context: ServicerContext
+    ) -> user_service_pb2.User:
+        """Create a new user account."""
+        try:
+            # Validate request
+            if not request.email or not request.name:
+                context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+                context.set_details('Email and name are required')
+                return user_service_pb2.User()
+            
+            # Check if user already exists
+            if self.user_repository.get_by_email(request.email):
+                context.set_code(grpc.StatusCode.ALREADY_EXISTS)
+                context.set_details(f'User with email {request.email} already exists')
+                return user_service_pb2.User()
+            
+            # Create user
+            user = self.user_repository.create_user(
+                email=request.email,
+                name=request.name,
+                age=request.age,
+                preferences=request.preferences
+            )
+            
+            return user
+            
+        except Exception as e:
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details(f'Failed to create user: {str(e)}')
+            return user_service_pb2.User()
+    
+    def GetUser(
+        self, 
+        request: user_service_pb2.GetUserRequest, 
+        context: ServicerContext
+    ) -> user_service_pb2.User:
+        """Get user by ID."""
+        try:
+            user = self.user_repository.get_by_id(request.id)
+            if not user:
+                context.set_code(grpc.StatusCode.NOT_FOUND)
+                context.set_details(f'User with ID {request.id} not found')
+                return user_service_pb2.User()
+            
+            return user
+            
+        except Exception as e:
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details(f'Failed to get user: {str(e)}')
+            return user_service_pb2.User()
+    
+    def UpdateUser(
+        self, 
+        request: user_service_pb2.UpdateUserRequest, 
+        context: ServicerContext
+    ) -> user_service_pb2.User:
+        """Update user information."""
+        try:
+            # Check if user exists
+            existing_user = self.user_repository.get_by_id(request.id)
+            if not existing_user:
+                context.set_code(grpc.StatusCode.NOT_FOUND)
+                context.set_details(f'User with ID {request.id} not found')
+                return user_service_pb2.User()
+            
+            # Apply field mask for partial updates
+            updated_user = self.user_repository.update_user(
+                user_id=request.id,
+                updates=request.user,
+                field_mask=request.update_mask
+            )
+            
+            return updated_user
+            
+        except Exception as e:
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details(f'Failed to update user: {str(e)}')
+            return user_service_pb2.User()
+    
+    def DeleteUser(
+        self, 
+        request: user_service_pb2.DeleteUserRequest, 
+        context: ServicerContext
+    ) -> empty_pb2.Empty:
+        """Delete a user account."""
+        try:
+            # Check if user exists
+            user = self.user_repository.get_by_id(request.id)
+            if not user:
+                context.set_code(grpc.StatusCode.NOT_FOUND)
+                context.set_details(f'User with ID {request.id} not found')
+                return empty_pb2.Empty()
+            
+            # Soft delete user
+            self.user_repository.delete_user(request.id)
+            
+            return empty_pb2.Empty()
+            
+        except Exception as e:
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details(f'Failed to delete user: {str(e)}')
+            return empty_pb2.Empty()
+    
+    def ListUsers(
+        self, 
+        request: user_service_pb2.ListUsersRequest, 
+        context: ServicerContext
+    ) -> user_service_pb2.ListUsersResponse:
+        """List users with pagination."""
+        try:
+            # Apply pagination
+            page_size = min(request.page_size or 20, 100)
+            
+            users, next_page_token, total_count = self.user_repository.list_users(
+                page_size=page_size,
+                page_token=request.page_token,
+                filter_expr=request.filter,
+                order_by=request.order_by
+            )
+            
+            return user_service_pb2.ListUsersResponse(
+                users=users,
+                next_page_token=next_page_token,
+                total_count=total_count
+            )
+            
+        except Exception as e:
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details(f'Failed to list users: {str(e)}')
+            return user_service_pb2.ListUsersResponse()
+    
+    def SearchUsers(
+        self, 
+        request: user_service_pb2.SearchUsersRequest, 
+        context: ServicerContext
+    ) -> user_service_pb2.SearchUsersResponse:
+        """Search users by various criteria."""
+        try:
+            start_time = time.time()
+            
+            users, next_page_token, total_count = self.user_repository.search_users(
+                query=request.query,
+                status_filter=request.status_filter,
+                role_filter=request.role_filter,
+                page_size=request.page_size or 20,
+                page_token=request.page_token
+            )
+            
+            search_time_ms = int((time.time() - start_time) * 1000)
+            
+            metadata = user_service_pb2.SearchMetadata(
+                search_time_ms=search_time_ms,
+                suggested_corrections=[]  # Add spell check suggestions if needed
+            )
+            
+            return user_service_pb2.SearchUsersResponse(
+                users=users,
+                next_page_token=next_page_token,
+                total_count=total_count,
+                metadata=metadata
+            )
+            
+        except Exception as e:
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details(f'Failed to search users: {str(e)}')
+            return user_service_pb2.SearchUsersResponse()
+```
+
+## Protocol Buffer Best Practices
+
+### Field Numbers
+- Use field numbers 1-15 for frequently used fields (more efficient encoding)
+- Reserve field numbers for removed fields to maintain compatibility
+- Never reuse field numbers
+
+```protobuf
+message User {
+  // Frequently used fields (1-15)
+  string id = 1;
+  string email = 2;
+  string name = 3;
+  
+  // Less frequently used fields
+  UserPreferences preferences = 16;
+  repeated string tags = 17;
+  
+  // Reserved fields
+  reserved 4, 5, 6;
+  reserved "old_field_name", "deprecated_field";
+}
+```
+
+### Naming Conventions
+- Use `snake_case` for field names
+- Use `PascalCase` for message and service names
+- Use `UPPER_SNAKE_CASE` for enum values
+
+```protobuf
+service UserManagementService {  // PascalCase
+  rpc GetUser(GetUserRequest) returns (User);
+}
+
+message User {  // PascalCase
+  string first_name = 1;  // snake_case
+  UserStatus status = 2;
+}
+
+enum UserStatus {
+  USER_STATUS_UNSPECIFIED = 0;  // UPPER_SNAKE_CASE
+  USER_STATUS_ACTIVE = 1;
+}
+```
+
+### Versioning
+- Include version in package names
+- Use semantic versioning for breaking changes
+
+```protobuf
+syntax = "proto3";
+
+package userservice.v1;  // Version in package name
+
+option go_package = "example.com/userservice/v1";
+```
+
+## Multiple Services
+
+Organize related functionality into separate services:
+
+```protobuf title="services.proto"
+// User management
+service UserService {
+  rpc CreateUser(CreateUserRequest) returns (User);
+  rpc GetUser(GetUserRequest) returns (User);
+}
+
+// Authentication
+service AuthService {
+  rpc Login(LoginRequest) returns (LoginResponse);
+  rpc RefreshToken(RefreshTokenRequest) returns (RefreshTokenResponse);
+}
+
+// Notification service
+service NotificationService {
+  rpc SendNotification(SendNotificationRequest) returns (SendNotificationResponse);
+  rpc GetNotificationPreferences(GetNotificationPreferencesRequest) returns (NotificationPreferences);
+}
+```
+
+gRPC services provide a strongly-typed, high-performance foundation for building distributed systems with clear contracts between clients and servers. 

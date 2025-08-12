@@ -1,0 +1,274 @@
+---
+title: Overlay Customizations
+subtitle: Use overlay files to modify your OpenRPC specification without editing the original
+---
+
+Overlays allow you to modify your OpenRPC specification without directly editing the original file. This is useful for:
+- Adding Fern-specific extensions
+- Customizing documentation
+- Adding examples and descriptions
+- Overriding specific properties
+
+## Configure overlays
+
+To use overlays, add them to your `generators.yml` file:
+
+```yaml title="generators.yml" {3-5}
+api:
+  specs:
+    - spec: openrpc.yml
+      overlays:
+        - overlay.yml
+  generators:
+    - name: fernapi/fern-typescript-node-sdk
+      version: 0.8.8
+```
+
+## Overlay file structure
+
+Overlay files follow the [OpenAPI Overlay Specification](https://spec.openapis.org/overlay/v1.0.0) format:
+
+```yaml title="overlay.yml"
+overlay: 1.0.0
+info:
+  title: OpenRPC Fern Extensions
+  version: 1.0.0
+actions:
+  - target: $.methods[?(@.name == 'user.create')]
+    update:
+      x-fern-sdk-method-name: create
+      summary: Create a new user account
+  - target: $.methods[?(@.name == 'order.list')]
+    update:
+      description: Retrieve orders with optional filtering and pagination
+      x-fern-audiences:
+        - public
+```
+
+## Add method names
+
+Override SDK method names for better developer experience:
+
+```yaml title="overlay.yml" {7-9}
+overlay: 1.0.0
+info:
+  title: SDK Method Names
+  version: 1.0.0
+actions:
+  - target: $.methods[?(@.name == 'user.getById')]
+    update:
+      x-fern-sdk-method-name: getUser
+      summary: Retrieve user by ID with enhanced details
+  - target: $.methods[?(@.name == 'order.createNew')]
+    update:
+      x-fern-sdk-method-name: create
+      summary: Create order with automatic validation
+```
+
+## Add examples
+
+Enhance your specification with examples:
+
+```yaml title="overlay.yml" {7-20}
+overlay: 1.0.0
+info:
+  title: Method Examples
+  version: 1.0.0
+actions:
+  - target: $.methods[?(@.name == 'user.create')]
+    update:
+      examples:
+        - name: StandardUser
+          description: Create a regular user
+          params:
+            userData:
+              email: "john@example.com"
+              name: "John Doe"
+              role: "user"
+          result:
+            id: "user_123"
+            email: "john@example.com"
+            name: "John Doe"
+            createdAt: "2024-01-15T10:30:00Z"
+```
+
+## Filter with audiences
+
+Add audience filtering to methods:
+
+```yaml title="overlay.yml" {7-9, 12-14}
+overlay: 1.0.0
+info:
+  title: Audience Filtering
+  version: 1.0.0
+actions:
+  - target: $.methods[?(@.name == 'admin.getUsers')]
+    update:
+      x-fern-audiences:
+        - admin
+  - target: $.methods[?(@.name == 'debug.getSystemInfo')]
+    update:
+      x-fern-audiences:
+        - internal
+```
+
+## Add documentation
+
+Enhance descriptions and documentation:
+
+```yaml title="overlay.yml" {7-14}
+overlay: 1.0.0
+info:
+  title: Enhanced Documentation
+  version: 1.0.0
+actions:
+  - target: $.methods[?(@.name == 'payment.process')]
+    update:
+      description: |
+        Process a payment transaction with comprehensive validation and fraud detection.
+        
+        This method supports multiple payment methods including credit cards, 
+        digital wallets, and bank transfers. All transactions are processed
+        securely with PCI DSS compliance.
+        
+        Returns a payment result with transaction details or error information.
+      summary: Process payment with fraud detection
+```
+
+## Server configurations
+
+Add server-specific configurations:
+
+```yaml title="overlay.yml" {7-12}
+overlay: 1.0.0
+info:
+  title: Server Extensions
+  version: 1.0.0
+actions:
+  - target: $.servers[?(@.name == 'production')]
+    update:
+      x-fern-server-name: Production
+      description: Production environment with high availability and monitoring
+      variables:
+        region:
+          default: us-east-1
+          enum: [us-east-1, us-west-2, eu-west-1]
+          description: AWS region for the API server
+```
+
+## Add parameter customizations
+
+Customize parameter names and descriptions:
+
+```yaml title="overlay.yml" {7-18}
+overlay: 1.0.0
+info:
+  title: Parameter Customizations
+  version: 1.0.0
+actions:
+  - target: $.methods[?(@.name == 'user.search')].params[?(@.name == 'search_criteria')]
+    update:
+      x-fern-parameter-name: searchCriteria
+      description: |
+        Search criteria for finding users. Supports multiple filters:
+        - name: Partial name matching (case-insensitive)
+        - email: Exact or partial email matching
+        - role: Filter by user role
+        - status: Filter by account status
+        - dateRange: Filter by creation date range
+      schema:
+        type: object
+        properties:
+          name:
+            type: string
+            description: Partial name search (minimum 2 characters)
+          email:
+            type: string
+            description: Email search pattern
+          role:
+            type: string
+            enum: [user, admin, moderator]
+          status:
+            type: string
+            enum: [active, inactive, suspended]
+```
+
+## Add error documentation
+
+Enhance error handling information:
+
+```yaml title="overlay.yml" {7-25}
+overlay: 1.0.0
+info:
+  title: Error Documentation
+  version: 1.0.0
+actions:
+  - target: $.methods[?(@.name == 'order.create')]
+    update:
+      errors:
+        - code: -32001
+          message: Insufficient inventory
+          data:
+            type: object
+            properties:
+              productId:
+                type: string
+              availableQuantity:
+                type: integer
+              requestedQuantity:
+                type: integer
+        - code: -32002
+          message: Payment authorization failed
+          data:
+            type: object
+            properties:
+              paymentMethod:
+                type: string
+              errorCode:
+                type: string
+              retryAllowed:
+                type: boolean
+```
+
+## Multiple overlays
+
+You can apply multiple overlay files in sequence:
+
+```yaml title="generators.yml" {4-8}
+api:
+  specs:
+    - spec: openrpc.yml
+      overlays:
+        - base-overlay.yml
+        - sdk-overlay.yml
+        - docs-overlay.yml
+        - examples-overlay.yml
+```
+
+## Environment-specific overlays
+
+Use different overlays for different environments:
+
+```yaml title="generators.yml" {4-7, 12-15}
+groups:
+  production:
+    audiences: [public]
+    specs:
+      - spec: openrpc.yml
+        overlays:
+          - production-overlay.yml
+    generators:
+      - name: fernapi/fern-typescript-node-sdk
+        version: 0.8.8
+  internal:
+    audiences: [admin, internal]
+    specs:
+      - spec: openrpc.yml
+        overlays:
+          - internal-overlay.yml
+    generators:
+      - name: fernapi/fern-typescript-node-sdk
+        version: 0.8.8
+```
+
+Overlays are applied in order, allowing you to build up customizations incrementally while keeping your original OpenRPC specification clean and focused on the core API definition. 

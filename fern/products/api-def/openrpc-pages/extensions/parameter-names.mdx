@@ -1,0 +1,280 @@
+---
+title: Parameter Names
+subtitle: Use `x-fern-parameter-name` to customize SDK parameter names for JSON-RPC method parameters
+---
+
+By default, Fern uses the parameter names from your OpenRPC method definitions as SDK parameter names. You can customize these using the `x-fern-parameter-name` extension.
+
+## Customize parameter names
+
+Use `x-fern-parameter-name` to specify custom parameter names for method parameters:
+
+```yaml title="openrpc.yml" {8-9, 14-15}
+methods:
+  - name: user.create
+    summary: Create a new user
+    params:
+      - name: user_data
+        schema:
+          type: object
+          properties:
+            email_address:
+              type: string
+              format: email
+              x-fern-parameter-name: email
+            full_name:
+              type: string
+              x-fern-parameter-name: name
+            date_of_birth:
+              type: string
+              format: date
+              x-fern-parameter-name: dateOfBirth
+          required:
+            - email_address
+            - full_name
+        x-fern-parameter-name: userData
+        required: true
+    result:
+      name: user
+      schema:
+        $ref: '#/components/schemas/User'
+```
+
+This generates SDK methods with cleaner parameter names:
+
+```typescript
+// Instead of user_data with email_address, full_name, date_of_birth
+await client.user.create({
+  userData: {
+    email: "john@example.com",
+    name: "John Doe",
+    dateOfBirth: "1990-01-15"
+  }
+});
+```
+
+## Language-specific parameter names
+
+You can specify different parameter names for different programming languages:
+
+```yaml title="openrpc.yml" {8-13}
+methods:
+  - name: order.search
+    summary: Search for orders
+    params:
+      - name: search_criteria
+        schema:
+          type: object
+          properties:
+            customer_id:
+              type: string
+              x-fern-parameter-name:
+                python: customer_id
+                typescript: customerId
+                go: CustomerID
+                java: customerId
+                csharp: CustomerId
+            order_status:
+              type: string
+              enum: [pending, processing, shipped, delivered]
+              x-fern-parameter-name:
+                python: order_status
+                typescript: orderStatus
+                go: OrderStatus
+                java: orderStatus
+                csharp: OrderStatus
+        x-fern-parameter-name:
+          python: search_criteria
+          typescript: searchCriteria
+          go: SearchCriteria
+          java: searchCriteria
+          csharp: SearchCriteria
+        required: true
+    result:
+      name: orders
+      schema:
+        type: array
+        items:
+          $ref: '#/components/schemas/Order'
+```
+
+## Nested parameter naming
+
+Customize parameter names for nested objects:
+
+```yaml title="openrpc.yml" {10-11, 16-17, 22-23}
+methods:
+  - name: payment.process
+    summary: Process a payment
+    params:
+      - name: payment_data
+        schema:
+          type: object
+          properties:
+            payment_method:
+              type: object
+              x-fern-parameter-name: paymentMethod
+              properties:
+                card_number:
+                  type: string
+                  x-fern-parameter-name: cardNumber
+                expiry_date:
+                  type: string
+                  x-fern-parameter-name: expiryDate
+                cvv:
+                  type: string
+                billing_address:
+                  type: object
+                  x-fern-parameter-name: billingAddress
+                  properties:
+                    street_address:
+                      type: string
+                      x-fern-parameter-name: streetAddress
+                    postal_code:
+                      type: string
+                      x-fern-parameter-name: postalCode
+            amount:
+              type: number
+            currency:
+              type: string
+              enum: [USD, EUR, GBP]
+        x-fern-parameter-name: paymentData
+        required: true
+    result:
+      name: paymentResult
+      schema:
+        $ref: '#/components/schemas/PaymentResult'
+```
+
+## Array parameter naming
+
+Handle array parameters with custom naming:
+
+```yaml title="openrpc.yml" {6-7, 14-15}
+methods:
+  - name: bulk.createUsers
+    summary: Create multiple users
+    params:
+      - name: user_list
+        schema:
+          type: array
+          items:
+            type: object
+            properties:
+              email_addr:
+                type: string
+                format: email
+                x-fern-parameter-name: email
+              user_name:
+                type: string
+                x-fern-parameter-name: username
+            required:
+              - email_addr
+              - user_name
+        x-fern-parameter-name: users
+        minItems: 1
+        maxItems: 100
+        required: true
+    result:
+      name: createdUsers
+      schema:
+        type: array
+        items:
+          $ref: '#/components/schemas/User'
+```
+
+## Optional parameter naming
+
+Customize names for optional parameters with defaults:
+
+```yaml title="openrpc.yml" {8-9, 15-16, 22-23}
+methods:
+  - name: report.generate
+    summary: Generate a report
+    params:
+      - name: report_type
+        schema:
+          type: string
+          enum: [daily, weekly, monthly, yearly]
+        x-fern-parameter-name: reportType
+        required: true
+      - name: output_format
+        schema:
+          type: string
+          enum: [pdf, csv, json, excel]
+          default: pdf
+        x-fern-parameter-name: format
+        required: false
+        description: Output format (defaults to PDF)
+      - name: include_charts
+        schema:
+          type: boolean
+          default: true
+        x-fern-parameter-name: includeCharts
+        required: false
+        description: Include charts in the report
+      - name: date_range
+        schema:
+          type: object
+          properties:
+            start_date:
+              type: string
+              format: date
+              x-fern-parameter-name: startDate
+            end_date:
+              type: string
+              format: date
+              x-fern-parameter-name: endDate
+        x-fern-parameter-name: dateRange
+        required: false
+        description: Optional date range filter
+    result:
+      name: report
+      schema:
+        $ref: '#/components/schemas/Report'
+```
+
+## Positional parameter naming
+
+For methods using positional parameters, customize the generated parameter names:
+
+```yaml title="openrpc.yml" {4-6, 8-10}
+methods:
+  - name: math.calculate
+    summary: Perform mathematical calculation
+    paramStructure: by-position
+    params:
+      - schema:
+          type: number
+        description: First operand
+        x-fern-parameter-name: operandA
+      - schema:
+          type: number
+        description: Second operand
+        x-fern-parameter-name: operandB
+      - schema:
+          type: string
+          enum: [add, subtract, multiply, divide]
+        description: Operation to perform
+        x-fern-parameter-name: operation
+    result:
+      name: result
+      schema:
+        type: number
+```
+
+This generates cleaner SDK interfaces:
+
+```typescript
+// Instead of unnamed positional parameters
+await client.math.calculate(10, 5, "add");
+
+// With named parameters
+await client.math.calculate({
+  operandA: 10,
+  operandB: 5,
+  operation: "add"
+});
+```
+
+Using custom parameter names ensures consistent naming conventions across your SDK while maintaining compatibility with your existing JSON-RPC method signatures. 

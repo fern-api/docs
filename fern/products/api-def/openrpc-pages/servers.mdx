@@ -1,0 +1,194 @@
+---
+title: Servers
+description: Configure server URLs and transports for your JSON-RPC API
+subtitle: Define server URLs and transport mechanisms for your JSON-RPC API
+---
+
+OpenRPC allows you to specify one or more server configurations that define how clients can connect to your JSON-RPC API.
+
+```yml openrpc.yml 
+servers:
+  - name: production
+    url: https://api.yourcompany.com/rpc
+    description: Production HTTP JSON-RPC server
+  - name: websocket
+    url: wss://api.yourcompany.com/rpc
+    description: Production WebSocket JSON-RPC server
+```
+
+Specifying servers is valuable for both SDKs and Docs: 
+- For SDKs, your users won't need to manually specify the server URL at client instantiation
+- For Docs, your API playground will automatically connect to the correct server
+
+## Transport protocols
+
+JSON-RPC can be used over various transport protocols:
+
+### HTTP/HTTPS Transport
+```yml openrpc.yml 
+servers:
+  - name: http-production
+    url: https://api.yourcompany.com/rpc
+    description: HTTPS JSON-RPC endpoint
+  - name: http-staging
+    url: https://staging-api.yourcompany.com/rpc
+    description: Staging HTTPS endpoint
+```
+
+### WebSocket Transport
+```yml openrpc.yml 
+servers:
+  - name: websocket-production
+    url: wss://api.yourcompany.com/rpc
+    description: WebSocket JSON-RPC for real-time communication
+  - name: websocket-dev
+    url: ws://localhost:8080/rpc
+    description: Development WebSocket server
+```
+
+### TCP Transport
+```yml openrpc.yml 
+servers:
+  - name: tcp-production
+    url: tcp://api.yourcompany.com:9090
+    description: TCP JSON-RPC server for high-performance applications
+```
+
+## Server variables
+
+Use variables to make your server configurations more flexible:
+
+```yml openrpc.yml {3-12}
+servers:
+  - name: production
+    url: https://{environment}.api.yourcompany.com/rpc
+    description: Production JSON-RPC server
+    variables:
+      environment:
+        default: prod
+        enum:
+          - prod
+          - staging
+          - dev
+        description: Environment name
+```
+
+## Multiple environments
+
+Configure different environments with appropriate descriptions:
+
+```yml openrpc.yml 
+servers:
+  - name: production
+    url: https://api.yourcompany.com/rpc
+    description: Production environment - high availability, rate limited
+  - name: staging
+    url: https://staging-api.yourcompany.com/rpc
+    description: Staging environment - for testing new features
+  - name: development
+    url: http://localhost:8080/rpc
+    description: Local development server
+  - name: sandbox
+    url: https://sandbox-api.yourcompany.com/rpc
+    description: Sandbox environment - safe for testing
+```
+
+## Server-specific configurations
+
+Add server-specific metadata and configurations:
+
+```yml openrpc.yml {4-12}
+servers:
+  - name: production
+    url: https://api.yourcompany.com/rpc
+    description: Production JSON-RPC server
+    variables:
+      version:
+        default: v1
+        enum: [v1, v2]
+        description: API version
+    summary: High-performance production server
+    tags:
+      - name: production
+        description: Production environment
+```
+
+## Load balancing and multiple URLs
+
+Configure multiple server URLs for load balancing:
+
+```yml openrpc.yml 
+servers:
+  - name: primary
+    url: https://api-primary.yourcompany.com/rpc
+    description: Primary production server
+  - name: secondary
+    url: https://api-secondary.yourcompany.com/rpc
+    description: Secondary production server (fallback)
+  - name: regional-us
+    url: https://us.api.yourcompany.com/rpc
+    description: US regional server
+  - name: regional-eu
+    url: https://eu.api.yourcompany.com/rpc
+    description: EU regional server
+```
+
+## WebSocket-specific configurations
+
+Configure WebSocket servers with connection parameters:
+
+```yml openrpc.yml {4-10}
+servers:
+  - name: websocket-main
+    url: wss://api.yourcompany.com/rpc
+    description: Main WebSocket JSON-RPC server
+    variables:
+      protocol:
+        default: "jsonrpc-2.0"
+        description: JSON-RPC protocol version
+      heartbeat:
+        default: "30"
+        description: Heartbeat interval in seconds
+```
+
+## Security configurations
+
+Configure authentication and security at the server level:
+
+```yml openrpc.yml {4-6}
+servers:
+  - name: secure-production
+    url: https://api.yourcompany.com/rpc
+    description: Secure production server with authentication
+    security:
+      - bearerAuth: []
+      - apiKeyAuth: []
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+```
+
+## Transport-specific optimizations
+
+Configure servers for specific use cases:
+
+```yml openrpc.yml 
+servers:
+  - name: bulk-operations
+    url: https://bulk.api.yourcompany.com/rpc
+    description: Optimized for batch requests and bulk operations
+  - name: real-time
+    url: wss://realtime.api.yourcompany.com/rpc
+    description: WebSocket server optimized for real-time notifications
+  - name: analytics
+    url: https://analytics.api.yourcompany.com/rpc
+    description: Dedicated server for analytics and reporting methods
+```
+
+Server configurations help clients understand how to connect to your JSON-RPC API and which transport mechanism is most appropriate for their use case. 

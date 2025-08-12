@@ -1,0 +1,157 @@
+---
+title: Use audiences to filter your API
+subtitle: Use `x-fern-audiences` to filter to relevant operations, channels and message schemas
+---
+
+Audiences are a useful tool for segmenting your event-driven API for different consumers. Common examples of audiences include `public`
+and `beta`.
+
+<Info>
+  Remember to filter your SDKs and Docs after specifying audiences. If **no audiences** are specified,
+  nothing will be filtered.
+
+<AccordionGroup>
+
+<Accordion title="SDKs">
+The following example configures the SDK to filter to the `public` audience:
+
+```yaml title="generators.yml" {3-4}
+groups:
+  sdks:
+    audiences:
+      - public
+    generators:
+      - name: fernapi/fern-typescript-node-sdk
+        version: 0.8.8
+```
+</Accordion>
+
+<Accordion title="Docs">
+The following example configures the docs to filter to the `public` audience:
+
+```yaml title="docs.yml" {3-4}
+navigation:
+  - api: API Reference
+    audiences:
+      - public
+```
+</Accordion>
+
+</AccordionGroup>
+</Info>
+
+## Filter operations
+
+Add `x-fern-audiences` to operations to control which operations are included for specific audiences:
+
+```yaml title="asyncapi.yml" {5-6, 12-13}
+operations:
+  sendPublicNotification:
+    action: send
+    channel:
+      $ref: '#/channels/public~1notifications'
+    x-fern-audiences:
+      - public
+  sendBetaAlert:
+    action: send
+    channel:
+      $ref: '#/channels/beta~1alerts'
+    x-fern-audiences:
+      - beta
+```
+
+## Filter channels
+
+You can also filter entire channels by audience:
+
+```yaml title="asyncapi.yml" {6-7, 13-14}
+channels:
+  public/events:
+    address: public/events
+    messages:
+      PublicEvent:
+        $ref: '#/components/messages/PublicEvent'
+    x-fern-audiences:
+      - public
+  internal/events:
+    address: internal/events
+    messages:
+      InternalEvent:
+        $ref: '#/components/messages/InternalEvent'
+    x-fern-audiences:
+      - internal
+```
+
+## Filter message schemas
+
+Filter specific message schemas to different audiences:
+
+```yaml title="asyncapi.yml" {5-6, 13-14}
+components:
+  messages:
+    PublicUserEvent:
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/PublicUser'
+      x-fern-audiences:
+        - public
+    AdminUserEvent:
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/AdminUser'
+      x-fern-audiences:
+        - admin
+  schemas:
+    PublicUser:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+      x-fern-audiences:
+        - public
+    AdminUser:
+      allOf:
+        - $ref: '#/components/schemas/PublicUser'
+        - type: object
+          properties:
+            role:
+              type: string
+            permissions:
+              type: array
+              items:
+                type: string
+      x-fern-audiences:
+        - admin
+```
+
+## Filter schema properties
+
+You can filter individual properties within schemas:
+
+```yaml title="asyncapi.yml" {9-10, 13-14}
+components:
+  schemas:
+    UserEvent:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+          x-fern-audiences:
+            - internal
+        publicName:
+          type: string
+          x-fern-audiences:
+            - public
+        internalNotes:
+          type: string
+          x-fern-audiences:
+            - internal
+```
+
+This allows you to have different views of the same event schema for different audiences, showing only the relevant information to each consumer. 

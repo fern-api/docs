@@ -1,0 +1,79 @@
+---
+title: Parameter Names
+subtitle: Use `x-fern-parameter-name` to customize SDK parameter names for message properties
+---
+
+By default, Fern uses the property names from your AsyncAPI message schemas as SDK parameter names. You can customize these using the `x-fern-parameter-name` extension.
+
+## Customize message property names
+
+Use `x-fern-parameter-name` to specify custom parameter names for message properties:
+
+```yaml title="asyncapi.yml" {10-11, 14-15}
+components:
+  schemas:
+    UserEvent:
+      type: object
+      properties:
+        user_id:
+          type: string
+          description: Unique user identifier
+          x-fern-parameter-name: userId
+        created_at:
+          type: string
+          format: date-time
+          x-fern-parameter-name: createdAt
+        notification_type:
+          type: string
+          enum: [email, sms, push]
+          x-fern-parameter-name: notificationType
+```
+
+This generates SDK methods with cleaner parameter names:
+
+```typescript
+// Instead of send({user_id: "123", created_at: new Date(), notification_type: "email"})
+client.sendNotification({
+  userId: "123",
+  createdAt: new Date(),
+  notificationType: "email"
+});
+```
+
+## Language-specific parameter names
+
+You can specify different parameter names for different programming languages:
+
+```yaml title="asyncapi.yml" {8-13}
+components:
+  schemas:
+    OrderEvent:
+      type: object
+      properties:
+        order_id:
+          type: string
+          x-fern-parameter-name:
+            python: order_id
+            typescript: orderId
+            go: OrderID
+            java: orderId
+            csharp: OrderId
+```
+
+## Channel parameter names
+
+Customize parameter names for channel address variables:
+
+```yaml title="asyncapi.yml" {4-7}
+channels:
+  user/{user_id}/notifications:
+    address: user/{user_id}/notifications
+    parameters:
+      user_id:
+        description: User identifier
+        x-fern-parameter-name: userId
+        schema:
+          type: string
+```
+
+This ensures consistent naming conventions across your SDK while maintaining compatibility with your existing message formats. 

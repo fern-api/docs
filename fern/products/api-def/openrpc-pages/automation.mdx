@@ -1,0 +1,316 @@
+---
+title: Sync your OpenRPC Specification
+subtitle: Automatically sync your OpenRPC spec changes to keep SDKs and docs up to date
+---
+
+Keeping your OpenRPC specifications in sync with your codebase is crucial for maintaining accurate SDKs and documentation. Fern provides several automation options to streamline this process.
+
+## GitHub Actions
+
+Use Fern's GitHub Action to automatically update SDKs and docs when your OpenRPC spec changes:
+
+```yaml title=".github/workflows/fern.yml"
+name: Fern
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  fern-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        
+      - name: Check OpenRPC spec
+        uses: fern-api/action@v0
+        with:
+          command: check
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+
+  fern-generate:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        
+      - name: Generate SDKs and docs
+        uses: fern-api/action@v0
+        with:
+          command: generate
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+```
+
+## Webhook integration
+
+Set up webhooks to trigger SDK generation when your OpenRPC spec is updated:
+
+```yaml title="generators.yml" {4-8}
+api:
+  specs:
+    - spec: openrpc.yml
+  github:
+    repository: your-org/your-repo
+  webhooks:
+    - url: https://your-api.com/webhooks/fern
+      events: [generate]
+  generators:
+    - name: fernapi/fern-typescript-node-sdk
+      version: 0.8.8
+      output:
+        location: npm
+        package-name: "@your-org/jsonrpc-sdk"
+```
+
+## Auto-sync from source
+
+Configure Fern to automatically pull your OpenRPC specification from various sources:
+
+### From URL
+```yaml title="generators.yml" {3-4}
+api:
+  specs:
+    - spec: https://api.yourcompany.com/openrpc.yml
+      auto-sync: true
+  generators:
+    - name: fernapi/fern-typescript-node-sdk
+      version: 0.8.8
+```
+
+### From Git repository
+```yaml title="generators.yml" {3-7}
+api:
+  specs:
+    - spec:
+        git:
+          repository: https://github.com/your-org/api-specs
+          path: openrpc/api.yml
+          branch: main
+  generators:
+    - name: fernapi/fern-typescript-node-sdk
+      version: 0.8.8
+```
+
+## CI/CD integration
+
+### CircleCI
+```yaml title=".circleci/config.yml" {15-23}
+version: 2.1
+
+orbs:
+  fern: fernapi/fern@1.0
+
+workflows:
+  version: 2
+  build-and-test:
+    jobs:
+      - build
+      - test:
+          requires:
+            - build
+      - fern/generate:
+          requires:
+            - test
+          filters:
+            branches:
+              only: main
+          context:
+            - fern-context
+```
+
+### GitLab CI
+```yaml title=".gitlab-ci.yml" {13-20}
+stages:
+  - build
+  - test
+  - generate
+
+variables:
+  FERN_TOKEN: $FERN_TOKEN
+
+build:
+  stage: build
+  script:
+    - echo "Building JSON-RPC service..."
+
+generate-sdks:
+  stage: generate
+  image: fernapi/fern:latest
+  script:
+    - fern generate
+  only:
+    - main
+```
+
+## Scheduled updates
+
+Set up scheduled updates to ensure your SDKs stay current:
+
+```yaml title=".github/workflows/scheduled-update.yml"
+name: Scheduled OpenRPC Update
+
+on:
+  schedule:
+    - cron: '0 2 * * 1'  # Every Monday at 2 AM UTC
+  workflow_dispatch:
+
+jobs:
+  update-specs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        
+      - name: Update OpenRPC specs
+        run: |
+          curl -o fern/openrpc/openrpc.yml https://api.yourcompany.com/openrpc.yml
+          
+      - name: Generate with latest spec
+        uses: fern-api/action@v0
+        with:
+          command: generate
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+```
+
+## Code generation from JSON-RPC server
+
+For servers that can generate their own OpenRPC specifications:
+
+```yaml title=".github/workflows/auto-generate.yml"
+name: Auto-generate from JSON-RPC server
+
+on:
+  push:
+    paths:
+      - 'src/**/*.py'  # Trigger on server code changes
+      - 'src/**/*.js'
+      - 'src/**/*.ts'
+
+jobs:
+  generate-spec:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        
+      - name: Setup environment
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+          
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          
+      - name: Generate OpenRPC spec
+        run: |
+          python scripts/generate_openrpc.py --output fern/openrpc/openrpc.yml
+          
+      - name: Generate SDKs
+        uses: fern-api/action@v0
+        with:
+          command: generate
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+```
+
+## Monitoring changes
+
+Track changes to your OpenRPC specification:
+
+```yaml title="generators.yml" {4-9}
+api:
+  specs:
+    - spec: openrpc.yml
+  change-detection:
+    enabled: true
+    breaking-changes: error
+    notifications:
+      slack: ${{ secrets.SLACK_WEBHOOK }}
+      email: team@yourcompany.com
+  generators:
+    - name: fernapi/fern-typescript-node-sdk
+      version: 0.8.8
+```
+
+## Multi-environment sync
+
+Sync different specifications for different environments:
+
+```yaml title="generators.yml" {3-7, 12-16, 21-25}
+environments:
+  production:
+    specs:
+      - spec: https://api.prod.yourcompany.com/openrpc.yml
+        overlays:
+          - prod-overlay.yml
+    generators:
+      - name: fernapi/fern-typescript-node-sdk
+        version: 0.8.8
+        output:
+          location: npm
+          package-name: "@yourcompany/prod-sdk"
+  staging:
+    specs:
+      - spec: https://api.staging.yourcompany.com/openrpc.yml
+        overlays:
+          - staging-overlay.yml
+    generators:
+      - name: fernapi/fern-typescript-node-sdk
+        version: 0.8.8
+        output:
+          location: npm
+          package-name: "@yourcompany/staging-sdk"
+  development:
+    specs:
+      - spec: http://localhost:8080/openrpc.yml
+    generators:
+      - name: fernapi/fern-typescript-node-sdk
+        version: 0.8.8
+        output:
+          location: local
+          path: ./generated-sdk
+```
+
+## JSON-RPC server introspection
+
+For servers that support OpenRPC discovery:
+
+```python title="scripts/sync_from_server.py"
+import requests
+import yaml
+import json
+
+def fetch_openrpc_spec(server_url):
+    """Fetch OpenRPC spec from a JSON-RPC server that supports introspection"""
+    payload = {
+        "jsonrpc": "2.0",
+        "method": "rpc.discover",
+        "id": 1
+    }
+    
+    response = requests.post(f"{server_url}/rpc", json=payload)
+    spec = response.json()["result"]
+    
+    return spec
+
+def save_spec_as_yaml(spec, output_path):
+    """Convert JSON spec to YAML and save"""
+    with open(output_path, 'w') as f:
+        yaml.dump(spec, f, default_flow_style=False)
+
+if __name__ == "__main__":
+    spec = fetch_openrpc_spec("https://api.yourcompany.com")
+    save_spec_as_yaml(spec, "fern/openrpc/openrpc.yml")
+```
+
+This ensures that any breaking changes to your OpenRPC specification are detected and the appropriate team members are notified before the changes are propagated to your SDKs and documentation. 

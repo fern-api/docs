@@ -1,0 +1,526 @@
+---
+title: Error Handling
+subtitle: Implement robust error handling with gRPC status codes and custom error details
+---
+
+gRPC provides a comprehensive error handling system using status codes, error messages, and optional error details. Proper error handling ensures clients can respond appropriately to different failure scenarios.
+
+## gRPC Status Codes
+
+gRPC uses standard status codes to indicate the outcome of RPC calls:
+
+```protobuf title="error_service.proto"
+syntax = "proto3";
+
+package errors.v1;
+
+import "google/rpc/status.proto";
+import "google/rpc/error_details.proto";
+
+service ErrorDemoService {
+  // Demonstrates various error scenarios
+  rpc ValidateUser(ValidateUserRequest) returns (ValidateUserResponse);
+  
+  // May return rate limiting errors
+  rpc RateLimitedOperation(OperationRequest) returns (OperationResponse);
+  
+  // May return resource exhausted errors
+  rpc ResourceIntensiveOperation(ResourceRequest) returns (ResourceResponse);
+}
+
+message ValidateUserRequest {
+  string user_id = 1;
+  string email = 2;
+}
+
+message ValidateUserResponse {
+  bool valid = 1;
+  repeated ValidationError errors = 2;
+}
+
+message ValidationError {
+  string field = 1;
+  string message = 2;
+  ErrorCode code = 3;
+}
+
+enum ErrorCode {
+  ERROR_CODE_UNSPECIFIED = 0;
+  ERROR_CODE_REQUIRED_FIELD = 1;
+  ERROR_CODE_INVALID_FORMAT = 2;
+  ERROR_CODE_DUPLICATE_VALUE = 3;
+  ERROR_CODE_OUT_OF_RANGE = 4;
+}
+```
+
+## Standard Error Handling
+
+Implement standard gRPC error responses:
+
+```python title="error_handling.py"
+import grpc
+from grpc import ServicerContext
+from google.rpc import status_pb2, error_details_pb2
+from google.protobuf import any_pb2
+
+class ErrorDemoServiceServicer(errors_pb2_grpc.ErrorDemoServiceServicer):
+    
+    def ValidateUser(
+        self, 
+        request: errors_pb2.ValidateUserRequest, 
+        context: ServicerContext
+    ) -> errors_pb2.ValidateUserResponse:
+        """Demonstrate validation errors."""
+        
+        validation_errors = []
+        
+        # Check required fields
+        if not request.user_id:
+            validation_errors.append(errors_pb2.ValidationError(
+                field="user_id",
+                message="User ID is required",
+                code=errors_pb2.ERROR_CODE_REQUIRED_FIELD
+            ))
+        
+        if not request.email:
+            validation_errors.append(errors_pb2.ValidationError(
+                field="email",
+                message="Email is required", 
+                code=errors_pb2.ERROR_CODE_REQUIRED_FIELD
+            ))
+        
+        # Validate email format
+        if request.email and not self._is_valid_email(request.email):
+            validation_errors.append(errors_pb2.ValidationError(
+                field="email",
+                message="Invalid email format",
+                code=errors_pb2.ERROR_CODE_INVALID_FORMAT
+            ))
+        
+        # Check for duplicate user
+        if request.user_id and self.user_exists(request.user_id):
+            validation_errors.append(errors_pb2.ValidationError(
+                field="user_id",
+                message="User ID already exists",
+                code=errors_pb2.ERROR_CODE_DUPLICATE_VALUE
+            ))
+        
+        # Return validation errors if any
+        if validation_errors:
+            context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+            context.set_details("Validation failed")
+            
+            return errors_pb2.ValidateUserResponse(
+                valid=False,
+                errors=validation_errors
+            )
+        
+        return errors_pb2.ValidateUserResponse(valid=True)
+    
+    def RateLimitedOperation(
+        self, 
+        request: errors_pb2.OperationRequest, 
+        context: ServicerContext
+    ) -> errors_pb2.OperationResponse:
+        """Demonstrate rate limiting errors."""
+        
+        # Check rate limit
+        if not self.rate_limiter.is_allowed(request.client_id):
+            # Create detailed error information
+            retry_info = error_details_pb2.RetryInfo()
+            retry_info.retry_delay.seconds = 60  # Retry after 60 seconds
+            
+            quota_failure = error_details_pb2.QuotaFailure()
+            violation = quota_failure.violations.add()
+            violation.subject = f"client:{request.client_id}"
+            violation.description = "API rate limit exceeded"
+            
+            # Set error with details
+            context.set_code(grpc.StatusCode.RESOURCE_EXHAUSTED)
+            context.set_details("Rate limit exceeded")
+            
+            # Add error details (rich error information)
+            self._add_error_details(context, [retry_info, quota_failure])
+            
+            return errors_pb2.OperationResponse()
+        
+        # Process operation normally
+        return self._process_operation(request)
+    
+    def ResourceIntensiveOperation(
+        self, 
+        request: errors_pb2.ResourceRequest, 
+        context: ServicerContext
+    ) -> errors_pb2.ResourceResponse:
+        """Demonstrate resource exhaustion errors."""
+        
+        try:
+            # Check system resources
+            if not self.resource_manager.has_capacity():
+                context.set_code(grpc.StatusCode.RESOURCE_EXHAUSTED)
+                context.set_details("System overloaded, please try again later")
+                return errors_pb2.ResourceResponse()
+            
+            # Process intensive operation
+            result = self._process_intensive_operation(request)
+            return errors_pb2.ResourceResponse(result=result)
+            
+        except TimeoutError:
+            context.set_code(grpc.StatusCode.DEADLINE_EXCEEDED)
+            context.set_details("Operation timed out")
+            return errors_pb2.ResourceResponse()
+            
+        except PermissionError:
+            context.set_code(grpc.StatusCode.PERMISSION_DENIED)
+            context.set_details("Insufficient permissions for this operation")
+            return errors_pb2.ResourceResponse()
+            
+        except FileNotFoundError as e:
+            context.set_code(grpc.StatusCode.NOT_FOUND)
+            context.set_details(f"Required resource not found: {str(e)}")
+            return errors_pb2.ResourceResponse()
+            
+        except Exception as e:
+            context.set_code(grpc.StatusCode.INTERNAL)
+            context.set_details(f"Internal server error: {str(e)}")
+            return errors_pb2.ResourceResponse()
+    
+    def _add_error_details(self, context: ServicerContext, details):
+        """Add rich error details to gRPC response."""
+        rich_status = status_pb2.Status()
+        rich_status.code = context._state.code.value[0]
+        rich_status.message = context._state.details
+        
+        for detail in details:
+            detail_any = any_pb2.Any()
+            detail_any.Pack(detail)
+            rich_status.details.append(detail_any)
+        
+        # Add to trailing metadata
+        context.set_trailing_metadata([
+            ('grpc-status-details-bin', rich_status.SerializeToString())
+        ])
+```
+
+## Custom Error Types
+
+Define custom error types for domain-specific errors:
+
+```protobuf title="custom_errors.proto"
+syntax = "proto3";
+
+package errors.v1;
+
+// Custom error details
+message BusinessLogicError {
+  string error_code = 1;
+  string error_message = 2;
+  map<string, string> error_context = 3;
+  repeated string suggested_actions = 4;
+}
+
+message ValidationFailure {
+  repeated FieldError field_errors = 1;
+  string global_error = 2;
+}
+
+message FieldError {
+  string field_path = 1;
+  string error_message = 2;
+  string error_code = 3;
+  google.protobuf.Any invalid_value = 4;
+}
+
+message ServiceUnavailableError {
+  string service_name = 1;
+  google.protobuf.Timestamp estimated_recovery_time = 2;
+  repeated string alternative_endpoints = 3;
+}
+```
+
+Custom error implementation:
+
+```python title="custom_errors.py"
+class CustomErrorHandler:
+    
+    @staticmethod
+    def business_logic_error(
+        context: ServicerContext,
+        error_code: str,
+        message: str,
+        error_context: dict = None,
+        suggested_actions: list = None
+    ):
+        """Create a business logic error."""
+        
+        business_error = errors_pb2.BusinessLogicError(
+            error_code=error_code,
+            error_message=message,
+            error_context=error_context or {},
+            suggested_actions=suggested_actions or []
+        )
+        
+        context.set_code(grpc.StatusCode.FAILED_PRECONDITION)
+        context.set_details(message)
+        
+        # Add custom error details
+        CustomErrorHandler._add_custom_details(context, business_error)
+    
+    @staticmethod
+    def validation_failure(
+        context: ServicerContext,
+        field_errors: list,
+        global_error: str = None
+    ):
+        """Create a validation failure error."""
+        
+        validation_error = errors_pb2.ValidationFailure(
+            field_errors=field_errors,
+            global_error=global_error or ""
+        )
+        
+        context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
+        context.set_details("Validation failed")
+        
+        CustomErrorHandler._add_custom_details(context, validation_error)
+    
+    @staticmethod
+    def service_unavailable(
+        context: ServicerContext,
+        service_name: str,
+        estimated_recovery: datetime = None,
+        alternatives: list = None
+    ):
+        """Create a service unavailable error."""
+        
+        error = errors_pb2.ServiceUnavailableError(
+            service_name=service_name,
+            alternative_endpoints=alternatives or []
+        )
+        
+        if estimated_recovery:
+            error.estimated_recovery_time.FromDatetime(estimated_recovery)
+        
+        context.set_code(grpc.StatusCode.UNAVAILABLE)
+        context.set_details(f"Service {service_name} is currently unavailable")
+        
+        CustomErrorHandler._add_custom_details(context, error)
+    
+    @staticmethod
+    def _add_custom_details(context: ServicerContext, error_detail):
+        """Add custom error details to response."""
+        detail_any = any_pb2.Any()
+        detail_any.Pack(error_detail)
+        
+        rich_status = status_pb2.Status()
+        rich_status.code = context._state.code.value[0]
+        rich_status.message = context._state.details
+        rich_status.details.append(detail_any)
+        
+        context.set_trailing_metadata([
+            ('grpc-status-details-bin', rich_status.SerializeToString())
+        ])
+
+# Usage example
+class UserService(user_pb2_grpc.UserServiceServicer):
+    
+    def CreateUser(self, request, context):
+        # Validate business rules
+        if self.user_repository.email_exists(request.email):
+            CustomErrorHandler.business_logic_error(
+                context,
+                error_code="DUPLICATE_EMAIL",
+                message="Email address is already registered",
+                error_context={"email": request.email},
+                suggested_actions=[
+                    "Use a different email address",
+                    "Reset password if you forgot your account"
+                ]
+            )
+            return user_pb2.User()
+        
+        # Continue with user creation...
+```
+
+## Error Interceptors
+
+Implement global error handling with interceptors:
+
+```python title="error_interceptor.py"
+import logging
+import traceback
+from grpc import ServicerContext, StatusCode
+
+class ErrorInterceptor(grpc.ServerInterceptor):
+    
+    def __init__(self, logger=None):
+        self.logger = logger or logging.getLogger(__name__)
+    
+    def intercept_service(self, continuation, handler_call_details):
+        def error_wrapper(behavior):
+            def wrapper(request, context):
+                try:
+                    return behavior(request, context)
+                    
+                except ValueError as e:
+                    # Convert Python ValueError to gRPC INVALID_ARGUMENT
+                    context.set_code(StatusCode.INVALID_ARGUMENT)
+                    context.set_details(f"Invalid input: {str(e)}")
+                    self.logger.warning(f"Validation error in {handler_call_details.method}: {e}")
+                    return self._get_default_response(behavior)
+                    
+                except PermissionError as e:
+                    context.set_code(StatusCode.PERMISSION_DENIED)
+                    context.set_details("Access denied")
+                    self.logger.warning(f"Permission denied in {handler_call_details.method}: {e}")
+                    return self._get_default_response(behavior)
+                    
+                except TimeoutError as e:
+                    context.set_code(StatusCode.DEADLINE_EXCEEDED)
+                    context.set_details("Operation timed out")
+                    self.logger.error(f"Timeout in {handler_call_details.method}: {e}")
+                    return self._get_default_response(behavior)
+                    
+                except Exception as e:
+                    # Log unexpected errors
+                    self.logger.error(
+                        f"Unexpected error in {handler_call_details.method}: {e}\n"
+                        f"Traceback: {traceback.format_exc()}"
+                    )
+                    
+                    context.set_code(StatusCode.INTERNAL)
+                    context.set_details("Internal server error")
+                    return self._get_default_response(behavior)
+            
+            return wrapper
+        
+        return grpc.unary_unary_rpc_method_handler(
+            error_wrapper(continuation(handler_call_details).unary_unary)
+        )
+    
+    def _get_default_response(self, behavior):
+        """Return an empty response of the correct type."""
+        # This would need to be implemented based on your service methods
+        return None
+```
+
+## Client-side Error Handling
+
+Handle errors on the client side:
+
+```python title="client_error_handling.py"
+import grpc
+from google.rpc import status_pb2, error_details_pb2
+from google.protobuf import any_pb2
+
+def handle_grpc_errors(stub_method, request):
+    """Generic error handling for gRPC client calls."""
+    
+    try:
+        response = stub_method(request)
+        return response, None
+        
+    except grpc.RpcError as e:
+        error_info = {
+            'code': e.code(),
+            'details': e.details(),
+            'status': e.code().name
+        }
+        
+        # Extract rich error details if available
+        metadata = dict(e.trailing_metadata())
+        if 'grpc-status-details-bin' in metadata:
+            try:
+                status_detail = status_pb2.Status()
+                status_detail.ParseFromString(metadata['grpc-status-details-bin'])
+                
+                error_info['rich_details'] = []
+                for detail in status_detail.details:
+                    # Try to unpack common error types
+                    if detail.Is(error_details_pb2.RetryInfo.DESCRIPTOR):
+                        retry_info = error_details_pb2.RetryInfo()
+                        detail.Unpack(retry_info)
+                        error_info['rich_details'].append({
+                            'type': 'retry_info',
+                            'retry_delay_seconds': retry_info.retry_delay.seconds
+                        })
+                    elif detail.Is(error_details_pb2.QuotaFailure.DESCRIPTOR):
+                        quota_failure = error_details_pb2.QuotaFailure()
+                        detail.Unpack(quota_failure)
+                        error_info['rich_details'].append({
+                            'type': 'quota_failure',
+                            'violations': [
+                                {
+                                    'subject': v.subject,
+                                    'description': v.description
+                                } for v in quota_failure.violations
+                            ]
+                        })
+                        
+            except Exception:
+                # If we can't parse rich details, that's okay
+                pass
+        
+        return None, error_info
+
+# Usage example
+def create_user_with_error_handling(stub, user_data):
+    """Create user with comprehensive error handling."""
+    
+    request = user_pb2.CreateUserRequest(**user_data)
+    response, error = handle_grpc_errors(stub.CreateUser, request)
+    
+    if error:
+        if error['code'] == grpc.StatusCode.INVALID_ARGUMENT:
+            print(f"Validation failed: {error['details']}")
+            return None
+            
+        elif error['code'] == grpc.StatusCode.ALREADY_EXISTS:
+            print(f"User already exists: {error['details']}")
+            return None
+            
+        elif error['code'] == grpc.StatusCode.RESOURCE_EXHAUSTED:
+            # Check for retry information
+            for detail in error.get('rich_details', []):
+                if detail['type'] == 'retry_info':
+                    retry_delay = detail['retry_delay_seconds']
+                    print(f"Rate limited. Retry after {retry_delay} seconds")
+                    return None
+            
+            print("Resource exhausted")
+            return None
+            
+        else:
+            print(f"Unexpected error: {error['status']} - {error['details']}")
+            return None
+    
+    return response
+```
+
+## Error Response Patterns
+
+Define consistent error response patterns:
+
+```protobuf title="error_responses.proto"
+syntax = "proto3";
+
+// Standard error response envelope
+message ErrorResponse {
+  string error_code = 1;
+  string error_message = 2;
+  map<string, string> error_context = 3;
+  repeated string suggestions = 4;
+  google.protobuf.Timestamp timestamp = 5;
+  string request_id = 6;
+}
+
+// Union response pattern
+message CreateUserResult {
+  oneof result {
+    User success = 1;
+    ErrorResponse error = 2;
+  }
+}
+```
+
+Proper error handling in gRPC ensures robust, maintainable services that provide clear feedback to clients about what went wrong and how to fix it. 

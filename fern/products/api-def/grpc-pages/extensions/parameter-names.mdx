@@ -1,0 +1,302 @@
+---
+title: Parameter Names
+subtitle: Use `x-fern-parameter-name` to customize SDK parameter names for gRPC message fields
+---
+
+By default, Fern uses the field names from your Protocol Buffer message definitions as SDK parameter names. You can customize these using the `x-fern-parameter-name` extension.
+
+## Customize field names
+
+Use `x-fern-parameter-name` to specify custom parameter names for message fields:
+
+```protobuf title="user_service.proto"
+syntax = "proto3";
+
+package userservice.v1;
+
+message CreateUserRequest {
+  string email_address = 1 [(x_fern_parameter_name) = "email"];
+  string full_name = 2 [(x_fern_parameter_name) = "name"];
+  int32 age_in_years = 3 [(x_fern_parameter_name) = "age"];
+  string phone_number = 4 [(x_fern_parameter_name) = "phone"];
+  UserPreferences user_preferences = 5 [(x_fern_parameter_name) = "preferences"];
+}
+
+message User {
+  string user_id = 1 [(x_fern_parameter_name) = "id"];
+  string email_address = 2 [(x_fern_parameter_name) = "email"];
+  string full_name = 3 [(x_fern_parameter_name) = "name"];
+  google.protobuf.Timestamp created_timestamp = 4 [(x_fern_parameter_name) = "createdAt"];
+  google.protobuf.Timestamp updated_timestamp = 5 [(x_fern_parameter_name) = "updatedAt"];
+}
+```
+
+This generates SDK methods with cleaner parameter names:
+
+```typescript
+// Instead of email_address, full_name, age_in_years, phone_number, user_preferences
+await client.users.create({
+  email: "john@example.com",
+  name: "John Doe", 
+  age: 30,
+  phone: "+1-555-0123",
+  preferences: { theme: "dark" }
+});
+```
+
+## Language-specific parameter names
+
+You can specify different parameter names for different programming languages:
+
+```protobuf title="language_specific.proto"
+syntax = "proto3";
+
+package userservice.v1;
+
+message SearchUsersRequest {
+  string search_query = 1 [
+    (x_fern_parameter_name_python) = "search_query",
+    (x_fern_parameter_name_typescript) = "searchQuery",
+    (x_fern_parameter_name_go) = "SearchQuery",
+    (x_fern_parameter_name_java) = "searchQuery",
+    (x_fern_parameter_name_csharp) = "SearchQuery"
+  ];
+  
+  int32 page_size = 2 [
+    (x_fern_parameter_name_python) = "page_size",
+    (x_fern_parameter_name_typescript) = "pageSize",
+    (x_fern_parameter_name_go) = "PageSize",
+    (x_fern_parameter_name_java) = "pageSize",
+    (x_fern_parameter_name_csharp) = "PageSize"
+  ];
+  
+  string page_token = 3 [
+    (x_fern_parameter_name_python) = "page_token",
+    (x_fern_parameter_name_typescript) = "pageToken",
+    (x_fern_parameter_name_go) = "PageToken",
+    (x_fern_parameter_name_java) = "pageToken",
+    (x_fern_parameter_name_csharp) = "PageToken"
+  ];
+}
+```
+
+## Nested message naming
+
+Customize parameter names for nested message fields:
+
+```protobuf title="nested_messages.proto"
+syntax = "proto3";
+
+package userservice.v1;
+
+message CreateUserRequest {
+  UserProfile user_profile = 1 [(x_fern_parameter_name) = "profile"];
+  ContactInfo contact_info = 2 [(x_fern_parameter_name) = "contact"];
+  AccountSettings account_settings = 3 [(x_fern_parameter_name) = "settings"];
+}
+
+message UserProfile {
+  string first_name = 1 [(x_fern_parameter_name) = "firstName"];
+  string last_name = 2 [(x_fern_parameter_name) = "lastName"];
+  string display_name = 3 [(x_fern_parameter_name) = "displayName"];
+  string bio_text = 4 [(x_fern_parameter_name) = "bio"];
+  string avatar_url = 5 [(x_fern_parameter_name) = "avatarUrl"];
+}
+
+message ContactInfo {
+  string email_address = 1 [(x_fern_parameter_name) = "email"];
+  string phone_number = 2 [(x_fern_parameter_name) = "phone"];
+  Address mailing_address = 3 [(x_fern_parameter_name) = "address"];
+}
+
+message Address {
+  string street_address = 1 [(x_fern_parameter_name) = "street"];
+  string city_name = 2 [(x_fern_parameter_name) = "city"];
+  string state_province = 3 [(x_fern_parameter_name) = "state"];
+  string postal_code = 4 [(x_fern_parameter_name) = "zipCode"];
+  string country_code = 5 [(x_fern_parameter_name) = "country"];
+}
+```
+
+## Repeated field naming
+
+Handle repeated fields with custom naming:
+
+```protobuf title="repeated_fields.proto"
+syntax = "proto3";
+
+package userservice.v1;
+
+message User {
+  string user_id = 1 [(x_fern_parameter_name) = "id"];
+  repeated string role_names = 2 [(x_fern_parameter_name) = "roles"];
+  repeated string permission_codes = 3 [(x_fern_parameter_name) = "permissions"];
+  repeated SocialAccount social_accounts = 4 [(x_fern_parameter_name) = "socialAccounts"];
+  repeated string tag_list = 5 [(x_fern_parameter_name) = "tags"];
+}
+
+message SocialAccount {
+  string platform_name = 1 [(x_fern_parameter_name) = "platform"];
+  string account_handle = 2 [(x_fern_parameter_name) = "handle"];
+  string profile_url = 3 [(x_fern_parameter_name) = "url"];
+  bool is_verified = 4 [(x_fern_parameter_name) = "verified"];
+}
+
+message BatchCreateUsersRequest {
+  repeated CreateUserRequest user_requests = 1 [(x_fern_parameter_name) = "users"];
+  bool send_welcome_email = 2 [(x_fern_parameter_name) = "sendWelcomeEmail"];
+  bool skip_validation = 3 [(x_fern_parameter_name) = "skipValidation"];
+}
+```
+
+## Map field naming
+
+Customize names for map fields:
+
+```protobuf title="map_fields.proto"
+syntax = "proto3";
+
+package userservice.v1;
+
+message UserPreferences {
+  map<string, string> notification_settings = 1 [(x_fern_parameter_name) = "notifications"];
+  map<string, bool> feature_flags = 2 [(x_fern_parameter_name) = "features"];
+  map<string, int32> display_settings = 3 [(x_fern_parameter_name) = "display"];
+  map<string, UserTheme> theme_overrides = 4 [(x_fern_parameter_name) = "themes"];
+}
+
+message MetricsData {
+  map<string, double> performance_metrics = 1 [(x_fern_parameter_name) = "performance"];
+  map<string, int64> usage_counters = 2 [(x_fern_parameter_name) = "usage"];
+  map<string, google.protobuf.Timestamp> event_timestamps = 3 [(x_fern_parameter_name) = "events"];
+}
+```
+
+## Optional and required field naming
+
+Customize names for optional and required fields:
+
+```protobuf title="optional_fields.proto"
+syntax = "proto3";
+
+package userservice.v1;
+
+message UpdateUserRequest {
+  // Required fields
+  string user_id = 1 [(x_fern_parameter_name) = "id"];
+  
+  // Optional fields with custom names
+  optional string email_address = 2 [(x_fern_parameter_name) = "email"];
+  optional string full_name = 3 [(x_fern_parameter_name) = "name"];
+  optional int32 age_in_years = 4 [(x_fern_parameter_name) = "age"];
+  optional string profile_picture_url = 5 [(x_fern_parameter_name) = "avatarUrl"];
+  
+  // Field mask for partial updates
+  google.protobuf.FieldMask update_mask = 6 [(x_fern_parameter_name) = "updateMask"];
+}
+```
+
+## Oneof field naming
+
+Handle oneof fields with meaningful names:
+
+```protobuf title="oneof_fields.proto"
+syntax = "proto3";
+
+package userservice.v1;
+
+message SearchRequest {
+  oneof search_criteria {
+    string search_by_email = 1 [(x_fern_parameter_name) = "email"];
+    string search_by_username = 2 [(x_fern_parameter_name) = "username"];
+    string search_by_phone = 3 [(x_fern_parameter_name) = "phone"];
+    UserIdSearch search_by_id = 4 [(x_fern_parameter_name) = "id"];
+  }
+  
+  SearchOptions search_options = 5 [(x_fern_parameter_name) = "options"];
+}
+
+message UserIdSearch {
+  string user_id = 1 [(x_fern_parameter_name) = "id"];
+  bool include_deleted = 2 [(x_fern_parameter_name) = "includeDeleted"];
+}
+
+message NotificationRequest {
+  oneof notification_target {
+    string target_user_id = 1 [(x_fern_parameter_name) = "userId"];
+    string target_group_id = 2 [(x_fern_parameter_name) = "groupId"];
+    BroadcastTarget target_broadcast = 3 [(x_fern_parameter_name) = "broadcast"];
+  }
+  
+  string message_content = 4 [(x_fern_parameter_name) = "message"];
+  NotificationPriority priority_level = 5 [(x_fern_parameter_name) = "priority"];
+}
+```
+
+## Timestamp and duration naming
+
+Customize names for time-related fields:
+
+```protobuf title="time_fields.proto"
+syntax = "proto3";
+
+package userservice.v1;
+
+message UserSession {
+  string session_id = 1 [(x_fern_parameter_name) = "id"];
+  string user_id = 2 [(x_fern_parameter_name) = "userId"];
+  google.protobuf.Timestamp created_timestamp = 3 [(x_fern_parameter_name) = "createdAt"];
+  google.protobuf.Timestamp last_accessed_timestamp = 4 [(x_fern_parameter_name) = "lastAccessedAt"];
+  google.protobuf.Timestamp expires_timestamp = 5 [(x_fern_parameter_name) = "expiresAt"];
+  google.protobuf.Duration session_duration = 6 [(x_fern_parameter_name) = "duration"];
+  google.protobuf.Duration idle_timeout = 7 [(x_fern_parameter_name) = "idleTimeout"];
+}
+
+message ScheduledTask {
+  string task_id = 1 [(x_fern_parameter_name) = "id"];
+  google.protobuf.Timestamp scheduled_time = 2 [(x_fern_parameter_name) = "scheduledAt"];
+  google.protobuf.Duration execution_timeout = 3 [(x_fern_parameter_name) = "timeout"];
+  google.protobuf.Duration retry_delay = 4 [(x_fern_parameter_name) = "retryDelay"];
+}
+```
+
+## Complex nested naming
+
+Handle complex nested structures:
+
+```protobuf title="complex_nested.proto"
+syntax = "proto3";
+
+package userservice.v1;
+
+message CreateOrderRequest {
+  OrderDetails order_details = 1 [(x_fern_parameter_name) = "order"];
+  PaymentInfo payment_info = 2 [(x_fern_parameter_name) = "payment"];
+  ShippingInfo shipping_info = 3 [(x_fern_parameter_name) = "shipping"];
+}
+
+message OrderDetails {
+  repeated OrderItem order_items = 1 [(x_fern_parameter_name) = "items"];
+  string promo_code = 2 [(x_fern_parameter_name) = "promoCode"];
+  string special_instructions = 3 [(x_fern_parameter_name) = "instructions"];
+}
+
+message OrderItem {
+  string product_id = 1 [(x_fern_parameter_name) = "productId"];
+  int32 quantity_ordered = 2 [(x_fern_parameter_name) = "quantity"];
+  double unit_price = 3 [(x_fern_parameter_name) = "price"];
+  repeated string product_options = 4 [(x_fern_parameter_name) = "options"];
+}
+
+message PaymentInfo {
+  oneof payment_method {
+    CreditCardInfo credit_card_info = 1 [(x_fern_parameter_name) = "creditCard"];
+    PayPalInfo paypal_info = 2 [(x_fern_parameter_name) = "paypal"];
+    BankTransferInfo bank_transfer_info = 3 [(x_fern_parameter_name) = "bankTransfer"];
+  }
+  
+  BillingAddress billing_address = 4 [(x_fern_parameter_name) = "billingAddress"];
+}
+```
+
+Using custom parameter names ensures consistent naming conventions across your SDK while maintaining compatibility with your existing Protocol Buffer schemas. 

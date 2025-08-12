@@ -1,0 +1,168 @@
+---
+title: Overlay Customizations
+subtitle: Use overlay files to modify your AsyncAPI specification without editing the original
+---
+
+Overlays allow you to modify your AsyncAPI specification without directly editing the original file. This is useful for:
+- Adding Fern-specific extensions
+- Customizing documentation
+- Adding examples and descriptions
+- Overriding specific properties
+
+## Configure overlays
+
+To use overlays, add them to your `generators.yml` file:
+
+```yaml title="generators.yml" {3-5}
+api:
+  specs:
+    - spec: asyncapi.yml
+      overlays:
+        - overlay.yml
+  generators:
+    - name: fernapi/fern-typescript-node-sdk
+      version: 0.8.8
+```
+
+## Overlay file structure
+
+Overlay files follow the [OpenAPI Overlay Specification](https://spec.openapis.org/overlay/v1.0.0) format:
+
+```yaml title="overlay.yml"
+overlay: 1.0.0
+info:
+  title: AsyncAPI Fern Extensions
+  version: 1.0.0
+actions:
+  - target: $.operations.sendNotification
+    update:
+      x-fern-sdk-method-name: notify
+      summary: Send a notification to a user
+  - target: $.channels['user/events']
+    update:
+      description: Channel for user-related events
+      x-fern-audiences:
+        - public
+```
+
+## Add method names
+
+Override SDK method names for better developer experience:
+
+```yaml title="overlay.yml" {7-9}
+overlay: 1.0.0
+info:
+  title: SDK Method Names
+  version: 1.0.0
+actions:
+  - target: $.operations.subscribeToUserEvents
+    update:
+      x-fern-sdk-method-name: onUserEvent
+      summary: Subscribe to user events with callback
+  - target: $.operations.publishOrderUpdate
+    update:
+      x-fern-sdk-method-name: updateOrder
+      summary: Publish order status update
+```
+
+## Add examples
+
+Enhance your specification with examples:
+
+```yaml title="overlay.yml" {7-17}
+overlay: 1.0.0
+info:
+  title: Message Examples
+  version: 1.0.0
+actions:
+  - target: $.components.messages.UserSignup
+    update:
+      examples:
+        - name: StandardSignup
+          summary: Regular user signup
+          payload:
+            id: "user_123"
+            email: "john@example.com"
+            name: "John Doe"
+            signupSource: "web"
+            timestamp: "2024-01-15T10:30:00Z"
+```
+
+## Filter with audiences
+
+Add audience filtering to operations and channels:
+
+```yaml title="overlay.yml" {7-9, 12-14}
+overlay: 1.0.0
+info:
+  title: Audience Filtering
+  version: 1.0.0
+actions:
+  - target: $.operations.adminAlert
+    update:
+      x-fern-audiences:
+        - admin
+  - target: $.channels['internal/debug']
+    update:
+      x-fern-audiences:
+        - internal
+```
+
+## Add documentation
+
+Enhance descriptions and documentation:
+
+```yaml title="overlay.yml" {7-11}
+overlay: 1.0.0
+info:
+  title: Enhanced Documentation
+  version: 1.0.0
+actions:
+  - target: $.operations.sendMessage
+    update:
+      description: |
+        Send a message to the specified channel. This operation supports
+        real-time delivery with automatic retry on failure. Messages are
+        guaranteed to be delivered at least once.
+      summary: Send message with delivery guarantees
+```
+
+## Server configurations
+
+Add server-specific configurations:
+
+```yaml title="overlay.yml" {7-11}
+overlay: 1.0.0
+info:
+  title: Server Extensions
+  version: 1.0.0
+actions:
+  - target: $.servers.production
+    update:
+      x-fern-server-name: Production
+      description: Production environment with high availability
+      bindings:
+        ws:
+          headers:
+            type: object
+            properties:
+              X-API-Version:
+                type: string
+                const: "v1"
+```
+
+## Multiple overlays
+
+You can apply multiple overlay files in sequence:
+
+```yaml title="generators.yml" {4-7}
+api:
+  specs:
+    - spec: asyncapi.yml
+      overlays:
+        - base-overlay.yml
+        - sdk-overlay.yml
+        - docs-overlay.yml
+```
+
+Overlays are applied in order, allowing you to build up customizations incrementally while keeping your original AsyncAPI specification clean and focused. 

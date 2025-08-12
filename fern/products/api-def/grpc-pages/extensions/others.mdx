@@ -1,0 +1,403 @@
+---
+title: Other Extensions
+subtitle: Additional Fern extensions for gRPC specifications
+---
+
+Fern supports various extensions to enhance your gRPC specifications and improve the generated SDKs and documentation.
+
+## `x-fern-ignore`
+
+Use `x-fern-ignore` to exclude specific services, methods or messages from SDK generation:
+
+```protobuf title="user_service.proto"
+syntax = "proto3";
+
+package userservice.v1;
+
+service UserService {
+  rpc GetUser(GetUserRequest) returns (User);
+  
+  // Exclude internal debugging method
+  rpc DebugUserData(DebugUserRequest) returns (DebugUserResponse) {
+    option (x_fern_ignore) = true;
+  }
+  
+  // Exclude experimental method
+  rpc ExperimentalFeature(ExperimentalRequest) returns (ExperimentalResponse) {
+    option (x_fern_ignore) = true;
+  }
+}
+
+// Exclude internal message from SDK
+message InternalUserData {
+  option (x_fern_ignore) = true;
+  
+  string internal_id = 1;
+  repeated string debug_flags = 2;
+  map<string, string> system_metadata = 3;
+}
+```
+
+## `x-fern-examples`
+
+Provide additional examples for better SDK documentation:
+
+```protobuf title="user_service.proto"
+syntax = "proto3";
+
+package userservice.v1;
+
+service UserService {
+  rpc CreateUser(CreateUserRequest) returns (User) {
+    option (x_fern_examples) = '{
+      "StandardUser": {
+        "description": "Create a regular user account",
+        "request": {
+          "email": "john@example.com",
+          "name": "John Doe",
+          "age": 30,
+          "preferences": {
+            "theme": "dark",
+            "notifications": true
+          }
+        },
+        "response": {
+          "id": "user_123",
+          "email": "john@example.com",
+          "name": "John Doe",
+          "created_at": "2024-01-15T10:30:00Z"
+        }
+      },
+      "AdminUser": {
+        "description": "Create an admin user with special permissions",
+        "request": {
+          "email": "admin@example.com",
+          "name": "Admin User",
+          "role": "admin",
+          "permissions": ["read", "write", "delete"]
+        },
+        "response": {
+          "id": "user_456",
+          "email": "admin@example.com",
+          "name": "Admin User",
+          "role": "admin",
+          "created_at": "2024-01-15T10:30:00Z"
+        }
+      }
+    }';
+  }
+}
+```
+
+## `x-fern-pagination`
+
+Configure pagination for methods that return lists:
+
+```protobuf title="pagination_service.proto"
+syntax = "proto3";
+
+package userservice.v1;
+
+service UserService {
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse) {
+    option (x_fern_pagination) = '{
+      "cursor": "page_token",
+      "results": "users",
+      "next_cursor": "next_page_token",
+      "has_next_page": "has_more"
+    }';
+  }
+}
+
+message ListUsersRequest {
+  int32 page_size = 1;
+  string page_token = 2;
+  string filter = 3;
+}
+
+message ListUsersResponse {
+  repeated User users = 1;
+  string next_page_token = 2;
+  bool has_more = 3;
+  int32 total_count = 4;
+}
+```
+
+## `x-fern-retry`
+
+Configure retry behavior for methods:
+
+```protobuf title="retry_service.proto"
+syntax = "proto3";
+
+package userservice.v1;
+
+service UserService {
+  rpc ProcessPayment(ProcessPaymentRequest) returns (PaymentResult) {
+    option (x_fern_retry) = '{
+      "max_attempts": 3,
+      "exponential_backoff": true,
+      "initial_delay_ms": 1000,
+      "max_delay_ms": 30000,
+      "retry_on_status": ["UNAVAILABLE", "DEADLINE_EXCEEDED", "INTERNAL"]
+    }';
+  }
+  
+  rpc UploadFile(UploadFileRequest) returns (UploadFileResponse) {
+    option (x_fern_retry) = '{
+      "max_attempts": 5,
+      "exponential_backoff": true,
+      "initial_delay_ms": 2000,
+      "max_delay_ms": 60000
+    }';
+  }
+}
+```
+
+## `x-fern-timeout`
+
+Configure timeout settings for methods:
+
+```protobuf title="timeout_service.proto"
+syntax = "proto3";
+
+package userservice.v1;
+
+service UserService {
+  rpc GenerateReport(GenerateReportRequest) returns (ReportResult) {
+    option (x_fern_timeout) = '{
+      "seconds": 300,
+      "description": "Report generation can take up to 5 minutes"
+    }';
+  }
+  
+  rpc QuickUserLookup(UserLookupRequest) returns (User) {
+    option (x_fern_timeout) = '{
+      "seconds": 5,
+      "description": "Quick lookup should complete within 5 seconds"
+    }';
+  }
+}
+```
+
+## `x-fern-error-handling`
+
+Configure error handling for methods:
+
+```protobuf title="error_handling_service.proto"
+syntax = "proto3";
+
+package userservice.v1;
+
+service UserService {
+  rpc CreateUser(CreateUserRequest) returns (User) {
+    option (x_fern_error_handling) = '{
+      "ALREADY_EXISTS": {
+        "error_name": "UserAlreadyExistsError",
+        "user_friendly_message": "A user with this email already exists"
+      },
+      "INVALID_ARGUMENT": {
+        "error_name": "ValidationError",
+        "user_friendly_message": "Please check your input and try again"
+      },
+      "RESOURCE_EXHAUSTED": {
+        "error_name": "RateLimitError",
+        "retry_after_seconds": 60
+      }
+    }';
+  }
+}
+```
+
+## `x-fern-availability`
+
+Mark features as available in specific SDK versions:
+
+```protobuf title="availability_service.proto"
+syntax = "proto3";
+
+package userservice.v1;
+
+service UserService {
+  rpc GetUser(GetUserRequest) returns (User);
+  
+  rpc GetUserAnalytics(GetUserAnalyticsRequest) returns (UserAnalytics) {
+    option (x_fern_availability) = '{
+      "status": "beta",
+      "message": "This feature is in beta and may change"
+    }';
+  }
+  
+  rpc ExperimentalSearch(ExperimentalSearchRequest) returns (SearchResults) {
+    option (x_fern_availability) = '{
+      "status": "experimental",
+      "message": "This is an experimental feature and may be removed"
+    }';
+  }
+}
+```
+
+## `x-fern-streaming`
+
+Mark methods as streaming for appropriate SDK generation:
+
+```protobuf title="streaming_service.proto"
+syntax = "proto3";
+
+package userservice.v1;
+
+service UserService {
+  rpc StreamEvents(StreamEventsRequest) returns (stream Event) {
+    option (x_fern_streaming) = '{
+      "type": "server_streaming",
+      "termination": "client_closes"
+    }';
+  }
+  
+  rpc UploadData(stream UploadDataRequest) returns (UploadResult) {
+    option (x_fern_streaming) = '{
+      "type": "client_streaming",
+      "termination": "client_closes"
+    }';
+  }
+  
+  rpc Chat(stream ChatMessage) returns (stream ChatMessage) {
+    option (x_fern_streaming) = '{
+      "type": "bidirectional_streaming",
+      "termination": "either_closes"
+    }';
+  }
+}
+```
+
+## `x-fern-server-name`
+
+Specify custom names for different server environments:
+
+```protobuf title="server_service.proto"
+syntax = "proto3";
+
+package userservice.v1;
+
+service UserService {
+  option (x_fern_server_name_production) = "Production";
+  option (x_fern_server_name_staging) = "Staging";
+  option (x_fern_server_name_development) = "Development";
+  
+  rpc GetUser(GetUserRequest) returns (User);
+}
+```
+
+## `x-fern-base-path`
+
+Configure base paths for generated SDK clients:
+
+```protobuf title="base_path_service.proto"
+syntax = "proto3";
+
+package userservice.v1;
+
+service UserService {
+  option (x_fern_base_path) = "/api/v1";
+  
+  rpc GetUser(GetUserRequest) returns (User);
+}
+```
+
+## `x-fern-sdk-group-name`
+
+Group related services in the SDK:
+
+```protobuf title="grouped_services.proto"
+syntax = "proto3";
+
+package userservice.v1;
+
+service UserService {
+  option (x_fern_sdk_group_name) = "users";
+  
+  rpc CreateUser(CreateUserRequest) returns (User);
+  rpc GetUser(GetUserRequest) returns (User);
+}
+
+service UserProfileService {
+  option (x_fern_sdk_group_name) = "users";
+  
+  rpc GetProfile(GetProfileRequest) returns (UserProfile);
+  rpc UpdateProfile(UpdateProfileRequest) returns (UserProfile);
+}
+
+service AuthService {
+  option (x_fern_sdk_group_name) = "auth";
+  
+  rpc Login(LoginRequest) returns (LoginResponse);
+  rpc Logout(LogoutRequest) returns (google.protobuf.Empty);
+}
+```
+
+This generates SDKs with grouped services:
+
+```typescript
+client.users.createUser(...)
+client.users.getUser(...)
+client.users.getProfile(...)
+client.users.updateProfile(...)
+client.auth.login(...)
+client.auth.logout(...)
+```
+
+## `x-fern-union-naming`
+
+Configure naming for oneof fields in SDKs:
+
+```protobuf title="union_naming.proto"
+syntax = "proto3";
+
+package userservice.v1;
+
+message NotificationTarget {
+  oneof target {
+    option (x_fern_union_naming) = "discriminated";
+    
+    string user_id = 1 [(x_fern_parameter_name) = "userId"];
+    string group_id = 2 [(x_fern_parameter_name) = "groupId"];
+    BroadcastTarget broadcast = 3;
+  }
+}
+```
+
+## `x-fern-validation`
+
+Add validation rules for message fields:
+
+```protobuf title="validation_service.proto"
+syntax = "proto3";
+
+package userservice.v1;
+
+message CreateUserRequest {
+  string email = 1 [
+    (x_fern_validation) = '{
+      "format": "email",
+      "required": true
+    }'
+  ];
+  
+  string name = 2 [
+    (x_fern_validation) = '{
+      "min_length": 1,
+      "max_length": 100,
+      "required": true
+    }'
+  ];
+  
+  int32 age = 3 [
+    (x_fern_validation) = '{
+      "minimum": 0,
+      "maximum": 120
+    }'
+  ];
+}
+```
+
+These extensions help you create more robust and user-friendly SDKs while maintaining full control over the generated code structure and behavior. 
