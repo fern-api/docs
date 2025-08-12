@@ -1,12 +1,9 @@
 ---
-title: What is an API Definition?
+title: What is an API definition?
 description: Describes the contract between the API provider and API consumer
 ---
 
-<Info>
-An API Definition is a document that defines the structure of the API. It includes the **endpoints**, 
-**request and response schemas**, and **authentication** requirements.
-</Info>
+An API definition is a machine-readable specification of your API's structure, including **endpoints**, **request and response schemas**, and **authentication** requirements. Instead of manually keeping SDKs and documentation in sync with API changes, an API definition enables automatic generation of these artifacts.
 
 Fern integrates with several API definition formats: 
 
@@ -255,9 +252,75 @@ Fern integrates with several API definition formats:
               value: 42.5
     ```
   </Accordion>
+  <Accordion title="gRPC (RPC APIs)">
+    [gRPC](https://grpc.io/) is a modern, open-source RPC framework developed by Google. It uses Protocol Buffers as its interface definition language and supports multiple programming languages with efficient binary serialization.
+
+    gRPC APIs are defined using Protocol Buffer (.proto) files that specify services and message types. Check out an example gRPC service definition below:
+
+    ```proto maxLines={0}
+    syntax = "proto3";
+
+    package petstore;
+
+    // The pet store service definition
+    service PetStoreService {
+      // Get a pet by ID
+      rpc GetPet(GetPetRequest) returns (Pet);
+      
+      // Add a new pet to the store
+      rpc AddPet(AddPetRequest) returns (Pet);
+      
+      // List all pets with optional filtering
+      rpc ListPets(ListPetsRequest) returns (ListPetsResponse);
+    }
+
+    // Request message for getting a pet
+    message GetPetRequest {
+      int64 pet_id = 1;
+    }
+
+    // Request message for adding a pet
+    message AddPetRequest {
+      string name = 1;
+      string category = 2;
+      repeated string photo_urls = 3;
+      PetStatus status = 4;
+    }
+
+    // Request message for listing pets
+    message ListPetsRequest {
+      int32 page_size = 1;
+      string page_token = 2;
+      PetStatus status = 3;
+    }
+
+    // Response message for listing pets
+    message ListPetsResponse {
+      repeated Pet pets = 1;
+      string next_page_token = 2;
+    }
+
+    // Pet message definition
+    message Pet {
+      int64 id = 1;
+      string name = 2;
+      string category = 3;
+      repeated string photo_urls = 4;
+      PetStatus status = 5;
+    }
+
+    // Pet status enumeration
+    enum PetStatus {
+      PET_STATUS_UNSPECIFIED = 0;
+      PET_STATUS_AVAILABLE = 1;
+      PET_STATUS_PENDING = 2;
+      PET_STATUS_SOLD = 3;
+    }
+    ```
+  </Accordion>
 </AccordionGroup>
 
-## Why create an API Definition ? 
+## Why create an API definition? 
 
 Once you have an API definition, Fern will use it as an input to generate artifacts 
 like SDKs and API Reference documentation. Every time you update the API definition,
@@ -267,24 +330,28 @@ you can regenerate these artifacts and ensure they are always up-to-date.
   <Card
     title="SDKs"
     icon="brands github"
+    href="/sdks/overview/introduction"
   >
-    Client libraries in multiple languages.
+    Client libraries in multiple languages that automatically stay in sync with your API.
   </Card>
   <Card
     title="Documentation"
     icon="regular browser"
+    href="/docs/getting-started/overview"
   >
-    A Stripe-like API documentation website.
+    Interactive API docs with code examples and live testing capabilities.
   </Card>
   <Card
     title="Postman Collection"
     icon={<img src="https://cdn.worldvectorlogo.com/logos/postman.svg" alt="Postman logo"/>}
+    href="/docs/integrations/postman"
   >
-    A published Postman collection, with example request and responses. 
+    Ready-to-use collection with pre-filled example requests and responses.
   </Card>
   <Card
     title="Server Boilerplate"
     icon={<img src="https://cdn.worldvectorlogo.com/logos/fastapi-1.svg" alt="FastAPI logo" />}
+    href="/api-definitions/openapi/frameworks/fastapi"
   >
     Pydantic models for FastAPI or controllers for your Spring Boot application.
   </Card>
