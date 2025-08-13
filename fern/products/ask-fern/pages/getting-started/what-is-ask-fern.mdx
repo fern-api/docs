@@ -3,13 +3,15 @@ title: AI Search Overview
 subtitle: Let your customers find answers in your documentation instantly. 
 ---
 
+<Note>Ask Fern is available on the [Pro plan](https://buildwithfern.com/pricing#Docs) of Fern Docs. Billing is by usage.</Note>
+
 ## Overview
 
 <Frame caption="AI Search is accessed via the search bar, alongside keyword search.">
 <img src="../assets/search-modal.png" alt="Accessing AI Search" />
 </Frame>
 
-Fern AI Search indexes your documentation and provides an interface for your users to ask questions and get answers. We've found that it helps our customers:
+Ask Fern is Fern's AI Search feature that indexes your documentation and provides an interface for your users to ask questions and get answers. It helps our customers
 
 - **Decrease the time to find needed information** - Help users quickly locate crucial documentation without navigating through a maze of tabs and endpoints.
 - **Integrate your product faster** - Accelerate implementation with ready-to-use code samples that demonstrate practical applications.
@@ -27,7 +29,7 @@ Fern AI Search indexes your documentation and provides an interface for your use
     icon="regular book-open"
     href="/learn/ai-search/custom-prompting"
   >
-    Tailor AI Search results to your users' needs. 
+    Tailor Ask Fern results to your users' needs. 
   </Card>
 
   <Card 
@@ -43,7 +45,7 @@ Fern AI Search indexes your documentation and provides an interface for your use
     icon="regular plug"
     href="/learn/docs/building-and-customizing-your-docs/search" 
     >
-    Offer flexibility to have users 'Ask AI' or search your docs directly with Algolia. 
+    Offer flexibility to have users "Ask AI" or search your docs directly with Algolia. 
   </Card>
 
   <Card 
@@ -51,11 +53,44 @@ Fern AI Search indexes your documentation and provides an interface for your use
     icon="regular fa-layer-group"
     href="/learn/docs/getting-started/overview"
   >
-    Create seamless UX by offering a 'one-stop-shop' for all docs questions. 
+    Create seamless UX by offering a one-stop-shop for all docs questions. 
   </Card>
 
 </CardGroup>
 
-## Pricing
+##  How it works
 
-Ask Fern is available on the [Pro plan](https://buildwithfern.com/pricing#Docs) of Fern Docs. Billing is by usage.
+Ask Fern is a **Retrieval Augmented Generation (RAG)** system built on top of your documentation site that transforms your documentation into an intelligent, searchable knowledge base. The main parts of the Ask Fern system are:
+
+* **Content Indexing**: Fern automatically processes your documentation pages,
+  breaking them into semantic chunks and converting each chunk into a vector
+  using sentence embedding models. They're stored in a database that serves as
+  Ask Fern's search index. 
+* **Query Processing**: When users ask questions, Ask Fern vectorizes their
+  query and searches the database to find the most relevant documentation
+  chunks.
+* **Response Generation**: Ask Fern uses the retrieved chunks as context to
+  generate accurate answers with citations for the user. If the initial context isn't sufficient, it performs an additional keyword search. 
+
+### Life of a query
+
+Each Ask Fern user query follows these steps:
+
+```mermaid
+sequenceDiagram
+  autonumber
+    participant U as User
+    participant C as /chat Endpoint
+    participant V as Documentation Database
+    participant A as Ask Fern
+    
+    U->>C: Submit question via Ask Fern searchbox
+    C->>C: Convert query to vector using<br/>sentence embedding models
+    C->>V: Search for relevant chunks
+    V->>C: Return matching documents
+    C->>A: Send query + context
+    A->>V: Perform additional keyword search if needed
+    V->>A: Return additional chunks
+    A->>A: Generate response
+    A->>U: Return answer with citations
+```
