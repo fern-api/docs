@@ -52,7 +52,7 @@ export const FernFooter = () => {
           <div className="footer-column">
             <h4 className="footer-column-title">Documentation</h4>
             <div className="footer-column-links">
-              <a href="/openapi/getting-started/overview" className="footer-link">OpenAPI Compatibility</a>
+              <a href="/api-definitions/openapi/overview" className="footer-link">OpenAPI Compatibility</a>
               <a href="/sdks/overview/introduction" className="footer-link">SDKs</a>
               <a href="docs/getting-started/overview" className="footer-link">Docs</a>
             </div>
