@@ -3,11 +3,11 @@ title: Overview of OpenRPC extensions
 description: Learn about Fern's OpenRPC extensions for generating higher-quality SDKs
 ---
 
-Fern supports a variety of OpenRPC extensions that enhance your API specification and generate higher-quality SDKs.
-
-The table below shows all available extensions and links to detailed documentation for each one.
+Fern supports a variety of OpenRPC extensions that enhance your API specification and generate higher-quality SDKs. You can apply these extensions in two ways: by overlaying them in separate override files or by embedding them directly in your OpenRPC specification.
 
 ## Available extensions
+
+The table below shows all available extensions and links to detailed documentation for each one.
 
 | Extension | Description |
 | --- | --- |
@@ -26,3 +26,5 @@ The table below shows all available extensions and links to detailed documentati
 <Note title="Request a new extension">
     If there's an extension you want that doesn't already exist, file an [issue](https://github.com/fern-api/fern/issues/new) to start a discussion about it.
 </Note>
+
+<Markdown src="/snippets/overlay-embed-extensions.mdx" />
