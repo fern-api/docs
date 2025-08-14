@@ -284,8 +284,8 @@ export const FernFooter: React.FC = () => {
                 <a href="/learn/sdks/overview/introduction" className="footer-link">SDKs</a>
                 <a href="/learn/docs/getting-started/overview" className="footer-link">Docs</a>
                 <a href="/learn/ask-fern" className="footer-link">Ask Fern</a>
-                <a href="/api-definitions/openapi/overview" className="footer-link">OpenAPI</a>
-                <a href="/api-definitions/ferndef/overview" className="footer-link">Fern Definition</a>
+                <a href="/learn/api-definitions/openapi/overview" className="footer-link">OpenAPI</a>
+                <a href="/learn/api-definitions/ferndef/overview" className="footer-link">Fern Definition</a>
                 <a href="/learn/cli-api-reference/cli-reference/overview" className="footer-link">CLI Reference</a>
                 <a href="/learn/cli-api-reference/api-reference/overview" className="footer-link">API Reference</a>
               </div>
