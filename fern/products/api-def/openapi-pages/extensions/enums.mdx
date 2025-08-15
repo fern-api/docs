@@ -1,0 +1,57 @@
+---
+title: Enum descriptions and names
+description: Add descriptions and custom names to enum values using `x-fern-enum` extension
+---
+
+OpenAPI doesn't natively support adding descriptions to enum values. To do this in Fern you can use the `x-fern-enum`
+extension.
+
+In the example below, we've added some descriptions to enum values. These descriptions will
+propagate into the generated SDK and docs website.
+
+```yaml title="openapi.yml" {9-13}
+components:
+  schemas:
+    CardSuit:
+      enum:
+        - clubs
+        - diamonds
+        - hearts
+        - spades
+      x-fern-enum:
+        clubs:
+          description: Some docs about clubs
+        spades:
+          description: Some docs about spades
+```
+
+`x-fern-enum` also supports a `name` field that allows you to customize the name of the enum in code.
+This is particularly useful when you have enums that rely on symbolic characters that would otherwise cause
+generated code not to compile.
+
+For example, the following OpenAPI
+
+```yaml title="openapi.yml" {9,12}
+components:
+  schemas:
+    Operand:
+      enum:
+        - '>'
+        - '<'
+      x-fern-enum:
+        '>':
+          name: GreaterThan
+          description: Checks if value is greater than
+        '<':
+          name: LessThan
+          description: Checks if value is less than
+```
+
+would generate
+
+```typescript title="operand.ts"
+export enum Operand {
+  GreaterThan = ">",
+  LessThan = "<"
+}
+```

@@ -1,0 +1,36 @@
+---
+title: Pagination
+description: Configure pagination for methods that return lists using `x-fern-pagination` extension
+---
+
+Configure pagination for methods that return lists:
+
+```protobuf title="pagination_service.proto"
+syntax = "proto3";
+
+package userservice.v1;
+
+service UserService {
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse) {
+    option (x_fern_pagination) = '{
+      "cursor": "page_token",
+      "results": "users",
+      "next_cursor": "next_page_token",
+      "has_next_page": "has_more"
+    }';
+  }
+}
+
+message ListUsersRequest {
+  int32 page_size = 1;
+  string page_token = 2;
+  string filter = 3;
+}
+
+message ListUsersResponse {
+  repeated User users = 1;
+  string next_page_token = 2;
+  bool has_more = 3;
+  int32 total_count = 4;
+}
+```

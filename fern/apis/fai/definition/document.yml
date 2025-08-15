@@ -1,0 +1,79 @@
+docs: FAI Document API
+
+imports:
+  commons: ./commons.yml
+
+service:
+  auth: false
+  base-path: /document
+  endpoints:
+    createDocument:
+      docs: Index a document for a given domain
+      path: /{domain}/create
+      method: POST
+      audiences:
+        - customers
+      path-parameters:
+        domain: string
+      request:
+        name: IndexDocumentRequest
+        body:
+          properties:
+            document:
+              type: string
+              docs: The content of the document that will be returned in the tool response
+            chunk:
+              type: optional<string>
+              docs: The chunk of the document that will be indexed as a vector. If not provided, the document will be indexed.
+            title:
+              type: optional<string>
+              docs: The title of the document
+            url:
+              type: optional<string>
+              docs: The url of the document
+            version:
+              type: optional<string>
+              docs: The version of the document
+            keywords:
+              type: optional<list<string>>
+              docs: The keywords of the document
+            authed:
+              type: optional<boolean>
+              docs: Whether the document is authed
+      response: CreateDocumentResponse
+      errors:
+        - commons.BadRequestError
+        - commons.InternalError
+
+    getDocumentById:
+      docs: Get a document for a given domain
+      path: /{domain}/{document_id}
+      method: GET
+      audiences:
+        - customers
+      path-parameters:
+        domain: string
+        document_id: string
+      response: Document
+      errors:
+        - commons.BadRequestError
+        - commons.InternalError
+
+types:
+  CreateDocumentResponse:
+    properties:
+      document_id: string
+
+  Document:
+    properties:
+      document_id: string
+      chunk: string
+      domain: string
+      document: string
+      title: optional<string>
+      url: optional<string>
+      version: optional<string>
+      keywords: optional<list<string>>
+      authed: optional<boolean>
+      created_at: datetime
+      updated_at: datetime
