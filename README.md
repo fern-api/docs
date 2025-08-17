@@ -54,6 +54,7 @@ Keep the following principles in mind:
 - **Use [Fern’s documentation components](https://buildwithfern.com/learn/docs/writing-content/components/overview)** whenever you can.
 - **When editing an existing page** - Match the existing heading structure, tone, and level of detail to ensure your changes integrate as seamlessly as possible.
 - **Use diagrams when it makes sense** – Show, don't tell! Use [Mermaid](https://buildwithfern.com/learn/docs/writing-content/markdown#diagrams), a Markdown-like diagramming syntax, to illustrate a workflow. 
+- [**Use sentence case**](https://developers.google.com/style/capitalization) for page and section headings. 
 
 > "Break any of these rules sooner than say anything outright barbarous."
 > 
