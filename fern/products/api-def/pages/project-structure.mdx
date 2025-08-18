@@ -18,6 +18,8 @@ fern/
     └─ spec-file.yml # API definition file
 ```
 
+You can optionally add an `overrides.yml` file to further customize your API definition.
+
 ### `fern.config.json file`
 
 Every fern folder has a single `fern.config.json` file. This file stores the organization and
@@ -38,8 +40,9 @@ determinism.
 The `generators.yml` file includes information about where your API definition file is located. It also [configures the SDKs](/sdks/overview/github) you're generating for your API. 
 
 ```yaml title="generators.yml"
-api: 
-  path: ./path/to/openapi.yml
+api:
+  specs:
+    - openapi: spec-file.yml 
 ```
 
 ### API definition file
@@ -48,6 +51,61 @@ api:
 
   For the other specification formats ([OpenAPI](/api-definitions/openapi/overview), [AsyncAPI](/api-definitions/asyncapi/overview), [OpenRPC](/api-definitions/openrpc/overview), and [gRPC](/api-definitions/grpc/overview)), you'll have a single self-contained specification file. 
 
+### `overrides.yml` file (optional)
+
+Beyond the core files, you can optionally customize your API definition using overrides. A separate `overrides.yml` file allows you to customize your API definition without modifying the original spec file. This is useful when:
+
+* Your API specification is auto-generated from server code
+* You need different configurations for SDKs versus documentation
+
+When you run `fern generate`, Fern combines your original API specification with the overrides file.
+
+To use overrides, [create an `overrides.yml` file](/api-definitions/openapi/extensions/method-names) in the folder that contains your API definition:
+
+```bash {6}
+fern/
+  ├─ fern.config.json 
+  ├─ generators.yml
+  └─ spec-folder/
+    ├─ spec-file.yml
+    └─ overrides.yml
+```
+
+Reference your overrides file in your `generators.yml`:
+
+```yaml title="generators.yml"
+api:
+  specs:
+    - openapi: spec-file.yml 
+      overrides: ./overrides.yml
+```
+
+<Accordion title="Separate overrides for SDKs and Docs"> 
+
+For separate SDK and documentation configurations, you can use different override files in separate folders with their own `generators.yml` files. Both `generators.yml` files can be identical except for pointing to different override files.
+
+```bash
+fern/
+  ├─ fern.config.json
+  ├─ generators.yml 
+  └─ apis/
+    ├─ docs/ # Documentation configuration
+    │   ├─ generators.yml 
+    │   └─ docs-overrides.yml # Documentation-specific overrides
+    ├─ sdks/ # SDK configuration
+    │   ├─ generators.yml 
+    │   └─ sdk-overrides.yml # SDK-specific overrides
+    └─ openapi/
+        └─ openapi.yml # Original API specification
+```
+
+</Accordion>
+
 ## Multiple API definitions
 
 <Markdown src="/snippets/multiple-apis.mdx" />
+
+### Docs configuration
+
+APIs in docs are specified by [setting the `api-name` property](/docs/api-references/generate-api-ref#include-more-than-one-api-reference).
+
