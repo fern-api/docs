@@ -14,10 +14,10 @@ The table below shows all available extensions and links to detailed documentati
 | [`x-fern-audiences`](./audiences) | Filter endpoints, schemas, and properties by audience |
 | [`x-fern-availability`](./availability) | Mark availability status (beta, generally-available, deprecated) |
 | [`x-fern-base-path`](./base-path) | Set base path prepended to all endpoints |
-| [`x-fern-enum`](./enums) | Add descriptions and custom names to enum values |
-| [`x-fern-examples`](./examples) | Associate request and response examples |
+| [`x-fern-enum`](./enum-descriptions-and-names) | Add descriptions and custom names to enum values |
+| [`x-fern-examples`](./request-response-examples) | Associate request and response examples |
 | [`x-fern-global-headers`](./global-headers) | Configure headers used across all endpoints |
-| [`x-fern-ignore`](./ignore) | Skip reading specific endpoints or schemas |
+| [`x-fern-ignore`](./ignoring-elements) | Skip reading specific endpoints or schemas |
 | [`x-fern-sdk-method-name`](./method-names) | Customize SDK method names |
 | [`x-fern-sdk-group-name`](./method-names) | Organize methods into SDK groups |
 | [`x-fern-parameter-name`](./parameter-names) | Customize parameter variable names |
@@ -33,4 +33,4 @@ The table below shows all available extensions and links to detailed documentati
 
 ### FastAPI
 
-FastAPI allows you to add extensions directly in your route decorators and models. See our [FastAPI integration guide](/api-definition/openapi/frameworks/fastapi) for detailed examples.
+FastAPI allows you to add extensions directly in your route decorators and models. See our [FastAPI integration guide](/learn/api-definitions/openapi/frameworks/fastapi) for detailed examples.
