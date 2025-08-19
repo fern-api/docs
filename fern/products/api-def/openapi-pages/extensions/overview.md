@@ -2,7 +2,9 @@
 title: Overview of OpenAPI extensions
 description: Learn about Fern's OpenAPI extensions
 ---
-Fern supports a variety of OpenAPI extensions that enhance your API specification and generate higher-quality SDKs. You can apply these extensions in two ways: by overlaying them in separate override files or by embedding them directly in your OpenAPI specification.
+Fern supports a variety of OpenAPI extensions that enhance your API specification and generate higher-quality SDKs. 
+
+You can apply these extensions in two ways: by overlaying them in separate override files or by embedding them directly in your OpenAPI specification. See [Overrides](/api-definitions/overview/overrides) for more information. 
 
 ## Available extensions
 
@@ -28,8 +30,6 @@ The table below shows all available extensions and links to detailed documentati
 <Note title="Request a new extension">
     If there's an extension you want that doesn't already exist, file an [issue](https://github.com/fern-api/fern/issues/new) to start a discussion about it.
 </Note>
-
-<Markdown src="/snippets/overlay-embed-extensions.mdx" />
 
 ### FastAPI
 

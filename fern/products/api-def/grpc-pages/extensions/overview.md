@@ -5,6 +5,8 @@ description: Learn about Fern's gRPC extensions for generating higher-quality SD
 
 Fern supports a variety of gRPC extensions that enhance your API specification and generate higher-quality SDKs.
 
+You can apply these extensions in two ways: by overlaying them in separate override files or by embedding them directly in your gRPC specification. See [Overrides](/api-definitions/overview/overrides) for more information. 
+
 ## Available extensions
 
 The table below shows all available extensions and links to detailed documentation for each one.
