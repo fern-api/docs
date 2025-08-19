@@ -11,17 +11,17 @@ The table below shows all available extensions and links to detailed documentati
 
 | Extension | Description |
 | --- | --- |
-| [`x-fern-ignore`](./ignore) | Skip reading specific services, methods, or messages |
-| [`x-fern-examples`](./examples) | Provide additional examples for better SDK documentation |
+| [`x-fern-ignore`](./ignoring-elements) | Skip reading specific services, methods, or messages |
+| [`x-fern-examples`](./request-response-examples) | Provide additional examples for better SDK documentation |
 | [`x-fern-pagination`](./pagination) | Configure pagination for methods that return lists |
-| [`x-fern-retry`](./retry) | Configure retry behavior for methods |
-| [`x-fern-timeout`](./timeout) | Configure timeout settings for methods |
+| [`x-fern-retry`](./retry-behavior) | Configure retry behavior for methods |
+| [`x-fern-timeout`](./timeout-settings) | Configure timeout settings for methods |
 | [`x-fern-error-handling`](./error-handling) | Configure error handling for methods |
 | [`x-fern-availability`](./availability) | Mark features as available in specific SDK versions |
-| [`x-fern-streaming`](./streaming) | Mark methods as streaming for appropriate SDK generation |
-| [`x-fern-server-name`](./server-name) | Specify custom names for different server environments |
+| [`x-fern-streaming`](./streaming-operations) | Mark methods as streaming for appropriate SDK generation |
+| [`x-fern-server-name`](./server-names) | Specify custom names for different server environments |
 | [`x-fern-base-path`](./base-path) | Configure base paths for generated SDK clients |
-| [`x-fern-sdk-group-name`](./sdk-group-name) | Group related services in the SDK |
+| [`x-fern-sdk-group-name`](./sdk-group-names) | Group related services in the SDK |
 | [`x-fern-union-naming`](./union-naming) | Configure naming for oneof fields in SDKs |
 | [`x-fern-validation`](./validation) | Add validation rules for message fields |
 
