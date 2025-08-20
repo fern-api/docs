@@ -1,0 +1,122 @@
+docs: FAI Guidance API
+
+imports:
+  commons: ./commons.yml
+
+service:
+  auth: false
+  base-path: /guidance
+  endpoints:
+    createGuidance:
+      docs: Index a guidance document for a given domain
+      path: /{domain}/create
+      method: POST
+      audiences:
+        - customers
+      path-parameters:
+        domain: string
+      request:
+        name: IndexGuidanceRequest
+        body:
+          properties:
+            context:
+              type: list<string>
+              docs: The context of the guidance document, as a list of strings, that will be indexed.
+            document:
+              type: string
+              docs: The content of the guidance document that will be returned in the tool response
+      errors:
+        - commons.BadRequestError
+        - commons.InternalError
+
+    updateGuidanceById:
+      docs: Update a guidance document for a given domain
+      path: /{domain}/{guidance_id}
+      method: PATCH
+      audiences:
+        - customers
+      path-parameters:
+        domain: string
+        guidance_id: string
+      request:
+        name: UpdateGuidanceRequest
+        body:
+          properties:
+            context:
+              type: list<string>
+              docs: The context of the document, as a list of strings, that will be indexed.
+            document:
+              type: string
+              docs: The content of the document that will be returned in the tool response. If not provided, the document will be removed from the index.
+      response: Guidance
+      errors:
+        - commons.BadRequestError
+        - commons.InternalError
+
+    deleteGuidanceById:
+      docs: Delete a guidance document for a given domain
+      path: /{domain}/{guidance_id}
+      method: DELETE
+      audiences:
+        - customers
+      path-parameters:
+        domain: string
+        guidance_id: string
+      errors:
+        - commons.BadRequestError
+        - commons.InternalError
+
+    getGuidanceById:
+      docs: Get a guidance document for a given domain
+      path: /{domain}/{guidance_id}
+      method: GET
+      audiences:
+        - customers
+      path-parameters:
+        domain: string
+        guidance_id: string
+      response: Guidance
+      errors:
+        - commons.BadRequestError
+        - commons.InternalError
+
+    getGuidances:
+      docs: Retrieve all paginated guidance documents for a given domain
+      path: /{domain}
+      method: GET
+      audiences:
+        - customers
+      path-parameters:
+        domain:
+          type: string
+          docs: The domain to retrieve documents for
+      request:
+        name: GetGuidancesRequest
+        query-parameters:
+          page: optional<integer>
+          limit: optional<integer>
+      response: GuidanceList
+      errors:
+        - commons.BadRequestError
+        - commons.InternalError
+
+types:
+  Guidance:
+    properties:
+      guidance_id: string
+      context: list<string>
+      domain: string
+      document: string
+      created_at: datetime
+      updated_at: datetime
+
+  GuidanceList:
+    properties:
+      guidances: list<Guidance>
+      pagination: Pagination
+
+  Pagination:
+    properties:
+      total: integer
+      page: integer
+      limit: integer

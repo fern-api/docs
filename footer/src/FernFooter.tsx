@@ -284,10 +284,19 @@ export const FernFooter: React.FC = () => {
                 <a href="/learn/sdks/overview/introduction" className="footer-link">SDKs</a>
                 <a href="/learn/docs/getting-started/overview" className="footer-link">Docs</a>
                 <a href="/learn/ask-fern" className="footer-link">Ask Fern</a>
-                <a href="/learn/openapi-definition/overview" className="footer-link">OpenAPI</a>
-                <a href="/learn/fern-definition/overview" className="footer-link">Fern Definition</a>
                 <a href="/learn/cli-api-reference/cli-reference/overview" className="footer-link">CLI Reference</a>
                 <a href="/learn/cli-api-reference/api-reference/overview" className="footer-link">API Reference</a>
+              </div>
+            </div>
+
+            <div className="footer-column">
+              <h4 className="footer-column-title">API Definitions</h4>
+              <div className="footer-column-links">
+                <a href="/learn/api-definitions/openapi/overview" className="footer-link">OpenAPI</a>
+                <a href="/learn/api-definitions/asyncapi/overview" className="footer-link">AsyncAPI</a>
+                <a href="/learn/api-definitions/openrpc/overview" className="footer-link">OpenRPC</a>
+                <a href="/learn/api-definitions/grpc/overview" className="footer-link">gRPC</a>
+                <a href="/learn/api-definitions/ferndef/overview" className="footer-link">Fern Definition</a>
               </div>
             </div>
 
