@@ -1,11 +1,47 @@
 ---
 title: Custom Guidance
-subtitle: Fine-tune your AI search responses. 
+subtitle: Fine-tune your Ask Fern responses. 
 ---
 
-You can add custom guidance (FAQs) to "override" Ask Fern's responses to specific user queries. 
-This is useful for content that you may not wish to display publically, such as billing information, 
-legal terms, and other sensitive content.
+## Overview
+
+You can add custom guidance to "override" Ask Fern's responses to specific user queries. This is useful for content that you 
+may not want to display explicitly in your documentation, such as billing information, legal terms, and other sensitive content.
+
+Guidance documents consist of a list of `context` texts and a `document` text. The `context` texts will be indexed
+to match against user queries. The `document` text will used as a prescribed response to the user query.
+
+## API
 
 Fern offers an internal CMS (content management system) via the `guidance` API that allows you to add,
-update, and delete FAQs as needed. 
+update, and delete guidance as needed. You will need to provide your `domain` to specify which deployment of Ask Fern
+the updates will be applied to.
+
+## Usage
+
+Below is an example of a guidance document that can be uploaded via the `guidance` API:
+
+```json
+{
+    "context": [
+        "Who's our favorite engineer at Fern?",
+        "Who's the best dog!"
+    ],
+    "document": "Jack!"
+}
+```
+
+During the retrieval step, when users ask questions that fuzzy-match against any of the `context` texts, the `document` text will be returned
+in the tool response and provided to the Agent as context in the form:
+
+```
+<GUIDANCE>
+In response to the following query:
+Who's our favorite engineer at Fern?
+
+You will return an answer based on the following guidance:
+Jack!
+</GUIDANCE>
+```
+
+Ask Fern prioritizes guidance response over other document responses, allowing you to override the default RAG responses.

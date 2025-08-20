@@ -8,7 +8,8 @@ service:
   base-path: /document
   endpoints:
     createDocument:
-      docs: Index a document for a given domain
+      docs: |
+        Index a document for a given domain. Documents can be used to provide additional context to Ask Fern and improve its accuracy.
       path: /{domain}/create
       method: POST
       audiences:
@@ -111,6 +112,26 @@ service:
         - commons.BadRequestError
         - commons.InternalError
 
+    getDocuments:
+      docs: Retrieve all paginated documents for a given domain
+      path: /{domain}
+      method: GET
+      audiences:
+        - customers
+      path-parameters:
+        domain:
+          type: string
+          docs: The domain to retrieve documents for
+      request:
+        name: GetDocumentsRequest
+        query-parameters:
+          page: optional<integer>
+          limit: optional<integer>
+      response: DocumentList
+      errors:
+        - commons.BadRequestError
+        - commons.InternalError
+
 types:
   DocumentIdResponse:
     properties:
@@ -129,3 +150,8 @@ types:
       authed: optional<boolean>
       created_at: datetime
       updated_at: datetime
+  
+  DocumentList:
+    properties:
+      documents: list<Document>
+      pagination: commons.Pagination
