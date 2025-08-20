@@ -15,25 +15,28 @@ page, you'll have a versioned package published on Maven Central.
 
 	  <Step title="Configure `output` location">
 
-		Next, change the output location in `generators.yml` from `local-file-system` (the default) to `maven` to indicate that Fern should publish your package directly to the Maven Central registry:
+		Change the output location in `generators.yml` from `local-file-system` (the default) to `maven` to indicate that Fern should publish your package directly to the Maven Central registry. 
+    
+    Then, add `publish-to: central` to indicate that the publish target is the new Maven Central Portal (Sonatype). To publish to the legacy Nexus Repository, use `publish-to: ossrh`. 
 
-	    ```yaml {6-7}
-	    groups: 
-	      java-sdk:
-	        generators:
-	          - name: fernapi/fern-java-sdk
-	            version: <Markdown src="/snippets/version-number-java.mdx"/>
-	            output:
-	              location: maven
-
-	    ```
+    ```yaml {6-9} title="generators.yml"
+    groups: 
+      java-sdk:
+        generators:
+          - name: fernapi/fern-java-sdk
+            version: <Markdown src="/snippets/version-number-java.mdx"/>
+            output:
+              location: maven
+            config:
+              publish-to: central
+    ```
 	  </Step>
     
 	  <Step title="Add repository location">
 
-	  Add the path to your GitHub repository to `generators.yml`: 
+	  Add the path to your GitHub repository.
 
-```yaml {8-9}
+```yaml {10-11} title="generators.yml"
 groups: 
   java-sdk:
     generators:
@@ -41,6 +44,8 @@ groups:
         version: <Markdown src="/snippets/version-number-java.mdx"/>
         output:
           location: maven
+        config:
+          publish-to: central
         github: 
           repository: your-org/company-java
 ```
@@ -61,17 +66,15 @@ groups:
   <Step title="Verify your namespace">
 
 	1. Click on your username, then select **View Namespaces**. Click **Register New Namespace**. 
-  1. Enter your company website or GitHub account in reverse domain name format and go through the
-     verification process. 
+  1. Enter your company website or GitHub account in reverse domain name format and go through the verification process. 
 
 	</Step>
   <Step title="Configure Maven Coordinate">
 
-      Add the namespace you just verified in Maven Central to the `coordinate:
-      groupId:artifactId` field. This specifies how your Java SDK will be
+      Add the namespace you just verified in Maven Central to the `coordinate` field. This specifies how your Java SDK will be
       published and referenced in the Maven Central respository. 
 
-      ```yaml {8,11}
+      ```yaml {8} title="generators.yml"
       groups: 
         java-sdk:
           generators:
@@ -79,9 +82,9 @@ groups:
               version: <Markdown src="/snippets/version-number-java.mdx"/>
               output:
                 location: maven
-                coordinate: com.company:sdk-name # <company name in reverse domain name format>:<SDK name>
+                coordinate: com.company:sdk-name # groupId:artifactId
               config:
-                publish-to: central  # Use 'central' for new Sonatype Central Portal (most common)
+                publish-to: central
               github: 
                 repository: your-org/company-java
       ```
@@ -103,7 +106,7 @@ groups:
 
 	Add `username: ${MAVEN_USERNAME}` and `password: ${MAVEN_PASSWORD}` to `generators.yml` to tell Fern to use the `MAVEN_USERNAME` and `MAVEN_PASSWORD` environment variable for authentication when publishing to the Maven Central registry.
 
-```yaml {9-10}
+```yaml {9-10} title="generators.yml"
 groups: 
   java-sdk:
     generators:
@@ -114,6 +117,8 @@ groups:
           coordinate: com.company:sdk-name
           username: ${MAVEN_USERNAME}
           password: ${MAVEN_PASSWORD}
+        config:
+          publish-to: central
         github: 
           repository: your-org/company-java
 ```
@@ -157,7 +162,7 @@ Export your key so you can store it in an environment variable later on:
 
 Add the `keyId`, `password`, and `secretKey` from the previous step to `generators.yml`:
 
-```yaml {11-14}
+```yaml {11-14} title="generators.yml"
 groups: 
   java-sdk:
     generators:
@@ -172,6 +177,8 @@ groups:
             keyId: ${MAVEN_SIGNATURE_SECRET_KEY_ID}
             password: ${MAVEN_SIGNATURE_PASSWORD}
             secretKey: ${MAVEN_SIGNATURE_SECRET_KEY}
+        config:
+          publish-to: central
         github: 
           repository: your-org/company-java
 ```
