@@ -8,8 +8,7 @@ service:
   base-path: /guidance
   endpoints:
     createGuidance:
-      docs: |
-        Create a guidance for a given domain. Guidance can be used to provide additional context to Ask Fern and improve its accuracy.
+      docs: Index a guidance document for a given domain
       path: /{domain}/create
       method: POST
       audiences:
@@ -22,10 +21,12 @@ service:
           properties:
             context:
               type: list<string>
-              docs: The context of the guidance document, as a list of strings, that will be indexed.
+              docs: |
+                The context of the guidance document, as a list of strings, that will be indexed.
+                Each string will be vectorized separately to generate a separate record.
             document:
               type: string
-              docs: The content of the guidance document that will be returned in the tool response
+              docs: The content of the guidance document that will be returned to Ask Fern during Ask Fern retrieval.
       response: GuidanceIdResponse
       errors:
         - commons.BadRequestError
@@ -45,11 +46,15 @@ service:
         body:
           properties:
             context:
-              type: list<string>
-              docs: The context of the document, as a list of strings, that will be indexed.
+              type: optional<list<string>>
+              docs: |
+                The updated context of the guidance document, as a list of strings, that will be indexed.
+                If not provided, this field will remain unchanged.
             document:
-              type: string
-              docs: The content of the document that will be returned in the tool response. If not provided, the document will be removed from the index.
+              type: optional<string>
+              docs: |
+                The updated content of the guidance document that will be returned to Ask Fern during Ask Fern retrieval.
+                If not provided, this field will remain unchanged.
       response: Guidance
       errors:
         - commons.BadRequestError
