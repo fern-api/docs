@@ -1,0 +1,32 @@
+# Add this file as: your-source-repo/.github/workflows/typescript-publish.yml
+# This workflow should be in the same repository as your generators.yml, which
+# should point to the repository containing your TypeScript SDK code.
+
+name: Publish TypeScript SDK
+
+on:
+# Manually trigger a release from the GitHub UI. Triggering this workflow kicks
+# off the npm publishing process from your TypeScript SDK repository.
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "The version of the TypeScript SDK that you would like to release"
+        required: true
+        type: string
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install Fern CLI
+        run: npm install -g fern-api
+
+      - name: Release TypeScript SDK
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          fern generate --group ts-sdk --version ${{ inputs.version }} --log-level debug

@@ -1,0 +1,86 @@
+---
+title: Set up self-hosted documentation
+description: Learn how to set up self-hosted documentation on your own infrastructure.
+---
+
+<Note>Self-hosted documentation is only available for the enterprise plan.</Note>
+
+## Prerequisites
+
+Before setting up self-hosted documentation, ensure you have:
+- Docker installed on your system
+- Access to your Fern project's `fern/` directory
+- A Docker Hub account (for accessing the private image)
+
+<Steps>
+<Step title="Request Access to the Docker Image">
+
+The self-hosted documentation runs on a private Docker image: `fernapi/fern-self-hosted`
+
+**Contact Fern Support** and provide your Docker Hub username to the Fern team. Fern will allowlist your account to download the private image
+
+</Step>
+<Step title="Download the Docker Image">    
+
+Once your account is allowlisted, download the latest image:
+
+```bash
+docker pull fernapi/fern-self-hosted:<latest-tag>
+```
+
+<Warning>
+Do not use `fernapi/fern-self-hosted:latest` as it may not contain the most recent version. Always use the specific latest tag provided by Fern.
+</Warning>
+
+You can verify the image is available in your Docker daemon:
+
+```bash
+docker images | grep fernapi/fern-self-hosted
+```
+
+</Step>
+<Step title="Create a Dockerfile">
+
+In the directory containing your `fern/` folder, create a new `Dockerfile` with the following content:
+
+```dockerfile <your-docker-file-name>
+FROM fernapi/fern-self-hosted:<latest-tag>
+
+COPY fern/ /fern/
+```
+
+Replace `<latest-tag>` with the actual tag used in the previous step.
+
+</Step>
+<Step title="Build Your Custom Docker Image">
+
+Build your custom Docker image using the Dockerfile:
+
+```bash
+docker build -f <your-docker-file-name> -t <your-image-name> .
+```
+
+</Step>
+<Step title="Run the Documentation">
+
+Start your self-hosted documentation:
+
+```bash
+docker run -it <your-image-name>
+```
+
+The documentation will be available at the domain specified in your `docs.yml` configuration.
+
+</Step>
+<Step title="Configure Custom Domain">
+
+Your documentation will be published to the domain specified in your `docs.yml` file. For example:
+
+```yaml
+instances:
+  - url: example-org.docs.buildwithfern.com
+    custom-domain: plantstore.dev
+```
+</Step>
+</Steps>  
+
