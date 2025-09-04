@@ -208,6 +208,13 @@ export const FernStatusWidget: React.FC = () => {
             0% { transform: scale(0.6); opacity: 0.5; }
             100% { transform: scale(1.5); opacity: 0; }
           }
+
+          /* Responsive Design - Mobile */
+          @media (max-width: 640px) {
+            .fern-status-widget {
+              padding-left: 0.5rem !important;
+            }
+          }
         `}</style>
       </div>
     </a>
