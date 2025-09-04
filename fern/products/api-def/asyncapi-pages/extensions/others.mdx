@@ -1,0 +1,160 @@
+---
+title: Other Extensions
+subtitle: Additional Fern extensions for AsyncAPI specifications
+---
+
+Fern supports various extensions to enhance your AsyncAPI specifications and improve the generated SDKs and documentation.
+
+## `x-fern-ignore`
+
+Use `x-fern-ignore` to exclude specific operations, channels, or schemas from SDK generation:
+
+```yaml title="asyncapi.yml" {6-7, 13-14}
+operations:
+  debugOperation:
+    action: send
+    channel:
+      $ref: '#/channels/debug'
+    x-fern-ignore: true
+    summary: Debug operation (internal only)
+
+channels:
+  internal/debug:
+    address: internal/debug
+    x-fern-ignore: true
+    messages:
+      DebugMessage:
+        $ref: '#/components/messages/DebugMessage'
+```
+
+## `x-fern-examples`
+
+Provide additional examples for better SDK documentation:
+
+```yaml title="asyncapi.yml" {8-20}
+components:
+  messages:
+    UserEvent:
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/User'
+      x-fern-examples:
+        - name: NewUserSignup
+          summary: Example of a new user signup event
+          payload:
+            id: "user_123"
+            email: "john@example.com"
+            name: "John Doe"
+            status: "active"
+        - name: UserDeactivation
+          summary: Example of user deactivation event
+          payload:
+            id: "user_456"
+            email: "jane@example.com"
+            name: "Jane Smith"
+            status: "inactive"
+```
+
+## `x-fern-pagination`
+
+Configure pagination for operations that return multiple results:
+
+```yaml title="asyncapi.yml" {6-11}
+operations:
+  listUserEvents:
+    action: receive
+    channel:
+      $ref: '#/channels/user~1events'
+    x-fern-pagination:
+      cursor: next_cursor
+      results: events
+      next_cursor: pagination.next_cursor
+      has_next_page: pagination.has_next_page
+```
+
+## `x-fern-retry`
+
+Configure retry behavior for operations:
+
+```yaml title="asyncapi.yml" {6-10}
+operations:
+  sendCriticalAlert:
+    action: send
+    channel:
+      $ref: '#/channels/alerts'
+    x-fern-retry:
+      max_attempts: 3
+      exponential_backoff: true
+      initial_delay: 1000
+      max_delay: 30000
+```
+
+## `x-fern-streaming`
+
+Mark operations as streaming for appropriate SDK generation:
+
+```yaml title="asyncapi.yml" {6-9}
+operations:
+  streamEvents:
+    action: receive
+    channel:
+      $ref: '#/channels/event~1stream'
+    x-fern-streaming:
+      type: server_sent_events
+      termination: client_closes
+```
+
+## `x-fern-error-handling`
+
+Configure error handling for operations:
+
+```yaml title="asyncapi.yml" {6-16}
+operations:
+  sendMessage:
+    action: send
+    channel:
+      $ref: '#/channels/messages'
+    x-fern-error-handling:
+      error_schema:
+        $ref: '#/components/schemas/MessageError'
+      error_status_codes:
+        - 400
+        - 429
+        - 500
+      retry_on_errors:
+        - 429
+        - 500
+```
+
+## `x-fern-server-name`
+
+Specify custom names for servers:
+
+```yaml title="asyncapi.yml" {4-5}
+servers:
+  production:
+    host: api.yourcompany.com
+    x-fern-server-name: Production
+    protocol: wss
+  staging:
+    host: staging.api.yourcompany.com
+    x-fern-server-name: Staging
+    protocol: wss
+```
+
+## `x-fern-availability`
+
+Mark features as available in specific SDK versions:
+
+```yaml title="asyncapi.yml" {6-8}
+operations:
+  newFeature:
+    action: send
+    channel:
+      $ref: '#/channels/new~1feature'
+    x-fern-availability:
+      status: beta
+      message: "This feature is in beta and may change"
+```
+
+These extensions help you create more robust and user-friendly SDKs while maintaining full control over the generated code structure and behavior. 

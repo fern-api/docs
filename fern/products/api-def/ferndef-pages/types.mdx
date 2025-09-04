@@ -282,7 +282,7 @@ interface Person {
 
 ### Validating types
 
-You can add validation constraints to your types (both aliases and references) to ensure data integrity. These validation constraints exist in your API definition and are enforced by the server, but the generated client SDKs don't include validation logic.
+You can add validation constraints to your types (both aliases and references) to ensure data integrity. Validation constracts are automatically enforced in generated SDKs.
 
 <CodeBlock title="Fern Definition">
 ```yaml {8-11, 15-17}
@@ -303,6 +303,30 @@ types:
         validation:
           min: 0
           max: 150
+```
+</CodeBlock>
+<CodeBlock title="Generated TypeScript SDK from Fern Definition">
+
+```typescript
+interface Person {
+  /** The person's full name */
+  name: string;
+  /** Age in years */
+  age: number;
+}
+
+// Validation is automatically enforced when creating Person objects
+const client = new YourApiClient();
+try {
+  const person = await client.createPerson({
+    name: "A",           // Fails minLength validation
+    age: -5,             // Fails min validation
+  });
+} catch (error) {
+  if (error instanceof ValidationError) {
+    console.log(`Validation failed: ${error.message}`);
+  }
+}
 ```
 </CodeBlock>
 

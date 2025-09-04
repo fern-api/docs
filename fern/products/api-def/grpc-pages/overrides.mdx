@@ -1,0 +1,432 @@
+---
+title: Overlay Customizations
+subtitle: Use overlay files to modify your gRPC specifications without editing the original Proto files
+---
+
+Overlays allow you to modify your gRPC specifications without directly editing the original Protocol Buffer files. This is useful for:
+- Adding Fern-specific extensions
+- Customizing SDK method and parameter names
+- Adding examples and documentation
+- Configuring audiences and filtering
+
+## Configure overlays
+
+To use overlays, add them to your `generators.yml` file:
+
+```yaml title="generators.yml" {3-5}
+api:
+  specs:
+    - spec: proto/user_service.proto
+      overlays:
+        - overlay.yml
+  generators:
+    - name: fernapi/fern-typescript-node-sdk
+      version: 0.8.8
+```
+
+## Overlay file structure
+
+Overlay files use Protocol Buffer text format with Fern extensions:
+
+```protobuf title="overlay.yml"
+# Add SDK method names to existing gRPC methods
+service UserService {
+  rpc CreateUser {
+    option (x_fern_sdk_method_name) = "create";
+  }
+  
+  rpc GetUser {
+    option (x_fern_sdk_method_name) = "get";
+  }
+  
+  rpc ListUsers {
+    option (x_fern_sdk_method_name) = "list";
+    option (x_fern_pagination) = '{
+      "cursor": "page_token",
+      "results": "users",
+      "next_cursor": "next_page_token"
+    }';
+  }
+}
+```
+
+## Add method names
+
+Override SDK method names for better developer experience:
+
+```protobuf title="overlay.yml"
+service UserService {
+  rpc GetUserById {
+    option (x_fern_sdk_method_name) = "getUser";
+  }
+  
+  rpc CreateNewUser {
+    option (x_fern_sdk_method_name) = "create";
+  }
+  
+  rpc UpdateUserProfile {
+    option (x_fern_sdk_method_name) = "updateProfile";
+  }
+  
+  rpc DeleteUserAccount {
+    option (x_fern_sdk_method_name) = "delete";
+  }
+}
+
+service AuthenticationService {
+  option (x_fern_sdk_service_name) = "auth";
+  
+  rpc LoginUser {
+    option (x_fern_sdk_method_name) = "login";
+  }
+  
+  rpc LogoutUser {
+    option (x_fern_sdk_method_name) = "logout";
+  }
+}
+```
+
+## Add parameter names
+
+Customize parameter names for better SDK ergonomics:
+
+```protobuf title="overlay.yml"
+message CreateUserRequest {
+  string email_address {
+    option (x_fern_parameter_name) = "email";
+  }
+  
+  string full_name {
+    option (x_fern_parameter_name) = "name";
+  }
+  
+  int32 age_in_years {
+    option (x_fern_parameter_name) = "age";
+  }
+  
+  UserPreferences user_preferences {
+    option (x_fern_parameter_name) = "preferences";
+  }
+}
+
+message User {
+  string user_id {
+    option (x_fern_parameter_name) = "id";
+  }
+  
+  google.protobuf.Timestamp created_timestamp {
+    option (x_fern_parameter_name) = "createdAt";
+  }
+  
+  google.protobuf.Timestamp updated_timestamp {
+    option (x_fern_parameter_name) = "updatedAt";
+  }
+}
+```
+
+## Add examples
+
+Enhance your specification with comprehensive examples:
+
+```protobuf title="overlay.yml"
+service UserService {
+  rpc CreateUser {
+    option (x_fern_examples) = '{
+      "StandardUser": {
+        "description": "Create a regular user account",
+        "request": {
+          "email": "john@example.com",
+          "name": "John Doe",
+          "age": 30,
+          "preferences": {
+            "theme": "dark",
+            "notifications": true
+          }
+        },
+        "response": {
+          "id": "user_123",
+          "email": "john@example.com",
+          "name": "John Doe",
+          "created_at": "2024-01-15T10:30:00Z"
+        }
+      },
+      "AdminUser": {
+        "description": "Create an admin user with permissions",
+        "request": {
+          "email": "admin@example.com",
+          "name": "Admin User",
+          "role": "admin",
+          "permissions": ["read", "write", "delete"]
+        },
+        "response": {
+          "id": "user_456",
+          "email": "admin@example.com",
+          "name": "Admin User",
+          "role": "admin",
+          "created_at": "2024-01-15T10:30:00Z"
+        }
+      }
+    }';
+  }
+}
+```
+
+## Filter with audiences
+
+Add audience filtering to services and methods:
+
+```protobuf title="overlay.yml"
+service UserService {
+  option (x_fern_audiences) = "public";
+  
+  rpc GetUser {
+    option (x_fern_audiences) = "public";
+  }
+  
+  rpc CreateUser {
+    option (x_fern_audiences) = "public";
+  }
+}
+
+service AdminService {
+  option (x_fern_audiences) = "admin";
+  
+  rpc ListAllUsers {
+    option (x_fern_audiences) = "admin";
+  }
+  
+  rpc DeleteUser {
+    option (x_fern_audiences) = "admin";
+  }
+}
+
+service DebugService {
+  option (x_fern_audiences) = "internal";
+  
+  rpc GetSystemInfo {
+    option (x_fern_audiences) = "internal";
+  }
+}
+```
+
+## Add error handling
+
+Configure custom error handling for methods:
+
+```protobuf title="overlay.yml"
+service UserService {
+  rpc CreateUser {
+    option (x_fern_error_handling) = '{
+      "ALREADY_EXISTS": {
+        "error_name": "UserAlreadyExistsError",
+        "user_friendly_message": "A user with this email already exists"
+      },
+      "INVALID_ARGUMENT": {
+        "error_name": "ValidationError", 
+        "user_friendly_message": "Please check your input and try again"
+      },
+      "RESOURCE_EXHAUSTED": {
+        "error_name": "RateLimitError",
+        "retry_after_seconds": 60
+      }
+    }';
+  }
+  
+  rpc ProcessPayment {
+    option (x_fern_retry) = '{
+      "max_attempts": 3,
+      "exponential_backoff": true,
+      "initial_delay_ms": 1000,
+      "max_delay_ms": 30000
+    }';
+  }
+}
+```
+
+## Add documentation
+
+Enhance descriptions and documentation:
+
+```protobuf title="overlay.yml"
+service UserService {
+  option (x_fern_service_description) = "User management service for creating, updating, and managing user accounts with comprehensive authentication and profile management capabilities.";
+  
+  rpc CreateUser {
+    option (x_fern_method_description) = "Create a new user account with email verification and automatic profile setup. Supports custom preferences and role assignment.";
+  }
+  
+  rpc GetUser {
+    option (x_fern_method_description) = "Retrieve user information by ID with optional inclusion of profile data, preferences, and activity history.";
+  }
+  
+  rpc UpdateUser {
+    option (x_fern_method_description) = "Update user profile information with field-level updates using Protocol Buffer field masks for efficient partial updates.";
+  }
+}
+```
+
+## Configure timeouts and retries
+
+Add timeout and retry configurations:
+
+```protobuf title="overlay.yml"
+service UserService {
+  rpc GenerateUserReport {
+    option (x_fern_timeout) = '{
+      "seconds": 300,
+      "description": "Report generation can take up to 5 minutes for large datasets"
+    }';
+  }
+  
+  rpc QuickUserLookup {
+    option (x_fern_timeout) = '{
+      "seconds": 5,
+      "description": "Quick lookup operations should complete within 5 seconds"
+    }';
+  }
+  
+  rpc ImportUsers {
+    option (x_fern_retry) = '{
+      "max_attempts": 5,
+      "exponential_backoff": true,
+      "initial_delay_ms": 2000,
+      "max_delay_ms": 60000,
+      "retry_on_status": ["UNAVAILABLE", "DEADLINE_EXCEEDED", "INTERNAL"]
+    }';
+  }
+}
+```
+
+## Streaming configurations
+
+Configure streaming methods:
+
+```protobuf title="overlay.yml"
+service UserStreamingService {
+  rpc StreamUserEvents {
+    option (x_fern_streaming) = '{
+      "type": "server_streaming",
+      "termination": "client_closes",
+      "description": "Real-time stream of user events with automatic reconnection"
+    }';
+  }
+  
+  rpc UploadUserData {
+    option (x_fern_streaming) = '{
+      "type": "client_streaming",
+      "termination": "client_closes",
+      "max_message_size": "10MB"
+    }';
+  }
+  
+  rpc ChatWithSupport {
+    option (x_fern_streaming) = '{
+      "type": "bidirectional_streaming",
+      "termination": "either_closes",
+      "heartbeat_interval": "30s"
+    }';
+  }
+}
+```
+
+## Multiple overlays
+
+You can apply multiple overlay files in sequence:
+
+```yaml title="generators.yml" {4-8}
+api:
+  specs:
+    - spec: proto/user_service.proto
+      overlays:
+        - base-overlay.yml
+        - sdk-overlay.yml
+        - docs-overlay.yml
+        - examples-overlay.yml
+```
+
+## Environment-specific overlays
+
+Use different overlays for different environments:
+
+```yaml title="generators.yml" {4-7, 12-15}
+groups:
+  production:
+    audiences: [public]
+    specs:
+      - spec: proto/user_service.proto
+        overlays:
+          - production-overlay.yml
+    generators:
+      - name: fernapi/fern-typescript-node-sdk
+        version: 0.8.8
+  internal:
+    audiences: [admin, internal]
+    specs:
+      - spec: proto/user_service.proto
+        overlays:
+          - internal-overlay.yml
+    generators:
+      - name: fernapi/fern-typescript-node-sdk
+        version: 0.8.8
+```
+
+## Field-level overlays
+
+Apply overlays to specific message fields:
+
+```protobuf title="overlay.yml"
+message UserPreferences {
+  map<string, string> notification_settings {
+    option (x_fern_parameter_name) = "notifications";
+    option (x_fern_field_description) = "User notification preferences with support for email, SMS, and push notifications";
+  }
+  
+  map<string, bool> feature_flags {
+    option (x_fern_parameter_name) = "features";
+    option (x_fern_field_description) = "Feature flags controlling access to beta and experimental features";
+  }
+  
+  string preferred_language {
+    option (x_fern_parameter_name) = "language";
+    option (x_fern_validation) = '{
+      "enum": ["en", "es", "fr", "de", "zh"],
+      "default": "en"
+    }';
+  }
+}
+```
+
+## Validation overlays
+
+Add validation rules to existing fields:
+
+```protobuf title="overlay.yml"
+message CreateUserRequest {
+  string email {
+    option (x_fern_validation) = '{
+      "format": "email",
+      "required": true,
+      "description": "Must be a valid email address"
+    }';
+  }
+  
+  string name {
+    option (x_fern_validation) = '{
+      "min_length": 1,
+      "max_length": 100,
+      "required": true,
+      "pattern": "^[a-zA-Z\\s]+$"
+    }';
+  }
+  
+  int32 age {
+    option (x_fern_validation) = '{
+      "minimum": 0,
+      "maximum": 120,
+      "description": "Age in years"
+    }';
+  }
+}
+```
+
+Overlays are applied in order, allowing you to build up customizations incrementally while keeping your original Protocol Buffer files clean and focused on the core service definition. 

@@ -1,12 +1,10 @@
 ---
-title: Project structure
+title: The Fern Folder
 description: Describes the Fern folder structure
 ---
 
-Configuring fern starts with the `fern` folder, which contains your API definitions,
+Configuring fern starts with the `fern` folder. The fern folder contains your API definitions,
 SDK generators, and your CLI version.
-
-Fern recommends a multi-repository structure with your fern folder in a source repository (containing your API definitions and generation configuration) and [each generated SDK in its own separate repository](/sdks/overview/project-structure).
 
 ## Directory structure
 
@@ -17,19 +15,22 @@ fern/
   ├─ fern.config.json # Root-level config for entire Fern project
   ├─ generators.yml # Defines SDKs and docs to generate
   └─ spec-folder/ # definition, openapi, asyncapi, etc.
-    └─ spec-file.yml # API definition file
+    └─ spec-file.yml # API specification file
 ```
 
-<Note> 
-  Beyond the core files, you can optionally use an overrides file to customize your API definition without modifying the original spec. See [Overrides](/api-definitions/overview/overrides) for instructions.
-</Note>
+<Info>
+  For Fern Definition, your API configuration is split across two files: `api.yml` for API-wide configuration and separate `.yml` files for your actual endpoint and type definitions. See [What is a Fern Definition?](/api-definitions/ferndef/overview) for more information. 
 
-### `fern.config.json file`
+  For the other specification formats ([OpenAPI](/api-definitions/openapi/overview), [AsyncAPI](/api-definitions/asyncapi/overview), [OpenRPC](/api-definitions/openrpc/overview), and [gRPC](/api-definitions/grpc/overview)), you'll have a single self-contained specification file. 
+</Info>
+
+<AccordionGroup>
+<Accordion title="What is the fern.config.json file?">
 
 Every fern folder has a single `fern.config.json` file. This file stores the organization and
 the version of the Fern CLI that you are using. 
 
-```json title="fern.config.json"
+```json
 {
     "organization": "your-organization",
     "version": "0.31.2"
@@ -38,29 +39,35 @@ the version of the Fern CLI that you are using.
 
 Every time you run a fern CLI command, the CLI downloads itself at the correct version to ensure 
 determinism. 
+</Accordion>
+<Accordion title="What is the generators.yml file?">
 
-### `generators.yml`
+The `generators.yml` file includes information about where your API definition file is located. It also configures the SDKs you're generating for your API. 
 
-The `generators.yml` file includes information about where your API definition file is located. It also [configures the SDKs](/sdks/overview/project-structure) you're generating for your API. 
-
-```yaml title="generators.yml"
-api:
-  specs:
-    - openapi: spec-file.yml 
+```yaml
+api: 
+  path: ./path/to/openapi.yml
 ```
+</Accordion>
+</AccordionGroup>
 
-### API definition file
+## Multiple APIs
 
-  For Fern Definition, your API configuration is split across two files: `api.yml` for API-wide configuration and separate `.yml` files for your actual endpoint and type definitions. See [What is a Fern Definition?](/api-definitions/ferndef/overview) for more information. 
+The fern folder can house multiple API definitions. When you have multiple APIs, nest your definition files within an `apis` folder. 
 
-  For the other specification formats ([OpenAPI](/api-definitions/openapi/overview), [AsyncAPI](/api-definitions/asyncapi/overview), [OpenRPC](/api-definitions/openrpc/overview), and [gRPC](/api-definitions/grpc/overview)), you'll have a single self-contained specification file. 
+Each API must also have a separate `generators.yml` file that specifies the location of the API definition and configures SDK generation.
 
-
-## Multiple API definitions
-
-<Markdown src="/snippets/multiple-apis.mdx" />
-
-### Docs configuration
-
-APIs in docs are specified by [setting the `api-name` property](/docs/api-references/generate-api-ref#include-more-than-one-api-reference).
-
+```bash
+fern/
+  ├─ fern.config.json
+  ├─ generators.yml # Optional: top-level configuration for all APIs
+  └─ apis/
+    └─ first-api/ # First API
+        ├─ generators.yml # Required: points to API spec
+        └─ openapi/
+          ├─ openapi.yml # API Definition file
+    └─ second-api/ # Second API
+        ├─ generators.yml # Required: points to API spec
+        └─ openapi/
+          ├─ openapi.yml # API Definition file
+```

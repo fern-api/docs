@@ -1,0 +1,160 @@
+---
+title: Project structure
+description: An overview of the file and folder structure of a Fern SDKs project
+---
+
+Before generating SDKs with Fern, set up the proper GitHub repository structure to house your API definitions and SDK code so it's intuitive for you and your users to access, maintain, and update code.
+
+## Repository architecture
+
+Fern recommends a parent-child repository structure containing:
+
+- **Parent repository**: Contains your API definitions and SDK generation configuration
+- **Child repositories**: Separate repositories for each SDK (TypeScript, Python, Go, etc.)
+
+```bash
+├─ company-repo                 # Parent repository
+│  └─ fern/
+│     ├─ fern.config.json
+│     ├─ apis/
+│     │  └─ sdks/
+│     │     └─ generators.yml   # References child repos
+├─ typescript-sdk-repo          # Child repository
+├─ python-sdk-repo              # Child repository  
+└─ go-sdk-repo                  # Child repository
+```
+
+This separation allows you to manage API definitions centrally while keeping each SDK in its own repository for independent versioning and distribution.
+
+<Info>
+  For an example of this structure, see Cohere's [fern folder](https://github.com/cohere-ai/cohere-developer-experience/tree/23d6c541a01eb6b54dd9bb3588c805bb0e307713/fern) and [TypeScript](https://github.com/cohere-ai/cohere-typescript) and [Python](https://github.com/cohere-ai/cohere-python) child repositories.
+</Info>
+
+## Core configuration files
+
+[Initializing your `fern` folder](/sdks/overview/quickstart) creates two key configuration files:
+
+### `fern.config.json`
+
+This file stores your organization name and Fern CLI version:
+
+```json
+{
+    "organization": "your-organization",
+    "version": "<Markdown src="/products/sdks/snippets/fern-config-json-version.mdx"/>"
+}
+```
+
+### `generators.yml`
+
+The `generators.yml` file specifies which SDKs to generate and where to publish them. It acts as the bridge between your API definitions and your SDK repositories.
+
+<Info>
+For examples, see Cohere's [`generators.yml`
+file](https://github.com/cohere-ai/cohere-developer-experience/blob/23d6c541a01eb6b54dd9bb3588c805bb0e307713/fern/apis/sdks/generators.yml)
+and Vapi's [`generators.yml`
+file](https://github.com/VapiAI/docs/blob/9c674c2b16ba03e864e26673c5290c88048c9a7a/fern/apis/api/generators.yml).
+</Info>
+
+
+<Info>
+  See the [`generators.yml` reference page](/sdks/reference/generators-yml) for complete configuration options.
+</Info>
+
+## Parent repository structure
+
+The parent repository contains your API definitions and the `generators.yml` file that references your child SDK repositories.
+
+<CodeBlock title="Parent repository structure">
+```bash
+company-repo/
+├─ fern/
+│  ├─ fern.config.json
+│  ├─ apis/
+│  │  └─ sdks/
+│  │     └─ generators.yml      # SDK generation configuration
+```
+</CodeBlock>
+
+Your `generators.yml` file contains a group for each SDK and points to the corresponding child repository:
+
+```yaml title="generators.yml"
+groups:
+  ts-sdk:
+    generators:
+      - name: fernapi/fern-typescript-sdk
+        version: <Markdown src="/snippets/version-number-ts.mdx"/>
+        github:
+          repository: your-organization/typescript-sdk-repo
+  
+  python-sdk:
+    generators:
+      - name: fernapi/fern-python-sdk
+        version: <Markdown src="/snippets/version-number-python.mdx"/>
+        github:
+          repository: your-organization/python-sdk-repo
+```
+
+## Child repository structure
+
+Each SDK has its own repository with the following structure:
+
+<CodeBlock title="Child repository structure">
+```bash
+typescript-sdk-repo/            # Individual SDK repository
+├─ .github/workflows/           # Publishing workflows
+├─ scripts/
+├─ src/
+├─ tests/
+└─ .fernignore                  # Files Fern shouldn't modify
+```
+</CodeBlock>
+
+Fern generates most of these files automatically, including preserving any custom code you've added.
+
+## Setup instructions
+
+1. **Create repositories**: Set up your parent repository and one child repository for each SDK
+2. **Install Fern GitHub App**: Install the [Fern GitHub App](https://github.com/apps/fern-api) on all repositories (parent and children)
+3. **Configure generators.yml**: Add each child repository to your `generators.yml` file
+
+## Multiple API definitions
+
+For multiple APIs, organize them in separate folders within the `apis` directory:
+
+<Tabs>
+<Tab title="OpenAPI Definition">
+```bash
+fern/
+  ├─ fern.config.json
+  ├─ generators.yml
+  └─ apis/
+    └─ imdb/
+        ├─ generators.yml
+        └─ openapi/
+          ├─ openapi.yml
+    └─ disney/
+        ├─ generators.yml
+        └─ openapi/
+          ├─ openapi.yml
+```
+</Tab>
+<Tab title="Fern Definition">
+```bash
+fern/
+  ├─ fern.config.json
+  ├─ generators.yml
+  └─ apis/
+    └─ imdb/
+        ├─ generators.yml
+        └─ definition/
+          ├─ api.yml
+          └─ imdb.yml
+    └─ disney/
+        ├─ generators.yml
+        └─ definition/
+          ├─ api.yml
+          └─ disney.yml
+```
+</Tab>
+</Tabs>

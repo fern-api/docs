@@ -12,60 +12,17 @@ Fern supports two methods for defining webhooks in your OpenAPI specification:
 
 For OpenAPI 3.1 specifications, use the `webhooks` top-level field to define your webhook operations. Each webhook requires an `operationId` to be properly processed by Fern.
 
-To create dedicated pages in your API reference documentation for each webhook
-event, include `tags` and complete `example` data in your schema. Then, [add a
-reference in your
-`docs.yml`](/docs/api-references/generate-webhook-reference#create-individual-documentation-pages-for-each-webhook-event-openapi).
-
-```yaml openapi.yml {4, 7-8, 42-48}
+```yaml openapi.yml {4}
 webhooks:
   newPlant:
     post:
-      operationId: newPlantWebhook # Defines webhook
-      summary: New Plant Added
-      description: Information about a new plant that was added to the store
-      tags:
-        - Plants # Creates dedicated page
+      operationId: newPlantWebhook
       requestBody:
-        description: The plant data when a new plant is added
+        description: Information about a new Plant in the system
         content:
           application/json:
             schema:
-              description: The Webhook payload for when a new plant is added to the store
-              properties:
-                triggerType:
-                  description: The type of event that triggered the request
-                  type: string
-                  example: "new_plant"
-                payload:
-                  type: object
-                  description: The payload of data sent from the plant store
-                  properties:
-                    plantId:
-                      type: string
-                      description: The unique identifier for the plant
-                      example: "64f1a2b3c5d6e7f8a9b0c1d2"
-                    name:
-                      type: string
-                      description: The name of the plant
-                      example: "Monstera Deliciosa"
-                    price:
-                      type: number
-                      format: float
-                      description: The price of the plant in dollars
-                      example: 29.99
-                    addedAt:
-                      type: string
-                      format: date-time
-                      description: The timestamp when the plant was added
-                      example: "2024-01-15T10:30:00.000Z"
-              example: # Full payload example for docs
-                triggerType: "new_plant"
-                payload:
-                  plantId: "64f1a2b3c5d6e7f8a9b0c1d2"
-                  name: "Monstera Deliciosa"
-                  price: 29.99
-                  addedAt: "2024-01-15T10:30:00.000Z"
+              $ref: '#/components/schemas/Plant'
       responses:
         '200':
           description: Return a 200 status to indicate that the data was received successfully
@@ -75,20 +32,13 @@ webhooks:
 
 For OpenAPI 3.0, use the `x-fern-webhook: true` extension to define webhooks. Fern will treat the `requestBody` as the webhook payload.
 
-To create dedicated pages in your API reference documentation for each webhook
-event, include `tags` and complete `example` data in your schema. Then, [add a
-reference in your
-`docs.yml`](/docs/api-references/generate-webhook-reference#create-individual-documentation-pages-for-each-webhook-event-openapi).
-
-```yaml openapi.yml {6-8, 23-25}
+```yaml openapi.yml {6}
 paths: 
   /payment/updated/: 
     post: 
       summary: Payment Initiated
       operationId: initiatePayment
-      tags:
-        - Payments # Creates dedicated page
-      x-fern-webhook: true # Defines webhooks
+      x-fern-webhook: true
       requestBody:
         content:
           application/json:
@@ -97,15 +47,11 @@ paths:
               properties:
                 amount:
                   type: number
-                  example: 99.99
                 currency:
                   $ref: '#/components/schemas/Currency'
               required:
                 - amount
-                - currency
-              example: # Full payload example for docs
-                amount: 99.99
-                currency: "USD"
+                - currency 
 ```
 
 <Info> 
