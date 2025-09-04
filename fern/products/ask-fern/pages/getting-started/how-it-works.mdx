@@ -27,7 +27,7 @@ The main parts of the Ask Fern system are:
   Ask Fern's search index. 
 * **Query processing** – When users ask questions, Ask Fern vectorizes their
   query and searches the database to find the most relevant documentation
-  chunks.
+  chunks. If you have [role-based access control](/docs/authentication/rbac) configured, Ask Fern filters results based on the user's permissions.
 * **Response generation** – Ask Fern uses the retrieved chunks as context to
   generate accurate answers with [citations](/ask-fern/features/citations) for the user. If the initial context isn't sufficient, it performs an additional keyword search. 
 
@@ -45,11 +45,12 @@ sequenceDiagram
     
     U->>C: Submit question via Ask Fern searchbox
     C->>C: Convert query to vector
+    C->>C: Check user roles (if RBAC enabled)
     C->>V: Search for relevant chunks
-    V->>C: Return matching documents
+    V->>C: Return matching documents user can access
     C->>A: Send query + context
     A->>V: Perform additional keyword search if needed
-    V->>A: Return additional chunks
+    V->>A: Return additional chunks user can access
     A->>A: Generate response
     A->>U: Return answer with citations
 ```
