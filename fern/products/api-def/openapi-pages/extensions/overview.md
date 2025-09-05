@@ -14,11 +14,14 @@ The table below shows all available extensions and links to detailed documentati
 | --- | --- |
 | [`x-fern-version`](./api-version) | Configure API version schemes and headers |
 | [`x-fern-audiences`](./audiences) | Filter endpoints, schemas, and properties by audience |
+| [`x-fern-basic`](/api-definitions/openapi/authentication#basic-security-scheme) | Customize basic authentication parameter names and environment variables |
+| [`x-fern-bearer`](/api-definitions/openapi/authentication#bearer-security-scheme) | Customize bearer authentication parameter names and environment variables |
 | [`x-fern-availability`](./availability) | Mark availability status (beta, generally-available, deprecated) |
 | [`x-fern-base-path`](./base-path) | Set base path prepended to all endpoints |
 | [`x-fern-enum`](./enum-descriptions-and-names) | Add descriptions and custom names to enum values |
 | [`x-fern-examples`](./request-response-examples) | Associate request and response examples |
 | [`x-fern-global-headers`](./global-headers) | Configure headers used across all endpoints |
+| [`x-fern-header`](/api-definitions/openapi/authentication#apikey-security-scheme) | Customize API key header authentication parameter names and environment variables |
 | [`x-fern-ignore`](./ignoring-elements) | Skip reading specific endpoints or schemas |
 | [`x-fern-sdk-method-name`](./method-names) | Customize SDK method names |
 | [`x-fern-sdk-group-name`](./method-names) | Organize methods into SDK groups |
