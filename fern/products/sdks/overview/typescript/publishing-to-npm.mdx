@@ -22,9 +22,9 @@ you'll have a versioned package published on npm.
 
   </Info>
 
-## Configure `generators.yml`
+## Configure SDK package settings
 
-<Note>Your `generators.yml` [should live in your source repository](/sdks/overview/project-structure) (or on your local machine), not the repository that contains your TypeScript SDK code.</Note>
+You'll need to update your `generators.yml` file to configure the package name, output location, and client naming for npm publishing. Your `generators.yml` [should live in your source repository](/sdks/overview/project-structure) (or on your local machine), not the repository that contains your TypeScript SDK code.
 
 <Steps>
 	<Step title="Configure `output` location">
@@ -79,26 +79,6 @@ you'll have a versioned package published on npm.
 
 	</Step>
 
-	<Step title="Add repository location">
-
-		Add the path to the GitHub repository containing your TypeScript SDK:
-
-		```yaml {11-12} title="generators.yml"
-		groups: 
-		  ts-sdk:
-		    generators:
-		      - name: fernapi/fern-typescript-sdk
-		        version: <Markdown src="/snippets/typescript-sdk-version.mdx"/>
-		        output:
-		          location: npm
-		          package-name: your-package-name
-		        config:
-		          namespaceExport: YourClientName
-		        github: 
-		          repository: your-org/company-typescript
-		```
-
-	</Step>
   </Steps>
 
 ## Generate an npm token
@@ -163,10 +143,83 @@ you'll have a versioned package published on npm.
 
 ## Configure npm publication
 
-Choose how you want to authenticate and publish your SDK to npm. You can use GitHub workflows for automated releases or publish directly via the CLI.
+<Steps>
+<Step title="Add repository location">
+
+	Add the path to the GitHub repository containing your TypeScript SDK:
+
+	```yaml {11-12} title="generators.yml"
+	groups: 
+		ts-sdk:
+		generators:
+			- name: fernapi/fern-typescript-sdk
+			version: <Markdown src="/snippets/typescript-sdk-version.mdx"/>
+			output:
+				location: npm
+				package-name: your-package-name
+			config:
+				namespaceExport: YourClientName
+			github: 
+				repository: your-org/company-typescript
+	```
+
+</Step>
+<Step title="Configure npm authentication token">
+
+Add `token: ${NPM_TOKEN}` to `generators.yml` to tell Fern to use the `NPM_TOKEN` environment variable for authentication when publishing to the npm registry.
+
+```yaml title="generators.yml" {9}
+groups: 
+  ts-sdk:
+	generators:
+	  - name: fernapi/fern-typescript-sdk
+		version: <Markdown src="/snippets/typescript-sdk-version.mdx"/>
+		output:
+		  location: npm
+		  package-name: name-of-your-package
+		  token: ${NPM_TOKEN}
+		config:
+		  namespaceExport: YourClientName
+		github: 
+		  repository: your-org/your-repository
+```
+</Step>
+<Step title="Choose your publishing mode">
+
+Optionally set the mode to control how Fern handles SDK publishing:
+
+- `mode: release` (default): Fern generates code, commits to main, and tags a release automatically
+- `mode: pull-request`:  Fern generates code and creates a PR for you to review before release
+- `mode: push`: Fern generates code and pushes to a branch for you to review before release
+
+```yaml title="generators.yml" {14}
+groups: 
+  ts-sdk:
+	generators:
+	  - name: fernapi/fern-typescript-sdk
+		version: <Markdown src="/snippets/typescript-sdk-version.mdx"/>
+		output:
+		  location: npm
+		  package-name: name-of-your-package
+		  token: ${NPM_TOKEN}
+		config:
+		  namespaceExport: YourClientName
+		github: 
+		  repository: your-org/your-repository
+		  mode: pull-request
+```
+You can also configure other settings, like the reviwers or license. Refer to the [full `github` reference](/sdks/reference/generators-yml#github) for more information. 
+
+</Step>
+</Steps>
+
+## Publish your SDK
+
+Decide how you want to publish your SDK to npm. You can use GitHub workflows for automated releases or publish directly via the CLI. 
 
 <AccordionGroup>
-<Accordion title="Release via a GitHub workflow (recommended)">
+
+<Accordion title="Release via a GitHub workflow">
 
 Set up a release workflow via [GitHub Actions](https://docs.github.com/en/actions/get-started/quickstart) so you can trigger new SDK releases directly from your source repository. 
 
@@ -203,26 +256,6 @@ Set up a release workflow via [GitHub Actions](https://docs.github.com/en/action
        organization listed in `fern.config.json`.
 	1. Click **Add secret**. 
 
-	</Step>
-	<Step title="Configure npm authentication token">
-
-	Add `token: ${NPM_TOKEN}` to `generators.yml`.
-
-	```yaml {9} title="generators.yml"
-	groups: 
-	  ts-sdk:
-	    generators:
-	      - name: fernapi/fern-typescript-sdk
-	        version: <Markdown src="/snippets/typescript-sdk-version.mdx"/>
-	        output:
-	          location: npm
-	          package-name: name-of-your-package
-	          token: ${NPM_TOKEN}
-	        config:
-	          namespaceExport: YourClientName
-	        github: 
-	          repository: your-org/your-repository
-	```
 	</Step>
 	<Step title="Set up a new workflow">
 
@@ -261,64 +294,45 @@ Set up a release workflow via [GitHub Actions](https://docs.github.com/en/action
 	</Note>
 	</Step>
 
-	<Step title="Run your workflow"> 
+	<Step title="Regenerate and release your SDK"> 
 
-		Navigate to the **Actions** tab, select the workflow you just created, specify a version number, and click **Run workflow**. 
-		
-		This regenerates your SDK, tags the new release with the version number you specified, and initiates a Fern-generated publishing workflow in your TypeScript SDK repository that publishes your release to npm. 
+		Navigate to the **Actions** tab, select the workflow you just created, specify a version number, and click **Run workflow**. This regenerates your SDK. 
 
 		<Frame>
 			<img src="assets/ts-sdk-release-action.png" alt="Running TS publish workflow" />
 		</Frame>
-	
-		Once your workflow completes, log back into npm and navigate to **Packages** to see your new release. 
+
+		<Markdown src="/products/sdks/snippets/release-sdk.mdx"/>
 	
 	</Step>
+
 </Steps>
 
 </Accordion>
+
 <Accordion title="Release via CLI and environment variables">
 <Steps>
-	<Step title="Configure npm authentication token">
 
-	Add `token: ${NPM_TOKEN}` to `generators.yml` to tell Fern to use the `NPM_TOKEN` environment variable for authentication when publishing to the npm registry.
+<Step title="Set npm environment variable">
 
-	```yaml {9}
-	groups: 
-	  ts-sdk:
-	    generators:
-	      - name: fernapi/fern-typescript-sdk
-	        version: <Markdown src="/snippets/typescript-sdk-version.mdx"/>
-	        output:
-	          location: npm
-	          package-name: name-of-your-package
-	          token: ${NPM_TOKEN}
-	        config:
-	          namespaceExport: YourClientName
-	        github: 
-	          repository: your-org/your-repository
-	```
-	</Step>
-	<Step title="Set npm environment variable">
+Set the `NPM_TOKEN` environment variable on your local machine:
 
-	Set the `NPM_TOKEN` environment variable on your local machine:
+```bash
+export NPM_TOKEN=your-actual-npm-token
+```
 
-	```bash
-	export NPM_TOKEN=your-actual-npm-token
-	```
+</Step>
+<Step title="Regenerate and release your SDK">
 
-	</Step>
-	<Step title="Regenerate your SDK">
-	Regenerating your SDK tags the new release with the version number you specified and initiates a Fern-generated publishing workflow in your TypeScript SDK repository that publishes your release to npm. 
+Regenerate your SDK, specifying the version:
 
-	```bash
-	fern generate --group ts-sdk --version <version>
-	```
-	Local machine output will verify that the release is pushed to your
-    repository and tagged with the version you specified. Log back into npm and
-    navigate to **Packages** to see your new release. 
+```bash
+fern generate --group ts-sdk --version <version>
+```
 
-	</Step>
+<Markdown src="/products/sdks/snippets/release-sdk.mdx"/>
+</Step>
+
 </Steps>
 </Accordion>
 </AccordionGroup>
