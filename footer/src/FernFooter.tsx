@@ -3,8 +3,8 @@ import { FernStatusWidget } from './FernStatus';
 
 import { BuiltWithFernLight } from './images/builtwithfern-light';
 import { BuiltWithFernDark } from './images/builtwithfern-dark';
-import { BuiltWithFernFrameLight } from './images/builtwithfern-frame-light';
-import { BuiltWithFernFrameDark } from './images/builtwithfern-frame-dark';
+// import { BuiltWithFernFrameLight } from './images/builtwithfern-frame-light';
+// import { BuiltWithFernFrameDark } from './images/builtwithfern-frame-dark';
 import { GitHubLight } from './images/github-light';
 import { GitHubDark } from './images/github-dark';
 import { XLight } from './images/x-light';
@@ -58,6 +58,7 @@ export const FernFooter: React.FC = () => {
           height: 1rem;
           margin: 0;
           filter: saturate(0) opacity(0.7);
+          transform: translateX(-0.5rem);
         }
 
         .footer-logo-frame {
@@ -187,13 +188,13 @@ export const FernFooter: React.FC = () => {
         /* Responsive Design - Mobile */
         @media (max-width: 640px) {
           .footer {
-            padding: 2rem 1.5rem;
+            padding: 2rem 1rem;
           }
 
           .footer-top {
             flex-direction: column;
             gap: 1.5rem;
-            margin-bottom: 2rem;
+            margin-bottom: 1rem;
           }
 
           .footer-logo-frame {
@@ -203,7 +204,11 @@ export const FernFooter: React.FC = () => {
           .footer-status {
             flex-direction: column;
             gap: 0.75rem;
-            padding-top: 2rem;
+            padding-top: 0rem;
+          }
+
+          .footer-link {
+            width:fit-content;
           }
 
           .footer-links {
@@ -224,6 +229,16 @@ export const FernFooter: React.FC = () => {
 
           .footer-bottom-text {
             order: 2;
+          }
+
+          .footer-column-socials {
+            flex-direction: row;
+            flex-wrap: wrap;
+            gap: 1rem;
+          }
+
+          .soc2-badge {
+            padding: 0;
           }
         }
 
@@ -249,8 +264,8 @@ export const FernFooter: React.FC = () => {
             <BuiltWithFernLight className="footer-logo-img dark:hidden" />
             <BuiltWithFernDark className="footer-logo-img hidden dark:block" />
 
-            <BuiltWithFernFrameLight className="footer-logo-frame dark:hidden" />
-            <BuiltWithFernFrameDark className="footer-logo-frame hidden dark:block" /> 
+            {/* <BuiltWithFernFrameLight className="footer-logo-frame dark:hidden" />
+            <BuiltWithFernFrameDark className="footer-logo-frame hidden dark:block" />  */}
           </a>
           
           <div className="footer-status">

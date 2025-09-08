@@ -3,13 +3,13 @@ title: What is an OpenAPI Specification?
 description: OpenAPI is a standard for documenting REST APIs
 ---
 
-The OpenAPI Specification (OAS) is a framework used by developers to document REST APIs. The specification 
+The OpenAPI Specification (OAS) is a framework used by developers to document REST APIs. The specification is
 written in JSON or YAML and contains all of your endpoints, parameters, schemas, and authentication schemes. 
 Fern is compatible with the latest OAS release, which is currently [v3.1.1](https://spec.openapis.org/#openapi-specification).
 
 Below is an example of an OpenAPI file: 
 
-```yaml openapi.yml 
+```yaml title="openapi.yml" maxLines=10
 openapi: 3.0.2
 info:
   title: Petstore - OpenAPI 3.0
@@ -101,8 +101,46 @@ components:
       name: api_key
       in: header
 ```
+## Best practices
 
-## Setup your fern folder
+Follow these best practices to ensure your OpenAPI specification generates high-quality SDKs and documentation:
+
+- **Organize with proper project structure.** Follow the instructions at [Project structure](/api-definitions/overview/project-structure) to clearly organize the directories that contain your definition and other related files. 
+- **Add `operationId` to endpoints.** Include a clear `operationId` for each endpoint to control the function names generated in your SDKs. (Or use [extensions to customize group and method names](/api-definitions/openapi/extensions/method-names).)
+- **Reference schemas instead of inlining.** Define reusable schemas in the `components/schemas` section and reference them with `$ref`. This promotes consistency, reduces duplication, and makes maintenance easier.
+  <Accordion title="Example of referencing schemas">
+    ```yaml title="openapi.yml" {8, 14, 17-25}
+    paths:
+      /pets:
+        post:
+          requestBody:
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/Pet'  # Clean reference
+          responses:
+            '200':
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/Pet'  # Reused easily
+    components:
+      schemas:
+        Pet:                        # Defined once, used everywhere
+          type: object
+          properties:
+            name:
+              type: string
+            status:
+              type: string
+              enum: [available, pending, sold]
+    ```
+  </Accordion>
+- **Use overrides and Fern extensions for customization.** Customize your specification using Fern [extensions](/api-definitions/openapi/extensions/overview) housed in an [overrides file](/api-definitions/overview/overrides). This lets you modify generation behavior without changing your core OpenAPI definition.  
+
+Once your OpenAPI spec follows these practices, you're ready to set up your fern folder. 
+
+## Set up your fern folder
 
 <Info> Considering options to generate an OpenAPI spec? Get live support [here](https://fern-community.slack.com/join/shared_invite/zt-2dpftfmif-MuAegl8AfP_PK8s2tx350Q%EF%BB%BF#/shared-invite/email) </Info>
 
