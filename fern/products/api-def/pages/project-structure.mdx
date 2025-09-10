@@ -20,6 +20,8 @@ fern/
     └─ spec-file.yml # API definition file
 ```
 
+## Core configuration files
+
 <Note> 
   Beyond the core files, you can optionally use an overrides file to customize your API definition without modifying the original spec. See [Overrides](/api-definitions/overview/overrides) for instructions.
 </Note>
@@ -41,26 +43,98 @@ determinism.
 
 ### `generators.yml`
 
-The `generators.yml` file includes information about where your API definition file is located. It also [configures the SDKs](/sdks/overview/project-structure) you're generating for your API. 
+The `generators.yml` file points to your API definition and [specifies which SDKs to generate](/sdks/overview/project-structure).
 
 ```yaml title="generators.yml"
-api:
-  specs:
-    - openapi: spec-file.yml 
+# Your API definition
+api: 
+  specs: 
+    - openapi: ./openapi-1.yml
+
+# SDK generators
+groups:
+  ts-sdk:
+    generators:
+      - name: fernapi/fern-typescript-sdk
+        version: <Markdown src="/snippets/version-number-ts.mdx"/>
+        github:
+          repository: your-organization/typescript-sdk-repo # Location of TypeScript SDK
 ```
 
 ### API definition file
 
-  For Fern Definition, your API configuration is split across two files: `api.yml` for API-wide configuration and separate `.yml` files for your actual endpoint and type definitions. See [What is a Fern Definition?](/api-definitions/ferndef/overview) for more information. 
+For Fern Definition, your API configuration is split across two files: `api.yml` for API-wide configuration and separate `.yml` files for your actual endpoint and type definitions. See [What is a Fern Definition?](/api-definitions/ferndef/overview) for more information. 
 
-  For the other specification formats ([OpenAPI](/api-definitions/openapi/overview), [AsyncAPI](/api-definitions/asyncapi/overview), [OpenRPC](/api-definitions/openrpc/overview), and [gRPC](/api-definitions/grpc/overview)), you'll have a single self-contained specification file. 
+For the other specification formats ([OpenAPI](/api-definitions/openapi/overview), [AsyncAPI](/api-definitions/asyncapi/overview), [OpenRPC](/api-definitions/openrpc/overview), and [gRPC](/api-definitions/grpc/overview)), you'll have a single self-contained specification file. 
 
+<Note>To generate API reference documentation, [set the `api-name` property](/docs/api-references/generate-api-ref#include-more-than-one-api-reference) in your `docs.yml` file.</Note>
 
-## Multiple API definitions
+## Multiple APIs
 
-<Markdown src="/snippets/multiple-apis.mdx" />
+When working with multiple API definitions, you can organize them in two ways depending on your SDK generation needs.
 
-### Docs configuration
+<AccordionGroup>
+<Accordion title="Separate SDKs for each API">
 
-APIs in docs are specified by [setting the `api-name` property](/docs/api-references/generate-api-ref#include-more-than-one-api-reference).
+Use this approach when each API should generate its own independent set of SDKs.
 
+```bash
+fern/
+  ├─ fern.config.json
+  └─ apis/
+    ├─ user-api/
+    │   ├─ generators.yml        # Configures user-api SDKs
+    │   └─ openapi.yml
+    └─ payments-api/
+        ├─ generators.yml        # Configures payments-api SDKs  
+        └─ openapi.yml
+```
+
+Each API must have its own `generators.yml` file:
+
+```yaml title="apis/user-api/generators.yml"
+api:
+  specs:
+    - openapi: openapi.yml
+groups:
+  ts-sdk:
+    generators:
+      - name: fernapi/fern-typescript-sdk
+        github:
+          repository: company/user-api-typescript
+```
+</Accordion>
+<Accordion title="Combined SDKs from multiple APIs">
+
+Use this approach to merge multiple APIs into a single set of SDKs.
+
+```bash
+fern/
+  ├─ fern.config.json
+  ├─ generators.yml             # Single config for combined SDKs
+  ├─ user-api/
+  │   └─ openapi.yml
+  └─ payments-api/
+      └─ openapi.yml
+```
+
+List all APIs in a single `generators.yml`:
+
+```yaml title="generators.yml"
+api: 
+  specs: 
+    - openapi: user-api/openapi.yml
+    - openapi: payments-api/openapi.yml
+```
+
+If your APIs have overlapping schema names, add namespaces:
+
+```yaml title="generators.yml"
+api: 
+  specs: 
+    - openapi: user-api/openapi.yml
+    - namespace: payments
+      openapi: payments-api/openapi.yml
+```
+</Accordion>
+</AccordionGroup>
