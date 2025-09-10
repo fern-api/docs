@@ -11,15 +11,26 @@ you'll have a versioned package published on PyPI.
 	<img src="assets/pypi-package.png" alt="Versioned package published on PyPI" />
 </Frame>
 
-<Markdown src="/products/sdks/snippets/setup-fern-folder-callout.mdx"/>
+<Info>
+	This page assumes that you have:
 
-## Configure `generators.yml`
+	* An initialized `fern` folder. See [Set up the `fern`
+	folder](/sdks/overview/quickstart).
+	* A GitHub repository for your Python SDK. See [Project structure](/sdks/overview/project-structure).
+	* A Python generator group in `generators.yml`. See [Python
+	Quickstart](quickstart#add-the-sdk-generator).
+
+  </Info>
+
+## Configure SDK package settings
+
+You'll need to update your `generators.yml` file to configure the package name, output location, and client naming for PyPi publishing. Your `generators.yml` [should live in your source repository](/sdks/overview/project-structure) (or on your local machine), not the repository that contains your Python SDK code.
 
 <Steps>
 
 	  <Step title="Configure `output` location">
 
-		Next, change the output location in `generators.yml` from `local-file-system` (the default) to `pypi` to indicate that Fern should publish your package directly to the PyPI registry:
+		In the `group` for your Python SDK, change the output location in from `local-file-system` (the default) to `pypi` to indicate that Fern should publish your package directly to the PyPi registry:
 
 	    ```yaml title="Python" {6-7}
 	    groups: 
@@ -35,7 +46,7 @@ you'll have a versioned package published on PyPI.
 
 	  <Step title="Add a unique package name">
 
-	     Your package name must be unique in the PyPI repository, otherwise publishing your SDK to PyPI will fail. Update your package name if you haven't done so already:
+	     Your package name must be unique in the PyPI repository, otherwise publishing your SDK to PyPI will fail. 
 
 
 ```yaml title="Python" {8}
@@ -70,30 +81,9 @@ groups:
 ```
 	    
 	  </Step>
-
-	  <Step title="Add repository location">
-
-	  Add the path to your GitHub repository to `generators.yml`: 
-
-```yaml title="Python" {11-12}
-groups: 
-  python-sdk:
-    generators:
-      - name: fernapi/fern-python-sdk
-        version: <Markdown src="/snippets/version-number-python.mdx"/>
-        output:
-          location: pypi
-          package-name: your-package-name
-        config:
-          client_class_name: YourClientName
-        github: 
-          repository: your-org/company-python
-```
-	  
-	  </Step>
   </Steps>
 
-## Set up PyPi publishing authentication
+## Generate a PyPi token
 
 <Steps>
 
@@ -127,53 +117,34 @@ groups:
 
 </Steps>
 
-## Release your SDK to PyPI
-
-  At this point, you're ready to generate a release for your SDK.
-<AccordionGroup>
-<Accordion title="Release via a GitHub workflow (recommended)">
-
-Set up a release workflow via [GitHub Actions](https://docs.github.com/en/actions/get-started/quickstart) so you can trigger new SDK releases directly from your source repository. 
+## Configure PyPi publication
 
 <Steps>
-	<Step title="Set up authentication">
+<Step title="Add repository location">
 
-	Open your Fern repository in GitHub. Click on the **Settings** tab in your repository. Then, under the **Security** section, open **Secrets and variables** > **Actions**. 
+Add the path to your GitHub repository to `generators.yml`: 
 
-	<Frame>
-	<img src="assets/github-secret.png" alt="Adding GitHub Repository Secret" />
-	</Frame>
+```yaml title="Python" {11-12}
+groups: 
+  python-sdk:
+    generators:
+      - name: fernapi/fern-python-sdk
+        version: <Markdown src="/snippets/version-number-python.mdx"/>
+        output:
+          location: pypi
+          package-name: your-package-name
+        config:
+          client_class_name: YourClientName
+        github: 
+          repository: your-org/company-python
+```
+	  
+</Step>
+<Step title="Configure PyPi authentication token">
 
-	You can also use the url `https://github.com/<your-repo>/settings/secrets/actions`.
+Add `token: ${PYPI_TOKEN}` to `generators.yml`.
 
-	</Step>
-	<Step title="Add secret for your PyPi Token">
-
-	1. Select **New repository secret**. 
-	1. Name your secret `PYPI_TOKEN`.
-	1. Add the corresponding token you generated above.
-	1. Click **Add secret**. 
-
-	<Frame>
-	<img src="assets/pypi-token-secret.png" alt="PYPI_TOKEN secret" />
-	</Frame>
-
-	</Step>
-	<Step title="Add secret for your Fern Token">
-
-	1. Select **New repository secret**. 
-	1. Name your secret `FERN_TOKEN`.
-    1. Add your Fern token. If you don't already have one, generate one by
-       running `fern token`. By default, the `fern_token` is generated for the
-       organization listed in `fern.config.json`.
-	1. Click **Add secret**. 
-
-	</Step>
-	<Step title="Configure PyPi authentication token">
-
-	Add `token: ${PYPI_TOKEN}` to `generators.yml`.
-
-	```yaml {9} title="generators.yml"
+```yaml {9} title="generators.yml"
 groups: 
   python-sdk:
     generators:
@@ -187,11 +158,82 @@ groups:
           client_class_name: YourClientName
         github: 
           repository: your-org/company-python
-	```
-	</Step>
-	<Step title="Set up a new workflow">
+```
+</Step>
+<Step title="Choose your publishing mode">
 
-	Set up a CI workflow that you can manually trigger from the GitHub UI. In your repository, navigate to **Actions**. Select **New workflow**, then **Set up workflow yourself**. Add a workflow that's similar to this: 
+<Markdown src="/snippets/github-publishing-mode.mdx"/>
+
+```yaml title="generators.yml" {14}
+groups: 
+  python-sdk:
+	generators:
+	  - name: fernapi/fern-python-sdk
+		version: <Markdown src="/snippets/python-sdk-version.mdx"/>
+		output:
+		  location: npm
+		  package-name: name-of-your-package
+		  token: ${PYPI_TOKEN}
+		config:
+		  namespaceExport: YourClientName
+		github: 
+		  repository: your-org/your-repository
+		  mode: push
+		  branch: your-branch-name # Required for mode: push
+```
+
+
+</Step>
+</Steps>
+
+## Publish your SDK
+
+Decide how you want to publish your SDK to PyPi. You can use GitHub workflows for automated releases or publish directly via the CLI.
+
+<AccordionGroup>
+<Accordion title="Release via a GitHub workflow (recommended)">
+
+Set up a release workflow via [GitHub Actions](https://docs.github.com/en/actions/get-started/quickstart) so you can trigger new SDK releases directly from your source repository. 
+
+<Steps>
+
+<Step title="Set up authentication">
+
+Open your Fern repository in GitHub. Click on the **Settings** tab in your repository. Then, under the **Security** section, open **Secrets and variables** > **Actions**. 
+
+<Frame>
+<img src="assets/github-secret.png" alt="Adding GitHub Repository Secret" />
+</Frame>
+
+You can also use the url `https://github.com/<your-repo>/settings/secrets/actions`.
+
+</Step>
+<Step title="Add secret for your PyPi Token">
+
+1. Select **New repository secret**. 
+1. Name your secret `PYPI_TOKEN`.
+1. Add the corresponding token you generated above.
+1. Click **Add secret**. 
+
+<Frame>
+<img src="assets/pypi-token-secret.png" alt="PYPI_TOKEN secret" />
+</Frame>
+
+</Step>
+<Step title="Add secret for your Fern Token">
+
+1. Select **New repository secret**. 
+1. Name your secret `FERN_TOKEN`.
+1. Add your Fern token. If you don't already have one, generate one by
+	running `fern token`. By default, the `fern_token` is generated for the
+	organization listed in `fern.config.json`.
+1. Click **Add secret**. 
+
+</Step>
+
+<Step title="Set up a new workflow">
+
+Set up a CI workflow that you can manually trigger from the GitHub UI. In your repository, navigate to **Actions**. Select **New workflow**, then **Set up workflow yourself**. Add a workflow that's similar to this: 
 
 	```yaml title=".github/workflows/publish.yml" maxLines=0
 	name: Publish Python SDK
@@ -222,19 +264,19 @@ groups:
 	          fern generate --group python-sdk --version ${{ inputs.version }} --log-level debug
 	```
 
-	</Step>
+</Step>
 
-	<Step title="Run your workflow"> 
+	<Step title="Regenerate and release your SDK"> 
 
-		Navigate to the **Actions** tab, select the workflow you just created, specify a version number, and click **Run workflow**. 
-		
-		This regenerates your SDK, tags the new release with the version number you specified, and initiates a Fern-generated publishing workflow in your Python SDK repository that publishes your release to PyPi. 
+		Navigate to the **Actions** tab, select the workflow you just created, specify a version number, and click **Run workflow**. This regenerates your SDK. 
 
 		<Frame>
 			<img src="assets/python-sdk-release-action.png" alt="Running Python publish workflow" />
 		</Frame>
 	
-		Once your workflow completes, log back into PyPi and navigate to **Packages** to see your new release. 
+		<Markdown src="/products/sdks/snippets/release-sdk.mdx"/>
+
+		Once the workflow completes, you can view your new release by logging into PyPi and navigating to **Your projects**.
 	
 	</Step>
 </Steps>
@@ -242,27 +284,6 @@ groups:
 </Accordion>
 <Accordion title="Release via CLI and environment variables">
 <Steps>
-
-	<Step title="Configure PyPI authentication token">
-
-	Add `token: ${PYPI_TOKEN}` to `generators.yml` to tell Fern to use the `PYPI_TOKEN` environment variable for authentication when publishing to the PyPI registry.
-
-	```yaml title="Python" {9}
-	groups: 
-	python-sdk:
-		generators:
-		- name: fernapi/fern-python-sdk
-			version: <Markdown src="/snippets/version-number-python.mdx"/>
-			output:
-			location: pypi
-			package-name: your-package-name
-			token: ${PYPI_TOKEN}
-			config:
-			client_class_name: YourClientName
-			github: 
-			repository: your-org/company-python
-	```
-	</Step>
  
 	<Step title="Set PyPI environment variable">
 
@@ -274,16 +295,16 @@ groups:
 
 	</Step>
 
-	<Step title="Generate your release">
+	<Step title="Regenerate and release your SDK">
 
-	Regenerate your SDK and publish it on PyPI:
+	Regenerate your SDK, specifying the version:
 
 	```bash
 	fern generate --group python-sdk --version <version>
 	```
-    Local machine output will verify that the release is pushed to your
-    repository and tagged with the version you specified. Log back into PyPI and
-    navigate to **Your projects** to see your new release. 
+	<Markdown src="/products/sdks/snippets/release-sdk.mdx"/>
+
+	Once the workflow completes, you can view your new release by logging into PyPi and navigating to **Your projects**.
     </Step>
 
 </Steps>
