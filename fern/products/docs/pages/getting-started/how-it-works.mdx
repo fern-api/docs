@@ -1,74 +1,51 @@
 ---
 title: How Fern Docs work
-description: 
+description: Learn how Fern transforms your API specifications and documentation into a unified developer experience
 ---
 
-Fern reads your docs.yml configuration file along with API specifications (OpenAPI, AsyncAPI, etc.) and markdown files from your GitHub repository. It processes these sources to generate a cohesive documentation site that combines API references with your custom content.
+Fern Docs creates beautiful, interactive documentation sites that automatically stay up-to-date with your API changes. The platform supports flexible editing workflows and automated deployment pipelines.
 
-When changes are merged to your documentation repository, GitHub Actions automatically trigger the Fern CLI to regenerate and deploy your updated documentation site.
+## Editing workflows
 
-the Fern Visual Editor provides a user-friendly interface to edit documentation pages, which automatically creates pull requests for review and deployment.
+You can update your documentation in two ways:
 
-Main inputs
-- ID.me GitHub repo with Fern Docs config: docs.yaml, Markdown files (landing pages, guides, etc)
-- Additional repos with API specs
+- **Direct editing**: Open a pull request directly in the [GitHub repository that contains your docs](/learn/docs/getting-started/project-structure) (including your `docs.yml` configuration and Markdown files). 
+- **Visual Editor**: Use Fern's [Visual Editor](/learn/docs/writing-content/visual-editor) to modify your docs without touching code. The Fern GitHub App fetches the current state from your docs repository and passes it to the Visual Editor. When you submit changes, the Fern GitHub App automatically opens a pull request for review. 
 
-Main flow
-- User opens a PR in Docs repo
-- Once user approves and merges PR, Fern Docs Repo kicks off github action that fetches the spec. Then, Fern CLI generates docs (`fern generate --docs`). Needs a Fern token to run this. Pushes content to Fern Docs Server
+After the update goes through your review process, an approver can merge it. 
 
-GitHub Action merges API specs (input is API specs and GitHub token to read specs in other repos)
+## Docs deployment
 
-Visual editor
-- Fern Visual Editor fetches docs state from Fern Docs repo
-- User submits a change to a docs page
-- Fern GitHub App opens a PR
-- Same flow after merging
+When a pull request is merged into your docs repository:
 
-## How a GitHub PR works
+1. **GitHub Action triggers and fetches API specs**: The merged PR triggers a Fern GitHub Action. The action retrieves your API specification from a separate repository using secure token authentication. The GitHub Action only has access to the specific docs repository from which it's running.
+2. **Fern CLI generates updated documentation**: [The Fern CLI](/learn/cli-api-reference/cli-reference/overview) runs `fern generate --docs` to merge API specs with your documentation. It uses a Fern token to authenticate and run the generation process.
+3. **Deploy to hosting platform**: The Fern CLI deploys your generated content to the Fern Docs Server, which is hosted on Vercel.
 
-text
+This automated pipeline ensures your documentation stays synchronized with your API changes while maintaining a smooth developer workflow.
+
+<Accordion title="Architecture diagram">
 
 ```mermaid
 flowchart TD
-    Spec{{API Spec Repo}}
+    FVE[Fern Visual Editor]
     U[User]
     DR[Docs Repo]
-    GA[GitHub Actions]
     CLI[Fern CLI]
-    Token{{Fern Token}}
+    Decision{Make a PR or edit in Visual Editor?}
+    Spec((API Spec Repo))
+    GA[GitHub Actions]
 
-    DR -- #1 Open PR --> U
+    U ==> Decision
+    Decision == Make edit ==> FVE
+    Decision == Open and Merge PR ==> DR
 
-    U -- #2 Merge PR --> DR
+    FVE <== Fetches state and opens PR ==> DR
+    DR == ① Merged PR triggers deployment flow ==> GA
     
-    DR -->|#3 Merged PR kicks off action| GA
-    GA --> Spec
-    Spec -->|#4 Fetches and merges API spec| GA
-    GA -->|#5 Runs fern generate docs| CLI
-    Token --> CLI
-    CLI -->|#6 Pushes updated docs| Server[Fern Docs Server]
+    Spec <-. ② Fetches and merges API spec .-> GA
+
+    GA == ③ Triggers doc regeneration ==> CLI
+    CLI == ④ Deploys updated docs ==> Server[Fern Docs Server]
 ```
-
-## How the Visual Editor flow works
-
-text
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant VisualEditor as Fern Visual Editor
-    participant DocsRepo as Fern Docs Repo
-    participant GitHubApp as Fern GitHub App
-    participant GitHubAction as GitHub Action
-    participant DocsServer as Fern Docs Server
-
-    VisualEditor->>DocsRepo: Fetches docs state
-    User->>VisualEditor: Submits changes
-    VisualEditor->>GitHubApp: Creates PR
-    GitHubApp->>DocsRepo: Opens PR
-    Note over DocsRepo: PR gets merged
-    DocsRepo->>GitHubAction: Triggers same generation flow
-    Note over GitHubAction: Fetches API specs from external repos
-    GitHubAction->>DocsServer: Pushes updated docs
-```
+</Accordion>
