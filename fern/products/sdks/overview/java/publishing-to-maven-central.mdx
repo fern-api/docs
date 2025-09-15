@@ -7,17 +7,28 @@ Publish your public-facing Fern Java SDK to the [Maven Central
 registry](https://central.sonatype.com/). After following the steps on this
 page, you'll have a versioned package published on Maven Central.
 
-<Markdown src="/products/sdks/snippets/setup-fern-folder-callout.mdx"/>
+<Info>
+	This page assumes that you have:
 
-## Configure `generators.yml`
+	* An initialized `fern` folder. See [Set up the `fern`
+	folder](/sdks/overview/quickstart).
+	* A GitHub repository for your Java SDK. See [Project structure](/sdks/overview/project-structure).
+	* A Java generator group in `generators.yml`. See [Java
+	Quickstart](quickstart#add-the-sdk-generator).
+
+  </Info>
+
+## Configure Maven Central publication
+
+You'll need to update your `generators.yml` file to configure the output location, target repository, and publishing mode. Your `generators.yml` [should live in your source repository](/sdks/overview/project-structure) (or on your local machine), not the repository that contains your Java SDK code.
 
 <Steps>
 
-	  <Step title="Configure `output` location">
+  <Step title="Configure `output` location">
 
-		Change the output location in `generators.yml` from `local-file-system` (the default) to `maven` to indicate that Fern should publish your package directly to the Maven Central registry. 
-    
-    Then, add `publish-to: central` to indicate that the publish target is the new Maven Central Portal (Sonatype). To publish to the legacy Nexus Repository, use `publish-to: ossrh`. 
+  In the `group` for your Java SDK, change the output location in `generators.yml` from `local-file-system` (the default) to `maven` to indicate that Fern should publish your package directly to the Maven Central registry. 
+  
+  Then, add `publish-to: central` to indicate that the publish target is the new Maven Central Portal (Sonatype). To publish to the legacy Nexus Repository, use `publish-to: ossrh`. 
 
     ```yaml {6-9} title="generators.yml"
     groups: 
@@ -34,7 +45,7 @@ page, you'll have a versioned package published on Maven Central.
     
 	  <Step title="Add repository location">
 
-	  Add the path to your GitHub repository.
+	  Add the path to the GitHub repository containing your Java SDK:
 
 ```yaml {10-11} title="generators.yml"
 groups: 
@@ -51,6 +62,27 @@ groups:
 ```
 	  
 	  </Step>
+    <Step title="Choose your publishing mode">
+
+<Markdown src="/products/sdks/snippets/github-publishing-mode.mdx"/>
+
+```yaml title="generators.yml" {12-13}
+groups: 
+  java-sdk:
+	generators:
+	  - name: fernapi/fern-java-sdk
+		version: <Markdown src="/snippets/version-number-java.mdx"/>
+		output:
+		  location: maven
+		config:
+		  publish-to: central
+		github: 
+		  repository: your-org/company-java
+		  mode: push
+		  branch: your-branch-name # Required for mode: push
+```
+
+</Step>
   </Steps>
 
 ## Set up Maven Central publishing authentication
@@ -195,37 +227,130 @@ Finally, upload your key to public key servers so Maven Central can access the s
 ```
 </Step>
 </Steps>
+## Publish your SDK
 
-## Release your SDK to Maven Central
+Decide how you want to publish your SDK to Maven Central. You can use GitHub workflows for automated releases or publish directly via the CLI. 
 
-  At this point, you're ready to generate a release for your SDK.
+<AccordionGroup>
+
+<Accordion title="Release via a GitHub workflow">
+
+Set up a release workflow via [GitHub Actions](https://docs.github.com/en/actions/get-started/quickstart) so you can trigger new SDK releases directly from your source repository. 
 
 <Steps>
- 
-	<Step title="Set Maven environment variables">
+	<Step title="Set up authentication">
 
-	On your local machine, set the the following environment variable to the various tokens you generated in previous steps:
+	Open your source repository in GitHub. Click on the **Settings** tab. Then, under the **Security** section, open **Secrets and variables** > **Actions**. 
 
-	```bash
-	export MAVEN_USERNAME=your-maven-username
-  export MAVEN_PASSWORD=your-maven-password
-  export MAVEN_SIGNATURE_SECRET_KEY_ID=your-gpg-key-id
-  export MAVEN_SIGNATURE_PASSWORD=your-gpg-passphrase
-  export MAVEN_SIGNATURE_SECRET_KEY=your-gpg-secret-key
-	```
+	You can also use the url `https://github.com/<your-repo>/settings/secrets/actions`.
 
 	</Step>
+	<Step title="Add secret for your Fern Token">
 
-	<Step title="Generate your release">
+	1. Select **New repository secret**. 
+	1. Name your secret `FERN_TOKEN`.
+    1. Add your Fern token. If you don't already have one, generate one by
+       running `fern token`. By default, the `fern_token` is generated for the
+       organization listed in `fern.config.json`.
+	1. Click **Add secret**. 
 
-	Regenerate your SDK and publish it on Maven Central:
+	</Step>
+  	<Step title="Add secrets for Maven Central">
 
-	```bash
-	fern generate --group java-sdk --version <version>
+	Add the following repository secrets by selecting **New repository secret** for each:
+
+	1. `MAVEN_USERNAME` - Your Maven Central username
+	1. `MAVEN_PASSWORD` - Your Maven Central password  
+	1. `MAVEN_SIGNATURE_SECRET_KEY_ID` - Your GPG key ID
+	1. `MAVEN_SIGNATURE_PASSWORD` - Your GPG passphrase
+	1. `MAVEN_SIGNATURE_SECRET_KEY` - Your GPG secret key
+
+	</Step>
+	<Step title="Set up a new workflow">
+
+	Set up a CI workflow that you can manually trigger from the GitHub UI. In your repository, navigate to **Actions**. Select **New workflow**, then **Set up workflow yourself**. Add a workflow that's similar to this: 
+
+	```yaml title=".github/workflows/publish.yml" maxLines=0
+	name: Publish Java SDK
+
+	on:
+	  workflow_dispatch:
+	    inputs:
+	      version:
+	        description: "The version of the Java SDK that you would like to release"
+	        required: true
+	        type: string
+
+	jobs:
+	  release:
+	    runs-on: ubuntu-latest
+	    steps:
+	      - name: Checkout repo
+	        uses: actions/checkout@v4
+
+	      - name: Install Fern CLI
+	        run: npm install -g fern-api
+
+	      - name: Release Java SDK
+	        env:
+	          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+	          MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
+	          MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
+	          MAVEN_SIGNATURE_SECRET_KEY_ID: ${{ secrets.MAVEN_SIGNATURE_SECRET_KEY_ID }}
+	          MAVEN_SIGNATURE_PASSWORD: ${{ secrets.MAVEN_SIGNATURE_PASSWORD }}
+	          MAVEN_SIGNATURE_SECRET_KEY: ${{ secrets.MAVEN_SIGNATURE_SECRET_KEY }}
+	        run: |
+	          fern generate --group java-sdk --version ${{ inputs.version }} --log-level debug
 	```
-    Local machine output will verify that the release is pushed to your
-    repository and tagged with the version you specified. Log back into Maven Central and
-    navigate to **View Deployments** to see your new release. 
-    </Step>
+	<Note>
+		You can alternatively configure your workflow to execute `on: [push]`. 
+	</Note>
+	</Step>
+
+	<Step title="Regenerate and release your SDK"> 
+
+		Navigate to the **Actions** tab, select the workflow you just created, specify a version number, and click **Run workflow**. This regenerates your SDK. 
+
+		<Markdown src="/products/sdks/snippets/release-sdk.mdx"/>
+
+		Once the workflow completes, you can view your new release by logging into Maven Central and navigating to **View Deployments**.
+	
+	</Step>
 
 </Steps>
+
+</Accordion>
+
+<Accordion title="Release via CLI and environment variables">
+<Steps>
+
+<Step title="Set Maven environment variables">
+
+Set the Maven Central environment variables on your local machine:
+
+```bash
+export MAVEN_USERNAME=your-maven-username
+export MAVEN_PASSWORD=your-maven-password
+export MAVEN_SIGNATURE_SECRET_KEY_ID=your-gpg-key-id
+export MAVEN_SIGNATURE_PASSWORD=your-gpg-passphrase
+export MAVEN_SIGNATURE_SECRET_KEY=your-gpg-secret-key
+```
+
+</Step>
+<Step title="Regenerate and release your SDK">
+
+Regenerate your SDK, specifying the version:
+
+```bash
+fern generate --group java-sdk --version <version>
+```
+
+<Markdown src="/products/sdks/snippets/release-sdk.mdx"/>
+
+Once the command completes, you can view your new release by logging into Maven Central and navigating to **View Deployments**.
+
+</Step>
+
+</Steps>
+</Accordion>
+</AccordionGroup>
