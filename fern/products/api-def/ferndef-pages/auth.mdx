@@ -178,7 +178,7 @@ client = new Client({
 
 ## OAuth client credentials
 
-If your API uses OAuth, you can specify an oauth scheme. Note that you'll need to define a token retrieval endpoint. 
+If your API uses OAuth, you can specify an oauth scheme in `api.yml` and define a token retrieval endpoint in a separate `auth.yml` file ([example](https://github.com/fern-api/fern/blob/3137938b70e058f3691ddef34d5c1cc29acc4b80/test-definitions/fern/apis/oauth-client-credentials/definition/api.yml)). 
 
 ```yaml api.yml
 name: api
@@ -194,15 +194,54 @@ auth-schemes:
     client-id-env: YOUR_CLIENT_ID
     client-secret-env: YOUR_CLIENT_SECRET
     get-token:
-      endpoint: auth.getToken               
+      endpoint: auth.getTokenWithClientCredentials
+      request-properties:
+        client-id: $request.client_id         # Format: parameter-name: $request.property_name
+        client-secret: $request.client_secret # Format: parameter-name: $request.property_name            
       response-properties:
-        access-token: $response.access_token 
-        expires-in: $response.expires_in    
+        access-token: $response.access_token  # Format: parameter-name: $response.property_name
+        expires-in: $response.expires_in      # Format: parameter-name: $response.property_name
 
 ```
 
-If the `expires-in` property is set, the generated OAuth token provider will automatically refresh the token when it expires.
-Otherwise, it's assumed that the access token is valid indefinitely.
+The `request-properties` and `response-properties` map OAuth standard parameters to your actual endpoint's request and response field names defined in `auth.yml`.
+
+<Info>
+  If the `expires-in` property is set, the generated OAuth token provider will automatically refresh the token when it expires. Otherwise, it's assumed that the access token is valid indefinitely.
+</Info>
+
+The corresponding `auth.yml` file ([example](https://github.com/fern-api/fern/blob/3137938b70e058f3691ddef34d5c1cc29acc4b80/test-definitions/fern/apis/oauth-client-credentials/definition/auth.yml)) defines the token endpoint:
+
+```yaml title="auth.yml"
+types:
+  TokenResponse:
+    docs: |
+      An OAuth token response.
+    properties:
+      access_token: string
+      expires_in: integer
+      refresh_token: optional<string>
+
+service:
+  auth: false
+  base-path: /
+  endpoints:
+    getTokenWithClientCredentials:
+      path: /token
+      method: POST
+      request:
+        name: GetTokenRequest
+        body:
+          properties:
+            client_id: string
+            client_secret: string
+            audience: literal<"https://api.example.com">
+            grant_type: literal<"client_credentials">
+            scope: optional<string>
+      response: TokenResponse
+```
+
+<Info>If your OAuth server is hosted at a different URL than your main API, you can use [multi-URL environments](/api-definitions/ferndef/api-yml/environments#multiple-urls-per-environment) to specify separate base URLs for authentication and API calls.</Info>
 
 With this, all of the OAuth logic happens automatically in the generated SDKs. As long as you configure these settings, your
 client will automatically retrieve an access token and refresh it as needed.
