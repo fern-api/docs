@@ -183,6 +183,125 @@
         ]
       }
     },
+    "/analytics/insights/generate_all": {
+      "post": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Generate All Insights",
+        "description": "Generate insights for all domains with queries in the specified period.",
+        "operationId": "generate_all_insights",
+        "parameters": [
+          {
+            "name": "start_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The start date of the period to generate insights for",
+              "title": "Start Date"
+            },
+            "description": "The start date of the period to generate insights for"
+          },
+          {
+            "name": "end_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The end date of the period to generate insights for",
+              "title": "End Date"
+            },
+            "description": "The end date of the period to generate insights for"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-fern-audiences": [
+          "internal"
+        ]
+      }
+    },
+    "/analytics/insights/trigger_scheduled": {
+      "post": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Trigger Scheduled Insights Generation",
+        "description": "Manually trigger the scheduled weekly insights generation job.",
+        "operationId": "trigger_scheduled_insights_generation",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "x-fern-audiences": [
+          "internal"
+        ]
+      }
+    },
+    "/analytics/scheduler/status": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Get Scheduler Status",
+        "description": "Get the status of the scheduler and its jobs.",
+        "operationId": "get_scheduler_status",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "x-fern-audiences": [
+          "internal"
+        ]
+      }
+    },
     "/chat/{domain}": {
       "post": {
         "tags": [
@@ -323,7 +442,74 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CreateDocumentResponse"
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CreateDocumentResponse"
+                  },
+                  "title": "Response Create Document Document  Domain  Create Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-fern-audiences": [
+          "customers"
+        ]
+      }
+    },
+    "/document/{domain}/batch-create": {
+      "post": {
+        "tags": [
+          "Document"
+        ],
+        "summary": "Batch Create Document",
+        "operationId": "batch_create_document",
+        "parameters": [
+          {
+            "name": "domain",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Domain"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CreateDocumentRequest"
+                },
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CreateDocumentResponse"
+                  },
+                  "title": "Response Batch Create Document Document  Domain  Batch Create Post"
                 }
               }
             }
@@ -407,58 +593,6 @@
           "customers"
         ]
       },
-      "delete": {
-        "tags": [
-          "Document"
-        ],
-        "summary": "Delete Document By Id",
-        "operationId": "delete_document_by_id",
-        "parameters": [
-          {
-            "name": "domain",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Domain"
-            }
-          },
-          {
-            "name": "document_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Document Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DeleteDocumentResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        },
-        "x-fern-audiences": [
-          "customers"
-        ]
-      },
       "get": {
         "tags": [
           "Document"
@@ -492,6 +626,120 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GetDocumentResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-fern-audiences": [
+          "customers"
+        ]
+      }
+    },
+    "/document/{domain}/delete": {
+      "delete": {
+        "tags": [
+          "Document"
+        ],
+        "summary": "Delete Document By Id",
+        "operationId": "delete_document_by_id",
+        "parameters": [
+          {
+            "name": "domain",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Domain"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteDocumentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteDocumentResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-fern-audiences": [
+          "customers"
+        ]
+      }
+    },
+    "/document/{domain}/batch-delete": {
+      "delete": {
+        "tags": [
+          "Document"
+        ],
+        "summary": "Batch Delete Document",
+        "operationId": "batch_delete_document",
+        "parameters": [
+          {
+            "name": "domain",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Domain"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/DeleteDocumentRequest"
+                },
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteDocumentResponse"
                 }
               }
             }
@@ -573,6 +821,51 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GetDocumentsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-fern-audiences": [
+          "customers"
+        ]
+      }
+    },
+    "/document/{domain}/delete-all": {
+      "delete": {
+        "tags": [
+          "Document"
+        ],
+        "summary": "Delete All Documents",
+        "operationId": "delete_all_documents",
+        "parameters": [
+          {
+            "name": "domain",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Domain"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteDocumentResponse"
                 }
               }
             }
@@ -737,11 +1030,53 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/ReferenceSnippet"
-                  },
-                  "title": "Response Index Reference Md Github  Domain  Reference Md Index Post"
+                  "$ref": "#/components/schemas/IndexResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-fern-audiences": [
+          "customers"
+        ]
+      }
+    },
+    "/github/{domain}/indexed": {
+      "get": {
+        "tags": [
+          "Github"
+        ],
+        "summary": "Check Code Index Status",
+        "description": "Check if the domain has a non-empty code index in both database and turbopuffer.",
+        "operationId": "check_code_index_status",
+        "parameters": [
+          {
+            "name": "domain",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Domain"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodeIndexStatusResponse"
                 }
               }
             }
@@ -1351,15 +1686,26 @@
         ],
         "summary": "Create Query",
         "operationId": "create_query",
+        "parameters": [
+          {
+            "name": "domain",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Domain"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/Query"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -1543,6 +1889,420 @@
           "internal"
         ]
       }
+    },
+    "/settings/ask-ai": {
+      "get": {
+        "tags": [
+          "Settings"
+        ],
+        "summary": "Get Settings",
+        "description": "Get settings for a domain and organization.",
+        "operationId": "get_settings",
+        "parameters": [
+          {
+            "name": "domain",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Domain"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetSettingsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-fern-audiences": [
+          "internal"
+        ]
+      }
+    },
+    "/settings/ask-ai/toggle": {
+      "post": {
+        "tags": [
+          "Settings"
+        ],
+        "summary": "Toggle Ask Ai",
+        "description": "Toggle Ask AI setting and return job_id for tracking.",
+        "operationId": "toggle_ask_ai",
+        "parameters": [
+          {
+            "name": "domain",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Domain"
+            }
+          },
+          {
+            "name": "org_name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Org Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToggleAskAiResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-fern-audiences": [
+          "internal"
+        ]
+      }
+    },
+    "/settings/ask-ai/reindex": {
+      "post": {
+        "tags": [
+          "Settings"
+        ],
+        "summary": "Reindex Ask Ai",
+        "description": "Manually trigger reindex for an already enabled Ask AI setup.",
+        "operationId": "reindex_ask_ai",
+        "parameters": [
+          {
+            "name": "domain",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Domain"
+            }
+          },
+          {
+            "name": "org_name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Org Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToggleAskAiResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-fern-audiences": [
+          "internal"
+        ]
+      }
+    },
+    "/settings/ask-ai/toggle/status": {
+      "get": {
+        "tags": [
+          "Settings"
+        ],
+        "summary": "Get Toggle Status",
+        "description": "Get the status of Ask AI toggle operation.",
+        "operationId": "get_toggle_status",
+        "parameters": [
+          {
+            "name": "domain",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Domain"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToggleStatusResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-fern-audiences": [
+          "internal"
+        ]
+      }
+    },
+    "/slack/integrations": {
+      "post": {
+        "tags": [
+          "Slack"
+        ],
+        "summary": "Create Slack Integration",
+        "operationId": "create_slack_integration",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSlackIntegration"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SlackIntegrationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-fern-audiences": [
+          "internal"
+        ]
+      }
+    },
+    "/slack/events": {
+      "post": {
+        "tags": [
+          "Slack"
+        ],
+        "summary": "Handle Slack Events",
+        "operationId": "handle_slack_events",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "x-fern-audiences": [
+          "internal"
+        ]
+      }
+    },
+    "/slack/slash-commands": {
+      "post": {
+        "tags": [
+          "Slack"
+        ],
+        "summary": "Handle Slack Slash Commands",
+        "operationId": "handle_slack_slash_commands",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "x-fern-audiences": [
+          "internal"
+        ]
+      }
+    },
+    "/slack/interactions": {
+      "post": {
+        "tags": [
+          "Slack"
+        ],
+        "summary": "Handle Slack Interactions",
+        "operationId": "handle_slack_interactions",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "x-fern-audiences": [
+          "internal"
+        ]
+      }
+    },
+    "/slack/oauth/callback": {
+      "get": {
+        "tags": [
+          "Slack"
+        ],
+        "summary": "Handle Slack Oauth Callback",
+        "operationId": "handle_slack_oauth_callback",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Code"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-fern-audiences": [
+          "internal"
+        ]
+      }
+    },
+    "/slack/get-install": {
+      "get": {
+        "tags": [
+          "Slack"
+        ],
+        "summary": "Get Slack Install Link",
+        "operationId": "get_slack_install_link",
+        "parameters": [
+          {
+            "name": "domain",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Domain"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-fern-audiences": [
+          "internal"
+        ]
+      }
     }
   },
   "components": {
@@ -1568,6 +2328,20 @@
           "content"
         ],
         "title": "ChatMessage"
+      },
+      "CodeIndexStatusResponse": {
+        "properties": {
+          "exists": {
+            "type": "boolean",
+            "title": "Exists",
+            "description": "Whether the domain has a non-empty code index"
+          }
+        },
+        "type": "object",
+        "required": [
+          "exists"
+        ],
+        "title": "CodeIndexStatusResponse"
       },
       "Conversation": {
         "properties": {
@@ -1892,12 +2666,39 @@
         ],
         "title": "CreateQueryResponse"
       },
+      "CreateSlackIntegration": {
+        "properties": {
+          "domain": {
+            "type": "string",
+            "title": "Domain"
+          }
+        },
+        "type": "object",
+        "required": [
+          "domain"
+        ],
+        "title": "CreateSlackIntegration"
+      },
+      "DeleteDocumentRequest": {
+        "properties": {
+          "document_id": {
+            "type": "string",
+            "title": "Document Id",
+            "description": "The unique identifier of the document to delete"
+          }
+        },
+        "type": "object",
+        "required": [
+          "document_id"
+        ],
+        "title": "DeleteDocumentRequest"
+      },
       "DeleteDocumentResponse": {
         "properties": {
           "success": {
             "type": "boolean",
             "title": "Success",
-            "description": "Whether the document was successfully deleted"
+            "description": "Whether the documents was successfully deleted"
           }
         },
         "type": "object",
@@ -2202,7 +3003,7 @@
         "properties": {
           "insights": {
             "items": {
-              "$ref": "#/components/schemas/InsightWithCount"
+              "$ref": "#/components/schemas/InsightWithMetadata"
             },
             "type": "array",
             "title": "Insights",
@@ -2298,6 +3099,32 @@
           "pagination"
         ],
         "title": "GetQueriesResponse"
+      },
+      "GetSettingsResponse": {
+        "properties": {
+          "ask_ai_enabled": {
+            "type": "boolean",
+            "title": "Ask Ai Enabled",
+            "description": "Whether Ask AI is enabled"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id",
+            "description": "Active job ID if reindexing is in progress"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ask_ai_enabled"
+        ],
+        "title": "GetSettingsResponse"
       },
       "GitHubFileInfoRequest": {
         "properties": {
@@ -2414,31 +3241,63 @@
         ],
         "title": "HistogramAnalyticsBar"
       },
-      "InsightWithCount": {
+      "IndexResponse": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success",
+            "description": "Whether the index operation was successful"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "IndexResponse"
+      },
+      "InsightExample": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "conversationId": {
+            "type": "string",
+            "title": "Conversationid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "query",
+          "conversationId"
+        ],
+        "title": "InsightExample"
+      },
+      "InsightWithMetadata": {
         "properties": {
           "insightText": {
             "type": "string",
             "title": "Insighttext"
           },
-          "examples": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Examples"
-          },
           "numberOfQueries": {
             "type": "integer",
             "title": "Numberofqueries"
+          },
+          "examples": {
+            "items": {
+              "$ref": "#/components/schemas/InsightExample"
+            },
+            "type": "array",
+            "title": "Examples"
           }
         },
         "type": "object",
         "required": [
           "insightText",
-          "examples",
-          "numberOfQueries"
+          "numberOfQueries",
+          "examples"
         ],
-        "title": "InsightWithCount"
+        "title": "InsightWithMetadata"
       },
       "JobStatusResponse": {
         "properties": {
@@ -2683,14 +3542,17 @@
         ],
         "title": "ReconstructIndexResponse"
       },
-      "ReferenceSnippet": {
+      "SlackIntegrationResponse": {
         "properties": {
-          "method_header": {
+          "integration_id": {
             "type": "string",
-            "title": "Method Header",
-            "description": "The header of the method or function, e.g., 'def foo(bar):'"
+            "title": "Integration Id"
           },
-          "language": {
+          "domain": {
+            "type": "string",
+            "title": "Domain"
+          },
+          "slack_team_id": {
             "anyOf": [
               {
                 "type": "string"
@@ -2699,10 +3561,9 @@
                 "type": "null"
               }
             ],
-            "title": "Language",
-            "description": "The language of the code snippet"
+            "title": "Slack Team Id"
           },
-          "description": {
+          "slack_team_name": {
             "anyOf": [
               {
                 "type": "string"
@@ -2711,42 +3572,33 @@
                 "type": "null"
               }
             ],
-            "title": "Description",
-            "description": "A description of what the method does"
+            "title": "Slack Team Name"
           },
-          "usage": {
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "installed_at": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "format": "date-time"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Usage",
-            "description": "A code snippet showing how to use the method"
-          },
-          "parameters": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Parameters",
-            "description": "A list of parameter names for the method"
+            "title": "Installed At"
           }
         },
         "type": "object",
         "required": [
-          "method_header"
+          "integration_id",
+          "domain",
+          "created_at"
         ],
-        "title": "ReferenceSnippet"
+        "title": "SlackIntegrationResponse"
       },
       "SyncIndexRequest": {
         "properties": {
@@ -2775,6 +3627,70 @@
           "job_id"
         ],
         "title": "SyncIndexResponse"
+      },
+      "ToggleAskAiResponse": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success",
+            "description": "Whether the toggle operation was successful"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id",
+            "description": "Job ID for tracking reindex progress (only when enabling Ask AI)"
+          },
+          "ask_ai_enabled": {
+            "type": "boolean",
+            "title": "Ask Ai Enabled",
+            "description": "Current state of Ask AI (true if enabled, false if disabled)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "ask_ai_enabled"
+        ],
+        "title": "ToggleAskAiResponse"
+      },
+      "ToggleStatusResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "Current job status (running, completed, failed, etc.)"
+          },
+          "ask_ai_enabled": {
+            "type": "boolean",
+            "title": "Ask Ai Enabled",
+            "description": "Current state of Ask AI"
+          },
+          "last_reindex_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Reindex Time",
+            "description": "ISO timestamp of last reindex"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "ask_ai_enabled"
+        ],
+        "title": "ToggleStatusResponse"
       },
       "UpdateDocumentRequest": {
         "properties": {
