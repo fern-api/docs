@@ -1,4 +1,4 @@
-The `redirects` object allows you to redirect traffic from one path to another. You can redirect exact paths or use dynamic patterns with [`regex`](https://www.npmjs.com/package/path-to-regexp) parameters like `:slug`.
+The `redirects` object allows you to redirect traffic from one path to another (including external URLs). You can redirect exact paths or use dynamic patterns with [`regex`](https://www.npmjs.com/package/path-to-regexp) parameters like `:slug` to handle bulk redirects.
 
 If your docs are hosted on a subpath (like `buildwithfern.com/learn`), include the subpath in both the source and destination paths.
 
@@ -12,27 +12,29 @@ If your docs are hosted on a subpath (like `buildwithfern.com/learn`), include t
       - source: "/old-folder/path"
         destination: "/new-folder/path"
         permanent: true
+      - source: "/old-folder/path"
+        destination: "https://www.example.com/fern" # External destination
         
-      # Regex-based redirects  
-      - source: "/old-folder/:slug" # <- /old-folder/foo, /old-folder/bar, etc.
-        destination: "/new-folder/:slug"
-      - source: "/old-folder/:slug*" # <- /incorrect, /incorrect/foo/bar/baz, etc.
-        destination: "/new-folder/:slug*"
+      # Regex-based redirects
+      - source: "/old-folder/:slug" # Matches single segments: /old-folder/foo
+        destination: "/new-folder/:slug"   
+      - source: "/old-folder/:slug*" # Matches multiple segments: /old-folder/foo/bar/baz 
+        destination: "/new-folder/:slug*"  
     ```
   </CodeBlock>
 
 <Info>
-    Parameters suffixed with an asterisk (`*`) match zero or more path segments, capturing everything that follows in the URL. Use this when redirecting entire folder structures while preserving nested paths.
-  </Info>
+  Parameters suffixed with an asterisk (`*`) match zero or more path segments, capturing everything that follows in the URL. Use this when redirecting entire folder structures while preserving nested paths.
+</Info>
 
 <ParamField path="source" type="string" required={true}>
   The path that you want to redirect from.
 </ParamField>
 
 <ParamField path="destination" type="string" required={true}>
-  The path that you want to redirect to.
+  The path that you want to redirect to. The destination can be an internal or external link. External destinations must include the full address, including `https`.
 </ParamField>
 
 <ParamField path="permanent" type="boolean" required={false}>
-  Toggle between **permanent** and **temporary** redirect (default `false`). When true, the status code is 308. When false, the status code is 307.
+  Toggle between **permanent** and **temporary** redirects (default `false`). When true, the status code is 308. When false, the status code is 307.
 </ParamField>
