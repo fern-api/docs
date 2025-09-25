@@ -1,8 +1,8 @@
-# Fern Documentation
+# Fern documentation
 
 Welcome to the Fern documentation! This repository contains the source code for Fern's comprehensive documentation site, currently live at [buildwithfern.com/learn](https://buildwithfern.com/learn).
 
-## 🚀 Quick Start
+## Quickstart 🚀 
 
 ### Prerequisites
 
@@ -23,7 +23,7 @@ Before you begin, make sure you have the following installed:
    cd docs
    ```
 
-### Local Development
+### Local development
 
 To run the documentation site locally:
 
@@ -39,7 +39,7 @@ To run the documentation site locally:
 
 The development server will automatically reload when you make changes to the documentation files.
 
-## Contribution Guide
+## Contribution guide
 
 Thanks for contributing to Fern's documentation!
 
