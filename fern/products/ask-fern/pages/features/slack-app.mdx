@@ -40,8 +40,6 @@ To give customers access to the Ask Fern bot in their own Slack workspaces:
 1. Forward this link to your customer so they can install the Ask Fern app to their workspace.
 1. Once the customer has installed the Ask Fern app, you must add the bot to your customer Slack channel to give it access.
 
-
-
 Once added, customers will see that `@Ask Fern was added to the channel`. They can start asking questions immediately.
 </Accordion>
 </AccordionGroup>
@@ -57,12 +55,12 @@ Use the `/configure` slash command in any channel to adjust the settings:
 
 | Command | Description | Example |
 |---------|-------------|---------|
-| **respond_to** | Controls whether the Ask Fern bot responds to all messages (`all`) or only when directly mentioned with `@Ask Fern` (`mentions_only`) | `/configure respond_to all` |
-| **roles** | Specifies which RBAC roles should be used to filter Ask Fern responses (if you have [role-based access control](/docs/authentication/rbac) configured) | `/configure roles developer, admin` |
+| **respond_to** | Controls whether the Ask Fern bot responds to all messages (`all`), reponds only when directly mentioned with `@Ask Fern` (`mentions_only`), or determines when to respond to messages depending on context (`auto`). Set to `auto` by default. | `/configure respond_to all` |
+| **roles** | Specifies which RBAC roles (comma-separated) should be used to filter Ask Fern responses (if you have [role-based access control](/docs/authentication/rbac) configured) | `/configure roles developer,admin` |
 | **show** | Show the current settings | `/configure show` |
 | **help** | Get help with Ask Fern slash commands | `/configure help` |
 
-<Frame>
+<Frame caption="After configuring respond_to all, bot responds to messages even when not directly mentioned">
   <img src="/products//ask-fern/pages/assets/respond-all-slack.png" alt="Respond all setting in Slack" />
 </Frame>
 
@@ -83,6 +81,20 @@ You can rename the bot to match your brand (example: "YourCompanyName Support"):
 
 Now customers will see `@YourCompanyName Support was added to the channel` instead of the default `@Ask Fern` name.
 </Accordion>
+<Accordion title="Improve responses with indexing">
+
+You can improve the Slack bot's knowledge base by teaching it from real customer interactions. When the bot provides answers in Slack, you can refine those responses and save them for future reference.
+
+1. **A user asks a question** - The bot responds in the channel
+2. **Review the response** - If the answer needs improvement, reply in the thread to the bot's message
+3. **Provide corrections** - Add missing context, correct inaccuracies, or clarify the response
+4. **Request indexing** - Ask the bot to index the improved response (e.g., "Index this response" or "Please save this")
+5. **Iterate if needed** - The bot will generate an improved answer. Continue refining until you're satisfied
+6. **Confirm indexing** - When the response looks good, tell the bot to save it. The bot will confirm the Q&A pair has been indexed
+
+Once indexed, Ask Fern will use this curated question-answer pair to inform future responses to similar questions, giving more accurate answers over time.
+
+</Accordion>
 </AccordionGroup>
 
 ## Architecture
@@ -99,7 +111,7 @@ sequenceDiagram
     participant F as Fern Servers
     participant V as Documentation Database
     participant A as Ask Fern
-    
+
     U->>S: Ask question to @Ask Fern
     S->>F: Webhook fires to Fern servers
     F->>F: Convert query to vector
@@ -112,3 +124,4 @@ sequenceDiagram
     F->>F: Store question and answer for analytics
 ```
 </Accordion>
+
