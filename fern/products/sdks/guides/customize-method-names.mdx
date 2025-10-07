@@ -9,7 +9,6 @@ code that matches your API's purpose.
 For example, instead of `client.postUsers`
 you can configure your SDK to read `client.users.create()`.
 
-
 ## How it works for SDK users
 
 Here's how developers using your generated SDK would call the customized method
@@ -82,76 +81,70 @@ For OpenAPI, use the `x-fern-sdk-group-name` and `x-fern-sdk-method-name` extens
 explicitly define your method name and grouping.
 
 <AccordionGroup>
-<Accordion title="OpenAPI">
+  <Accordion title="OpenAPI">
+    In the example below, Fern will generate a method called `client.users.create()` for the `POST /users` endpoint.
 
-In the example below, Fern will generate a
-method called `client.users.create()` for the `POST /users` endpoint.
+  ```yaml
+  paths:
+    /users:
+      post:
+        x-fern-sdk-group-name: users
+        x-fern-sdk-method-name: create
+  ```
 
-```yaml title="openapi.yaml" {4-5}
-paths:
-  /users:
-    post:
-      x-fern-sdk-group-name: users
-      x-fern-sdk-method-name: create
-```
-<Note title="Fern automatically parses `operationId`">
-  By default, Fern uses your operation ID to generate method names. Format your
-  operation IDs like `{tag_name}_{operation_name}` (e.g., `users_get`) and Fern
-  will automatically generate `users.get()`. If your operation ID doesn't start
-  with a tag, Fern uses it directly as the method name.
-</Note>
+  <Note title="Fern automatically parses `operationId`">
+    By default, Fern uses your operation ID to generate method names. Format your
+    operation IDs like `{tag_name}_{operation_name}` (e.g., `users_get`) and Fern
+    will automatically generate `users.get()`. If your operation ID doesn't start
+    with a tag, Fern uses it directly as the method name.
+  </Note>
 
-### Top level methods
+  ### Top level methods
 
-If you omit the `x-fern-sdk-group-name` extension, then the generated SDK method
-will live at the root of the client rather than nested under a resource group.
-In the example below, Fern will generate a method called `client.send()`:
+  If you omit the `x-fern-sdk-group-name` extension, then the generated SDK method will live at the root of the client rather than nested under a resource group. In the example below, Fern will generate a method called `client.send()`:
 
-```yaml title="openapi.yaml" {4}
-paths:
-  /send:
-    post:
-      x-fern-sdk-method-name: send
-```
+  ```yaml
+  paths:
+    /send:
+      post:
+        x-fern-sdk-method-name: send
+  ```
 
-### Multiple levels of nesting
+  ### Multiple levels of nesting
 
-<Note>
-See how merge.dev uses nested groups [here](https://github.com/merge-api/merge-node-client?tab=readme-ov-file#create-link-token).
-</Note>
+  <Note>
+    See how merge.dev uses nested groups [here](https://github.com/merge-api/merge-node-client?tab=readme-ov-file#create-link-token).
+  </Note>
 
-If you add more than one `x-fern-sdk-group-name` extension, then the generated SDK will nest group names.
-The order of the group names is preserved in the generated SDK method.
+  If you add more than one `x-fern-sdk-group-name` extension, then the generated SDK will nest group names. The order of the group names is preserved in the generated SDK method.
 
-In the example below, Fern will generate a method called `client.users.notifications.send()`:
+  In the example below, Fern will generate a method called `client.users.notifications.send()`:
 
-```yaml title="openapi.yaml"
-paths:
-  /users/notifications:
-    post:
-      x-fern-sdk-group-name:
-        - users
-        - notifications
-      x-fern-sdk-method-name: send
-```
-</Accordion>
-<Accordion title="Fern Definition">
+  ```yaml
+  paths:
+    /users/notifications:
+      post:
+        x-fern-sdk-group-name:
+          - users
+          - notifications
+        x-fern-sdk-method-name: send
+  ```
 
-In the example below, Fern will generate a method called `client.users.create()`:
+  </Accordion>
 
-```yaml title="users.yml" {4, 6}
-services:
-  http:
-    UsersService: 
-      base-path: /users # This defines the group/namespace for the methods
-      endpoints:
-        create: # This defines the specific method name within the group
-          method: POST
-          path: ""
-```
+  <Accordion title="Fern Definition">
+    In the example below, Fern will generate a method called `client.users.create()`:
 
-</Accordion>
+    ```yaml
+    services:
+      http:
+        UsersService: 
+          base-path: /users # This defines the group/namespace for the methods
+          endpoints:
+            create: # This defines the specific method name within the group
+              method: POST
+              path: ""
+    ```
+  </Accordion>
 </AccordionGroup>
-
-
 
