@@ -7,71 +7,73 @@ Fern combines your API specifications, static Markdown files (like how-to guides
 
 This process is built around two major workflows: **editing** and **deploying** your documentation.
 
+TEST some content added
+
 <Accordion title="System architecture">
+  This diagram shows the technical infrastructure that powers the documentation generation process.
 
-This diagram shows the technical infrastructure that powers the documentation generation process.
+  ```
+  flowchart TD
+      %% Input sources at the top
+      subgraph inputs ["Input Sources"]
+          API["API Specs"]
+          DOCS["Docs.yml"]
+          MDX["MDX files"]
+          MEDIA["Media content"]
+      end
 
-```mermaid
-flowchart TD
-    %% Input sources at the top
-    subgraph inputs ["Input Sources"]
-        API["API Specs"]
-        DOCS["Docs.yml"]
-        MDX["MDX files"]
-        MEDIA["Media content"]
-    end
+      %% Generation process
+      GENERATE[["fern generate<br/>--docs"]]
 
-    %% Generation process
-    GENERATE[["fern generate<br/>--docs"]]
+      %% AWS VPC section
+      subgraph vpc ["Fern AWS VPC"]
+          direction LR
+          MICROSERVICE["Fern Docs<br/>microservice"]
+          DATABASE[("Database")]
+          S3[("S3")]
+      end
 
-    %% AWS VPC section
-    subgraph vpc ["Fern AWS VPC"]
-        direction LR
-        MICROSERVICE["Fern Docs<br/>microservice"]
-        DATABASE[("Database")]
-        S3[("S3")]
-    end
+      %% External services
+      SERVICES["External Services<br/>(UpStash, Algolia, PostHog,<br/>TurboPuffer, AI Inference)"]
 
-    %% External services
-    SERVICES["External Services<br/>(UpStash, Algolia, PostHog,<br/>TurboPuffer, AI Inference)"]
+      %% Vercel hosting
+      subgraph vercel ["Vercel"]
+          direction LR
+          STATIC["Static site"]
+          EXPLORER["API explorer"]
+          EDGE["Vercel Edge<br/>(Middleware)"]
+      end
 
-    %% Vercel hosting
-    subgraph vercel ["Vercel"]
-        direction LR
-        STATIC["Static site"]
-        EXPLORER["API explorer"]
-        EDGE["Vercel Edge<br/>(Middleware)"]
-    end
+      %% External connections as hexagons
+      CLOUDFLARE{{"Cloudflare (CORS)"}}
+      WORKOS{{"WorkOS"}}
+      CUSTOMER{{"Customer API"}}
 
-    %% External connections as hexagons
-    CLOUDFLARE{{"Cloudflare (CORS)"}}
-    WORKOS{{"WorkOS"}}
-    CUSTOMER{{"Customer API"}}
+      USER(("User"))
 
-    USER(("User"))
+      %% Vertical flow connections
+      API --> GENERATE
+      DOCS --> GENERATE
+      MDX --> GENERATE
+      MEDIA --> GENERATE
 
-    %% Vertical flow connections
-    API --> GENERATE
-    DOCS --> GENERATE
-    MDX --> GENERATE
-    MEDIA --> GENERATE
-    
-    GENERATE --> MICROSERVICE
-    MICROSERVICE --> SERVICES
-    SERVICES <--> STATIC
-    
-    STATIC --> CLOUDFLARE
-    EXPLORER <--> CLOUDFLARE
-    EDGE <--> WORKOS
-    
-    CLOUDFLARE --> CUSTOMER
-    EDGE <--> USER
+      GENERATE --> MICROSERVICE
+      MICROSERVICE --> SERVICES
+      SERVICES <--> STATIC
 
-    %% Internal connections
-    MICROSERVICE -.-> DATABASE
-    MICROSERVICE -.-> S3
-```
+      STATIC --> CLOUDFLARE
+      EXPLORER <--> CLOUDFLARE
+      EDGE <--> WORKOS
+
+      CLOUDFLARE --> CUSTOMER
+      EDGE <--> USER
+
+      %% Internal connections
+      MICROSERVICE -.-> DATABASE
+      MICROSERVICE -.-> S3
+  ```
 </Accordion>
+
 
 ## Content workflows
 
@@ -111,29 +113,29 @@ The deployed documentation site integrates with external systems like Cloudflare
 </Steps>
 
 <Accordion title="Editing and deployment workflows">
+  This diagram shows how content flows from editing to deployment.
 
-This diagram shows how content flows from editing to deployment.
+  ```
+  flowchart TD
+      FE[Fern Editor]
+      U[User]
+      DR[Docs Repo]
+      CLI[Fern CLI]
+      Decision{Make a PR or edit in Fern Editor?}
+      Spec((API Spec Repo))
+      GA[GitHub Actions]
 
-```mermaid
-flowchart TD
-    FE[Fern Editor]
-    U[User]
-    DR[Docs Repo]
-    CLI[Fern CLI]
-    Decision{Make a PR or edit in Fern Editor?}
-    Spec((API Spec Repo))
-    GA[GitHub Actions]
+      U ==> Decision
+      Decision == Make edit ==> FE
+      Decision == Open and Merge PR ==> DR
 
-    U ==> Decision
-    Decision == Make edit ==> FE
-    Decision == Open and Merge PR ==> DR
+      FE <== Fetches state and opens PR ==> DR
+      DR == ① Merged PR triggers deployment flow ==> GA
 
-    FE <== Fetches state and opens PR ==> DR
-    DR == ① Merged PR triggers deployment flow ==> GA
-    
-    Spec <-. ② Fetches and merges API spec .-> GA
+      Spec <-. ② Fetches and merges API spec .-> GA
 
-    GA == ③ Triggers doc regeneration ==> CLI
-    CLI == ④ Deploys updated docs ==> Server[Fern Docs Server]
-```
+      GA == ③ Triggers doc regeneration ==> CLI
+      CLI == ④ Deploys updated docs ==> Server[Fern Docs Server]
+  ```
 </Accordion>
+
