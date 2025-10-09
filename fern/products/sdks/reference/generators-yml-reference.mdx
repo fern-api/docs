@@ -1,15 +1,13 @@
 ---
-title: generators.yml Configuration Schema
+title: generators.yml configuration schema
 description: Reference for the generators.yml configuration
 ---
 
 The `generators.yml` file configures how Fern generates SDKs from your API
 specification, including which languages to generate, where to publish them, and
-how to customize each SDK. This document describes the complete configuration
-schema for `generators.yml`.
+how to customize each SDK.
 
-```yaml
-# Example generators.yml configuration
+```yaml title="generators.yml" maxLines=10
 api:
   specs:
     - openapi: "./openapi.yml"
@@ -56,12 +54,13 @@ groups:
         version: 2.0.0
 ```
 
-## auth-schemes
-Define authentication methods for your API. Create named authentication schemes that your endpoints can reference.
+## `auth-schemes`
 
-Choose from custom headers (API keys), HTTP Basic, Bearer token, or OAuth 2.0 authentication.
+Define authentication methods for your API that your endpoints can reference. Choose from custom headers (API keys), HTTP Basic, Bearer token, or OAuth 2.0 authentication.
 
-```yaml
+Alternatively, you can [define authentication for individual SDKs](#override-api-authentication-settings). 
+
+```yaml title="generators.yml" maxLines=10
 auth-schemes:
   # User-defined scheme name - OAuth with minimal configuration
   simple-oauth:
@@ -85,36 +84,34 @@ auth-schemes:
   jwt-bearer:
     scheme: bearer
 ```
-
-### Header Authentication
-
+<AccordionGroup>
+<Accordion title="Header">
 <Markdown src="/products/sdks/snippets/header-auth-params.mdx" />
-
-### Basic Authentication
-
+</Accordion>
+<Accordion title="Basic">
 <Markdown src="/products/sdks/snippets/basic-auth-params.mdx" />
-
-### Bearer Token Authentication
-
+</Accordion>
+<Accordion title="Bearer token">
 <Markdown src="/products/sdks/snippets/bearer-auth-params.mdx" />
-
-### OAuth Authentication
-
+</Accordion>
+<Accordion title="OAuth">
 <Markdown src="/products/sdks/snippets/oauth-params.mdx" />
 
-#### get-token
+#### `get-token`
 
 <Markdown src="/products/sdks/snippets/oauth-get-token.mdx" />
 
-#### refresh-token
+#### `refresh-token`
 
 <Markdown src="/products/sdks/snippets/oauth-refresh-token.mdx" />
+</Accordion>
+</AccordionGroup>
 
-## api
+## `api`
 
- Defines the API specification (OpenAPI, AsyncAPI, etc.) and how to parse it.
+Defines the API specification (OpenAPI, AsyncAPI, etc.) and how to parse it. For Fern Definition, no API reference is needed – [Fern automatically detects your spec](/sdks/overview/project-structure#generatorsyml). 
 
-```yaml
+```yaml title="generators.yml" maxLines=10
 api:
   specs:
     - openapi: "./openapi.yml"
@@ -131,10 +128,6 @@ api:
     staging: "https://api.staging.com"
 ```
 
-<ParamField path="specs" type="list<SpecSchema> | ConjureSchema" required={true} toc={true}>
-  List of API specifications or Conjure configuration.
-</ParamField>
-
 <ParamField path="auth" type="ApiAuthSchema" toc={true}>
   Authentication configuration for the API.
 </ParamField>
@@ -142,16 +135,19 @@ api:
 <ParamField path="headers" type="map<string, HeaderValue>" toc={true}>
   Global headers to include with all API requests. You can specify headers as simple string values or as objects with additional configuration for code generation.
 
-  **Simple string values:**
-  ```yaml
+  <AccordionGroup>
+  <Accordion title="Simple string values">
+
+  ```yaml title="generators.yml"
   api:
     headers:
       Authorization: "Bearer ${API_TOKEN}"
       X-App-Version: "1.0.0"
   ```
+  </Accordion>
+  <Accordion title="Advanced configuration with type information">
 
-  **Advanced configuration with type information:**
-  ```yaml
+  ```yaml title="generators.yml"
   api:
     - openapi: ./path/to/openapi
       headers: 
@@ -163,19 +159,21 @@ api:
           # (e.g., "string", "literal<'value'>", "number").
           type: literal<"1234">
   ```
+  </Accordion>
+  </AccordionGroup>
 </ParamField>
 
 <ParamField path="environments" type="EnvironmentsSchema" toc={true}>
   Environment configurations for different deployment targets.
 </ParamField>
 
-### Specification Types
+### Specification types
 
-#### OpenAPI 
-
+<AccordionGroup>
+<Accordion title="OpenAPI">
 <Markdown src="/snippets/openapi-specs.mdx" />
-
-#### AsyncAPI
+</Accordion>
+<Accordion title="AsyncAPI">
 
 ```yaml
 api:
@@ -221,10 +219,10 @@ api:
 <ParamField path="respect-nullable-schemas" type="boolean" default="false" toc={true}>
   Preserves nullable schemas in API definition settings. When false, nullable schemas are treated as optional.
 </ParamField>
+</Accordion>
+<Accordion title="gRPC/proto buffers">
 
-#### Protocol Buffers
-
-```yaml
+```yaml title="generators.yml"
 api:
   specs:
     - proto:
@@ -233,27 +231,23 @@ api:
         local-generation: true
 ```
 
-<ParamField path="proto" type="ProtobufDefinitionSchema" required={true} toc={true}>
-  Protocol Buffers configuration.
+<ParamField path="root" type="string" required={true} toc={true}>
+  Path to the `.proto` directory root (e.g., `proto`).
 </ParamField>
 
 <ParamField path="target" type="string" toc={true}>
   Path to the target `.proto` file (e.g., `proto/user/v1/user.proto`).
 </ParamField>
 
-<ParamField path="root" type="string" required={true} toc={true}>
-  Path to the `.proto` directory root (e.g., `proto`).
-</ParamField>
-
 <ParamField path="overrides" type="string" toc={true}>
   Path to the overrides configuration.
 </ParamField>
 
-<ParamField path="local-generation" type="boolean" toc={true}>
-  Whether to compile `.proto` files locally. Defaults to remote generation.
+<ParamField path="local-generation" type="boolean" default="false" toc={true}>
+  Whether to compile `.proto` files locally. Defaults to remote generation (`false`).
 </ParamField>
-
-#### OpenRPC
+</Accordion>
+<Accordion title="OpenRPC">
 
 <ParamField path=".openrpc" type="string" required={true} toc={true}>
   Path to the OpenRPC specification file.
@@ -266,8 +260,8 @@ api:
 <ParamField path="namespace" type="string" toc={true}>
   Namespace for the specification.
 </ParamField>
-
-#### Conjure
+</Accordion>
+<Accordion title="Conjure">
 
 ```yaml
 api:
@@ -278,12 +272,14 @@ api:
 <ParamField path="conjure" type="string" toc={true}>
   Path to Conjure specification file.
 </ParamField>
+</Accordion>
+</AccordionGroup>
 
-## whitelabel
+## `whitelabel`
 
 Configuration for publishing generated SDKs without Fern branding. When enabled, removes all mentions of Fern from the generated code and allows publishing under your own brand.
 
-```yaml
+```yaml title="generators.yml"
 whitelabel:
   github:
     username: "company-github-username"
@@ -301,10 +297,10 @@ whitelabel:
 </ParamField>
 
 
-## metadata
-Package metadata like description and authors that gets included in generated SDKs.
+## `metadata`
+Package metadata like description and authors that gets included in all generated SDKs. Alternatively, you can [define metadata for individual SDKs](#metadata-2). 
 
-```yaml
+```yaml title="generators.yml"
 metadata:
   description: "My API SDK"
   authors:
@@ -318,7 +314,7 @@ metadata:
   A brief description of the SDK that will be included in package metadata. This description helps users understand what your SDK does when they discover it in package repositories.
 </ParamField>
 
-### authors
+### `authors`
   A list of authors who will be credited in the generated SDK's package metadata.
 
 <ParamField path="name" type="string" required={true} toc={true}>
@@ -329,14 +325,14 @@ metadata:
   The email address of the author. This will be included in package metadata and may be used by package managers for contact information.
 </ParamField>
 
-## readme
+## `readme`
 
 Controls what goes into the generated README files across all SDKs, allowing you to customize the content and structure of your SDK documentation.
 
 <Markdown src="/products/sdks/snippets/readme-options.mdx" />
 
-## default-group
-Which group to use when none is specified.
+## `default-group`
+Which generator group to use when none is specified.
 
 ```yaml
 default-group: "production"
@@ -345,13 +341,13 @@ default-group: "production"
 <ParamField path="default-group" type="string" required={false} toc={true}>
 </ParamField>
 
-## groups
+## `groups`
 
 Organizes user-defined sets of generators, typically grouped by environment (like "production", "staging") or language (like "typescript", "python").
 
-```yaml
+```yaml title="generators.yml" maxLines=10
 groups:
-  company-typescript: # User-defined name
+  typescript-sdk: # User-defined name
     audiences: ["external"]
     generators:
       - name: fernapi/fern-typescript-node-sdk
@@ -377,26 +373,25 @@ groups:
 Target audiences for this generator group (e.g., "external", "internal")
 </ParamField>
 
+### `reviewers`
 
-### reviewers
-
-Who should review generated code for a specific group.
+Set code reviewers for an individual SDK. Alternatively, you can [configure reviewers globally for all SDKs](#reviewers-4). 
 
 <Markdown src="/products/sdks/snippets/reviewers-params.mdx" />
 
-### generators
+### `generators`
 
-```yaml
+Generator settings for a specific group. 
+
+```yaml title="generators.yml"
 groups:
-  company-typescript: # User-defined name
+  typescript-sdk: # User-defined name
     audiences: ["external"]
     generators:
       - name: fernapi/fern-typescript-node-sdk
         version: 0.9.0
         smart-casing: true
 ```
-
-Individual generator settings within a group.
 
 <ParamField path="name" type="string" required={true}>
 The Fern generator package name (e.g., fernapi/fern-typescript-node-sdk)
@@ -413,14 +408,48 @@ Enables intelligent case conversion that preserves numbers and common programmin
 - Acronyms remain correct (e.g., `HTTPSConnection` stays `HTTPSConnection`)
 </ParamField>
 
+#### `config`
 
-#### output
+Language-specific configuration options.
 
-Configuration for where and how to publish the generated SDK
-
-```yaml
+```yaml title="generators.yml"
 groups:
-  company-typescript: # User-defined name
+  ts-sdk: # Typescript SDK group
+    generators:
+      - name: fernapi/fern-typescript-sdk
+        version: <Markdown src="/snippets/version-number-ts.mdx"/>
+        config: # TypeScript-specific config options
+          namespaceExport: AcmePayments
+          noSerdeLayer: false
+```
+
+<CardGroup cols={3}>
+<Card title="TypeScript" href="/sdks/generators/typescript/configuration">
+</Card>
+<Card title="Python" href="/sdks/generators/python/configuration">
+</Card>
+<Card title="Go" href="/sdks/generators/go/configuration">
+</Card>
+<Card title="Java" href="/sdks/generators/java/configuration">
+</Card>
+<Card title=".NET" href="/sdks/generators/csharp/configuration">
+</Card>
+<Card title="PHP" href="/sdks/generators/php/configuration">
+</Card>
+<Card title="Ruby" href="/sdks/generators/ruby/configuration">
+</Card>
+<Card title="Swift" href="/sdks/generators/swift/configuration">
+</Card>
+</CardGroup>
+
+
+#### `output`
+
+Where to publish the generated SDK.
+
+```yaml title="generators.yml"
+groups:
+  typescript-sdk: # User-defined name
     audiences: ["external"]
     generators:
       - name: fernapi/fern-typescript-node-sdk
@@ -432,11 +461,11 @@ groups:
 ```
 
 <AccordionGroup>
-<Accordion title="npm Output">
+<Accordion title="npm">
 
-Publish TypeScript/JavaScript SDKs to NPM registry.
+Publish TypeScript SDKs to the npm registry.
 
-```yaml
+```yaml title="generators.yml"
 output:
   location: npm
   package-name: "@myorg/api-sdk"
@@ -459,11 +488,11 @@ NPM package name (e.g., "@myorg/api-sdk")
 NPM authentication token for publishing
 </ParamField>
 </Accordion>
-<Accordion title="Maven Output">
+<Accordion title="Maven">
 
 Publish Java SDKs to Maven repository.
 
-```yaml
+```yaml title="generators.yml"
 output:
   location: maven
   coordinate: "com.myorg:api-sdk"
@@ -511,11 +540,11 @@ GPG key password
 GPG secret key content
 </ParamField>
 </Accordion>
-<Accordion title="PyPI Output">
+<Accordion title="PyPI">
 
 Publish Python SDKs to Python Package Index.
 
-```yaml
+```yaml title="generators.yml"
 output:
   location: pypi
   package-name: "myorg-api-sdk"
@@ -567,11 +596,11 @@ Link to project homepage
 </ParamField>
 </Accordion>
 
-<Accordion title="NuGet Output">
+<Accordion title="NuGet">
 
 Publish .NET SDKs to NuGet repository.
 
-```yaml
+```yaml title="generators.yml"
 output:
   location: nuget
   package-name: "MyOrg.ApiSdk"
@@ -594,11 +623,11 @@ NuGet package name (e.g., "MyOrg.ApiSdk")
 NuGet API key for publishing to the feed
 </ParamField>
 </Accordion>
-<Accordion title="RubyGems Output">
+<Accordion title="RubyGems">
 
 Publish Ruby SDKs to RubyGems registry.
 
-```yaml
+```yaml title="generators.yml"
 output:
   location: rubygems
   package-name: "myorg_api_sdk"
@@ -623,11 +652,11 @@ RubyGems API key for publishing (requires "Push rubygem" permission)
 
 > **Note**: RubyGems API keys need "Push rubygem" permission and ideally "index" and "yank rubygem" permissions. If MFA is enabled, ensure MFA settings don't require MFA for API key usage.
 </Accordion>
-<Accordion title="Postman Output">
+<Accordion title="Postman">
 
 Publish API collections to Postman workspace.
 
-```yaml
+```yaml title="generators.yml"
 output:
   location: postman
   api-key: "${POSTMAN_API_KEY}"
@@ -651,11 +680,11 @@ Target Postman workspace ID where collection will be published
 Existing collection ID to update (creates new collection if not specified)
 </ParamField>
 </Accordion>
-<Accordion title="Local File System Output">
+<Accordion title="Local file system">
 
 Save generated SDKs to local file system instead of publishing.
 
-```yaml
+```yaml title="generators.yml"
 output:
   location: local-file-system
   path: "./generated-sdks/typescript"
@@ -671,7 +700,7 @@ Local directory path where generated files will be saved
 </Accordion>
 </AccordionGroup>
 
-#### github
+#### `github`
 
 Specify how your SDKs are generated in GitHub using the `github` configuration.
 Designate the `mode` to specifiy how Fern handles your code changes. For all of the
@@ -776,11 +805,11 @@ Specify which teams and users should review generated code. See [reviewers confi
 </Accordion>
 </AccordionGroup>
 
-#### metadata
+#### `metadata`
 
-Specify metadata for your SDK generator.
+Specify metadata for an individual SDK. Alternatively, you can [configure metadata globally for all SDKs](#metadata).
 
-```yml {6-10}
+```yml title="generators.yml" {6-10}
 groups: 
   ts-sdk:
     generators:
@@ -813,11 +842,11 @@ Name of the individual developer, team, or organization that created and maintai
 Software license for the generated SDK.
 </ParamField>
 
-#### snippets
+#### `snippets`
 
 Configures snippets for a particular generator.
 
-```yml {6-8}
+```yml title="generators.yml" {6-8}
 groups: 
   ts-sdk:
     generators:
@@ -831,18 +860,16 @@ groups:
 The path to the generated snippets file.
 </ParamField>
 
-#### Override API Authentication Settings 
+#### Override API authentication settings 
 
-Override authentication settings in your API spec using the `api` configuration.
-You can specify authentication schemes, reference existing auth configurations,
-and set additional API-specific settings.
+Override authentication settings in your API spec for a specific SDK using the `api` configuration.
 
 <AccordionGroup>
-<Accordion title="Single Authentication Scheme">
+<Accordion title="Single authentication scheme">
 
 Reference a pre-defined authentication scheme by name.
 
-```yml {6-7}
+```yml title="generators.yml" {6-7}
 groups: 
   ts-sdk:
     generators:
@@ -856,11 +883,11 @@ groups:
 The authentication scheme to use. Can be either a string reference (`"bearer-token"`) or scheme object (`scheme: "bearer-token"`).
 </ParamField>
 </Accordion>
-<Accordion title="Multiple Authentication Options">
+<Accordion title="Multiple authentication options">
 
 Allow users to authenticate with any of several methods:
 
-```yml {6-12}
+```yml title="generators.yml" {6-12}
 groups: 
   ts-sdk:
     generators:
@@ -879,11 +906,11 @@ A list of authentication schemes where users can choose any one method. Each ite
 </ParamField>
 </Accordion>
 
-<Accordion title="Custom Authentication Schemes">
+<Accordion title="Custom authentication schemes">
 
 Define a custom authentication schemes using `auth-schemes`. You define a name for your custom scheme, and then specify the authentication method (`header`, `basic`, `bearer`, or `oauth`).
 
-```yml {8-12}
+```yml title="generators.yml" {8-12}
 groups: 
   ts-sdk:
     generators:
@@ -919,11 +946,11 @@ groups:
 
 <Markdown src="/products/sdks/snippets/oauth-params.mdx" />
 
-##### get-token
+##### `get-token`
 
 <Markdown src="/products/sdks/snippets/oauth-get-token.mdx" />
 
-##### refresh-token
+##### `refresh-token`
 
 <Markdown src="/products/sdks/snippets/oauth-refresh-token.mdx" />
 
@@ -933,8 +960,8 @@ groups:
 </Accordion>
 </AccordionGroup>
 
-### reviewers
+### `reviewers`
 
-Who should review generated code for all groups.
+Set code reviewers globally for all SDKs. Alternatively, you can [configure reviewers for individual SDKs](#reviewers).
 
 <Markdown src="/products/sdks/snippets/reviewers-params.mdx" />

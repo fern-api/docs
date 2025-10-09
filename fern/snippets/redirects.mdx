@@ -1,6 +1,6 @@
 The `redirects` object allows you to redirect traffic from one path to another. You can redirect exact paths or use dynamic patterns with [`regex`](https://www.npmjs.com/package/path-to-regexp) parameters like `:slug` to handle bulk redirects. You can redirect to internal paths within your site or external URLs.
 
-If your docs are hosted on a subpath (like `buildwithfern.com/learn`), include the subpath in both the source and destination paths.
+If your docs are hosted on a subpath (like `buildwithfern.com/learn`), include the subpath in both the source and destination paths. 
 
 
   <CodeBlock title="docs.yml">
@@ -38,3 +38,40 @@ If your docs are hosted on a subpath (like `buildwithfern.com/learn`), include t
 <ParamField path="permanent" type="boolean" required={false}>
   Toggle between **permanent** and **temporary** redirects (default `false`). When true, the status code is 308. When false, the status code is 307.
 </ParamField>
+
+### Best practices
+
+For optimal site performance, only add redirects when necessary. Avoid using redirects for behavior that Fern already handles automatically, such as 404 handling and version routing. 
+
+<AccordionGroup>
+<Accordion title="404 handling">
+
+Don't create redirects to send broken links to your homepage:
+
+```yaml title="docs.yml"
+redirects:
+  - source: /docs/event-notifications
+    destination: / # Don't do this
+```
+
+Instead, reach out to Fern to enable automatic homepage redirects, an internal setting that handles broken links without needing manual redirects.
+
+</Accordion>
+<Accordion title="Versioning and redirects">
+
+If you have [versions](/docs/configuration/versions) configured, your default version uses unversioned paths (`/docs/getting-started`), while other versions use versioned paths (`/docs/getting-started/v2`). Fern automatically handles version routing by redirecting broken versioned links to the default version and managing canonical URLs.
+
+Avoid redirecting from unversioned to versioned URLs:
+
+```yaml title="docs.yml"
+redirects:
+  - source: /docs/event-notifications
+    destination: /docs/event-notifications/v2 # Don't do this
+```
+
+Manually overriding the default versioning behavior can lead to unexpected redirect patterns.
+
+If you frequently need to redirect from the default version to another version, consider changing which version is set as default in your versions configuration.
+
+</Accordion>
+</AccordionGroup>
