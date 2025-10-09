@@ -55,7 +55,7 @@ For the other specification formats ([OpenAPI](/api-definitions/openapi/overview
 
 ## Multiple APIs
 
-When working with multiple API definitions, you can organize them in two ways depending on your SDK generation needs.
+When working with multiple API definitions, you can organize them in multiple ways depending on your SDK generation needs.
 
 <AccordionGroup>
 <Accordion title="Separate SDKs for each API">
@@ -124,5 +124,95 @@ api:
     - namespace: payments
       openapi: payments-api/openapi.yml
 ```
+</Accordion>
+<Accordion title="Versioned APIs in the same SDK">
+
+Use this approach when you need to support multiple API versions simultaneously in your SDK.
+
+#### Option 1: Branch-based versioning
+
+Each API version is maintained as a separate spec that publishes to a different branch of a single SDK repository. This approach allows you to release updates for older API versions independently and manage each as a different major version of your SDK (v1.x.x, v2.x.x).
+
+```bash
+fern/
+  ├─ fern.config.json
+  └─ apis/
+      ├─ v1/
+      │   ├─ generators.yml      # Configures v1 SDK
+      │   └─ openapi.yml
+      └─ v2/
+          ├─ generators.yml      # Configures v2 SDK
+          └─ openapi.yml
+```
+
+Each API version must have its own `generators.yml` file that targets a [specific branch](/sdks/reference/generators-yml#github):
+
+<Tabs>
+<Tab title="apis/v1/generators.yml">
+
+```yaml title="apis/v1/generators.yml" {11}
+api:
+  specs:
+    - openapi: openapi.yml
+groups:
+  ts-sdk:
+    generators:
+      - name: fernapi/fern-typescript-sdk
+        github:
+          repository: company/sdk
+          mode: push
+          branch: v1              # Targets v1 branch
+```
+</Tab>
+<Tab title="apis/v2/generators.yml">
+
+```yaml title="apis/v2/generators.yml" {11}
+api:
+  specs:
+    - openapi: openapi.yml
+groups:
+  ts-sdk:
+    generators:
+      - name: fernapi/fern-typescript-sdk
+        github:
+          repository: company/sdk
+          mode: pull-request
+          branch: v2              # Targets v2 branch
+```
+</Tab>
+</Tabs>
+
+#### Option 2: Namespace-based versioning
+
+If you prefer a single package with multiple API versions, use namespaces. This generates clients like `client.v1` and `client.v2` within the same package. Note that this increases package size as all versions are bundled together.
+
+```bash
+fern/
+  ├─ fern.config.json
+  ├─ generators.yml             # Single config for all versions
+  └─ apis/
+      ├─ v1/
+      │   └─ openapi.yml
+      └─ v2/
+          └─ openapi.yml
+```
+
+List all API versions in a single `generators.yml` with namespaces:
+
+```yaml title="generators.yml"
+api: 
+  specs: 
+    - namespace: v1
+      openapi: apis/v1/openapi.yml
+    - namespace: v2
+      openapi: apis/v2/openapi.yml
+groups:
+  ts-sdk:
+    generators:
+      - name: fernapi/fern-typescript-sdk
+        github:
+          repository: company/sdk
+```
+
 </Accordion>
 </AccordionGroup>
