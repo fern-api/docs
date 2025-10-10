@@ -25,6 +25,12 @@ Fern will need the following details to configure OAuth authentication:
 - [ ] Scopes (e.g. `openid`, `profile`, `email`)
 - [ ] Issuer URL (e.g. `https://<your-domain>`)
 
+<Note title="Specifying an audience">
+If your client is connected to an API, you may need to specify an audience in the authentication request. 
+
+The updated authorization URL may look like this: `https://<your-oauth-tenant>/oauth2/authorize?audience=<your-api-identifier>`
+</Note>
+
 Send these details to support@buildwithfern.com or in your dedicated Slack channel.
 </Step>
 
@@ -54,6 +60,10 @@ Add a custom claim to your OAuth provider's token response. This claim will be u
 }
 ```
 
+<Warning title="Using a claim other than `roles`">
+Some OAuth providers have strict requirements for custom claims. If you need to use a claim other than `roles`, please reach out to Fern and specify which claim should be parsed for the user's roles.
+</Warning>
+
 <AccordionGroup>
 <Accordion title="Using Auth0">
 To add a custom claim to Auth0, you need to create a **custom action**. This action will be used to add the custom claim to the token response.
@@ -62,6 +72,16 @@ To add a custom claim to Auth0, you need to create a **custom action**. This act
 2. Create a **Custom Action**.
 3. Select **Login/Post Login**.
 4. Add logic to set a roles.
+    ```js Example Action
+    exports.onExecutePostLogin = async (event, api) => {
+      const roles = event.user.app_metadata?.roles; // or however you store user roles
+
+      if (roles) {
+        const namespace: "https://<your-domain>.com"; // important: custom claims must be namespaced
+        api.accessToken.setCustomClaim(`${namespace}/roles`, roles);
+      }
+    };
+    ```
 5. Click **Create**.
 6. Add the action to your **Post Login Flow**.
 </Accordion>
