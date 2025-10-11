@@ -24,14 +24,17 @@ Role-based access control is helpful for scenarios such as:
 
 ### How it works
 
-If a user visits content not marked as visible to the `everyone` role, Fern will check for an authentication cookie to indicate what roles that user has. If the user does not have a role matching the viewers of the page, we will redirect them to the URL you provided during setup.
+Every user automatically has the `everyone` role, including unauthenticated visitors. Pages marked with the `everyone` role are publicly accessible without needing to log in.
+
+If a user visits content that requires authentication (i.e., content not marked as visible to `everyone`), Fern checks for an authentication cookie to determine the user's roles. If the user lacks the required role or isn't authenticated, Fern redirects them to the login URL you provided during setup.
 
 ## Set up RBAC
 
 <Steps>
+
 ### Define all the `roles` in your docs.yml
 
-Start by defining all the different roles in your `docs.yml`. You can specify this under a `roles` key:
+Start by using a `roles` key to define all the different roles:
 
 ```yml docs.yml
 roles:
@@ -41,23 +44,17 @@ roles:
  - admins
 ```
 
-<Info>
-The `everyone` role is special. Every user has this role (including unauthenticated users).
-</Info>
-
 ### Configure authentication via a `fern_token`
 
-In this step, we will configure authentication so that Fern can understand what roles a particular user has. 
+Fern uses a browser cookie called `fern_token` to identify authenticated users and their roles. If this cookie is not present when a user tries to access restricted content, Fern redirects them to your login page.
 
-Fern expects the user's browser session to have a cookie called `fern_token`. If
-the cookie is not present, the user will be redirected to your company's login
-page.
-
-Below, we walk through each of the steps required to configure RBAC with either JWT or OAuth.
+You can set up this authentication using either JWT or OAuth:
 
 <AccordionGroup>
 <Accordion title="JWT">
-**You are responsible for creating and setting the `fern_token` cookie in your authentication system.** Upon login, you must set a JWT for the user using a secret key that we will provide. The JWT must have a `fern` claim with a key called `roles`.
+**You are responsible for creating and setting the `fern_token` cookie in your authentication system.** 
+
+Upon login, set a JWT for the user using a secret key that Fern provides. The JWT must include a `fern` claim with a `roles` array:
 
 ```json
 {
@@ -72,8 +69,7 @@ Below, we walk through each of the steps required to configure RBAC with either 
 </Accordion>
 <Accordion title="OAuth">
 
-Fern initiates an OAuth flow when the user needs authentication, redirecting them to your authentication endpoint. Fern creates and sets the `fern-token` cookie after completing this flow. 
-You are responsible for configuring your OAuth endpoints to return user role information. 
+When a user needs authentication, Fern initiates an OAuth flow and redirects them to your authentication endpoint. You configure your OAuth endpoints to return user role information.
 
 <Markdown src="/snippets/oauth-diagram.mdx"/>
 
@@ -82,9 +78,9 @@ You are responsible for configuring your OAuth endpoints to return user role inf
 
 ### Contact Fern for setup
 
-When you're ready to implement RBAC, **contact support@buildwithfern.com**.
+When you're ready to implement RBAC, contact support@buildwithfern.com.
 
-<Note>Optional: If you'd like restricted pages to be visible but locked to unauthenticated users (rather than completely hidden), let us know during this step.</Note>
+<Note title="Optional">If you'd like restricted pages to be visible but locked to unauthenticated users (rather than completely hidden), notify Fern during this step.</Note>
 
 </Steps>
 
@@ -99,7 +95,7 @@ You can designate viewers on the following navigation items:
 - `api references`
 - `changelogs`
 
-If you don't specify viewers, the content will be visible to _any authenticated user_.
+If you don't specify viewers, the content will be visible to any _authenticated_ user. To make content publicly accessible, explicitly set viewers to `everyone`.
 
 ```yml docs.yml {6-7, 13-15}
 navigation:
