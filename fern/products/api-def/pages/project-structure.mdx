@@ -87,6 +87,10 @@ groups:
         github:
           repository: company/user-api-typescript
 ```
+<Info>
+  You can use this same pattern for API versioning. See [Versioned APIs](#versioned-apis) below.
+</Info>
+
 </Accordion>
 <Accordion title="Combined SDKs from multiple APIs">
 
@@ -131,33 +135,26 @@ When supporting multiple API versions, you can publish them as separate packages
 
 #### Option 1: Separate packages for each API version
 
-Use this approach when you want each API version to be independently installable (e.g., `@company/sdk-v1`, `@company/sdk-v2`).
+Use this approach when you want each API version to be independently installable (e.g., `@company/sdk-v1`, `@company/sdk-v2`). This use case follows the [Separate SDKs for each API](#separate-sdks-for-each-api) pattern. 
 
 ```bash
-# Each API version in its own directory
-v1-sdk/
-  └─ fern/
-      ├─ fern.config.json
-      ├─ generators.yml     
-      └─ v1/
-          └─ openapi.yml
-v2-sdk/
-  └─ fern/
-      ├─ fern.config.json
-      ├─ generators.yml    
-      └─ v2/
-          └─ openapi.yml
+fern/
+  ├─ fern.config.json
+  └─ apis/
+    ├─ v1/
+    │   ├─ generators.yml        # Configures v1 SDKs
+    │   └─ openapi.yml
+    └─ v2/
+        ├─ generators.yml        # Configures v2 SDKs  
+        └─ openapi.yml
 ```
 
-Each API version must have its own `generators.yml` file:
+Each API must have its own `generators.yml` file:
 
-<Tabs>
-<Tab title="v1-sdk/fern/generators.yml">
-
-```yaml title="v1-sdk/fern/generators.yml"
+```yaml title="apis/v1/generators.yml"
 api:
   specs:
-    - openapi: v1/openapi.yml
+    - openapi: openapi.yml
 groups:
   ts-sdk:
     generators:
@@ -165,22 +162,6 @@ groups:
         github:
           repository: company/sdk-v1
 ```
-</Tab>
-<Tab title="v2-sdk/fern/generators.yml">
-
-```yaml title="v2-sdk/fern/generators.yml"
-api:
-  specs:
-    - openapi: v2/openapi.yml
-groups:
-  ts-sdk:
-    generators:
-      - name: fernapi/fern-typescript-sdk
-        github:
-          repository: company/sdk-v2
-```
-</Tab>
-</Tabs>
 
 #### Option 2: Namespace-based versioning
 
