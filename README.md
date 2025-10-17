@@ -72,6 +72,17 @@ For **all other changes**:
 
 If you see something that is wrong or outdated in the documentation but don't know how to fix it, [file an issue](https://github.com/fern-api/docs/issues) or reach out to [@devalog](https://github.com/devalog), [@kgowru](https://github.com/kgowru), or [@dsinghvi](https://github.com/dsinghvi).
 
+#### Style checking with Vale
 
+We use [Vale](https://vale.sh/docs) to automatically check documentation contributions for grammar, style consistency, and adherence to our writing guidelines. 
 
+Our Vale configuration includes:
+- The [Microsoft style guide](https://github.com/errata-ai/Microsoft) as a foundation
+- Custom rules tailored to Fern's documentation style and terminology
 
+A GitHub Action runs Vale on every pull request, providing feedback on style issues before merging. To catch issues earlier in your workflow, set up Vale to run automatically on your machine when you commit:
+
+1. Install pre-commit: `brew install pre-commit`
+2. Install the hook: `pre-commit install`
+
+When you commit changes to `.mdx` files, Vale will automatically run and display any errors, warnings, or suggestions, but won't block your commit.
