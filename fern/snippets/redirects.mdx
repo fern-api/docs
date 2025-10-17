@@ -1,4 +1,4 @@
-The `redirects` object allows you to redirect traffic from one path to another. You can redirect exact paths or use dynamic patterns with [`regex`](https://www.npmjs.com/package/path-to-regexp) parameters like `:slug` to handle bulk redirects. You can redirect to internal paths within your site or external URLs.
+The `redirects` object allows you to redirect traffic from one path to another. You can redirect exact paths or use dynamic patterns with [Path-to-RegExp](https://www.npmjs.com/package/path-to-regexp) parameters like `:slug` to handle bulk redirects. You can redirect to internal paths within your site or external URLs.
 
 If your docs are hosted on a subpath (like `buildwithfern.com/learn`), include the subpath in both the source and destination paths. 
 
@@ -17,17 +17,51 @@ If your docs are hosted on a subpath (like `buildwithfern.com/learn`), include t
         destination: "/new-location"
         permanent: false # Use 307 (temporary) instead of 308 (permanent)
         
-      # Regex-based redirects
+      # Pattern-based redirects
       - source: "/old-folder/:slug" # Matches single segments: /old-folder/foo
         destination: "/new-folder/:slug"   
       - source: "/old-folder/:slug*" # Matches multiple segments: /old-folder/foo/bar/baz 
-        destination: "/new-folder/:slug*"  
+        destination: "/new-folder/:slug*"
+        
+      # Named capture groups with regex patterns
+      - source: "/release-notes/:year(\\d{4})-{0}:month(\\d{1,2})"
+        destination: "/docs/release-notes/:year/:month/1"
+      - source: "/api/v:version(\\d+)/:endpoint*"
+        destination: "/api-reference/:version/:endpoint*"
     ```
   </CodeBlock>
 
 <Info>
   Parameters suffixed with an asterisk (`*`) match zero or more path segments, capturing everything that follows in the URL. Use this when redirecting entire folder structures while preserving nested paths.
 </Info>
+
+### Advanced patterns
+
+Fern uses [Path-to-RegExp](https://github.com/pillarjs/path-to-regexp) for pattern matching. Named capture groups can be defined with regex patterns and reused in destination URLs:
+
+<CodeBlock title="docs.yml">
+```yml
+redirects:
+  # Match 4-digit years
+  - source: "/blog/:year(\\d{4})/:slug*"
+    destination: "/archive/:year/:slug*"
+    
+  # Match dates with literal separator
+  - source: "/posts/:year(\\d{4})-{0}:month(\\d{2})-{0}:day(\\d{2})"
+    destination: "/blog/:year/:month/:day"
+    
+  # Match numeric IDs only
+  - source: "/user/:id(\\d+)"
+    destination: "/users/:id/profile"
+```
+</CodeBlock>
+
+**Pattern syntax:**
+- `:name` - Captures a single path segment
+- `:name*` - Captures zero or more segments  
+- `:name(\\d+)` - Captures digits only
+- `:name(\\d{4})` - Captures exactly 4 digits
+- `{0}` - Literal character delimiter between parameters
 
 <ParamField path="source" type="string" required={true}>
   The incoming request path pattern.
