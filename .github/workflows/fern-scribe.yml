@@ -44,6 +44,7 @@ jobs:
       # -----------------------------------------
 
       - name: Run Fern Scribe
+        id: fern-scribe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TURBOPUFFER_API_KEY: ${{ secrets.TURBOPUFFER_API_KEY }}
@@ -71,6 +72,21 @@ jobs:
               repo: context.repo.repo,
               body: '🌿 **Fern Scribe is working on your request!**\n\nI\'ve analyzed your documentation request and am preparing file updates. A draft PR will be created shortly with the proposed changes.\n\n*Powered by AI and TurboBuffer file discovery*'
             });
+
+      - name: Enable Pull Request Automerge
+        if: success() && steps.fern-scribe.outputs.pr-number
+        uses: peter-evans/enable-pull-request-automerge@v3
+        with:
+          pull-request-number: ${{ steps.fern-scribe.outputs.pr-number }}
+          merge-method: squash
+
+      - name: Approving PR
+        if: success() && steps.fern-scribe.outputs.pr-number
+        env:
+          GH_TOKEN: ${{ secrets.PR_BOT_GH_PAT }}
+        run: |
+          echo "Approving PR"
+          gh pr review ${{ steps.fern-scribe.outputs.pr-number }} --approve
 
       - name: Comment on failure
         if: failure()

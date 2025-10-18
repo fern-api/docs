@@ -2063,6 +2063,10 @@ ${filesUpdated.map(file => `- \`${file}\``).join('\n')}
             
             if (pr && pr.html_url) {
               console.log(`   ✅ Draft PR created: ${pr.html_url}`);
+              if (process.env.GITHUB_OUTPUT) {
+                const fs = require('fs');
+                fs.appendFileSync(process.env.GITHUB_OUTPUT, `pr-number=${pr.number}\n`);
+              }
             } else {
               console.log(`   ⚠️  PR creation failed`);
             }
@@ -2106,4 +2110,4 @@ const fernScribeGitHub = new FernScribeGitHub();
 fernScribeGitHub.run().catch(error => {
   console.error('Fatal error:', error);
   process.exit(1);
-}); 
+});    
