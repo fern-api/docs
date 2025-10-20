@@ -84,8 +84,9 @@ explicitly define your method name and grouping.
 <AccordionGroup>
 <Accordion title="OpenAPI">
 
-In the example below, Fern will generate a
-method called `client.users.create()` for the `POST /users` endpoint.
+Use the `x-fern-sdk-group-name` and `x-fern-sdk-method-name` extensions to control how endpoints are organized in your SDK.
+
+In the example below, Fern will generate a method called `client.users.create()` for the `POST /users` endpoint:
 
 ```yaml title="openapi.yaml" {4-5}
 paths:
@@ -94,17 +95,19 @@ paths:
       x-fern-sdk-group-name: users
       x-fern-sdk-method-name: create
 ```
+
 <Note title="Fern automatically parses `operationId`">
   By default, Fern uses your operation ID to generate method names. Format your
-  operation IDs like `{tag_name}_{operation_name}` (e.g., `users_get`) and Fern
-  will automatically generate `users.get()`. If your operation ID doesn't start
+  operation IDs like `{tag_name}_{operation_name}` (e.g., `users_create`) and Fern
+  will automatically generate `users.create()`. If your operation ID doesn't start
   with a tag, Fern uses it directly as the method name.
 </Note>
 
 ### Top level methods
 
-If you omit the `x-fern-sdk-group-name` extension, then the generated SDK method
+If you omit the `x-fern-sdk-group-name` extension, the generated SDK method
 will live at the root of the client rather than nested under a resource group.
+
 In the example below, Fern will generate a method called `client.send()`:
 
 ```yaml title="openapi.yaml" {4}
@@ -120,12 +123,11 @@ paths:
 See how merge.dev uses nested groups [here](https://github.com/merge-api/merge-node-client?tab=readme-ov-file#create-link-token).
 </Note>
 
-If you add more than one `x-fern-sdk-group-name` extension, then the generated SDK will nest group names.
-The order of the group names is preserved in the generated SDK method.
+To create nested groups, provide multiple values in the `x-fern-sdk-group-name` array. The order of the group names determines the nesting hierarchy in the generated SDK.
 
 In the example below, Fern will generate a method called `client.users.notifications.send()`:
 
-```yaml title="openapi.yaml"
+```yaml title="openapi.yaml" {4-6, 8}
 paths:
   /users/notifications:
     post:
@@ -134,6 +136,27 @@ paths:
         - notifications
       x-fern-sdk-method-name: send
 ```
+
+You can also nest groups for different endpoints under the same parent group:
+
+```yaml title="openapi.yaml"
+paths:
+  /admin/users:
+    post:
+      x-fern-sdk-group-name:
+        - admin
+        - users
+      x-fern-sdk-method-name: create
+  /admin/settings:
+    get:
+      x-fern-sdk-group-name:
+        - admin
+        - settings
+      x-fern-sdk-method-name: get
+```
+
+This generates `client.admin.users.create()` and `client.admin.settings.get()`.
+
 </Accordion>
 <Accordion title="Fern Definition">
 
@@ -149,6 +172,31 @@ services:
           method: POST
           path: ""
 ```
+
+### Multiple levels of nesting
+
+To create nested groups in Fern Definition, use folder structure. Each folder becomes a group level in the generated SDK.
+
+In the example below, placing a service definition in `definition/admin/users/__package__.yml` will generate a method called `client.admin.users.create()`:
+
+```
+definition/
+├── api.yml
+└── admin/
+    └── users/
+        └── __package__.yml
+```
+
+```yaml title="admin/users/__package__.yml" {2, 4}
+service:
+  base-path: /admin/users
+  endpoints:
+    create:
+      method: POST
+      path: ""
+```
+
+The folder structure (`admin/users/`) defines the nesting hierarchy, while `base-path` defines the API path. These can differ - for example, you could have `definition/admin/users/` with `base-path: /v1/users` to create `client.admin.users.create()` that calls `/v1/users`.
 
 </Accordion>
 </AccordionGroup>
