@@ -275,6 +275,95 @@
         ]
       }
     },
+    "/analytics/resolution/{domain}": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Get Conversation Resolution",
+        "description": "Get conversation resolution metrics for a domain in a given time period.",
+        "operationId": "get_conversation_resolution",
+        "parameters": [
+          {
+            "name": "domain",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Domain"
+            }
+          },
+          {
+            "name": "start_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The start date of the period to retrieve resolution metrics for",
+              "title": "Start Date"
+            },
+            "description": "The start date of the period to retrieve resolution metrics for"
+          },
+          {
+            "name": "end_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The end date of the period to retrieve resolution metrics for",
+              "title": "End Date"
+            },
+            "description": "The end date of the period to retrieve resolution metrics for"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetConversationResolutionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-fern-audiences": [
+          "internal"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/chat/{domain}": {
       "post": {
         "tags": [
@@ -2136,7 +2225,7 @@
           "Settings"
         ],
         "summary": "Toggle Ask Ai",
-        "description": "Toggle Ask AI setting and return job_id for tracking.",
+        "description": "Toggle Ask AI setting and return job_id for tracking.\n\nArgs:\n    domain: Domain to toggle Ask AI for\n    org_name: Organization name\n    preview: Whether this is a preview deployment\n    locations: Optional list of locations to enable. Valid values: docs, slack, discord",
         "operationId": "toggle_ask_ai",
         "parameters": [
           {
@@ -2165,6 +2254,30 @@
               "type": "boolean",
               "default": false,
               "title": "Preview"
+            }
+          },
+          {
+            "name": "locations",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "enum": [
+                      "docs",
+                      "slack",
+                      "discord"
+                    ],
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Locations"
             }
           }
         ],
@@ -3237,6 +3350,38 @@
           "created_at"
         ],
         "title": "Feedback"
+      },
+      "GetConversationResolutionResponse": {
+        "properties": {
+          "total_conversations": {
+            "type": "integer",
+            "title": "Total Conversations",
+            "description": "Total number of conversations in the period"
+          },
+          "resolved_conversations": {
+            "type": "integer",
+            "title": "Resolved Conversations",
+            "description": "Number of resolved conversations"
+          },
+          "unresolved_conversations": {
+            "type": "integer",
+            "title": "Unresolved Conversations",
+            "description": "Number of unresolved conversations"
+          },
+          "resolution_rate": {
+            "type": "number",
+            "title": "Resolution Rate",
+            "description": "Percentage of conversations resolved (0-100)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total_conversations",
+          "resolved_conversations",
+          "unresolved_conversations",
+          "resolution_rate"
+        ],
+        "title": "GetConversationResolutionResponse"
       },
       "GetConversationResponse": {
         "properties": {
