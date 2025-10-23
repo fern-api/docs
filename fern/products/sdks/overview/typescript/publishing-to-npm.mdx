@@ -3,12 +3,12 @@ title: Publishing to npm
 description: How to publish the Fern TypeScript SDK to npm.
 ---
 
-Publish your public-facing Fern TypeScript SDK to the [npm
+Publish your public-facing Fern TypeScript SDK to the [npmjs
 registry](https://www.npmjs.com/). After following the steps on this page,
 you'll have a versioned package published on npm.
 
 <Frame>
-	<img src="assets/npm-packages.png" alt="Versioned package published on npm" />
+	<img src="assets/npm-packages.png" alt="Versioned package published on npmjs.com" />
 </Frame>
 
 <Info>
@@ -29,10 +29,10 @@ You'll need to update your `generators.yml` file to configure the package name, 
 <Steps>
 	<Step title="Configure `output` location">
 
-		In the `group` for your TypeScript SDK, change the output location from `local-file-system` (the default) to `npm` to indicate that Fern should publish your package directly to the npm registry:
+		In the `group` for your TypeScript SDK, change the output location from `local-file-system` (the default) to `npm` to indicate that Fern should publish your package directly to the npmjs registry:
 
 		```yaml {6-7} title="generators.yml"
-		groups: 
+		groups:
 		  ts-sdk: # Group name for your TypeScript SDK
 		    generators:
 		      - name: fernapi/fern-typescript-sdk
@@ -45,10 +45,10 @@ You'll need to update your `generators.yml` file to configure the package name, 
 
 	<Step title="Add a unique package name">
 
-		Your package name must be unique in the npm repository, otherwise publishing your SDK to npm will fail. 
+		Your package name must be unique in the npmjs registry, otherwise publishing your SDK will fail.
 
 		```yaml {8} title="generators.yml"
-		groups: 
+		groups:
 		  ts-sdk:
 		    generators:
 		      - name: fernapi/fern-typescript-sdk
@@ -62,10 +62,10 @@ You'll need to update your `generators.yml` file to configure the package name, 
 
 	<Step title="Configure `namespaceExport`">
 
-		The `namespaceExport` option controls the name of the generated client. This is the name customers use to import your SDK (`import { your-client-name } from 'your-package-name';`). 
+		The `namespaceExport` option controls the name of the generated client. This is the name customers use to import your SDK (`import { your-client-name } from 'your-package-name';`).
 
 		```yaml {9-10} title="generators.yml"
-		groups: 
+		groups:
 		  ts-sdk:
 		    generators:
 		      - name: fernapi/fern-typescript-sdk
@@ -81,259 +81,281 @@ You'll need to update your `generators.yml` file to configure the package name, 
 
   </Steps>
 
-## Generate an npm token
+## Configure GitHub publishing
 
-<Steps>
-
-	<Step title="Log into npm">
-
-	Log into [npm](https://www.npmjs.com/) or create a new account. 
-
-	</Step>
-
-	<Step title="Navigate to Access Tokens">
-
-	1.    Click on your profile picture. 
-	1.    Select **Edit Profile**.
-	1.    Select **Access Tokens**. 
-
-	</Step>
-
-	<Step title="Generate Token">
-
-	Click on **Generate New Token**, then choose the appropriate token type. 
-	
-	<Info>For more information on access tokens and which type to choose, see npm's [About access tokens](https://docs.npmjs.com/about-access-tokens) documentation. </Info>
-
-	<AccordionGroup>
-  <Accordion title="Option 1: Classic Token">
-
-  	1.    Select **Classic Token**
-  	1.    Name your token and select **Automation** as the token type. 
-	1.    Click **Generate Token**.
-
-	<Warning>Save your new token – it won't be displayed after you leave the page.</Warning>
-
-	<Frame>
-	<img src="assets/npm-automation-token.png" alt="Creating NPM Automation Token" />
-	</Frame>
-
-  </Accordion>
-  <Accordion title="Option 2: Granular Access Token">
-	1.    Select **Granular Access Token**. 
-	1.    Name your token.
-	1.    Set an expiration.
-	1.    Configure your token's access to packages and scopes.
-	1.    Configure your token's access to organizations. In order to fill this out, you must have at least one organization already configured in npm. See [Creating an organization](https://docs.npmjs.com/creating-an-organization) for more information.
-	1.    Optionally fill out additional permissions according to your organization's requirements. 
-	1.    Click **Generate Token**.
-
-	<Warning>Save your new token – it won't be displayed after you leave the page.</Warning>
-
-	<Frame>
-	<img src="assets/granular-access-token.png" alt="Creating Granular Access Token" />
-	</Frame>
-
-	</Accordion>
-	</AccordionGroup>
-	
-	</Step>
-
-</Steps>
-
-## Configure npm publication
-
-<Steps>
-<Step title="Add repository location">
-
-	Add the path to the GitHub repository containing your TypeScript SDK:
-
-	```yaml {11-12} title="generators.yml"
-	groups: 
-		ts-sdk:
-		generators:
-			- name: fernapi/fern-typescript-sdk
-			version: <Markdown src="/snippets/typescript-sdk-version.mdx"/>
-			output:
-				location: npm
-				package-name: your-package-name
-			config:
-				namespaceExport: YourClientName
-			github: 
-				repository: your-org/company-typescript
-	```
-
-</Step>
-<Step title="Configure npm authentication token">
-
-Add `token: ${NPM_TOKEN}` to `generators.yml` to tell Fern to use the `NPM_TOKEN` environment variable for authentication when publishing to the npm registry.
-
-```yaml title="generators.yml" {9}
-groups: 
-  ts-sdk:
-	generators:
-	  - name: fernapi/fern-typescript-sdk
-		version: <Markdown src="/snippets/typescript-sdk-version.mdx"/>
-		output:
-		  location: npm
-		  package-name: name-of-your-package
-		  token: ${NPM_TOKEN}
-		config:
-		  namespaceExport: YourClientName
-		github: 
-		  repository: your-org/your-repository
-```
-</Step>
-<Step title="Choose your publishing mode">
+Fern can automatically publish your SDK to npmjs via GitHub Actions. Configure your GitHub repository and publishing mode:
 
 <Markdown src="/products/sdks/snippets/github-publishing-mode.mdx"/>
 
-```yaml title="generators.yml" {14}
-groups: 
+```yaml title="generators.yml" {11-14}
+groups:
+  ts-sdk:
+    generators:
+      - name: fernapi/fern-typescript-sdk
+        version: <Markdown src="/snippets/typescript-sdk-version.mdx"/>
+        output:
+          location: npm
+          package-name: your-package-name
+        config:
+          namespaceExport: YourClientName
+        github:
+          repository: your-org/your-repository
+          mode: push  # or "pull-request"
+          branch: your-branch-name  # Required for mode: push
+```
+
+## Configure authentication
+
+Choose how you want to authenticate with npmjs when publishing. **OIDC is strongly recommended** for security.
+
+<Note>
+**Starting in early 2025**, npmjs.org is deprecating long-lived authentication tokens for publishing from CI/CD workflows. We recommend using OIDC-based authentication.
+</Note>
+
+<AccordionGroup>
+<Accordion title="OIDC authentication (Recommended)">
+
+OIDC-based publishing (also known as "trusted publishing") is the most secure way to publish. With OIDC, you don't need to manage authentication tokens - npmjs trusts your GitHub repository to publish directly.
+
+<Info>
+**Requirements:**
+- Fern TypeScript SDK generator version `3.12.0` or later
+- Fern CLI version `0.94.0` or later (only required for local generation with `--local`)
+</Info>
+
+<Steps>
+	<Step title="Add OIDC to generators.yml">
+
+	Add `token: OIDC` to the `output` section:
+
+	```yaml title="generators.yml" {9}
+	groups:
+	  ts-sdk:
+		generators:
+		  - name: fernapi/fern-typescript-sdk
+			version: <Markdown src="/snippets/typescript-sdk-version.mdx"/>  # Must be 3.12.0 or later
+			output:
+			  location: npm
+			  package-name: your-package-name
+			  token: OIDC
+		config:
+		  namespaceExport: YourClientName
+		github:
+		  repository: your-org/your-repository
+		  mode: push
+		  branch: your-branch-name
+	```
+
+	</Step>
+
+	<Step title="Generate your SDK">
+
+	Generate your SDK to create the GitHub Actions workflow with OIDC configuration:
+
+	```bash
+	fern generate --group ts-sdk
+	```
+
+	Or push your `generators.yml` changes and let the Fern GitHub Action generate it for you.
+
+	This creates a `.github/workflows/ci.yml` file that's configured to use OIDC for npm publishing.
+
+	</Step>
+
+	<Step title="Authorize your repository on npmjs.com">
+
+	Configure trusted publishing on npmjs.com to allow your GitHub repository to publish:
+
+	1. Navigate to your package settings on npmjs.com
+	1. Find the "Trusted Publisher" section and click "Add trusted publisher"
+	1. Select "GitHub Actions" as your provider
+	1. Fill in:
+		- **Organization or user**: Your GitHub username or organization
+		- **Repository**: Your TypeScript SDK repository name (e.g., `your-org/your-repository`)
+		- **Workflow filename**: `ci.yml`
+		- **Environment name**: Leave blank
+
+	For more details, see npm's [trusted publishing documentation](https://docs.npmjs.com/trusted-publishers).
+
+	</Step>
+</Steps>
+
+<Accordion title="Troubleshooting">
+
+**"Unable to authenticate" error**
+
+Common causes:
+- Workflow filename doesn't match exactly (must be `ci.yml`)
+- Trusted publisher configuration on npmjs.com doesn't match your repository settings
+- Using self-hosted runners (not currently supported by npmjs.org)
+
+**Solution:** Double-check your trusted publisher configuration on npmjs.com matches your repository name and workflow filename exactly.
+
+**Private repository limitations**
+
+Provenance attestations are not generated for packages published from private repositories, even when using trusted publishing. This is a [known limitation](https://github.blog/changelog/2023-07-25-publishing-with-npm-provenance-from-private-source-repositories-is-no-longer-supported/).
+
+</Accordion>
+
+</Accordion>
+
+<Accordion title="Token-based authentication (Legacy)">
+
+<Warning>
+**This method is being deprecated by npmjs.org in early 2025.** We strongly recommend using OIDC-based authentication instead. Long-lived authentication tokens can be accidentally exposed in logs, compromised, and are difficult to manage and rotate.
+</Warning>
+
+<Steps>
+<Step title="Generate an npm token">
+
+1. Log into [npmjs.com](https://www.npmjs.com/)
+1. Click on your profile picture and select **Edit Profile**
+1. Select **Access Tokens**
+1. Click **Generate New Token** and choose either **Classic Token** (select "Automation" type) or **Granular Access Token**
+1. Save your token securely - it won't be displayed again
+
+<Info>For more information on access tokens, see npm's [About access tokens](https://docs.npmjs.com/about-access-tokens) documentation.</Info>
+
+</Step>
+
+<Step title="Add token to generators.yml">
+
+Add `token: ${NPM_TOKEN}` to the `output` section:
+
+```yaml title="generators.yml" {9}
+groups:
   ts-sdk:
 	generators:
 	  - name: fernapi/fern-typescript-sdk
 		version: <Markdown src="/snippets/typescript-sdk-version.mdx"/>
 		output:
 		  location: npm
-		  package-name: name-of-your-package
+		  package-name: your-package-name
 		  token: ${NPM_TOKEN}
 		config:
 		  namespaceExport: YourClientName
-		github: 
+		github:
 		  repository: your-org/your-repository
 		  mode: push
-		  branch: your-branch-name # Required for mode: push
+		  branch: your-branch-name
 ```
 
 </Step>
+
+<Step title="Add NPM_TOKEN as a GitHub Actions secret">
+
+1. Open your repository on GitHub and go to **Settings**
+1. Navigate to **Secrets and variables** > **Actions**
+1. Click **New repository secret**
+1. Name it `NPM_TOKEN` and paste your npm token
+1. Click **Add secret**
+
+</Step>
 </Steps>
+
+</Accordion>
+
+</AccordionGroup>
 
 ## Publish your SDK
 
-Decide how you want to publish your SDK to npm. You can use GitHub workflows for automated releases or publish directly via the CLI. 
+Your SDK will automatically be published to npmjs when you create a GitHub release with a version tag:
 
-<AccordionGroup>
+1. Create a GitHub release with a version tag (e.g., `v1.0.0`)
+1. The CI workflow will run automatically and publish to npm
+1. View your package on npmjs.com to confirm the new version
 
-<Accordion title="Release via a GitHub workflow">
+<Accordion title="Alternative: Manual workflow dispatch">
 
-Set up a release workflow via [GitHub Actions](https://docs.github.com/en/actions/get-started/quickstart) so you can trigger new SDK releases directly from your source repository. 
+If you prefer to trigger publishes manually, create a `.github/workflows/publish.yml` file:
+
+```yaml title=".github/workflows/publish.yml"
+name: Publish TypeScript SDK
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to publish (e.g., 1.0.0)"
+        required: true
+        type: string
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install Fern
+        run: npm install -g fern-api
+
+      - name: Generate and publish SDK
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+        run: fern generate --group ts-sdk --version ${{ inputs.version }} --log-level debug
+```
+
+Add your `FERN_TOKEN` as a repository secret (run `fern token` to generate one), then trigger the workflow from the **Actions** tab.
+
+</Accordion>
+
+---
+
+## Migrating from token-based to OIDC publishing
+
+If you're currently using token-based authentication and need to migrate to OIDC, follow these steps:
 
 <Steps>
-	<Step title="Set up authentication">
+	<Step title="Update your generators.yml">
 
-	Open your source repository in GitHub. Click on the **Settings** tab. Then, under the **Security** section, open **Secrets and variables** > **Actions**. 
+	Change the `output.token` field from `${NPM_TOKEN}` to `OIDC` and ensure you're using version 3.12.0 or later:
 
-	<Frame>
-	<img src="assets/github-secret.png" alt="Adding GitHub Repository Secret" />
-	</Frame>
-
-	You can also use the url `https://github.com/<your-repo>/settings/secrets/actions`.
-
-	</Step>
-	<Step title="Add secret for your npm Token">
-
-	1. Select **New repository secret**. 
-	1. Name your secret `NPM_TOKEN`.
-	1. Add the corresponding token you generated above.
-	1. Click **Add secret**. 
-
-	<Frame>
-	<img src="assets/npm-token-secret.png" alt="NPM_TOKEN secret" />
-	</Frame>
-
-	</Step>
-	<Step title="Add secret for your Fern Token">
-
-	1. Select **New repository secret**. 
-	1. Name your secret `FERN_TOKEN`.
-    1. Add your Fern token. If you don't already have one, generate one by
-       running `fern token`. By default, the `fern_token` is generated for the
-       organization listed in `fern.config.json`.
-	1. Click **Add secret**. 
-
-	</Step>
-	<Step title="Set up a new workflow">
-
-	Set up a CI workflow that you can manually trigger from the GitHub UI. In your repository, navigate to **Actions**. Select **New workflow**, then **Set up workflow yourself**. Add a workflow that's similar to this: 
-
-	```yaml title=".github/workflows/publish.yml" maxLines=0
-	name: Publish TypeScript SDK
-
-	on:
-	  workflow_dispatch:
-	    inputs:
-	      version:
-	        description: "The version of the TypeScript SDK that you would like to release"
-	        required: true
-	        type: string
-
-	jobs:
-	  release:
-	    runs-on: ubuntu-latest
-	    steps:
-	      - name: Checkout repo
-	        uses: actions/checkout@v4
-
-	      - name: Install Fern CLI
-	        run: npm install -g fern-api
-
-	      - name: Release TypeScript SDK
-	        env:
-	          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
-	          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-	        run: |
-	          fern generate --group ts-sdk --version ${{ inputs.version }} --log-level debug
+	```yaml title="generators.yml"
+	groups:
+	  ts-sdk:
+		generators:
+		  - name: fernapi/fern-typescript-sdk
+			version: 3.12.0  # Must be 3.12.0 or later
+			output:
+			  location: npm
+			  package-name: your-package-name
+			  token: OIDC  # Changed from ${NPM_TOKEN}
+		config:
+		  namespaceExport: YourClientName
+		github:
+		  repository: your-org/your-repository
 	```
-	<Note>
-		You can alternatively configure your workflow to execute `on: [push]`. See Vapi's [npm publishing GitHub Action](https://github.com/VapiAI/server-sdk-typescript/blob/main/.github/workflows/ci.yml) for an example. 
-	</Note>
+
 	</Step>
 
-	<Step title="Regenerate and release your SDK"> 
+	<Step title="Configure trusted publishing">
 
-		Navigate to the **Actions** tab, select the workflow you just created, specify a version number, and click **Run workflow**. This regenerates your SDK. 
+	Follow the [Configure trusted publishing on npmjs.com](#oidc-based-publishing-recommended) instructions in the OIDC section above to add your repository as a trusted publisher.
 
-		<Frame>
-			<img src="assets/ts-sdk-release-action.png" alt="Running TS publish workflow" />
-		</Frame>
-
-		<Markdown src="/products/sdks/snippets/release-sdk.mdx"/>
-
-		Once the workflow completes, you can view your new release by logging into npm and navigating to **Packages**.
-	
 	</Step>
 
+	<Step title="Regenerate your SDK">
+
+	Regenerate your SDK locally or via GitHub Actions:
+
+	```bash
+	fern generate --group ts-sdk
+	```
+
+	This will update your `.github/workflows/ci.yml` file with the required OIDC permissions.
+
+	</Step>
+
+	<Step title="Remove the NPM_TOKEN secret">
+
+	After verifying the migration works, remove the `NPM_TOKEN` secret from your GitHub repository settings to prevent accidental use.
+
+	</Step>
 </Steps>
 
-</Accordion>
+## Additional resources
 
-<Accordion title="Release via CLI and environment variables">
-<Steps>
-
-<Step title="Set npm environment variable">
-
-Set the `NPM_TOKEN` environment variable on your local machine:
-
-```bash
-export NPM_TOKEN=your-actual-npm-token
-```
-
-</Step>
-<Step title="Regenerate and release your SDK">
-
-Regenerate your SDK, specifying the version:
-
-```bash
-fern generate --group ts-sdk --version <version>
-```
-
-<Markdown src="/products/sdks/snippets/release-sdk.mdx"/>
-
-Once the workflow completes, you can view your new release by logging into npm and navigating to **Packages**.
-
-</Step>
-
-</Steps>
-</Accordion>
-</AccordionGroup>
+- [npm Trusted Publishing Documentation](https://docs.npmjs.com/trusted-publishers)
+- [GitHub Actions OIDC Documentation](https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect)
+- [npm Provenance Documentation](https://docs.npmjs.com/generating-provenance-statements)
