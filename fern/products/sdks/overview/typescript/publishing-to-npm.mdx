@@ -306,7 +306,54 @@ Add your `FERN_TOKEN` as a repository secret (run `fern token` to generate one),
 
 If you're currently using token-based authentication and need to migrate to OIDC, follow these steps:
 
+### Why migrate to OIDC
+
+npm is implementing trusted publishing to eliminate security risks associated with long-lived tokens, which can be:
+
+- Accidentally exposed in logs or configuration files
+- Compromised and used persistently until manually revoked
+- Difficult to manage and rotate
+
+OIDC-based publishing uses short-lived, cryptographically-signed tokens that are specific to your workflow and cannot be extracted or reused.
+
+### Prerequisites
+
+Before migrating, ensure you have:
+
+- A package published to [npmjs.org](https://npmjs.org)
+- A GitHub repository with GitHub Actions configured
+- Access to your package settings on [npmjs.com](https://npmjs.com)
+- Fern CLI version `0.94.0` or later (for local generation)
+
+### Choose your migration path
+
+Select the approach that fits your situation:
+
+<AccordionGroup>
+<Accordion title="Path 1: Upgrade your generator (Recommended)">
+
+This is the easiest path if you can upgrade to version 3.12.0 or later of the TypeScript SDK generator.
+
+**When to use this path:**
+- You're able to upgrade to Fern TypeScript SDK generator version 3.12.0 or later
+- You haven't `.fernignore`'d your CI workflow file
+
 <Steps>
+	<Step title="Configure trusted publishing on npmjs.com">
+
+	Follow npm's ["Add a trusted publisher on npmjs.com"](https://docs.npmjs.com/trusted-publishers#step-1-add-a-trusted-publisher-on-npmjscom) instructions:
+
+	1. Navigate to your package settings on [npmjs.com](https://npmjs.com)
+	1. Find the "Trusted Publisher" section and click "Add trusted publisher"
+	1. Select "GitHub Actions" as your provider
+	1. Configure:
+		- **Organization or user**: Your GitHub username or organization
+		- **Repository**: Your TypeScript SDK repository name
+		- **Workflow filename**: `ci.yml` (the default Fern workflow file)
+		- **Environment name**: Leave blank (unless you use GitHub environments)
+
+	</Step>
+
 	<Step title="Update your generators.yml">
 
 	Change the `output.token` field from `${NPM_TOKEN}` to `OIDC` and ensure you're using version 3.12.0 or later:
@@ -329,19 +376,19 @@ If you're currently using token-based authentication and need to migrate to OIDC
 
 	</Step>
 
-	<Step title="Configure trusted publishing">
-
-	Follow the [Configure trusted publishing on npmjs.com](#oidc-based-publishing-recommended) instructions in the OIDC section above to add your repository as a trusted publisher.
-
-	</Step>
-
 	<Step title="Regenerate your SDK">
 
-	Regenerate your SDK locally or via GitHub Actions:
+	Regenerate your SDK with the updated CI configuration. You can do this either:
+
+	**Locally:**
 
 	```bash
 	fern generate --group ts-sdk
 	```
+
+	**Or via GitHub Actions:**
+
+	If you use the Fern GitHub Action to generate your SDK, simply push your updated `generators.yml` file and let the workflow regenerate the SDK for you.
 
 	This will update your `.github/workflows/ci.yml` file with the required OIDC permissions.
 
@@ -353,6 +400,142 @@ If you're currently using token-based authentication and need to migrate to OIDC
 
 	</Step>
 </Steps>
+
+</Accordion>
+
+<Accordion title="Path 2: Manual CI workflow update">
+
+Use this path if you cannot upgrade the generator or have customized your CI workflow.
+
+**When to use this path:**
+- You cannot upgrade due to breaking changes or bugs
+- You've customized your CI workflow and added it to `.fernignore`
+- Path 1 didn't update your workflow file
+
+<Steps>
+	<Step title="Configure trusted publishing on npmjs.com">
+
+	Follow the same instructions as Path 1 to add your repository as a trusted publisher on npmjs.com.
+
+	</Step>
+
+	<Step title="Update your CI workflow manually">
+
+	Open your `.github/workflows/ci.yml` file and make these changes to the `publish` job:
+
+	```yaml title=".github/workflows/ci.yml"
+	publish:
+	  needs: [ compile, test ]
+	  if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
+	  runs-on: ubuntu-latest
+	  permissions:
+		id-token: write  # ADD THIS: Required for OIDC
+	  steps:
+		- name: Checkout repo
+		  uses: actions/checkout@v4
+
+		- name: Set up node
+		  uses: actions/setup-node@v4
+
+		# ADD THIS: Ensure npm 11.5.1 or later is installed for OIDC support
+		- name: Update npm
+		  run: npm install -g npm@latest
+
+		- name: Install pnpm
+		  uses: pnpm/action-setup@v4
+
+		- name: Install dependencies
+		  run: pnpm install
+
+		- name: Build
+		  run: pnpm build
+
+		# MODIFY THIS: Remove npm config set and env block
+		- name: Publish to npm
+		  run: |
+			if [[ ${GITHUB_REF} == *alpha* ]]; then
+			  npm publish --access public --tag alpha
+			elif [[ ${GITHUB_REF} == *beta* ]]; then
+			  npm publish --access public --tag beta
+			else
+			  npm publish --access public
+			fi
+		  # Previously had:
+		  # run: |
+		  #   npm config set //registry.npmjs.org/:_authToken ${NPM_TOKEN}
+		  #   if [[ ${GITHUB_REF} == *alpha* ]]; then
+		  #     npm publish --access public --tag alpha
+		  #   elif [[ ${GITHUB_REF} == *beta* ]]; then
+		  #     npm publish --access public --tag beta
+		  #   else
+		  #     npm publish --access public
+		  #   fi
+		  # env:
+		  #   NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+	```
+
+	**Key changes:**
+	- Add `permissions` block with `id-token: write` to the publish job
+	- Add step to update npm to version 11.5.1 or later
+	- Remove the `npm config set` line from the publish step
+	- Remove the `env` block with `NPM_TOKEN` from the publish step
+
+	</Step>
+
+	<Step title="(Optional) Add ci.yml to .fernignore">
+
+	If you haven't already, add your CI workflow to `.fernignore` to prevent future generator updates from overwriting your manual changes:
+
+	```text title=".fernignore"
+	.github/workflows/ci.yml
+	```
+
+	</Step>
+
+	<Step title="Remove the NPM_TOKEN secret">
+
+	After verifying the migration works, remove the `NPM_TOKEN` secret from your GitHub repository settings.
+
+	</Step>
+</Steps>
+
+</Accordion>
+</AccordionGroup>
+
+### Verify your migration
+
+After completing either migration path:
+
+1. **Trigger a workflow run** by creating a GitHub release with an alpha tag (e.g., `v1.0.0-alpha`)
+2. **Check the workflow logs** to verify the publish step succeeds
+3. **Verify provenance** by visiting your package on [npmjs.com](https://npmjs.com) - you should see a provenance badge
+
+### Migration troubleshooting
+
+<AccordionGroup>
+<Accordion title='"Unable to authenticate" error'>
+
+**Common causes:**
+- Workflow filename doesn't match exactly (must be `ci.yml` with the `.yml` extension)
+- Missing `id-token: write` permission in workflow
+- npm CLI version is older than 11.5.1
+- Using self-hosted runners (not currently supported)
+
+**Solution:** Double-check your trusted publisher configuration on npmjs.com matches your actual workflow file name and verify all requirements are met.
+
+</Accordion>
+
+<Accordion title="Workflow still using NPM_TOKEN">
+
+If your workflow continues using the old token-based authentication:
+
+- Verify you've removed the `npm config set` line and the `env: NPM_TOKEN` block from the publish step
+- Check that npm CLI version 11.5.1+ is installed (add the update npm step)
+- Ensure you're using generator version 3.12.0 or later (if using Path 1)
+- When using `--local` generation, you need to use Fern CLI version 0.94.0 or later
+
+</Accordion>
+</AccordionGroup>
 
 ## Additional resources
 
