@@ -1,5 +1,5 @@
 ---
-title: .NET Framework compatibility
+title: .NET compatibility
 description: Learn about supported .NET Framework versions (net462, net472, net48) and Unity compatibility for Fern-generated SDKs.
 ---
 
@@ -11,11 +11,18 @@ Because these SDKs are built with modern C# features, you'll need the following 
 
 ## Supported frameworks
 
-| Target | Minimum Windows | Notes |
-|--------|------------------|------------|
-| **net462** | Windows 7 SP1 / Server 2008 R2 | Oldest supported for modern builds. Limited TLS support, older BCL. |
-| **net472** | Windows 7 SP1 / Server 2008 R2 | Broad compatibility, supported for most enterprise apps. |
-| **net48**  | Windows 7 SP1 / Server 2008 R2 | Latest .NET Framework version with best long-term support. |
+Fern .NET SDKs support [all officially supported .NET versions](https://dotnet.microsoft.com/en-us/platform/support/policy/dotnet-framework), except for net35.
+
+| Target | Platform |
+|--------|----------|
+| **net9.0** | Cross-platform |
+| **net8.0** | Cross-platform |
+| **net481** | Windows |
+| **net48** | Windows |
+| **net472** | Windows |
+| **net471** | Windows |
+| **net47** | Windows |
+| **net462** | Windows |
 
 <Note>
   The C# language version is determined by your compiler, while the target framework determines which runtime and base class library APIs are available. Fern SDKs use modern C# features but compile to older framework versions.
@@ -39,7 +46,7 @@ You can "bring your own compiler" with the `Microsoft.Net.Compilers.Toolset` pac
 
 Use the **Roslyn compiler** (`csc`) that comes with Visual Studio 2022+ or the .NET SDK. Set your C# version via `<LangVersion>` to `latest`, `preview`, or a specific version (minimum `9`).
 
-Fern's .NET SDK doesn't support the legacy Mono compiler (`mcs`, `gmcs`). Use Roslyn even when building on Mono.
+Fern's .NET SDK doesn't support the legacy Mono compiler (`mcs`, `gmcs`) or the pre-Roslyn `csc.exe` compiler. Use Roslyn even when building on Mono.
 
 <Info title="Building on Mono">
 
@@ -188,48 +195,6 @@ For older MSBuild/Visual Studio versions, Visual Studio 2019, or legacy `package
 </Accordion>
 </AccordionGroup>
 
-## Distribution
-
-<AccordionGroup> 
-<Accordion title="Multi-target pack for NuGet">
-A common configuration for broad compatibility across multiple .NET versions:
-
-{/* <!-- vale off --> */}
-```xml title="YourProject.csproj"
-<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <TargetFrameworks>net48;net6.0;net8.0</TargetFrameworks>
-    <LangVersion>latest</LangVersion>
-    <Nullable>enable</Nullable>
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <PackageId>Your.Package.Id</PackageId>
-    <Version>1.2.3</Version>
-    <Authors>Your Team</Authors>
-    <Description>Your description</Description>
-  </PropertyGroup>
-
-  <!-- Cross-platform net48 builds -->
-  <ItemGroup>
-    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
-  </ItemGroup>
-</Project>
-```
-{/* <!-- vale on --> */}
-
-Build and pack:
-
-```bash
-dotnet pack -c Release
-```
-</Accordion>
-<Accordion title="CI/CD configuration">
-Force a specific C# version in your build pipeline:
-```bash
-dotnet build -c Release /p:LangVersion=11
-```
-</Accordion>
-</AccordionGroup>
-
 ## Troubleshooting
 
 <AccordionGroup>
@@ -249,14 +214,6 @@ This error occurs when using the `required` keyword with older Visual Studio ver
 <Note>
   Some versions of Visual Studio may show this error in the IDE but compile the project successfully when using the package-provided compiler.
 </Note>
-</Accordion>
-<Accordion title="C# language feature workarounds">
-
-Most modern C# features work on `net462`, `net472`, and `net48`, but a few require workarounds:
-
-- **`init` accessors** – Requires the `System.Runtime.CompilerServices.IsExternalInit` type. Add a small shim in your project or reference a helper package.
-- **Records** - Work out of the box (compiler-generated IL), but may need the same `IsExternalInit` shim.
-- **Nullable annotations** - Purely compile-time, work without modification.
 </Accordion>
 </AccordionGroup>
 
