@@ -2035,6 +2035,125 @@
         ]
       }
     },
+    "/scribe/callback/slack/{team_id}/{channel_id}/{thread_ts}": {
+      "post": {
+        "tags": [
+          "Scribe"
+        ],
+        "summary": "Scribe Slack Callback",
+        "description": "Callback endpoint for Scribe to post PR URLs back to Slack threads.",
+        "operationId": "scribe_slack_callback",
+        "parameters": [
+          {
+            "name": "team_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Team Id"
+            }
+          },
+          {
+            "name": "channel_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Channel Id"
+            }
+          },
+          {
+            "name": "thread_ts",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Thread Ts"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScribeSlackCallbackRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScribeSlackCallbackResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-fern-audiences": [
+          "internal"
+        ]
+      }
+    },
+    "/scribe/test/domain-to-repo": {
+      "get": {
+        "tags": [
+          "Scribe"
+        ],
+        "summary": "Test Domain To Repo",
+        "operationId": "test_domain_to_repo",
+        "parameters": [
+          {
+            "name": "domain",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Domain"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DomainRepoResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-fern-audiences": [
+          "internal"
+        ]
+      }
+    },
     "/settings/ask-ai": {
       "get": {
         "tags": [
@@ -2467,23 +2586,24 @@
         ]
       }
     },
-    "/slack/integrations": {
+    "/slack/install": {
       "post": {
         "tags": [
           "Slack"
         ],
         "summary": "Create Slack Integration",
         "operationId": "create_slack_integration",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateSlackIntegration"
-              }
+        "parameters": [
+          {
+            "name": "domain",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Domain"
             }
-          },
-          "required": true
-        },
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -2507,7 +2627,12 @@
           }
         },
         "x-fern-audiences": [
-          "internal"
+          "customers"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
         ]
       }
     },
@@ -2699,49 +2824,6 @@
             "schema": {
               "type": "string",
               "title": "Domain"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        },
-        "x-fern-audiences": [
-          "internal"
-        ]
-      }
-    },
-    "/slack/get-install/{integration_id}": {
-      "get": {
-        "tags": [
-          "Slack"
-        ],
-        "summary": "Get Slack Install Link By Id",
-        "operationId": "get_slack_install_link_by_id",
-        "parameters": [
-          {
-            "name": "integration_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Integration Id"
             }
           }
         ],
@@ -3118,19 +3200,6 @@
         ],
         "title": "CreateQueryResponse"
       },
-      "CreateSlackIntegration": {
-        "properties": {
-          "domain": {
-            "type": "string",
-            "title": "Domain"
-          }
-        },
-        "type": "object",
-        "required": [
-          "domain"
-        ],
-        "title": "CreateSlackIntegration"
-      },
       "DeleteDocumentRequest": {
         "properties": {
           "document_id": {
@@ -3294,6 +3363,31 @@
           "updated_at"
         ],
         "title": "Document"
+      },
+      "DomainRepoResponse": {
+        "properties": {
+          "domain": {
+            "type": "string",
+            "title": "Domain"
+          },
+          "repo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "domain",
+          "repo"
+        ],
+        "title": "DomainRepoResponse"
       },
       "Feedback": {
         "properties": {
@@ -4008,6 +4102,37 @@
         ],
         "title": "ReconstructIndexResponse"
       },
+      "ScribeSlackCallbackRequest": {
+        "properties": {
+          "pr_url": {
+            "type": "string",
+            "title": "Pr Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "pr_url"
+        ],
+        "title": "ScribeSlackCallbackRequest"
+      },
+      "ScribeSlackCallbackResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "status_code": {
+            "type": "integer",
+            "title": "Status Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "status_code"
+        ],
+        "title": "ScribeSlackCallbackResponse"
+      },
       "SlackIntegrationResponse": {
         "properties": {
           "integration_id": {
@@ -4056,13 +4181,18 @@
               }
             ],
             "title": "Installed At"
+          },
+          "integration_url": {
+            "type": "string",
+            "title": "Integration Url"
           }
         },
         "type": "object",
         "required": [
           "integration_id",
           "domain",
-          "created_at"
+          "created_at",
+          "integration_url"
         ],
         "title": "SlackIntegrationResponse"
       },
