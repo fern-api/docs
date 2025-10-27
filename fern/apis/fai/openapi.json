@@ -2254,31 +2254,59 @@
         ]
       }
     },
-    "/scribe/test/domain-to-repo": {
-      "get": {
+    "/scribe/callback/slack/edit/{team_id}/{channel_id}/{thread_ts}": {
+      "post": {
         "tags": [
           "Scribe"
         ],
-        "summary": "Test Domain To Repo",
-        "operationId": "test_domain_to_repo",
+        "summary": "Scribe Edit Callback",
+        "operationId": "scribe_edit_callback",
         "parameters": [
           {
-            "name": "domain",
-            "in": "query",
+            "name": "team_id",
+            "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Domain"
+              "title": "Team Id"
+            }
+          },
+          {
+            "name": "channel_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Channel Id"
+            }
+          },
+          {
+            "name": "thread_ts",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Thread Ts"
             }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScribeEditCallbackRequest"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DomainRepoResponse"
+                  "$ref": "#/components/schemas/ScribeEditCallbackResponse"
                 }
               }
             }
@@ -3586,31 +3614,6 @@
         ],
         "title": "Document"
       },
-      "DomainRepoResponse": {
-        "properties": {
-          "domain": {
-            "type": "string",
-            "title": "Domain"
-          },
-          "repo": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Repo"
-          }
-        },
-        "type": "object",
-        "required": [
-          "domain",
-          "repo"
-        ],
-        "title": "DomainRepoResponse"
-      },
       "EditingSession": {
         "properties": {
           "id": {
@@ -3697,6 +3700,12 @@
             "type": "array",
             "title": "Locations",
             "description": "List of locations to enable (docs, slack, discord)"
+          },
+          "preview": {
+            "type": "boolean",
+            "title": "Preview",
+            "description": "Whether this is a preview domain",
+            "default": false
           }
         },
         "type": "object",
@@ -4446,6 +4455,48 @@
           "success"
         ],
         "title": "ReconstructIndexResponse"
+      },
+      "ScribeEditCallbackRequest": {
+        "properties": {
+          "editing_id": {
+            "type": "string",
+            "title": "Editing Id"
+          },
+          "pr_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pr Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "editing_id"
+        ],
+        "title": "ScribeEditCallbackRequest"
+      },
+      "ScribeEditCallbackResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "status_code": {
+            "type": "integer",
+            "title": "Status Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "status_code"
+        ],
+        "title": "ScribeEditCallbackResponse"
       },
       "ScribeSlackCallbackRequest": {
         "properties": {
