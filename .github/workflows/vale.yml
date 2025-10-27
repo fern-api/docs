@@ -1,0 +1,41 @@
+name: Vale style check
+on: 
+  pull_request:
+    paths:
+      - '**.mdx'
+      - '**.md'
+      - '.vale/**'
+      - '.vale.ini'
+      - '!**/changelog/**'
+
+jobs:
+  vale:
+    runs-on: ubuntu-latest
+    if: |
+      github.event.pull_request.user.login != 'fern-support' &&
+      github.event.pull_request.user.login != 'github-actions'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v41
+        with:
+          files: |
+            fern/**/*.md
+            fern/**/*.mdx
+          files_ignore: |
+            **/changelog/**
+
+      - name: Install Vale
+        if: steps.changed-files.outputs.any_changed == 'true'
+        run: |
+          wget https://github.com/errata-ai/vale/releases/download/v3.12.0/vale_3.12.0_Linux_64-bit.tar.gz
+          tar -xvzf vale_3.12.0_Linux_64-bit.tar.gz
+          sudo mv vale /usr/local/bin/
+
+      - name: Run Vale
+        if: steps.changed-files.outputs.any_changed == 'true'
+        run: |
+          vale sync
+          vale ${{ steps.changed-files.outputs.all_changed_files }}
