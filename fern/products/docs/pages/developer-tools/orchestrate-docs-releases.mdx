@@ -1,15 +1,24 @@
 ---
 title: Orchestrate releases
-description: Coordinate the updates of your docs across multiple repositories and releases.
+description: Coordinate documentation updates across multiple repositories and releases.
 ---
 
-Fern Docs supports orchestrating the release of your docs based on releases from other repositories. This is useful when you are documenting features that depend on other features that are released in other repositories.
+Fern Docs supports orchestrating documentation releases based on releases from other repositories. This is useful when documenting features that depend on releases in other repositories.
 
-## Trigger a dispatch for a specific release tag
+This requires two GitHub Actions: one in the feature repository and one in the documentation repository.
 
-Add the following GitHub Action workflow to the repository where the releases will be made. 
+<Steps>
+<Step title="Set up release notification in the feature repository">
 
-```yml 
+Add this GitHub Action workflow to the repository where features are released. When a new release is created with the specified tag pattern, this workflow will send a notification to your documentation repository, triggering the auto-merge process.
+
+Replace the following placeholders with your own values:
+- `<GITHUB_ACCESS_TOKEN>`: GitHub token with `repo` scope
+- `<ORG>`: Organization containing the docs repository
+- `<DOCS_REPO>`: Docs repository name
+- `<PRODUCT_RELEASE_TAG>`: Product release tag
+
+```yml title=".github/workflows/notify-docs-repo.yml"
 name: Notify Docs Repo
 on:
   release:
@@ -30,17 +39,12 @@ jobs:
             -d '{"event_type":"<PRODUCT_RELEASE_TAG>","client_payload":{"version":"${{ github.ref_name }}"}}'
 ```
 
-<Note title="Replace placeholders with your own values">
-- `<GITHUB_ACCESS_TOKEN>`: A GitHub access token with the `repo` scope.
-- `<ORG>`: The organization that contains the docs repository.
-- `<DOCS_REPO>`: The name of the docs repository.
-- `<PRODUCT_RELEASE_TAG>`: The tag of the product release.
-</Note>
+</Step>
+<Step title="Configure auto-merge in the documentation repository">
 
-## Merge dependent PRs
+Add this GitHub Action workflow to your documentation repository to auto-merge PRs when features are released. Replace `<PRODUCT_RELEASE_TAG>` with your product release tag.
 
-```yml
-# .github/workflows/auto-merge-on-release.yml in docs repo
+```yml title=".github/workflows/auto-merge-on-release.yml"
 name: Auto-merge on Docs Release
 on:
   repository_dispatch:
@@ -69,7 +73,7 @@ jobs:
               const hasVersionLabel = labels.includes(`depends-on: <PRODUCT_RELEASE_TAG>@${version}`);
               
               if (hasLatestLabel || hasVersionLabel) {
-                // Check if PR is approved and CI passes
+                // Check if PR is approved
                 const { data: reviews } = await github.rest.pulls.listReviews({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
@@ -91,7 +95,5 @@ jobs:
               }
             }
 ```
-
-<Note title="Replace placeholders with your own values">
-- `<PRODUCT_RELEASE_TAG>`: The tag of the product release.
-</Note>
+</Step>
+</Steps>
