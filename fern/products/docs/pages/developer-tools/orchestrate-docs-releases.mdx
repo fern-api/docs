@@ -1,0 +1,97 @@
+---
+title: Orchestrate releases
+description: Coordinate the updates of your docs across multiple repositories and releases.
+---
+
+Fern Docs supports orchestrating the release of your docs based on releases from other repositories. This is useful when you are documenting features that depend on other features that are released in other repositories.
+
+## Trigger a dispatch for a specific release tag
+
+Add the following GitHub Action workflow to the repository where the releases will be made. 
+
+```yml 
+name: Notify Docs Repo
+on:
+  release:
+    types: [created]
+    tags:
+      - "<PRODUCT_RELEASE_TAG>@*"
+
+jobs:
+  notify-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger docs repo workflow
+        run: |
+          curl -f -X POST \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization: token ${{ secrets.<GITHUB_ACCESS_TOKEN> }}" \
+            https://api.github.com/repos/<ORG>/<DOCS_REPO>/dispatches \
+            -d '{"event_type":"<PRODUCT_RELEASE_TAG>","client_payload":{"version":"${{ github.ref_name }}"}}'
+```
+
+<Note title="Replace placeholders with your own values">
+- `<GITHUB_ACCESS_TOKEN>`: A GitHub access token with the `repo` scope.
+- `<ORG>`: The organization that contains the docs repository.
+- `<DOCS_REPO>`: The name of the docs repository.
+- `<PRODUCT_RELEASE_TAG>`: The tag of the product release.
+</Note>
+
+## Merge dependent PRs
+
+```yml
+# .github/workflows/auto-merge-on-release.yml in docs repo
+name: Auto-merge on Docs Release
+on:
+  repository_dispatch:
+    types: [<PRODUCT_RELEASE_TAG>]
+
+jobs:
+  merge-dependent-prs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Find and merge dependent PRs
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const version = context.payload.client_payload.version;
+            
+            // Find PRs with matching labels
+            const { data: prs } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open'
+            });
+            
+            for (const pr of prs) {
+              const labels = pr.labels.map(l => l.name);
+              const hasLatestLabel = labels.includes('depends-on: <PRODUCT_RELEASE_TAG>@latest');
+              const hasVersionLabel = labels.includes(`depends-on: <PRODUCT_RELEASE_TAG>@${version}`);
+              
+              if (hasLatestLabel || hasVersionLabel) {
+                // Check if PR is approved and CI passes
+                const { data: reviews } = await github.rest.pulls.listReviews({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: pr.number
+                });
+                
+                const approved = reviews.some(r => r.state === 'APPROVED');
+                
+                if (approved) {
+                  await github.rest.pulls.merge({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    pull_number: pr.number,
+                    merge_method: 'squash'
+                  });
+                  
+                  console.log(`Merged PR #${pr.number}: ${pr.title}`);
+                }
+              }
+            }
+```
+
+<Note title="Replace placeholders with your own values">
+- `<PRODUCT_RELEASE_TAG>`: The tag of the product release.
+</Note>
