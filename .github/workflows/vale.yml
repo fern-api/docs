@@ -27,15 +27,12 @@ jobs:
           files_ignore: |
             **/changelog/**
 
-      - name: Install Vale
+      - uses: errata-ai/vale-action@reviewdog
         if: steps.changed-files.outputs.any_changed == 'true'
-        run: |
-          wget https://github.com/errata-ai/vale/releases/download/v3.12.0/vale_3.12.0_Linux_64-bit.tar.gz
-          tar -xvzf vale_3.12.0_Linux_64-bit.tar.gz
-          sudo mv vale /usr/local/bin/
-
-      - name: Run Vale
-        if: steps.changed-files.outputs.any_changed == 'true'
-        run: |
-          vale sync
-          vale ${{ steps.changed-files.outputs.all_changed_files }}
+        with:
+          files: ${{ steps.changed-files.outputs.all_changed_files }}
+          version: 3.12.0
+          reporter: github-pr-review
+          fail_on_error: false
+        env:
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
