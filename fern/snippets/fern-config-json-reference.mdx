@@ -1,0 +1,57 @@
+## What is fern.config.json?
+
+Every `fern/` folder contains a single `fern.config.json` file at its root. This configuration file stores your organization name and the Fern CLI version used for your project.
+
+### Schema
+
+The `fern.config.json` file has two required fields:
+
+- **`organization`** (string): Your organization identifier. This is used by `fern token` to generate organization-specific authentication tokens and to scope CLI actions to your organization. You can view and manage your organization in the [Fern Dashboard](https://dashboard.buildwithfern.com/).
+
+- **`version`** (string): The Fern CLI version to use. Accepts a pinned semantic version (e.g., `"0.94.1"`) or `"*"` to use your locally installed CLI version.
+
+### Examples
+
+<Tabs>
+<Tab title="Pinned version (recommended for CI)">
+
+```json title="fern.config.json"
+{
+  "organization": "plant-catalog",
+  "version": "<Markdown src="/snippets/version-number-cli.mdx"/>"
+}
+```
+
+Pinning to a specific version ensures deterministic builds. Every time you run a Fern CLI command, the CLI downloads itself at the specified version.
+
+</Tab>
+<Tab title="Local development">
+
+```json title="fern.config.json"
+{
+  "organization": "plant-catalog",
+  "version": "*"
+}
+```
+
+Using `"*"` tells Fern to use your locally installed CLI version. This is useful for local development when you've installed Fern as a project dependency. See [Install Fern CLI locally](/learn/cli-api/cli-reference/overview#install-fern-cli-locally) for details.
+
+</Tab>
+</Tabs>
+
+### When to change these values
+
+- **`organization`**: Rarely needs to be changed. Only update this if your organization identifier changes in the Fern Dashboard.
+
+- **`version`**: Use the `fern upgrade` command to update to the latest CLI version. The command automatically updates this field in `fern.config.json` and upgrades generators in `generators.yml` to their minimum-compatible versions.
+
+### How the CLI uses this file
+
+The following CLI commands read from `fern.config.json`:
+
+- **`fern check`**: Validates the configuration file
+- **`fern upgrade`**: Updates the `version` field to the latest CLI version
+- **`fern token`**: Uses the `organization` field to generate organization-specific tokens
+- **`fern init`**: Creates this file when initializing a new project
+
+The version pinning ensures determinism across different environments. When you run any Fern CLI command, it automatically downloads and uses the specified CLI version, ensuring consistent behavior in local development, CI/CD pipelines, and across team members.
