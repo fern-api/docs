@@ -1218,6 +1218,52 @@
         ]
       }
     },
+    "/editing-sessions/{editing_id}/interrupt": {
+      "post": {
+        "tags": [
+          "Editing_Sessions"
+        ],
+        "summary": "Interrupt Editing Session",
+        "description": "Interrupt a running editing session.",
+        "operationId": "interrupt_editing_session",
+        "parameters": [
+          {
+            "name": "editing_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Editing Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InterruptEditingSessionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-fern-audiences": [
+          "internal"
+        ]
+      }
+    },
     "/feedback/{domain}": {
       "post": {
         "tags": [
@@ -2327,6 +2373,56 @@
         ]
       }
     },
+    "/sdks/analyze-commit-diff": {
+      "post": {
+        "tags": [
+          "Sdks"
+        ],
+        "summary": "Analyze Commit Diff",
+        "description": "Analyzes a git diff and generates an AI-powered commit message with version bump recommendation.",
+        "operationId": "analyze_commit_diff",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalyzeCommitDiffRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyzeCommitDiffResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-fern-audiences": [
+          "internal"
+        ]
+      }
+    },
     "/settings/ask-ai": {
       "get": {
         "tags": [
@@ -3073,6 +3169,39 @@
   },
   "components": {
     "schemas": {
+      "AnalyzeCommitDiffRequest": {
+        "properties": {
+          "diff": {
+            "type": "string",
+            "title": "Diff",
+            "description": "The git diff to analyze for generating a commit message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "diff"
+        ],
+        "title": "AnalyzeCommitDiffRequest"
+      },
+      "AnalyzeCommitDiffResponse": {
+        "properties": {
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "The AI-generated commit message summarizing the changes in the diff"
+          },
+          "version_bump": {
+            "$ref": "#/components/schemas/VersionBump",
+            "description": "The recommended semantic version bump: MAJOR for breaking changes, MINOR for new features, PATCH for bug fixes and other changes, NO_CHANGE for empty diffs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "message",
+          "version_bump"
+        ],
+        "title": "AnalyzeCommitDiffResponse"
+      },
       "ChatMessage": {
         "properties": {
           "role": {
@@ -3654,6 +3783,9 @@
             ],
             "title": "Pr Url"
           },
+          "status": {
+            "$ref": "#/components/schemas/EditingSessionStatus"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -3673,10 +3805,22 @@
           "base_branch",
           "working_branch",
           "pr_url",
+          "status",
           "created_at",
           "updated_at"
         ],
         "title": "EditingSession"
+      },
+      "EditingSessionStatus": {
+        "type": "string",
+        "enum": [
+          "waiting",
+          "active",
+          "interrupted",
+          "completed"
+        ],
+        "title": "EditingSessionStatus",
+        "description": "Status of an editing session."
       },
       "EnableAskAiRequest": {
         "properties": {
@@ -4212,6 +4356,19 @@
           "examples"
         ],
         "title": "InsightWithMetadata"
+      },
+      "InterruptEditingSessionResponse": {
+        "properties": {
+          "editing_session": {
+            "$ref": "#/components/schemas/EditingSession"
+          }
+        },
+        "type": "object",
+        "required": [
+          "editing_session"
+        ],
+        "title": "InterruptEditingSessionResponse",
+        "description": "Response when interrupting an editing session."
       },
       "JobStatusResponse": {
         "properties": {
@@ -4825,6 +4982,16 @@
               }
             ],
             "title": "Pr Url"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EditingSessionStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -5035,6 +5202,16 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "VersionBump": {
+        "type": "string",
+        "enum": [
+          "MAJOR",
+          "MINOR",
+          "PATCH",
+          "NO_CHANGE"
+        ],
+        "title": "VersionBump"
       }
     },
     "securitySchemes": {
