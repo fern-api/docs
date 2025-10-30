@@ -62,6 +62,53 @@ Keep the following principles in mind:
 
 Our style guide is influenced by [Google's developer documentation style guide](https://developers.google.com/style) and Microsoft's [writing style guide](https://learn.microsoft.com/en-us/style-guide/welcome/).
 
+### Style checking with Vale
+
+We use [Vale](https://vale.sh/docs) to check contributions for grammar, style consistency, and adherence to our writing guidelines. Our [Vale configuration](https://github.com/fern-api/docs/blob/main/.vale.ini) uses the [Microsoft style guide](https://github.com/errata-ai/Microsoft) plus custom rules for Fern's style and terminology.
+
+Vale runs automatically on PRs that modify `.mdx` files and comments with style suggestions (non-blocking).
+
+<details>
+<summary>Style guidelines enforced by Vale</summary>
+
+The Vale linter enforces the following style guidelines:
+
+**Language and tone**
+- Avoid unnecessary adverbs (very, really, extremely, etc.) that don't add meaning
+- Don't use "please" in technical documentation
+- Use first person (I, me) sparingly
+- Avoid first-person plural (we, our, let's)
+- Write in an objective, instructional tone
+
+**Time-relative language**
+- Avoid terms that become outdated: currently, presently, now, future, soon, latest, upcoming, old
+- Write documentation that remains accurate over time
+
+**Headings**
+- Use sentence-case capitalization (capitalize only the first word and proper nouns)
+- Don't use end punctuation (periods, question marks, exclamation points)
+
+**Acronyms**
+- Define acronyms on first use unless they're in the exceptions list (common technical acronyms like API, SDK, CLI, HTTP, JSON, etc.)
+- Format: "Application Programming Interface (API)"
+
+**Terminology**
+- Use "Fern Editor" instead of "Visual Editor"
+- Use "API Reference" (capitalized) consistently
+- Use "API Explorer" (capitalized) consistently
+
+**Formatting**
+- Don't hyphenate adverbs ending in -ly (e.g., "quickly moving" not "quickly-moving")
+</details>
+
+<details>
+<summary>Use Vale locally</summary>
+To catch issues earlier in your workflow, set up Vale to run automatically on your machine when you commit:
+
+1. Install pre-commit: `brew install pre-commit`
+2. Install the hook: `pre-commit install`
+</details>
+
 ### Getting changes reviewed
 
 If you want to **add a new page or make a large structural change**:
@@ -71,18 +118,3 @@ For **all other changes**:
 -  Submit a PR directly with your suggested changes. A Fern docs member will review and confirm.
 
 If you see something that is wrong or outdated in the documentation but don't know how to fix it, [file an issue](https://github.com/fern-api/docs/issues) or reach out to [@devalog](https://github.com/devalog), [@kgowru](https://github.com/kgowru), or [@dsinghvi](https://github.com/dsinghvi).
-
-#### Style checking with Vale
-
-We use [Vale](https://vale.sh/docs) to automatically check documentation contributions for grammar, style consistency, and adherence to our writing guidelines. 
-
-Our Vale configuration includes:
-- The [Microsoft style guide](https://github.com/errata-ai/Microsoft) as a foundation
-- Custom rules tailored to Fern's documentation style and terminology
-
-A GitHub Action runs Vale on every pull request, providing feedback on style issues before merging. To catch issues earlier in your workflow, set up Vale to run automatically on your machine when you commit:
-
-1. Install pre-commit: `brew install pre-commit`
-2. Install the hook: `pre-commit install`
-
-When you commit changes to `.mdx` files, Vale will automatically run and display any errors, warnings, or suggestions, but won't block your commit.
