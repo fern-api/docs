@@ -300,7 +300,6 @@ export const FernFooter: React.FC = () => {
                 <a href="/learn/docs/getting-started/overview" className="footer-link">Docs</a>
                 <a href="/learn/ask-fern" className="footer-link">Ask Fern</a>
                 <a href="/learn/cli-api-reference/cli-reference/overview" className="footer-link">CLI Reference</a>
-                <a href="/learn/cli-api-reference/api-reference/overview" className="footer-link">API Reference</a>
               </div>
             </div>
 

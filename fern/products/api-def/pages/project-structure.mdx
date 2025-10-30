@@ -26,20 +26,9 @@ fern/
   Beyond the core files, you can optionally use an overrides file to customize your API definition without modifying the original spec. See [Overrides](/api-definitions/overview/overrides) for instructions.
 </Note>
 
-### `fern.config.json file`
+### `fern.config.json`
 
-Every fern folder has a single `fern.config.json` file. This file stores the organization and
-the version of the Fern CLI that you are using. 
-
-```json title="fern.config.json"
-{
-    "organization": "your-organization",
-    "version": "0.31.2"
-}
-```
-
-Every time you run a fern CLI command, the CLI downloads itself at the correct version to ensure 
-determinism. 
+<Markdown src="/snippets/fern-config-json-reference.mdx" />
 
 ### `generators.yml`
 
@@ -87,6 +76,10 @@ groups:
         github:
           repository: company/user-api-typescript
 ```
+<Info>
+  You can use this same pattern for API versioning. See [Versioned APIs](#versioned-apis) below.
+</Info>
+
 </Accordion>
 <Accordion title="Combined SDKs from multiple APIs">
 
@@ -125,32 +118,29 @@ api:
       openapi: payments-api/openapi.yml
 ```
 </Accordion>
-<Accordion title="Versioned APIs in the same SDK">
+<Accordion title="Versioned APIs">
 
-Use this approach when you need to support multiple API versions simultaneously in your SDK.
+When supporting multiple API versions, you can publish them as separate packages or combine them into a single package with namespaces.
 
-#### Option 1: Branch-based versioning
+#### Option 1: Separate packages for each API version
 
-Each API version is maintained as a separate spec that publishes to a different branch of a single SDK repository. This approach allows you to release updates for older API versions independently and manage each as a different major version of your SDK (v1.x.x, v2.x.x).
+Use this approach when you want each API version to be independently installable (e.g., `@company/sdk-v1`, `@company/sdk-v2`). This use case follows the [Separate SDKs for each API](#separate-sdks-for-each-api) pattern. 
 
 ```bash
 fern/
   ├─ fern.config.json
   └─ apis/
-      ├─ v1/
-      │   ├─ generators.yml      # Configures v1 SDK
-      │   └─ openapi.yml
-      └─ v2/
-          ├─ generators.yml      # Configures v2 SDK
-          └─ openapi.yml
+    ├─ v1/
+    │   ├─ generators.yml        # Configures v1 SDKs
+    │   └─ openapi.yml
+    └─ v2/
+        ├─ generators.yml        # Configures v2 SDKs  
+        └─ openapi.yml
 ```
 
-Each API version must have its own `generators.yml` file that targets a [specific branch](/sdks/reference/generators-yml#github):
+Each API must have its own `generators.yml` file:
 
-<Tabs>
-<Tab title="apis/v1/generators.yml">
-
-```yaml title="apis/v1/generators.yml" {11}
+```yaml title="apis/v1/generators.yml"
 api:
   specs:
     - openapi: openapi.yml
@@ -159,28 +149,8 @@ groups:
     generators:
       - name: fernapi/fern-typescript-sdk
         github:
-          repository: company/sdk
-          mode: push
-          branch: v1              # Targets v1 branch
+          repository: company/sdk-v1
 ```
-</Tab>
-<Tab title="apis/v2/generators.yml">
-
-```yaml title="apis/v2/generators.yml" {11}
-api:
-  specs:
-    - openapi: openapi.yml
-groups:
-  ts-sdk:
-    generators:
-      - name: fernapi/fern-typescript-sdk
-        github:
-          repository: company/sdk
-          mode: pull-request
-          branch: v2              # Targets v2 branch
-```
-</Tab>
-</Tabs>
 
 #### Option 2: Namespace-based versioning
 

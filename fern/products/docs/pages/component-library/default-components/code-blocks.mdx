@@ -1,6 +1,7 @@
 ---
 title: 'Code Blocks'
 description: 'Learn how to enhance your documentation with customizable code blocks featuring syntax highlighting, line highlighting, focusing, and more.'
+max-toc-depth: 2
 ---
 
 Fern uses [Shiki](https://shiki.matsu.io/) for syntax highlighting in code blocks. 
@@ -272,13 +273,13 @@ By default, long lines that exceed the width of the code block become scrollable
 
 <Tabs>
   <Tab title="Example">
-    ```txt title="Without Word Wrap"
+    ```txt title="Without wordWrap"
     A very very very long line of text that may cause the code block to overflow and scroll as a result. 
     ```
   </Tab>
   <Tab title="Markdown">
     ````markdown
-    ```txt title="Without Word Wrap"
+    ```txt title="Without wordWrap"
     A very very very long line of text that may cause the code block to overflow and scroll as a result. 
     ```
     ````
@@ -289,29 +290,121 @@ To disable scrolling and wrap overflow onto the next line, use the `wordWrap` pr
 
 <Tabs>
   <Tab title="Example">
-    ```txt title="With Word Wrap" wordWrap
+    ```txt title="With wordWrap" wordWrap
     A very very very long line of text that may cause the code block to overflow and scroll as a result. 
     ```
   </Tab>
   <Tab title="Markdown">
     ````markdown
-    ```txt title="With Word Wrap" wordWrap
-    A very very very long line of text that may cause the codeblock to overflow and scroll as a result. 
+    ```txt title="With wordWrap" wordWrap
+    A very very very long line of text that may cause the code block to overflow and scroll as a result. 
     ```
     ````
   </Tab>
 </Tabs>
 
 
-## Combining props
+## Deep linking
 
-You can combine the `title`, `highlight`, `focus`, `startLine`, `maxLines`, and `wordWrap`
-props to create a code block with a title, highlighted lines, specific starting line,
-and a maximum height.
+You can make specific text within code blocks clickable by defining a `links` map. This is useful for linking to documentation, API references, or related resources directly from your code examples.
+
+The `links` property accepts a map where keys are matching patterns (exact strings or regex) and values are the URLs to link to.
+
+### Exact string matching
 
 <Tabs>
   <Tab title="Example">
-    ```javascript title="Hello, World!" {6-8} maxLines=5 startLine={4}
+    <CodeBlock
+      links={{"PlantClient": "/learn/docs/writing-content/demo#plantclient", "createPlant": "/learn/docs/writing-content/demo#createplant"}}
+    >
+    ```typescript
+    import { PlantClient } from "@plantstore/sdk";
+
+    const client = new PlantClient({ apiKey: "YOUR_API_KEY" });
+    const plant = await client.createPlant({
+      name: "Monstera",
+      species: "Monstera deliciosa"
+    });
+    ```
+    </CodeBlock>
+  </Tab>
+  <Tab title="Markdown">
+    ````markdown
+    <CodeBlock
+      links={{"PlantClient": "/learn/docs/writing-content/demo#plantclient", "createPlant": "/learn/docs/writing-content/demo#create_plant"}}
+    >
+    ```typescript 
+    import { PlantClient } from "@plantstore/sdk";
+
+    const client = new PlantClient({ apiKey: "YOUR_API_KEY" });
+    const plant = await client.createPlant({
+      name: "Monstera",
+      species: "Monstera deliciosa"
+    });
+    ```
+    </CodeBlock>
+    ````
+  </Tab>
+</Tabs>
+
+<Note>
+      The `links` property uses JSON format. Each key in the map is matched exactly against text in the Code Block, and matching text becomes a clickable link to the corresponding URL.
+    </Note>
+
+### Regex pattern matching
+
+You can use regex patterns for more flexible matching. This is useful when you want to link multiple variations or patterns of text. 
+
+In the example below, the pattern `/get\\w+/` matches both `getPlant` and `getGarden`, while `/Plant(Store|Client)/` matches both `PlantStore` and `PlantClient`.
+
+<Tabs>
+  <Tab title="Example">
+    <CodeBlock
+      links={{"/get\\w+/": "/learn/docs/writing-content/demo#get-methods", "/Plant(Store|Client)/": "/learn/docs/writing-content/demo#type-definitions"}}
+    >
+    ```python
+    from plantstore import PlantStore, PlantClient
+
+    store = PlantStore(api_key="YOUR_API_KEY")
+    client = PlantClient(store)
+
+    plant = store.getPlant(plant_id="123")
+    garden = store.getGarden(garden_id="456")
+    ```
+    </CodeBlock>
+  </Tab>
+  <Tab title="Markdown">
+    ````markdown
+    <CodeBlock
+       links={{"/get\\w+/": "/learn/docs/writing-content/demo#get-methods", "/Plant(Store|Client)/": "/learn/docs/writing-content/demo#type-definitions"}}
+    >
+    ```python
+    from plantstore import PlantStore, PlantClient
+
+    store = PlantStore(api_key="YOUR_API_KEY")
+    client = PlantClient(store)
+
+    plant = store.getPlant(plant_id="123")
+    garden = store.getGarden(garden_id="456")
+    ```
+    </CodeBlock>
+    ````
+  </Tab>
+</Tabs>
+
+<Note>
+      When using regex patterns, remember to escape special characters with double backslashes (e.g., `\\w+`, `\\d+`) in the JSON string.
+    </Note>
+
+## Combining props
+
+You can combine the `title`, `highlight`, `focus`, `startLine`, `maxLines`, `wordWrap`, and `links`
+props to create a code block with a title, highlighted lines, specific starting line,
+a maximum height, and clickable links.
+
+<Tabs>
+  <Tab title="Example">
+    ```javascript title="Hello, World!" {6-8} maxLines=5 startLine={4} links={{"console": "/learn/docs/writing-content/demo"}}
     console.log("Line 1");
     console.log("Line 2");
     console.log("Line 3");
@@ -325,8 +418,8 @@ and a maximum height.
     ```
   </Tab>
   <Tab title = "Markdown">
-    ````markdown maxLines=5
-    ```javascript title="Hello, World!" {6-8} maxLines=5 startLine={4}
+    ````markdown
+    ```javascript title="Hello, World!" {6-8} maxLines=5 startLine={4} links={{"console": "/learn/docs/writing-content/demo"}}
     console.log("Line 1");
     console.log("Line 2");
     console.log("Line 3");
