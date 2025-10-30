@@ -17,6 +17,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      
+      # Temporarily rename .mdx to .md
+      - name: Prepare MDX files
+        run: |
+          # Store original names
+          find . -name "*.mdx" > /tmp/mdx_files.txt
+          # Rename to .md
+          while read file; do
+            mv "$file" "${file%.mdx}.md"
+          done < /tmp/mdx_files.txt
+      
       - name: Quality Analysis
         id: analysis
         uses: markupai/content-guardian-action@v1
@@ -25,10 +36,20 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           dialect: "american_english"
           style-guide: "microsoft"
-          # tone is optional
           tone: "technical"
+      
+      # Rename back to .mdx
+      - name: Restore MDX extensions
+        if: always()
+        run: |
+          while read file; do
+            md_file="${file%.mdx}.md"
+            if [ -f "$md_file" ]; then
+              mv "$md_file" "$file"
+            fi
+          done < /tmp/mdx_files.txt
 
       - name: Check Quality Score
         run: |
           results='${{ steps.analysis.outputs.results }}'
-          # Add your quality threshold logic here
+          echo "$results"
