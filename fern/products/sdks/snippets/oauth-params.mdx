@@ -1,6 +1,10 @@
-Configure OAuth 2.0 client credentials authentication.
+<Note>
+  For Fern Definition, you can configure OAuth authentication either in `generators.yml` or [directly in your `api.yml` file](/api-definitions/ferndef/authentication#oauth-client-credentials). For OpenAPI, [OAuth must be configured in `generators.yml`](/api-definitions/openapi/authentication#oauth-client-credentials).
+</Note>
 
-```yaml
+Configure OAuth 2.0 client credentials authentication. Optionally configure a `refresh-token` endpoint for token renewal without re-authentication. 
+
+```yaml title="generators.yml" maxLines=10
 auth-schemes:
   my-oauth: # User-defined scheme name
     scheme: oauth
@@ -31,15 +35,14 @@ auth-schemes:
         expires-in: "expires_in"
         refresh-token: "refresh_token"
 ```
-
 <ParamField path="scheme" type="'oauth'" required={true}>
   Must be set to `"oauth"` for OAuth authentication schemes.
 </ParamField>
-<ParamField path="type" type="literal<'client-credentials'>" required={true}>
-  The OAuth flow type. Currently only `"client-credentials"` is supported.
+<ParamField path="type" type="'client-credentials'" required={true}>
+  The OAuth 2.0 grant type. Currently only `"client-credentials"` is supported.
 </ParamField>
-<ParamField path="scopes" type="list<string>" required={false}>
-  List of OAuth scopes to request during authentication.
+<ParamField path="scopes" type="list of strings" required={false}>
+  OAuth scopes to request when obtaining access tokens (e.g., `"read:users"`, `"write:orders"`).
 </ParamField>
 <ParamField path="client-id-env" type="string" required={false}>
   Environment variable name containing the OAuth client ID. When specified, the generated SDK will automatically scan for this environment variable at initialization.
@@ -48,8 +51,8 @@ auth-schemes:
   Environment variable name containing the OAuth client secret. When specified, the generated SDK will automatically scan for this environment variable at initialization.
 </ParamField>
 <ParamField path="token-prefix" type="string" default="Bearer">
-  Sets the token header value prefix.
+  Prefix added to the access token in the Authorization header (e.g., `"Bearer"` results in `"Authorization: Bearer <token>"`). Useful when your API expects a custom format.
 </ParamField>
 <ParamField path="token-header" type="string" default="Authorization">
-  Sets the token header key name.
+  HTTP header name used to send the access token. Defaults to `"Authorization"` but can be customized if your API uses a different header (e.g., `"X-API-Token"`).
 </ParamField>

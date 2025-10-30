@@ -1,6 +1,7 @@
 ---
 title: Authentication
-subtitle: Model auth schemes such as bearer, basic, and api key. 
+description: Model auth schemes such as bearer, basic, api key, and OAuth.
+max-toc-depth: 2
 ---
 
 Configuring authentication schemes happens in the `components.securitySchemes` section of OpenAPI. All Fern-generated SDKs support both direct configuration and environment variables for authentication credentials.
@@ -181,31 +182,67 @@ client = new Client({
 })
 ```
 
-## Multiple security schemes
+## OAuth client credentials
 
-If you would like to define multiple security schemes, simply 
-list them under `components.securitySchemes`. For example, if you wanted to support 
-`basic` and `apiKey` security schemes, see the example below: 
+<Markdown src="/snippets/pro-plan.mdx" />
 
-```yaml title="openapi.yml" {3,6}
-components: 
-  securitySchemes: 
-    BearerAuth:
-      type: http
-      scheme: bearer  
-    ApiKey: 
-      type: apiKey
-      in: header
-      name: X_API_KEY   
+Configure OAuth 2.0 client credentials in `generators.yml` rather than in the API specification:
+
+```yaml title="generators.yml" maxLines=10
+auth-schemes:
+  OAuth:
+    scheme: oauth
+    type: client-credentials
+    client-id-env: "OAUTH_CLIENT_ID"
+    client-secret-env: "OAUTH_CLIENT_SECRET"
+    get-token:
+      endpoint: "POST /oauth/token"
+      request-properties:
+        client-id: "client_id"
+        client-secret: "client_secret"
+      response-properties:
+        access-token: "access_token"
+        expires-in: "expires_in"
+        refresh-token: "refresh_token"
+    refresh-token:
+      endpoint: "POST /oauth/refresh"
+      request-properties:
+        refresh-token: "refresh_token"
+      response-properties:
+        access-token: "access_token"
+        expires-in: "expires_in"
+api:
+  auth: OAuth
+```
+
+<Info title="Endpoint configuration and token refresh">
+The `endpoint` values (e.g., `"POST /oauth/token"`) reference paths defined in your OpenAPI specification. When `expires-in` is returned, the SDK will automatically refresh tokens before they expire. For more details on OAuth configuration options, see the [Auth scheme reference](#oauth-authentication) below.
+</Info>
+
+The generated SDK would look like: 
+
+```ts index.ts
+
+// Uses process.env.OAUTH_CLIENT_ID and process.env.OAUTH_CLIENT_SECRET
+let client = new Client(); 
+
+// Or provide credentials explicitly
+client = new Client({
+  clientId: "your_client_id",
+  clientSecret: "your_client_secret"
+})
+
+// All token management happens automatically
+await client.users.list();
 ```
 
 ## Override security scheme
 
-You can use `generators.yml` to define custom authentication schemes that will take precedence when generating SDKs. 
+You can use `generators.yml` to define custom authentication schemes that will take precedence when generating SDKs. This is also how OAuth authentication is configured for OpenAPI specs.
 
 First, use the `auth-schemes` property to define your authentication scheme. Then, specify your auth scheme in the `api` property to override your OpenAPI spec. 
 
-```yml title="generators.yml" {1-6, 8}
+```yml title="generators.yml"
 auth-schemes:                 # Define custom auth scheme
   Bearer:                     
     scheme: bearer
@@ -219,16 +256,16 @@ api:
 ### Auth scheme reference
 
 <AccordionGroup>
-<Accordion title="Header authentication">
+<Accordion title="Header">
 <Markdown src="/products/sdks/snippets/header-auth-params.mdx" />
 </Accordion>
-<Accordion title="Basic authentication">
+<Accordion title="Basic">
 <Markdown src="/products/sdks/snippets/basic-auth-params.mdx" />
 </Accordion>
-<Accordion title="Bearer token authentication">
+<Accordion title="Bearer token">
 <Markdown src="/products/sdks/snippets/bearer-auth-params.mdx" />
 </Accordion>
-<Accordion title="OAuth authentication">
+<Accordion title="OAuth client credentials">
 <Markdown src="/products/sdks/snippets/oauth-params.mdx" />
 
 #### get-token
