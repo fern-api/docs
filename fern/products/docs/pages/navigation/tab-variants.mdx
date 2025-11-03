@@ -1,0 +1,192 @@
+---
+title: Tab variants
+description: Create multiple content variations within a single tab using variants in Fern Docs navigation.
+---
+
+Tab variants allow you to display different content variations within a single tab. This is useful when you want to show different perspectives, user types, or implementation approaches for the same topic without creating separate tabs.
+
+## Basic usage
+
+To use tab variants, define a tab with a `variants` property instead of a `layout` property. Each variant has its own title, layout, and optional configuration.
+
+```yaml title="docs.yml"
+tabs:
+  guides:
+    display-name: Guides
+    icon: book
+
+navigation:
+  - tab: guides
+    variants:
+      - title: For developers
+        layout:
+          - section: Getting started
+            contents:
+              - page: Quick start
+                path: ./pages/dev-quickstart.mdx
+              - page: API integration
+                path: ./pages/dev-api.mdx
+      - title: For product managers
+        layout:
+          - section: Getting started
+            contents:
+              - page: Overview
+                path: ./pages/pm-overview.mdx
+              - page: Use cases
+                path: ./pages/pm-use-cases.mdx
+```
+
+## Setting a default variant
+
+By default, the first variant in the list is displayed. You can explicitly set which variant should be the default by adding `default: true` to a variant.
+
+```yaml title="docs.yml" {11}
+navigation:
+  - tab: guides
+    variants:
+      - title: Advanced
+        layout:
+          - section: Advanced topics
+            contents:
+              - page: Custom integrations
+                path: ./pages/advanced.mdx
+      - title: Beginner
+        default: true
+        layout:
+          - section: Getting started
+            contents:
+              - page: Introduction
+                path: ./pages/intro.mdx
+```
+
+In this example, the "Beginner" variant displays by default even though it's listed second.
+
+## Variant properties
+
+Each variant supports the following properties:
+
+### Required properties
+
+- `title` (string): The display name for the variant
+- `layout` (list): The navigation structure for this variant, using the same format as regular tab layouts
+
+### Optional properties
+
+- `subtitle` (string): A subtitle displayed below the variant title
+- `icon` (string): A [Font Awesome icon](https://fontawesome.com/icons) name
+- `slug` (string): Custom URL slug for the variant
+- `skip-slug` (boolean): If true, the variant slug won't be added to URLs
+- `hidden` (boolean): If true, the variant is hidden from the navigation
+- `default` (boolean): If true, this variant displays by default
+- `viewers` (string or list): Role-based access control for the variant
+- `feature-flag` (string or object): Feature flag configuration for conditional display
+
+## Complete example
+
+Here's a comprehensive example showing multiple variants with various properties:
+
+```yaml title="docs.yml"
+tabs:
+  documentation:
+    display-name: Documentation
+    icon: book
+
+navigation:
+  - tab: documentation
+    variants:
+      - title: REST API
+        subtitle: HTTP-based integration
+        icon: fa-solid fa-code
+        slug: rest
+        default: true
+        layout:
+          - section: Authentication
+            contents:
+              - page: API keys
+                path: ./pages/rest/auth.mdx
+          - api: REST API Reference
+      
+      - title: GraphQL API
+        subtitle: Query-based integration
+        icon: fa-solid fa-diagram-project
+        slug: graphql
+        layout:
+          - section: Authentication
+            contents:
+              - page: OAuth setup
+                path: ./pages/graphql/auth.mdx
+          - api: GraphQL API Reference
+      
+      - title: SDKs
+        subtitle: Client libraries
+        icon: fa-solid fa-cube
+        slug: sdks
+        layout:
+          - section: Client libraries
+            contents:
+              - page: TypeScript
+                path: ./pages/sdks/typescript.mdx
+              - page: Python
+                path: ./pages/sdks/python.mdx
+```
+
+## Use cases
+
+Tab variants are particularly useful for:
+
+- **Multiple API types**: Show REST, GraphQL, and gRPC documentation in the same tab
+- **User personas**: Provide different content for developers, product managers, and administrators
+- **Implementation approaches**: Display different integration methods (SDK, REST API, CLI)
+- **Experience levels**: Separate beginner and advanced content
+- **Platform-specific guides**: Show iOS, Android, and web documentation variants
+
+## Variants vs. tabs
+
+Use **variants** when you want to show different perspectives or approaches to the same content area. Use **tabs** when you want to organize completely different sections of your documentation (like separating guides from API reference).
+
+```yaml title="When to use variants"
+# Good: Different approaches to the same topic
+navigation:
+  - tab: integration
+    variants:
+      - title: REST API
+        layout: [...]
+      - title: GraphQL
+        layout: [...]
+```
+
+```yaml title="When to use separate tabs"
+# Good: Completely different documentation sections
+navigation:
+  - tab: guides
+    layout: [...]
+  - tab: api-reference
+    layout: [...]
+```
+
+## Permissions and feature flags
+
+Variants support role-based access control and feature flags, allowing you to show different content to different users:
+
+```yaml title="docs.yml"
+navigation:
+  - tab: documentation
+    variants:
+      - title: Public documentation
+        viewers: public
+        layout:
+          - section: Getting started
+            contents:
+              - page: Introduction
+                path: ./pages/intro.mdx
+      
+      - title: Internal documentation
+        viewers: internal
+        layout:
+          - section: Internal guides
+            contents:
+              - page: Architecture
+                path: ./pages/internal/architecture.mdx
+```
+
+For more information on permissions, see [Role based access control](/learn/docs/authentication/rbac).
