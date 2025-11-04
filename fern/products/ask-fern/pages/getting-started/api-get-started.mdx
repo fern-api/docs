@@ -14,3 +14,31 @@ The Fern AI API allows you to manage your Ask Fern configuration using Fern's pu
 ## Authentication
 
 Fern API requests require a bearer token for authentication. Use the CLI command [`fern token`](/learn/cli-api/cli-reference/commands#fern-token) to generate a bearer token. Tokens do not expire.
+
+### JWT authentication flow
+
+For accessing protected documentation endpoints, you can exchange a Fern API key for a JWT token:
+
+1. Generate and export your Fern API key:
+
+```bash
+fern generate token
+export FERN_API_KEY=<your-token>
+```
+
+2. Request a JWT from the authentication endpoint:
+
+```bash
+export JWT=$(curl -X GET https://docs.example.com/api/fern-docs/get-jwt \
+  -H "FERN_API_KEY:${FERN_API_KEY}" \
+  -H 'x-fern-host: docs.example.com')
+```
+
+3. Use the JWT to access protected endpoints:
+
+```bash
+curl -X GET https://docs.example.com/api/endpoint \
+  -H 'Accept: text/plain' \
+  -H 'x-fern-host: docs.example.com' \
+  -H "FERN_TOKEN: ${JWT}"
+```
