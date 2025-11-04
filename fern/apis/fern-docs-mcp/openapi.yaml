@@ -1,0 +1,149 @@
+openapi: 3.1.0
+info:
+  title: Fern Docs MCP API
+  version: 1.0.0
+  description: API endpoints for MCP agents to authenticate and search Fern documentation sites.
+
+servers:
+  - url: https://docs.example.com
+    description: Your documentation domain
+
+paths:
+  /api/fern-docs/get-jwt:
+    get:
+      summary: Exchange an API key for a JWT
+      description: Exchange a Fern API key for a JWT token that can be used to access protected documentation endpoints.
+      operationId: getJwt
+      parameters:
+        - name: FERN_API_KEY
+          in: header
+          required: true
+          schema:
+            type: string
+          description: Your Fern API key
+        - name: ROLES
+          in: header
+          required: false
+          schema:
+            type: string
+          description: Comma-separated list of roles (e.g., "botanist,seedling")
+        - name: x-fern-host
+          in: header
+          required: false
+          schema:
+            type: string
+          description: Documentation domain (required on preview URLs)
+      responses:
+        '200':
+          description: Successfully generated JWT
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  fern_token:
+                    type: string
+                    description: JWT token for authenticating subsequent requests
+                  roles:
+                    type: array
+                    items:
+                      type: string
+                    description: Roles included in the JWT
+        '400':
+          description: Bad request (local preview, self-hosted, or SSO environment)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '401':
+          description: Unauthorized (missing or invalid API key)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '403':
+          description: Forbidden (API key does not belong to organization)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+
+  /api/fern-docs/search/v2/key:
+    get:
+      summary: Get search credentials
+      description: Retrieve Algolia search credentials for querying documentation. Supports API key or JWT authentication.
+      operationId: getSearchKey
+      parameters:
+        - name: FERN_API_KEY
+          in: header
+          required: false
+          schema:
+            type: string
+          description: Your Fern API key (Option 1)
+        - name: FERN_TOKEN
+          in: header
+          required: false
+          schema:
+            type: string
+          description: JWT token from /api/fern-docs/get-jwt (Option 2)
+        - name: ROLES
+          in: header
+          required: false
+          schema:
+            type: string
+          description: Comma-separated list of roles (only with FERN_API_KEY)
+        - name: X-User-Token
+          in: header
+          required: false
+          schema:
+            type: string
+          description: Optional user identifier for analytics
+        - name: x-fern-host
+          in: header
+          required: false
+          schema:
+            type: string
+          description: Documentation domain (required on preview URLs)
+      responses:
+        '200':
+          description: Successfully retrieved search credentials
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  appId:
+                    type: string
+                    description: Algolia application ID
+                  apiKey:
+                    type: string
+                    description: Short-lived Algolia search API key
+                  roles:
+                    type: array
+                    items:
+                      type: string
+                    description: Roles included in the search key (only with FERN_API_KEY auth)
+        '400':
+          description: Bad request (local preview or unsupported preview URL)
+        '401':
+          description: Unauthorized (invalid API key)
+        '403':
+          description: Forbidden (API key does not belong to organization)

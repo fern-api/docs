@@ -1,0 +1,327 @@
+---
+title: MCP server for your site
+subtitle: Use these endpoints to let your MCP agents fetch a JWT and a short-lived search key to query your docs.
+---
+
+<Markdown src="/snippets/pro-plan.mdx" />
+
+The Model Context Protocol (MCP) server endpoints allow AI agents and automated tools to authenticate and search your documentation programmatically. These endpoints are designed for machine-to-machine communication, enabling agents to access gated content and perform searches on behalf of users.
+
+## Use cases
+
+- **AI agent integration**: Allow MCP-compatible agents to authenticate and search your documentation
+- **Automated testing**: Programmatically verify documentation content and search functionality
+- **Custom integrations**: Build tools that need to access protected documentation content
+
+## API reference
+
+### Exchange an API key for a JWT
+
+Exchange a Fern API key for a JWT token that can be used to access protected documentation endpoints.
+
+```http
+GET /api/fern-docs/get-jwt
+```
+
+#### Request headers
+
+| Header | Type | Required | Description |
+|--------|------|----------|-------------|
+| `FERN_API_KEY` | string | Yes | Your Fern API key. Generate one using the [Fern CLI](/learn/cli-api/cli-reference/commands#fern-token). |
+| `ROLES` | string | No | Comma-separated list of roles to include in the JWT (e.g., `botanist,seedling`). |
+| `x-fern-host` | string | Conditional | Required on preview URLs; optional on custom domains. The documentation domain (e.g., `docs.example.com`). |
+
+#### Response
+
+**Success (200)**
+
+```json
+{
+  "fern_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "roles": ["botanist", "seedling"]
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `fern_token` | string | JWT token for authenticating subsequent requests |
+| `roles` | string[] | Roles included in the JWT |
+
+**Error responses**
+
+| Status | Description |
+|--------|-------------|
+| 400 | JWT generation is not accessible in local preview mode |
+| 400 | JWT generation is not supported in self-hosted environments |
+| 400 | SSO/WorkOS authentication is not supported by this endpoint |
+| 401 | Missing `FERN_API_KEY` header |
+| 401 | Invalid API key |
+| 403 | API key does not belong to the organization that owns this domain |
+| 500 | Authentication configuration error or JWT generation failed |
+
+#### Example
+
+```bash
+# Generate and export your Fern API key
+fern token
+export FERN_API_KEY=<your-token>
+
+# Request a JWT
+export JWT=$(curl -X GET https://docs.example.com/api/fern-docs/get-jwt \
+  -H "FERN_API_KEY:${FERN_API_KEY}" \
+  -H "ROLES: botanist,seedling" \
+  -H "x-fern-host: docs.example.com")
+
+# Extract the token from the response
+export FERN_TOKEN=$(echo $JWT | jq -r '.fern_token')
+```
+
+#### Environment restrictions
+
+- **Local preview**: Not available (returns 400)
+- **Self-hosted**: Not available (returns 400)
+- **Production**: Fully supported
+
+---
+
+### Get search credentials
+
+Retrieve Algolia search credentials for querying documentation. Supports two authentication methods: API key-based or JWT-based.
+
+```http
+GET /api/fern-docs/search/v2/key
+```
+
+#### Request headers
+
+**Option 1: API key authentication**
+
+| Header | Type | Required | Description |
+|--------|------|----------|-------------|
+| `FERN_API_KEY` | string | Yes | Your Fern API key. Generate one using the [Fern CLI](/learn/cli-api/cli-reference/commands#fern-token). |
+| `ROLES` | string | No | Comma-separated list of roles for filtering search results (e.g., `botanist,seedling`). |
+| `x-fern-host` | string | Conditional | Required on preview URLs; optional on custom domains. The documentation domain (e.g., `docs.example.com`). |
+
+**Option 2: JWT authentication**
+
+| Header | Type | Required | Description |
+|--------|------|----------|-------------|
+| `FERN_TOKEN` | string | Yes | JWT token obtained from `/api/fern-docs/get-jwt` |
+| `X-User-Token` | string | No | Optional user identifier for analytics (e.g., `aloe-bot-42`) |
+| `x-fern-host` | string | Conditional | Required on preview URLs; optional on custom domains. The documentation domain (e.g., `docs.example.com`). |
+
+Alternatively, the `FERN_TOKEN` can be provided as a cookie instead of a header.
+
+#### Response
+
+**Success (200)**
+
+```json
+{
+  "appId": "ABC123XYZ",
+  "apiKey": "a1b2c3d4e5f6g7h8i9j0",
+  "roles": ["botanist", "seedling"]
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `appId` | string | Algolia application ID |
+| `apiKey` | string | Short-lived Algolia search API key |
+| `roles` | string[] | Roles included in the search key (only present when using API key authentication) |
+
+**Error responses**
+
+| Status | Description |
+|--------|-------------|
+| 400 | Search key is not accessible in local preview mode |
+| 400 | Search is not supported for preview URLs (unless explicitly enabled) |
+| 401 | Invalid API key |
+| 403 | API key does not belong to the organization that owns this domain |
+
+#### Example with API key
+
+```bash
+# Using FERN_API_KEY
+curl -X GET https://docs.example.com/api/fern-docs/search/v2/key \
+  -H "FERN_API_KEY: ${FERN_API_KEY}" \
+  -H "ROLES: botanist" \
+  -H "x-fern-host: docs.example.com"
+```
+
+#### Example with JWT
+
+```bash
+# Using FERN_TOKEN from previous step
+curl -X GET https://docs.example.com/api/fern-docs/search/v2/key \
+  -H "FERN_TOKEN: ${FERN_TOKEN}" \
+  -H "X-User-Token: aloe-bot-42" \
+  -H "x-fern-host: docs.example.com"
+```
+
+#### Environment restrictions
+
+- **Local preview**: Not available (returns 400)
+- **Self-hosted**: Returns mock credentials (`appId: "selfhosted-appid"`, `apiKey: "selfhosted-apikey"`)
+- **Preview URLs**: Not available unless explicitly enabled (returns 400)
+- **Production**: Fully supported
+
+---
+
+## OpenAPI specification
+
+Download the complete OpenAPI specification for these endpoints:
+
+```yaml
+openapi: 3.1.0
+info:
+  title: Fern Docs MCP API
+  version: 1.0.0
+  description: API endpoints for MCP agents to authenticate and search Fern documentation sites.
+
+servers:
+  - url: https://docs.example.com
+    description: Your documentation domain
+
+paths:
+  /api/fern-docs/get-jwt:
+    get:
+      summary: Exchange an API key for a JWT
+      description: Exchange a Fern API key for a JWT token that can be used to access protected documentation endpoints.
+      operationId: getJwt
+      parameters:
+        - name: FERN_API_KEY
+          in: header
+          required: true
+          schema:
+            type: string
+          description: Your Fern API key
+        - name: ROLES
+          in: header
+          required: false
+          schema:
+            type: string
+          description: Comma-separated list of roles (e.g., "botanist,seedling")
+        - name: x-fern-host
+          in: header
+          required: false
+          schema:
+            type: string
+          description: Documentation domain (required on preview URLs)
+      responses:
+        '200':
+          description: Successfully generated JWT
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  fern_token:
+                    type: string
+                    description: JWT token for authenticating subsequent requests
+                  roles:
+                    type: array
+                    items:
+                      type: string
+                    description: Roles included in the JWT
+        '400':
+          description: Bad request (local preview, self-hosted, or SSO environment)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '401':
+          description: Unauthorized (missing or invalid API key)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '403':
+          description: Forbidden (API key does not belong to organization)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+
+  /api/fern-docs/search/v2/key:
+    get:
+      summary: Get search credentials
+      description: Retrieve Algolia search credentials for querying documentation. Supports API key or JWT authentication.
+      operationId: getSearchKey
+      parameters:
+        - name: FERN_API_KEY
+          in: header
+          required: false
+          schema:
+            type: string
+          description: Your Fern API key (Option 1)
+        - name: FERN_TOKEN
+          in: header
+          required: false
+          schema:
+            type: string
+          description: JWT token from /api/fern-docs/get-jwt (Option 2)
+        - name: ROLES
+          in: header
+          required: false
+          schema:
+            type: string
+          description: Comma-separated list of roles (only with FERN_API_KEY)
+        - name: X-User-Token
+          in: header
+          required: false
+          schema:
+            type: string
+          description: Optional user identifier for analytics
+        - name: x-fern-host
+          in: header
+          required: false
+          schema:
+            type: string
+          description: Documentation domain (required on preview URLs)
+      responses:
+        '200':
+          description: Successfully retrieved search credentials
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  appId:
+                    type: string
+                    description: Algolia application ID
+                  apiKey:
+                    type: string
+                    description: Short-lived Algolia search API key
+                  roles:
+                    type: array
+                    items:
+                      type: string
+                    description: Roles included in the search key (only with FERN_API_KEY auth)
+        '400':
+          description: Bad request (local preview or unsupported preview URL)
+        '401':
+          description: Unauthorized (invalid API key)
+        '403':
+          description: Forbidden (API key does not belong to organization)
+```
+
+You can also download this specification as a file: [openapi.yaml](/apis/fern-docs-mcp/openapi.yaml)
