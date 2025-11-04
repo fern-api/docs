@@ -1224,7 +1224,7 @@
           "Editing_Sessions"
         ],
         "summary": "Interrupt Editing Session",
-        "description": "Interrupt a running editing session.",
+        "description": "Interrupt a running editing session by sending INTERRUPT message to SQS.",
         "operationId": "interrupt_editing_session",
         "parameters": [
           {
@@ -1245,6 +1245,50 @@
                 "schema": {
                   "$ref": "#/components/schemas/InterruptEditingSessionResponse"
                 }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-fern-audiences": [
+          "internal"
+        ]
+      }
+    },
+    "/editing-sessions/{editing_id}/queue": {
+      "delete": {
+        "tags": [
+          "Editing_Sessions"
+        ],
+        "summary": "Cleanup Session Queue",
+        "description": "Delete the SQS queue for an editing session.",
+        "operationId": "cleanup_session_queue",
+        "parameters": [
+          {
+            "name": "editing_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Editing Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
               }
             }
           },
@@ -3276,6 +3320,51 @@
           "internal"
         ]
       }
+    },
+    "/upstash/qstash/failure-callback": {
+      "post": {
+        "tags": [
+          "Upstash"
+        ],
+        "summary": "Qstash Failure Callback",
+        "description": "Callback endpoint for Upstash QStash to notify about failed requests.\nLogs the failure details and posts to Slack #search-notifs channel.",
+        "operationId": "qstash_failure_callback",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QStashFailureCallback"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QStashFailureCallbackResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-fern-audiences": [
+          "internal"
+        ]
+      }
     }
   },
   "components": {
@@ -3894,6 +3983,17 @@
             ],
             "title": "Pr Url"
           },
+          "queue_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Queue Url"
+          },
           "status": {
             "$ref": "#/components/schemas/EditingSessionStatus"
           },
@@ -3916,6 +4016,7 @@
           "base_branch",
           "working_branch",
           "pr_url",
+          "queue_url",
           "status",
           "created_at",
           "updated_at"
@@ -3925,6 +4026,7 @@
       "EditingSessionStatus": {
         "type": "string",
         "enum": [
+          "startup",
           "waiting",
           "active",
           "interrupted",
@@ -4734,6 +4836,59 @@
           "citations"
         ],
         "title": "PostChatCompletionResponse"
+      },
+      "QStashFailureCallback": {
+        "properties": {
+          "dlqId": {
+            "type": "string",
+            "title": "Dlqid"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "status": {
+            "type": "integer",
+            "title": "Status"
+          },
+          "sourceHeader": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Sourceheader"
+          }
+        },
+        "type": "object",
+        "required": [
+          "dlqId",
+          "url",
+          "status"
+        ],
+        "title": "QStashFailureCallback"
+      },
+      "QStashFailureCallbackResponse": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "QStashFailureCallbackResponse"
       },
       "Query": {
         "properties": {
