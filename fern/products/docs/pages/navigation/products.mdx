@@ -26,6 +26,8 @@ subtitle: Allow users to seamlessly navigate between different products you offe
 
 Each product can contain its own distinct versions, tabs, sections, pages, and API references. Products can share content as well. 
 
+Products can be internal (hosted on your site) or external (linking to external URLs).
+
 ## Add products to your docs
 
 <Steps toc={true}>
@@ -33,6 +35,10 @@ Each product can contain its own distinct versions, tabs, sections, pages, and A
 
 Create a `products` folder inside of your `fern` folder. To specify a product's contents and navigational structure, add a `.yml` file to the `products` folder for each product.
 Make sure to include the `navigation` and `tabs` properties, if applicable.
+
+<Info title="External products">
+You can also define external products, which link to external URLs (separate applications, third-party documentation, or other external resources) instead of documentation within your site. They appear in the product switcher but navigate users to the specified URL when selected. Define external products directly in `docs.yml` (no product-specific `.yml` file is needed).
+</Info>
 
 ```bash {4, 7-8}
 fern/
@@ -43,6 +49,7 @@ fern/
     ├─ ...
     ├─ product-a.yml # Contents and navigation for Product A
     └─ product-b.yml # Contents and navigation for Product B
+    # No separate yml file needed for external products
 ```
 
 <CodeBlocks>
@@ -57,6 +64,7 @@ navigation:
 ```
 </CodeBlock>
 <CodeBlock title="products/product-b.yml">
+
 ```yaml
 tabs: 
   api: 
@@ -88,40 +96,53 @@ tabs:
 </Step>
 <Step title="Add your product configuration">
 
-To define a product, add an item to the `products` list in `docs.yml`, specifying the `display-name` and `path`.
+To define a product, add an item to the `products` list in `docs.yml`, specifying the `display-name` and either `path` (for internal products) or `href` (for external products).
 
-The optional parameters are: `image`, `icon`, `subtitle`, `slug`, and `versions`.
+For both internal and external products, `image`, `icon`, and `subtitle` are optional parameters. If you provide both an `image` and an `icon`, the `image` will take precedence. Internal products additionally support the optional `slug` and `versions` parameters. 
+  
+<Note title="Product icons">
+  <Markdown src="/snippets/icons.mdx" />
+</Note>
 
-<Note>If you provide both an `image` and an `icon`, the `image` will take precedence.</Note>
-
-The below example is a `docs.yml` configuration for a site with two products, Product A and Product B.
+The below example is a `docs.yml` configuration for a site with two internal products (Product A and Product B) and one external product (Product C).
 
 <CodeBlock title="docs.yml">
-```yaml {2-3, 8-9}
+```yaml {2-3, 8-9, 14-15}
 products:
   - display-name: Product A
     path: ./products/product-a.yml
-    icon: fa-solid fa-leaf # optional
+    icon: fa-solid fa-leaf # Font Awesome icon
     slug: product-a # optional
     subtitle: Product A subtitle # optional
 
   - display-name: Product B
     path: ./products/product-b/versions/latest/latest.yml # <-- default showing latest
-    image: ./images/product-b.png # optional
+    icon: ./assets/icons/product-b-icon.svg  # Custom image file
     slug: product-b # optional
     subtitle: Product B subtitle # optional
+  
+  - display-name: Product C 
+    href: https://dashboard.example.com # External product
+    icon: "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='currentColor'><path d='M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z'/></svg>"  # Inline SVG
+    subtitle: Product C subtitle
 ```
 </CodeBlock>
+
 </Step>
 <Step title="Remove extra navigation from docs.yml">
 
 If your `docs.yml` file includes a `navigation` field or a `tabs` field, be sure to remove. Those fields should now belong in the product-specific `.yml` files. 
+
+<Note>
+ External products don't support `navigation` and `tabs` fields.
+</Note>
+
 </Step>
 </Steps>
 
 ### Add versioning to your products
 
-You can optionally add versions to your products. Versioned and unversioned products can live next to each other in your site. 
+You can optionally add versions to your internal products. Versioned and unversioned products can live next to each other in your site. Versions are not supported for external products.
 
 <Note>For standalone versioning without products, see our [Versioning guide](/docs/configuration/versions).</Note>
 
@@ -324,4 +345,4 @@ The dropdown menus for product and version selectors can be customized using the
       <img src="webflow-version-selector.avif" alt="Example of a styled version selector" />
     </Frame>
   </Tab>
-</Tabs> 
+</Tabs>    
