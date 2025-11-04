@@ -1,0 +1,169 @@
+---
+title: SDK variables
+description: Use `x-fern-sdk-variables` to set common path parameters across all requests
+---
+
+The `x-fern-sdk-variables` extension allows you to define variables that are set once during SDK client initialization and automatically used in path parameters across all endpoint calls. This is particularly useful for common path parameters like tenant IDs, organization IDs, or environment identifiers that appear in many endpoint paths.
+
+## How it works
+
+SDK variables are defined at the document level using `x-fern-sdk-variables` and then referenced in path parameters using `x-fern-sdk-variable`. When a path parameter is marked as a variable, it becomes a required parameter in the SDK client constructor instead of being passed to individual endpoint methods.
+
+## Configuration
+
+### Define variables
+
+At the document level, define your variables with their types:
+
+```yaml title="openapi.yml"
+openapi: 3.0.0
+info:
+  title: Plant API
+  version: 1.0.0
+
+x-fern-sdk-variables:
+  gardenId:
+    type: string
+    description: The unique identifier for your garden
+```
+
+### Reference variables in path parameters
+
+Mark path parameters as variables using `x-fern-sdk-variable`:
+
+```yaml {9}
+paths:
+  /gardens/{gardenId}/plants:
+    get:
+      operationId: list_plants
+      parameters:
+        - name: gardenId
+          in: path
+          required: true
+          x-fern-sdk-variable: gardenId
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of plants
+```
+
+## Generated SDK behavior
+
+### TypeScript
+
+With SDK variables configured, the TypeScript SDK requires the variable in the client constructor:
+
+```typescript
+import { PlantClient } from "@acme/plant-api";
+
+const client = new PlantClient({
+  gardenId: "garden_123",
+  apiKey: "your-api-key"
+});
+
+// gardenId is automatically included in the request
+const plants = await client.listPlants();
+```
+
+Without SDK variables, the parameter would be required on each method call:
+
+```typescript
+// Without x-fern-sdk-variables
+const plants = await client.listPlants("garden_123");
+```
+
+### Python
+
+In Python SDKs, variables are required constructor parameters:
+
+```python
+from acme import PlantClient
+
+client = PlantClient(
+    garden_id="garden_123",
+    api_key="your-api-key"
+)
+
+# garden_id is automatically included in the request
+plants = client.list_plants()
+```
+
+### Java
+
+In Java SDKs, variables are set using builder methods:
+
+```java
+PlantClient client = PlantClient.builder()
+    .gardenId("garden_123")
+    .apiKey("your-api-key")
+    .build();
+
+// gardenId is automatically included in the request
+List<Plant> plants = client.listPlants();
+```
+
+## Multiple variables
+
+You can define multiple SDK variables for complex path hierarchies:
+
+```yaml title="openapi.yml"
+x-fern-sdk-variables:
+  gardenId:
+    type: string
+    description: The unique identifier for your garden
+  zoneId:
+    type: string
+    description: The zone within the garden
+
+paths:
+  /gardens/{gardenId}/zones/{zoneId}/plants:
+    get:
+      operationId: list_plants_in_zone
+      parameters:
+        - name: gardenId
+          in: path
+          required: true
+          x-fern-sdk-variable: gardenId
+          schema:
+            type: string
+        - name: zoneId
+          in: path
+          required: true
+          x-fern-sdk-variable: zoneId
+          schema:
+            type: string
+```
+
+This generates an SDK where both variables are set during initialization:
+
+```typescript
+const client = new PlantClient({
+  gardenId: "garden_123",
+  zoneId: "zone_456",
+  apiKey: "your-api-key"
+});
+
+const plants = await client.listPlantsInZone();
+```
+
+## Use cases
+
+SDK variables are ideal for:
+
+- **Multi-tenant APIs**: Set the tenant or organization ID once during client initialization
+- **Environment-specific paths**: Configure environment identifiers (production, staging) at the client level
+- **Hierarchical resources**: Set parent resource IDs that are used across many child resource endpoints
+- **Regional APIs**: Configure region identifiers that appear in all endpoint paths
+
+## Supported languages
+
+SDK variables are supported in the following Fern SDK generators:
+
+- TypeScript (v3.13.0+)
+- Python (v4.32.1+)
+- Java (v3.10.1+)
+
+<Note>
+  SDK variables only support string types. If you need more complex types, consider using global headers with `x-fern-global-headers` instead.
+</Note>
