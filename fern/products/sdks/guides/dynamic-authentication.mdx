@@ -1,0 +1,251 @@
+---
+title: Dynamic authentication
+description: Implement dynamic authentication patterns like short-lived JWT signing in your SDKs.
+---
+
+Your API may require dynamic authentication where credentials need to be generated or refreshed for each request, such as signing short-lived JWTs or rotating tokens. Fern-generated SDKs support this pattern through request-level header injection.
+
+## How it works
+
+Fern-generated SDKs accept a `headers` parameter in the `RequestOptions` for every API call. This allows you to inject dynamically computed headers (like signed JWTs) on a per-request basis without needing to override each method.
+
+## TypeScript example: Short-lived JWT signing
+
+Here's how to implement a client wrapper that signs a JWT valid for 15 seconds before each request:
+
+<Steps>
+
+### Create a wrapper client
+
+Create a custom client class that extends the generated Fern client and adds JWT signing logic:
+
+```typescript title="src/wrapper/MyClient.ts"
+import { MyClient as FernClient } from "../Client";
+import * as jwt from "jsonwebtoken";
+
+export class MyClient extends FernClient {
+  private privateKey: string;
+
+  constructor(options: { privateKey: string; environment: string }) {
+    super({
+      environment: options.environment,
+    });
+    this.privateKey = options.privateKey;
+  }
+
+  /**
+   * Generate a short-lived JWT token valid for 15 seconds
+   */
+  private generateJWT(): string {
+    const now = Math.floor(Date.now() / 1000);
+    const payload = {
+      iat: now,
+      exp: now + 15, // Expires in 15 seconds
+    };
+    
+    return jwt.sign(payload, this.privateKey, { algorithm: "RS256" });
+  }
+
+  /**
+   * Helper method to inject JWT into request options
+   */
+  private withJWT(requestOptions?: any): any {
+    const token = this.generateJWT();
+    return {
+      ...requestOptions,
+      headers: {
+        ...requestOptions?.headers,
+        Authorization: `Bearer ${token}`,
+      },
+    };
+  }
+
+  // Override methods to automatically inject JWT
+  async getUser(userId: string, requestOptions?: any) {
+    return super.getUser(userId, this.withJWT(requestOptions));
+  }
+
+  async createUser(request: any, requestOptions?: any) {
+    return super.createUser(request, this.withJWT(requestOptions));
+  }
+
+  // Add overrides for all other methods...
+}
+```
+
+### Export the wrapper client
+
+Update your `index.ts` to export the wrapper instead of the generated client:
+
+```typescript title="src/index.ts"
+export { MyClient } from "./wrapper/MyClient";
+export * from "./api"; // Export types
+```
+
+### Add to `.fernignore`
+
+Protect your custom code from being overwritten:
+
+```diff title=".fernignore"
++ src/wrapper
++ src/index.ts
+```
+
+### Use the client
+
+Your users can now use the client with automatic JWT signing:
+
+```typescript
+import { MyClient } from "my-sdk";
+
+const client = new MyClient({
+  privateKey: process.env.PRIVATE_KEY,
+  environment: "https://api.example.com",
+});
+
+// JWT is automatically signed and injected for each request
+const user = await client.getUser("user-123");
+const newUser = await client.createUser({ name: "Alice" });
+```
+
+</Steps>
+
+## Alternative: Proxy pattern without method overrides
+
+If you want to avoid overriding each method individually, you can use a Proxy to intercept all method calls:
+
+```typescript title="src/wrapper/MyClient.ts"
+import { MyClient as FernClient } from "../Client";
+import * as jwt from "jsonwebtoken";
+
+export class MyClient {
+  private client: FernClient;
+  private privateKey: string;
+
+  constructor(options: { privateKey: string; environment: string }) {
+    this.client = new FernClient({
+      environment: options.environment,
+    });
+    this.privateKey = options.privateKey;
+
+    // Return a proxy that intercepts all method calls
+    return new Proxy(this, {
+      get(target, prop) {
+        // If accessing the client property itself, return it
+        if (prop === "client" || prop === "privateKey") {
+          return target[prop as keyof typeof target];
+        }
+
+        // Get the property from the underlying client
+        const value = (target.client as any)[prop];
+
+        // If it's a function, wrap it to inject JWT
+        if (typeof value === "function") {
+          return function (...args: any[]) {
+            // The last argument is typically requestOptions
+            const lastArg = args[args.length - 1];
+            const isRequestOptions =
+              lastArg && typeof lastArg === "object" && !Array.isArray(lastArg);
+
+            if (isRequestOptions) {
+              // Inject JWT into existing request options
+              args[args.length - 1] = target.withJWT(lastArg);
+            } else {
+              // Add JWT as new request options
+              args.push(target.withJWT());
+            }
+
+            return value.apply(target.client, args);
+          };
+        }
+
+        return value;
+      },
+    });
+  }
+
+  private generateJWT(): string {
+    const now = Math.floor(Date.now() / 1000);
+    const payload = {
+      iat: now,
+      exp: now + 15,
+    };
+    return jwt.sign(payload, this.privateKey, { algorithm: "RS256" });
+  }
+
+  private withJWT(requestOptions?: any): any {
+    const token = this.generateJWT();
+    return {
+      ...requestOptions,
+      headers: {
+        ...requestOptions?.headers,
+        Authorization: `Bearer ${token}`,
+      },
+    };
+  }
+}
+```
+
+This approach automatically wraps all methods without needing to override each one individually.
+
+## Python example: Short-lived JWT signing
+
+For Python SDKs, you can use a similar pattern:
+
+```python title="src/wrapper/client.py"
+from .client import Client as FernClient
+import jwt
+import time
+from typing import Optional, Dict, Any
+
+class Client(FernClient):
+    def __init__(self, *, private_key: str, environment: str):
+        super().__init__(environment=environment)
+        self._private_key = private_key
+    
+    def _generate_jwt(self) -> str:
+        """Generate a short-lived JWT token valid for 15 seconds"""
+        now = int(time.time())
+        payload = {
+            "iat": now,
+            "exp": now + 15,
+        }
+        return jwt.encode(payload, self._private_key, algorithm="RS256")
+    
+    def _with_jwt(self, request_options: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Inject JWT into request options"""
+        token = self._generate_jwt()
+        options = request_options or {}
+        headers = options.get("headers", {})
+        headers["Authorization"] = f"Bearer {token}"
+        options["headers"] = headers
+        return options
+    
+    def get_user(self, user_id: str, *, request_options: Optional[Dict[str, Any]] = None):
+        return super().get_user(user_id, request_options=self._with_jwt(request_options))
+    
+    def create_user(self, request: Any, *, request_options: Optional[Dict[str, Any]] = None):
+        return super().create_user(request, request_options=self._with_jwt(request_options))
+```
+
+## Other authentication patterns
+
+This same pattern works for other dynamic authentication scenarios:
+
+- **OAuth token refresh**: Automatically refresh expired access tokens before each request
+- **HMAC signing**: Sign requests with HMAC signatures based on request content
+- **Rotating API keys**: Switch between multiple API keys based on rate limits
+- **Time-based tokens**: Generate tokens that include timestamps or nonces
+
+## Best practices
+
+- **Cache when possible**: If your tokens are valid for longer periods, cache them to avoid regenerating on every request
+- **Handle errors gracefully**: Implement retry logic for authentication failures
+- **Secure key storage**: Never hardcode private keys; use environment variables or secure key management systems
+- **Test thoroughly**: Ensure your wrapper handles all edge cases, including concurrent requests
+
+## See also
+
+- [Adding custom code](/sdks/capabilities/custom-code) - Learn more about extending generated SDKs
+- [TypeScript custom code](/sdks/generators/typescript/custom-code) - TypeScript-specific customization guide
+- [Python custom code](/sdks/generators/python/custom-code) - Python-specific customization guide
