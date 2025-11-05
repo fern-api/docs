@@ -22,9 +22,86 @@ Types describe the data model of your API.
 | `set` | An unordered collection with unique elements, e.g., `set<string>` |
 | `map` | Key-value mapping, e.g., `map<string, integer>` |
 | `optional` | Optional value, e.g., `optional<string>` |
+| `nullable` | Nullable value that can be explicitly set to `null`, e.g., `nullable<string>` |
 | `literal` | Literal value, e.g., `literal<"Plants">` |
 | `file` | File upload type, e.g., [file uploads](/learn/api-definition/fern/endpoints/multipart) |
 | `unknown` | Represents arbitrary JSON |
+
+### Optional vs Nullable
+
+Understanding the difference between `optional` and `nullable` is important for properly modeling your API:
+
+- **`optional<T>`**: The field can be omitted from the request/response entirely. When omitted, the field is not sent over the wire.
+- **`nullable<T>`**: The field must be present but can be explicitly set to `null`. This allows you to distinguish between "not specified" and "explicitly cleared".
+
+```yaml
+types:
+  User:
+    properties:
+      name: string
+      nickname: optional<string>  # Can be omitted entirely
+      bio: nullable<string>       # Must be present, but can be null
+```
+
+This distinction is particularly important for PATCH requests where you need to differentiate between:
+1. **Omitting a field** - Don't update this field (keep existing value)
+2. **Setting to `null`** - Clear this field (remove the value)
+3. **Setting to a value** - Update this field with a new value
+
+#### Example: PATCH request semantics
+
+```yaml
+types:
+  UpdateUserRequest:
+    properties:
+      nickname: optional<string>  # Omit to keep current nickname
+      bio: nullable<string>       # Set to null to clear bio
+```
+
+**TypeScript SDK usage:**
+```typescript
+// Don't update nickname, clear bio
+await client.users.update({
+  bio: null  // Explicitly clear the bio field
+  // nickname is omitted, so it won't be updated
+});
+
+// Update both fields
+await client.users.update({
+  nickname: "john_doe",
+  bio: "Software engineer"
+});
+```
+
+**Java SDK usage:**
+```java
+// With collapse-optional-nullable config enabled
+UpdateUserRequest.builder()
+    .nickname(Optional.empty())           // Omit field (don't update)
+    .bio(OptionalNullable.ofNull())      // Clear field (set to null)
+    .build();
+
+UpdateUserRequest.builder()
+    .nickname(Optional.of("john_doe"))
+    .bio(OptionalNullable.of("Software engineer"))
+    .build();
+```
+
+### Combining optional and nullable
+
+You can combine `optional` and `nullable` to create a field that can be omitted OR explicitly set to null:
+
+```yaml
+types:
+  User:
+    properties:
+      metadata: optional<nullable<map<string, string>>>
+```
+
+This creates three possible states:
+1. Field omitted entirely
+2. Field present with `null` value
+3. Field present with actual map data
 
 ## Custom types
 
