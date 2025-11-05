@@ -63,3 +63,86 @@ paths:
             type: string
           required: false
 ```
+
+## Delete parameters with null overrides
+
+You can use explicit `null` values in your overrides file to delete parameters from the base specification. This is useful when:
+
+- Resolving duplicate identifier conflicts between query parameters and request body properties
+- Removing deprecated or unnecessary parameters from the SDK
+- Simplifying the SDK interface by hiding internal parameters
+
+<Warning>
+Deleting parameters is a breaking change. Parameters removed via null overrides will not be available in the generated SDK, even though they exist in the base OpenAPI specification.
+</Warning>
+
+### Delete a single parameter
+
+To delete the first parameter from an endpoint, use `parameters: [null]` in your overrides file:
+
+```yaml title="overrides.yml" {5-6}
+paths:
+  "/edge-config":
+    post:
+      x-fern-sdk-group-name: edgeConfig
+      x-fern-sdk-method-name: create
+      parameters:
+        - null
+```
+
+This removes the first parameter defined in the base specification for this endpoint.
+
+### Delete multiple parameters
+
+To delete multiple parameters, add multiple `null` entries:
+
+```yaml title="overrides.yml" {5-8}
+paths:
+  "/users":
+    get:
+      x-fern-sdk-group-name: users
+      x-fern-sdk-method-name: list
+      parameters:
+        - null  # Deletes first parameter
+        - null  # Deletes second parameter
+```
+
+### Real-world example: Resolving duplicate identifiers
+
+A common use case is resolving duplicate identifier errors when a query parameter and request body property have the same name. In this example, both the query parameter `slug` and the request body property `slug` would cause a TypeScript compilation error:
+
+<CodeGroup>
+```yaml title="openapi.yml"
+paths:
+  "/edge-config":
+    post:
+      operationId: create_edge_config
+      parameters:
+        - name: slug
+          in: query
+          description: "The Team slug"
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                slug:
+                  type: string
+                  description: "The Edge Config slug"
+```
+
+```yaml title="overrides.yml"
+paths:
+  "/edge-config":
+    post:
+      x-fern-sdk-group-name: edgeConfig
+      x-fern-sdk-method-name: create
+      parameters:
+        - null  # Removes the query parameter slug
+```
+</CodeGroup>
+
+After applying the override, the generated SDK will only include the request body `slug` property, eliminating the duplicate identifier error.
