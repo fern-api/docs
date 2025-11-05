@@ -82,15 +82,26 @@ Extend the generated client to use the custom fetcher:
 import { PlantStoreClient as FernClient } from "../Client";
 import { createJwtFetcher } from "./jwtFetcher";
 
+// Infer the exact options type from the generated client's constructor
+type FernClientOptions = ConstructorParameters<typeof FernClient>[0];
+// Accept all options except 'fetcher', and add our 'privateKey'
+type Options = Omit<FernClientOptions, "fetcher"> & { privateKey: string };
+
 export class PlantStoreClient extends FernClient {
-  constructor(options: { privateKey: string; environment: string }) {
+  constructor(options: Options) {
+    // Extract privateKey and pass all other options to the parent
+    const { privateKey, ...clientOptions } = options;
     super({
-      environment: options.environment,
-      fetcher: createJwtFetcher(options.privateKey),
+      ...clientOptions,
+      fetcher: createJwtFetcher(privateKey),
     });
   }
 }
 ```
+
+<Note>
+This pattern uses `ConstructorParameters` to infer the exact options type from the generated client, ensuring compatibility with all client options (headers, timeoutInSeconds, maxRetries, etc.) without hardcoding them. This keeps the wrapper future-proof as the generator adds new options.
+</Note>
 
 ### Export the wrapper client
 
@@ -140,14 +151,16 @@ If you cannot enable `allowCustomFetcher` or prefer a simpler approach, you can 
 import { PlantStoreClient as FernClient } from "../Client";
 import * as jwt from "jsonwebtoken";
 
+type FernClientOptions = ConstructorParameters<typeof FernClient>[0];
+type Options = Omit<FernClientOptions, "fetcher"> & { privateKey: string };
+
 export class PlantStoreClient extends FernClient {
   private privateKey: string;
 
-  constructor(options: { privateKey: string; environment: string }) {
-    super({
-      environment: options.environment,
-    });
-    this.privateKey = options.privateKey;
+  constructor(options: Options) {
+    const { privateKey, ...clientOptions } = options;
+    super(clientOptions);
+    this.privateKey = privateKey;
   }
 
   private generateJWT(): string {
