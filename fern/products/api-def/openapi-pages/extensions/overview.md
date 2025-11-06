@@ -29,6 +29,7 @@ The table below shows all available extensions and links to detailed documentati
 | [`x-fern-sdk-variables`](./sdk-variables) | Set common path parameters across all requests |
 | [`x-fern-parameter-name`](./parameter-names) | Customize parameter variable names |
 | [`x-fern-property-name`](./property-names) | Customize object property variable names |
+| [`x-fern-retries`](./retries) | Configure retry behavior for endpoints (Python SDK only) |
 | [`x-fern-type-name`](./schema-names) | Override auto-generated names for inline schemas |
 | [`x-fern-server-name`](./server-names) | Name your servers |
 

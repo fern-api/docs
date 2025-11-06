@@ -1,0 +1,68 @@
+---
+title: Retry behavior
+subtitle: Configure retry behavior for endpoints using `x-fern-retries` extension
+---
+
+<Callout intent="info">
+  The `x-fern-retries` extension is currently supported in Python SDKs only.
+</Callout>
+
+The `x-fern-retries` extension allows you to configure retry behavior at the endpoint level in your OpenAPI specification. This gives you fine-grained control over how the generated SDK handles retries for specific endpoints, overriding any default retry configuration that end users may have set.
+
+## Disable retries
+
+To disable retries for a specific endpoint, set `disabled: true`:
+
+```yaml title="openapi.yml" {4-5}
+paths:
+  /plants/{plantId}:
+    get:
+      x-fern-retries:
+        disabled: true
+      operationId: get_plant
+      parameters:
+        - name: plantId
+          in: path
+          required: true
+          schema:
+            type: string
+```
+
+When retries are disabled at the endpoint level, the generated SDK will not retry failed requests to that endpoint, regardless of the end user's SDK configuration.
+
+## Use cases
+
+The `x-fern-retries` extension is useful when you want to:
+
+- **Disable retries for non-idempotent operations**: Prevent automatic retries on endpoints that shouldn't be retried, such as payment processing or order creation endpoints
+- **Override user configuration**: Ensure specific endpoints never retry, even if the end user has configured global retry settings in their SDK client
+- **Control retry behavior per endpoint**: Apply different retry strategies to different parts of your API based on their characteristics
+
+## Example: Disable retries for a POST endpoint
+
+In this example, we disable retries for a plant creation endpoint to prevent duplicate entries:
+
+```yaml title="openapi.yml" {4-5}
+paths:
+  /plants:
+    post:
+      x-fern-retries:
+        disabled: true
+      operationId: create_plant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                species:
+                  type: string
+      responses:
+        '201':
+          description: Plant created successfully
+```
+
+With this configuration, the generated Python SDK will enforce no retries on the `create_plant` method, regardless of the end user's retry configuration.
