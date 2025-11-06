@@ -7,13 +7,13 @@ subtitle: Configure retry behavior for endpoints using `x-fern-retries` extensio
   The `x-fern-retries` extension is supported in Python SDKs only.
 </Callout>
 
-The `x-fern-retries` extension allows you to configure retry behavior at the endpoint level in your OpenAPI specification. This gives you fine-grained control over how the generated SDK handles retries for specific endpoints, overriding any user-defined or default retry configuration.
+The `x-fern-retries` extension configures retry behavior per endpoint in your OpenAPI specification, overriding any
+retry settings configured by SDK users. Use it to disable retries for non-idempotent operations like payment
+processing or order creation.
 
-## Disable retries
+To disable retries for specific endpoints, set `disabled: true`.
 
-To disable retries for a specific endpoint, set `disabled: true`:
-
-```yaml title="openapi.yml" {4-5}
+```yaml title="openapi.yml" {4-5,15-16}
 paths:
   /plants/{plantId}:
     get:
@@ -26,24 +26,6 @@ paths:
           required: true
           schema:
             type: string
-```
-
-When retries are disabled at the endpoint level, the generated SDK won't retry failed requests to that endpoint, regardless of the SDK's user custom configuration.
-
-## Use cases
-
-The `x-fern-retries` extension is useful when you want to:
-
-- **Disable retries for non-idempotent operations**: Prevent automatic retries on endpoints that shouldn't be retried, such as payment processing or order creation endpoints
-- **Override user configuration**: Ensure specific endpoints never retry, even if the end user has configured global retry settings in their SDK client
-- **Control retry behavior per endpoint**: Apply different retry strategies to different parts of your API based on their characteristics
-
-## Example: Disable retries for a POST endpoint
-
-This example disables retries for a plant creation endpoint to prevent duplicate entries:
-
-```yaml title="openapi.yml" {4-5}
-paths:
   /plants:
     post:
       x-fern-retries:
@@ -64,3 +46,5 @@ paths:
         '201':
           description: Plant created successfully
 ```
+
+When retries are disabled at the endpoint level, the generated SDK won't retry failed requests to that endpoint, regardless of the SDK's user custom configuration.
