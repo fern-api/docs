@@ -23,7 +23,7 @@ Before you begin, make sure you have the following installed:
    cd docs
    ```
 
-### Editing Documentation
+### Editing documentation
 
 To run the documentation site locally:
 
