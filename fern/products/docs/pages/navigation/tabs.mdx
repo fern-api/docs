@@ -1,0 +1,160 @@
+---
+title: Tabs and tab variants
+description: Organize your documentation with tabs and show different content variations using tab variants.
+---
+
+Tabs let you group sections of your documentation together, while tab variants allow you to display different content perspectives within a single tab.
+
+## Tabs
+
+Add `tabs` to group sections together. The example below shows tabs for `Help Center`, `API Reference`, and an external link to `Github`. Each tab has a `title` and `icon`. 
+
+<CodeBlock>
+{/* <!-- vale off --> */}
+
+```yaml title="docs.yml"
+tabs: 
+  api: 
+    display-name: API Reference
+    icon: puzzle # Font Awesome icon
+  help:
+    display-name: Help center
+    icon: ./assets/icons/help-icon.svg  # Custom image file
+  github:
+    display-name: GitHub
+    icon: brands github # Font Awesome icon
+    href: https://github.com/fern-api/fern
+    
+ navigation: 
+  - tab: api
+    layout: 
+      - section: Introduction
+          contents: 
+            - page: My page
+                path: my-page.mdx
+        - api: API Reference   
+  - tab: help
+    layout: 
+      - section: Help center
+        contents: 
+          - page: Contact us
+              path: contact-us.mdx
+  - tab: github
+```
+{/* <!-- vale on --> */}
+</CodeBlock>
+
+<Note title="Tab icons">
+<Markdown src="/snippets/icons.mdx" />
+</Note>
+
+Here's an example of how a tabs implementation renders:
+
+<Frame>
+  <img src="./images/tabs-sidebar.png" alt="Tabs displayed in the sidebar (default)" />
+</Frame>
+
+### Tabs placement
+
+Tabs display in the left sidebar by default. To display them horizontally, set `tabs-placement` to `header` in your [layout configuration](/docs/configuration/what-is-docs-yml#layout-configuration).
+
+<CodeBlock title="docs.yml">
+```yaml
+layout:
+  tabs-placement: header
+```
+</CodeBlock>
+
+
+## Tab variants
+
+Tab variants let you display different content variations within a single tab, and [support RBAC](/learn/docs/authentication/rbac). This is useful for showing different user types, implementation approaches, or experience levels without creating separate tabs.
+
+<Tip title="When to use variants vs. tabs">
+  Use **variants** for different perspectives on the same content area (REST vs. GraphQL, beginner vs. advanced). Use **tabs** for completely different documentation sections (guides vs. API Reference).
+</Tip>
+
+### Basic usage
+
+Define a tab with a `variants` property instead of a `layout` property. Each variant has its own title and layout. The example below shows two variants for the `Help Center` tab.
+
+```yaml title="docs.yml" startLine=20 {22-34}
+tabs: 
+  api: 
+    display-name: API Reference
+    icon: puzzle
+  help:
+    display-name: Help center
+    icon: home
+  github:
+    display-name: GitHub
+    icon: brands github
+    href: https://github.com/fern-api/fern
+    
+navigation: 
+  - tab: api
+    layout: 
+      - section: Introduction
+        contents: 
+          - page: My page
+            path: my-page.mdx
+      - api: API Reference   
+  - tab: help
+    variants:
+      - title: For developers
+        layout:
+          - section: Getting started
+            contents:
+              - page: Quick start
+                path: ./pages/dev-quickstart.mdx
+      - title: For product managers
+        layout:
+          - section: Getting started
+            contents:
+              - page: Overview
+                path: ./pages/pm-overview.mdx
+  - tab: github
+```
+
+### Variant properties
+
+<ParamField path="title" type="string" required={true}>
+  Display name for the variant
+</ParamField>
+
+<ParamField path="layout" type="list" required={true}>
+  Navigation structure using the same format as regular tab layouts
+</ParamField>
+
+<ParamField path="subtitle" type="string">
+  Text displayed below the variant title
+</ParamField>
+
+<ParamField path="icon" type="string">
+  <Markdown src="/snippets/icons.mdx" />
+</ParamField>
+
+<ParamField path="slug" type="string">
+  Custom URL slug for the variant
+</ParamField>
+
+<ParamField path="skip-slug" type="boolean">
+  Exclude the variant slug from URLs
+</ParamField>
+
+<ParamField path="hidden" type="boolean">
+  Hide the variant from navigation
+</ParamField>
+
+<ParamField path="default" type="boolean">
+  When true, this variant displays by default. If not specified, the first variant in the list is used.
+</ParamField>
+
+<ParamField path="viewers" type="string | list">
+  Role-based access control for the variant
+</ParamField>
+
+<ParamField path="feature-flag" type="string | object">
+  Conditional display configuration
+</ParamField>
+

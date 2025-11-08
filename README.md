@@ -23,7 +23,7 @@ Before you begin, make sure you have the following installed:
    cd docs
    ```
 
-### Local development
+### Editing documentation
 
 To run the documentation site locally:
 
@@ -38,6 +38,9 @@ To run the documentation site locally:
    ```
 
 The development server will automatically reload when you make changes to the documentation files.
+
+Finally, when you make a PR to update the docs, a PR preview link will be generated which will allow you
+to test if your changes came out as intended. [Here](https://github.com/fern-api/docs/pull/1784) is a sample PR with a preview link.
 
 ## Contribution guide
 
