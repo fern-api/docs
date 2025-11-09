@@ -16,10 +16,10 @@ export const File: React.FC<FileProps> = ({
   className = '' 
 }) => {
   const baseClasses = "grid items-center gap-2 py-1 px-2 rounded transition-colors";
-  const highlightedClasses = highlighted ? "files-row-highlighted" : "";
   const gridClasses = "grid-cols-[24px_24px_1fr_auto]";
-  const combinedClasses = `${baseClasses} ${gridClasses} ${highlightedClasses} ${className}`.trim();
+  const combinedClasses = `${baseClasses} ${gridClasses} ${className}`.trim();
 
+  const highlightStyle = highlighted ? { backgroundColor: 'rgba(255, 235, 59, 0.15)' } : {};
   const formattedComment = comment ? (comment.startsWith('#') ? comment : `# ${comment}`) : null;
 
   const content = (
@@ -39,7 +39,8 @@ export const File: React.FC<FileProps> = ({
       {/* Comment */}
       {formattedComment && (
         <span 
-          className="files-row-comment text-xs font-mono whitespace-nowrap overflow-hidden text-ellipsis" 
+          className="text-xs font-mono whitespace-nowrap overflow-hidden text-ellipsis" 
+          style={{ color: '#6b7280', opacity: 0.8 }}
           title={formattedComment}
         >
           {formattedComment}
@@ -53,6 +54,7 @@ export const File: React.FC<FileProps> = ({
       <a 
         href={href} 
         className={`${combinedClasses} hover:underline cursor-pointer no-underline`}
+        style={highlightStyle}
       >
         {content}
       </a>
@@ -60,7 +62,7 @@ export const File: React.FC<FileProps> = ({
   }
 
   return (
-    <div className={combinedClasses}>
+    <div className={combinedClasses} style={highlightStyle}>
       {content}
     </div>
   );

@@ -22,9 +22,10 @@ export const Folder: React.FC<FolderProps> = ({
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
   const baseClasses = "grid items-center gap-2 py-1 px-2 rounded transition-colors";
-  const highlightedClasses = highlighted ? "files-row-highlighted" : "";
   const gridClasses = "grid-cols-[24px_24px_1fr_auto]";
-  const combinedClasses = `${baseClasses} ${gridClasses} ${highlightedClasses}`.trim();
+  const combinedClasses = `${baseClasses} ${gridClasses}`.trim();
+
+  const highlightStyle = highlighted ? { backgroundColor: 'rgba(255, 235, 59, 0.15)' } : {};
 
   const handleToggle = () => {
     setIsOpen(!isOpen);
@@ -67,7 +68,8 @@ export const Folder: React.FC<FolderProps> = ({
       <span className="text-default text-sm font-mono">{name}</span>
       {formattedComment && (
         <span 
-          className="files-row-comment text-xs font-mono whitespace-nowrap overflow-hidden text-ellipsis" 
+          className="text-xs font-mono whitespace-nowrap overflow-hidden text-ellipsis" 
+          style={{ color: '#6b7280', opacity: 0.8 }}
           title={formattedComment}
         >
           {formattedComment}
@@ -80,6 +82,7 @@ export const Folder: React.FC<FolderProps> = ({
     <a 
       href={href} 
       className={`${combinedClasses} hover:underline cursor-pointer no-underline`}
+      style={highlightStyle}
     >
       {content}
     </a>
@@ -87,6 +90,7 @@ export const Folder: React.FC<FolderProps> = ({
     <button
       onClick={handleToggle}
       className={`${combinedClasses} w-full text-left cursor-pointer border-0 bg-transparent`}
+      style={highlightStyle}
       aria-expanded={isOpen}
       type="button"
     >
