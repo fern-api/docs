@@ -55,6 +55,94 @@ sequenceDiagram
     C->>S: Deploys updated image
 ```
 
+## Health check endpoints
+
+The self-hosted container exposes health check endpoints for Kubernetes and Helm deployments on port 8081. These endpoints help you monitor the container's health and ensure proper startup behavior.
+
+### Liveness probe
+
+**Endpoint:** `/liveness`
+
+Checks if all critical service processes are still running by verifying their PIDs. This endpoint helps distinguish between unrecoverable failures (process died) and slow startups.
+
+**Usage:**
+```bash
+curl http://localhost:8081/liveness
+```
+
+**Response:**
+- `200 OK` - All critical processes are alive
+- `503 Service Unavailable` - One or more critical processes have died (container should be restarted)
+
+**Checked services:**
+- PostgreSQL
+- MinIO
+- FDR server
+- Next.js docs server
+- MeiliSearch (warning only, non-critical)
+
+### Readiness probe
+
+**Endpoint:** `/readiness`
+
+Checks if all services are healthy and ready to serve traffic by testing their health endpoints. This endpoint only returns success when all services are fully initialized and responsive.
+
+**Usage:**
+```bash
+curl http://localhost:8081/readiness
+```
+
+**Response:**
+- `200 OK` - All services are ready to serve traffic
+- `503 Service Unavailable` - One or more services are not ready (wait longer)
+
+**Checked services:**
+- PostgreSQL (via `pg_isready`)
+- MinIO (via `/minio/health/live`)
+- FDR server (via `/health`)
+- Next.js docs server (via root endpoint)
+- MeiliSearch (warning only, non-critical)
+
+### Legacy health endpoint
+
+**Endpoint:** `/health`
+
+Provides backward compatibility with existing deployments. Returns the same status as the readiness probe.
+
+**Usage:**
+```bash
+curl http://localhost:8081/health
+```
+
+### Kubernetes and Helm configuration
+
+Configure your deployment to use these probes:
+
+```yaml
+livenessProbe:
+  httpGet:
+    path: /liveness
+    port: 8081
+  initialDelaySeconds: 60
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /readiness
+    port: 8081
+  initialDelaySeconds: 30
+  periodSeconds: 5
+  timeoutSeconds: 5
+  failureThreshold: 3
+```
+
+**Benefits:**
+- **Liveness probe**: Detects unrecoverable failures and triggers container restart
+- **Readiness probe**: Prevents traffic routing to containers that are still starting up
+- **Independent of startup time**: Deployments no longer need arbitrary timeouts like `--wait --timeout 15m0s`
+
 
 
 
