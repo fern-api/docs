@@ -396,7 +396,7 @@ class FernUrlMapper {
     if (testUrls.length === 0) {
       // Default test URLs
       testUrls = [
-        '/learn/docs/writing-content/markdown',
+        '/learn/docs/writing-content/markdown-basics',
         '/learn/sdks/generators/python/configuration',
         '/learn/openapi-definition/overlay-customizations'
       ];
