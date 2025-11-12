@@ -1,13 +1,30 @@
-The `generators.yml` file declares which APIs your project contains and configures code generation (for example, SDKs). The APIs declared here can also be rendered in your documentation. **For OpenAPI**, it points to the location of your spec. **For Fern Definition**, Fern automatically detects your spec when your `definition/` folder is at the same level as `generators.yml`.
+The `generators.yml` file serves two purposes:
+
+1. **API declaration** (OpenAPI/AsyncAPI only): References your spec in the `api.specs` section, which is required for [generating API Reference documentation](/learn/docs/api-references/generate-api-ref)
+2. **SDK generation**: Configures which SDKs to generate in the `groups` section
+
+**For Fern Definition**, `generators.yml` is not required for API Reference docs. Fern automatically detects your API definition by checking for a `definition/` directory in your fern folder. You only need `generators.yml` if you're generating SDKs.
 
 <Tabs>
-<Tab title="OpenAPI">
+<Tab title="OpenAPI (API Reference docs only)">
+
+For OpenAPI, `generators.yml` is required even for docs-only usage. The `api.specs` section tells Fern where to find your spec:
+
+```yaml title="generators.yml"
+api:
+  specs:
+    - openapi: ./openapi/openapi.yml
+```
+</Tab>
+<Tab title="OpenAPI (API Reference + SDKs)">
+
+To generate SDKs in addition to docs, add a `groups` section below your `api.specs`:
 
 ```yaml title="generators.yml"
 # Your API definition
-api: 
-  specs: 
-    - openapi: ./openapi-1.yml
+api:
+  specs:
+    - openapi: ./openapi/openapi.yml
 
 # SDK generators
 groups:
@@ -16,36 +33,35 @@ groups:
       - name: fernapi/fern-typescript-sdk
         version: <Markdown src="/snippets/version-number-ts.mdx"/>
         github:
-          repository: your-organization/typescript-sdk-repo # Location of TypeScript SDK
-  
+          repository: your-organization/typescript-sdk-repo
+
   python-sdk:
     generators:
       - name: fernapi/fern-python-sdk
         version: <Markdown src="/snippets/version-number-python.mdx"/>
         github:
-          repository: your-organization/python-sdk-repo # Location of Python SDK
+          repository: your-organization/python-sdk-repo
 ```
 </Tab>
-<Tab title="Fern Definition">
+<Tab title="Fern Definition (SDKs)">
+
+For Fern Definition, `generators.yml` is only needed for SDK generation. API Reference docs work automatically when you have a `definition/` directory.
 
 ```yaml title="generators.yml"
-# No API reference needed – Fern auto-detects spec
-
-# SDK generators
 groups:
   ts-sdk:
     generators:
       - name: fernapi/fern-typescript-sdk
         version: <Markdown src="/snippets/version-number-ts.mdx"/>
         github:
-          repository: your-organization/typescript-sdk-repo # Location of TypeScript SDK
-  
+          repository: your-organization/typescript-sdk-repo
+
   python-sdk:
     generators:
       - name: fernapi/fern-python-sdk
         version: <Markdown src="/snippets/version-number-python.mdx"/>
         github:
-          repository: your-organization/python-sdk-repo # Location of Python SDK
+          repository: your-organization/python-sdk-repo
 ```
 </Tab>
 </Tabs>
