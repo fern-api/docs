@@ -30,7 +30,7 @@ Background image container for the documentation site.
 ```
 
 **Usage notes:**
-- The background image is fixed and will not scroll with the page content
+- The background image is fixed and won't scroll with the page content
 - Ensure sufficient contrast between background and text for readability
 
 ### .fern-page-heading
@@ -1958,6 +1958,165 @@ When customizing Fern CSS selectors, follow these best practices:
 5. **Test responsive behavior**: Many selectors have different styles at different breakpoints. Test your customizations across mobile, tablet, and desktop viewports.
 
 6. **Preserve transitions**: Many components use transitions for smooth interactions. Avoid removing transition properties unless intentional.
+
+## Light and dark mode customization
+
+Fern applies theme-specific CSS variables that automatically adapt to light and dark modes. Light mode uses the `.light` and `:root` selectors, while dark mode uses the `.dark` selector. Use Fern's CSS custom properties so your styles automatically adapt across themes.
+
+### Key CSS variables
+
+Fern provides the following CSS variables for theming:
+
+**Color scales:**
+- `--accent-1` through `--accent-12` - Accent color scale
+- `--accent-a1` through `--accent-a12` - Accent color scale with alpha transparency
+- `--grayscale-1` through `--grayscale-12` - Grayscale color scale
+- `--grayscale-a1` through `--grayscale-a12` - Grayscale with alpha transparency
+
+**Theme variables:**
+- `--background` - Page background color
+- `--card-background` - Card background color
+- `--border` - Border color
+- `--sidebar-background` - Sidebar background color
+- `--header-background` - Header background color
+- `--accent` - Primary accent color
+
+### Dynamic backgrounds
+
+Use CSS variables to create backgrounds that automatically adapt to the theme. Override with `.dark` selector only when you need theme-specific styling.
+
+```css
+/* Auto-adapts using Fern variables */
+.fern-background-image {
+  background-color: var(--background);
+  background-image: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--accent-9), var(--background) 85%) 0%,
+    var(--background) 100%
+  );
+}
+
+/* Explicit dark mode override for different gradient direction */
+.dark .fern-background-image {
+  background-image: linear-gradient(
+    to bottom,
+    var(--background) 0%,
+    color-mix(in srgb, var(--accent-9), var(--background) 85%) 100%
+  );
+}
+```
+
+### Dynamic cards
+
+Cards automatically adapt to theme changes when using CSS variables. Add explicit dark mode overrides only for properties like shadows that need theme-specific values.
+
+```css
+/* Plant catalog card that adapts to theme */
+.fern-card.plant-card {
+  background-color: var(--card-background);
+  border-color: var(--border);
+  color: var(--grayscale-12);
+  box-shadow: 0 1px 2px var(--grayscale-a3);
+}
+
+.fern-card.plant-card.interactive:hover {
+  box-shadow: 0 4px 12px var(--accent-a6);
+}
+
+/* Dark mode shadow adjustment */
+.dark .fern-card.plant-card {
+  box-shadow: 0 2px 6px var(--grayscale-a4);
+}
+```
+
+### Dynamic text
+
+Text colors automatically adapt when using Fern's grayscale and accent variables. Use `--grayscale-12` for primary text, `--grayscale-a11` for secondary text, and `--accent-11` for links.
+
+```css
+/* Plant species content */
+.plant-content {
+  color: var(--grayscale-12);
+}
+
+.plant-content .description {
+  color: var(--grayscale-a11);
+}
+
+.plant-content a {
+  color: var(--accent-11);
+  text-decoration-color: color-mix(in srgb, var(--accent-11), transparent 50%);
+}
+
+.plant-content a:hover {
+  color: var(--accent-12);
+}
+```
+
+### Dynamic images
+
+There are multiple approaches for adapting images to light and dark modes.
+
+**SVG icons with currentColor (recommended):**
+
+```html
+<svg class="plant-icon" width="24" height="24" fill="currentColor">
+  <!-- SVG paths -->
+</svg>
+```
+
+```css
+.plant-icon {
+  color: var(--grayscale-11);
+}
+
+.plant-icon.accent {
+  color: var(--accent-11);
+}
+```
+
+**Swapping background images:**
+
+```css
+.hero-plant {
+  background-image: url('/assets/plants/hero-light.png');
+  background-size: cover;
+  background-position: center;
+}
+
+.dark .hero-plant {
+  background-image: url('/assets/plants/hero-dark.png');
+}
+```
+
+**Using picture element with prefers-color-scheme:**
+
+```html
+<picture>
+  <source srcset="/assets/plants/hero-dark.png" media="(prefers-color-scheme: dark)">
+  <img src="/assets/plants/hero-light.png" alt="Plant species">
+</picture>
+```
+
+<Warning>
+  The `prefers-color-scheme` media query follows the operating system theme preference and may not match a manual theme toggle on your site. For perfect alignment with Fern's theme switcher, use the `.dark` selector approach instead.
+</Warning>
+
+**Using CSS filters (last resort):**
+
+```css
+.logo-monochrome {
+  filter: grayscale(1);
+}
+
+.dark .logo-monochrome {
+  filter: invert(1) grayscale(1);
+}
+```
+
+<Warning>
+  Avoid hardcoding hex colors in your custom CSS. Always use Fern's CSS variables to maintain proper contrast and theme consistency.
+</Warning>
 
 ## Example customizations
 
