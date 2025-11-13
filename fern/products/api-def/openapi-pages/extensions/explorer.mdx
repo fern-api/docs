@@ -3,14 +3,22 @@ title: API Explorer control
 description: Enable or disable the API Explorer using `x-fern-explorer` and `x-fern-explorer-enabled`
 ---
 
-Use `x-fern-explorer` to set the default API Explorer availability for your API, and `x-fern-explorer-enabled` to override it per operation. This is commonly used to disable the Explorer for destructive endpoints or payment flows. If omitted, the Explorer is enabled by default.
+The [API Explorer](/learn/docs/api-references/api-explorer/overview) is enabled by default for all endpoints. Use `x-fern-explorer` to disable it globally, or `x-fern-explorer-enabled` to control it per operation. This is commonly used to disable the Explorer for destructive operations, payment processing, or admin-only endpoints.
 
 ## Global
 
 To disable the API Explorer for your entire API, add `x-fern-explorer` at the root level:
 
-```yaml title="openapi.yml" {1}
-x-fern-explorer: false
+```yaml title="openapi.yml" {2}
+openapi: 3.0.0
+x-fern-explorer: false  # Disable Explorer for all endpoints
+info:
+  title: My API
+  version: 1.0.0
+paths:
+  /payments:
+    get:
+      operationId: list_payments
 ```
 
 ## Endpoint
@@ -19,12 +27,32 @@ To control the API Explorer for individual endpoints, use `x-fern-explorer-enabl
 
 ```yaml title="openapi.yml" {4,9}
 paths:
-  /users:
+  /payments:
     get:
-      x-fern-explorer-enabled: true
-  /users/{userId}:
-    delete:
-      x-fern-explorer-enabled: false
+      x-fern-explorer-enabled: true  # Enable Explorer for safe read operation
+  /payments/charge:
+    post:
+      x-fern-explorer-enabled: false  # Disable to prevent accidental transactions
 ```
 
-In this example, the `GET /users` endpoint has the Explorer enabled, while the `DELETE /users/{userId}` endpoint has it disabled.
+## Combining global and endpoint-level settings
+
+You can combine both extensions to set a default behavior globally and override it for specific endpoints:
+
+```yaml title="openapi.yml" {2,11}
+openapi: 3.0.0
+x-fern-explorer: false  # Disable Explorer globally
+info:
+  title: My API
+  version: 1.0.0
+paths:
+  /payments:
+    get:
+      operationId: list_payments
+      # Enable Explorer for safe read operation
+      x-fern-explorer-enabled: true
+  /payments/charge:
+    post:
+      operationId: charge_payment
+      # Remains disabled (global setting applies)
+```
