@@ -21,6 +21,7 @@ The table below shows all available extensions and links to detailed documentati
 | [`x-displayName`](./tag-display-names) | Specify how tag names display in your API Reference |
 | [`x-fern-enum`](./enum-descriptions-and-names) | Add descriptions and custom names to enum values |
 | [`x-fern-examples`](./request-response-examples) | Associate request and response examples |
+| [`x-fern-explorer`](./explorer) | Control API Explorer (playground) availability globally or per endpoint |
 | [`x-fern-global-headers`](./global-headers) | Configure headers used across all endpoints |
 | [`x-fern-header`](/api-definitions/openapi/authentication#apikey-security-scheme) | Customize API key header authentication parameter names and environment variables |
 | [`x-fern-ignore`](./ignoring-elements) | Skip reading specific endpoints or schemas |
