@@ -21,13 +21,16 @@ The table below shows all available extensions and links to detailed documentati
 | [`x-displayName`](./tag-display-names) | Specify how tag names display in your API Reference |
 | [`x-fern-enum`](./enum-descriptions-and-names) | Add descriptions and custom names to enum values |
 | [`x-fern-examples`](./request-response-examples) | Associate request and response examples |
+| [`x-fern-explorer`](./api-explorer-control) | Control API Explorer (playground) availability globally or per endpoint |
 | [`x-fern-global-headers`](./global-headers) | Configure headers used across all endpoints |
 | [`x-fern-header`](/api-definitions/openapi/authentication#apikey-security-scheme) | Customize API key header authentication parameter names and environment variables |
 | [`x-fern-ignore`](./ignoring-elements) | Skip reading specific endpoints or schemas |
 | [`x-fern-sdk-method-name`](./method-names) | Customize SDK method names |
 | [`x-fern-sdk-group-name`](./method-names) | Organize methods into SDK groups |
+| [`x-fern-sdk-variables`](./sdk-variables) | Set common path parameters across all requests |
 | [`x-fern-parameter-name`](./parameter-names) | Customize parameter variable names |
 | [`x-fern-property-name`](./property-names) | Customize object property variable names |
+| [`x-fern-retries`](./retry-behavior) | Configure retry behavior for endpoints |
 | [`x-fern-type-name`](./schema-names) | Override auto-generated names for inline schemas |
 | [`x-fern-server-name`](./server-names) | Name your servers |
 

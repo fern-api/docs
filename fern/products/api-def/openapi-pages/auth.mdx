@@ -4,30 +4,24 @@ description: Model auth schemes such as bearer, basic, api key, and OAuth.
 max-toc-depth: 2
 ---
 
-Configuring authentication schemes happens in the `components.securitySchemes` section of OpenAPI. All Fern-generated SDKs support both direct configuration and environment variables for authentication credentials.
+Authentication in OpenAPI is configured in two steps: first, define your schemes in `components.securitySchemes`, then apply them either globally or per-endpoint using the `security` property.
 
-```yml title="openapi.yml" {2-3}
-components: 
-  securitySchemes: 
-    ...
-```
-
-<Note>
-To apply a security scheme across all endpoints, reference the `securityScheme` within the `security` section of your OpenAPI Specification. 
-
-```yml title="openapi.yml" {3, 5-6}
-components: 
-  securitySchemes: 
+```yml title="openapi.yml" {2-5, 7-8}
+components:
+  securitySchemes:
     AuthScheme:
-      ...
-security: 
+      type: http
+      scheme: bearer
+# Apply globally across all endpoints
+security:
   - AuthScheme: []
 ```
-</Note>
+
+All Fern-generated SDKs support both direct configuration and environment variables for authentication credentials. Authentication schemes are also automatically supported in the [API Explorer](/learn/docs/api-references/api-explorer/overview#authentication), including multiple schemes and combinations.
 
 ## Bearer security scheme
 
-Start by defining a `bearer` security scheme in your `openapi.yml`: 
+Define a `bearer` security scheme in your `openapi.yml`: 
 
 ```yml title="openapi.yml" {3-5}
 components:
@@ -75,7 +69,7 @@ client = new Client({
 
 ## Basic security scheme
 
-Start by defining a `basic` security scheme in your `openapi.yml`: 
+Define a `basic` security scheme in your `openapi.yml`: 
 
 ```yaml title="openapi.yml" {3-5}
 components:
@@ -129,7 +123,7 @@ client = new Client({
 
 ## ApiKey security scheme
 
-Start by defining an `apiKey` security scheme in your `openapi.yml`: 
+Define an `apiKey` security scheme in your `openapi.yml`: 
 
 ```yml title="openapi.yml" {3-5}
 components: 
@@ -236,6 +230,38 @@ client = new Client({
 await client.users.list();
 ```
 
+## Multiple authentication schemes
+
+You can configure endpoints to support multiple authentication schemes or combinations of schemes. In the `security` section, multiple security requirement objects (top-level list items) are treated as OR options, while multiple schemes within a single object are combined with AND.
+
+```yaml title="openapi.yml"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+    basicAuth:
+      type: http
+      scheme: basic
+    apiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+/plant/search/status:
+  get:
+    summary: Search plants by status
+    security:
+      - bearerAuth: []           # Option 1: Bearer token only (OR)
+      - basicAuth: []            # Option 2: Basic auth AND API key (combined)
+        apiKey: []
+```
+
+In this example, users can authenticate with either a bearer token OR with both basic auth and an API key together.
+
+<Note>
+When using [OAuth client credentials](#oauth-client-credentials) with multiple authentication schemes, ensure the scheme name in your OpenAPI spec's `security` section matches the name defined in your `generators.yml` auth-schemes configuration.
+</Note>
+
 ## Override security scheme
 
 You can use `generators.yml` to define custom authentication schemes that will take precedence when generating SDKs. This is also how OAuth authentication is configured for OpenAPI specs.
@@ -243,15 +269,19 @@ You can use `generators.yml` to define custom authentication schemes that will t
 First, use the `auth-schemes` property to define your authentication scheme. Then, specify your auth scheme in the `api` property to override your OpenAPI spec. 
 
 ```yml title="generators.yml"
-auth-schemes:                 # Define custom auth scheme
-  Bearer:                     
+auth-schemes:
+  bearerAuth:                  # Must match the name used in your OpenAPI security section
     scheme: bearer
     token:
       name: apiKey             # Custom parameter name in the SDK
       env: YOUR_TOKEN_NAME     # Environment variable to auto-scan
 api:
-  auth: Bearer # Apply the custom scheme, overriding the OpenAPI spec
+  auth: bearerAuth             # Reference the same name from your OpenAPI spec
 ```
+
+<Warning>
+When overriding a security scheme in `generators.yml`, the name must match the scheme name referenced in your OpenAPI spec's `security` section. For example, if your OpenAPI spec uses `security: - bearerAuth: []`, then use `auth: bearerAuth` in generators.yml.
+</Warning>
 
 ### Auth scheme reference
 

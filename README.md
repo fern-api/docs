@@ -23,7 +23,7 @@ Before you begin, make sure you have the following installed:
    cd docs
    ```
 
-### Local development
+### Editing documentation
 
 To run the documentation site locally:
 
@@ -39,6 +39,9 @@ To run the documentation site locally:
 
 The development server will automatically reload when you make changes to the documentation files.
 
+Finally, when you make a PR to update the docs, a PR preview link will be generated which will allow you
+to test if your changes came out as intended. [Here](https://github.com/fern-api/docs/pull/1784) is a sample PR with a preview link.
+
 ## Contribution guide
 
 Thanks for contributing to Fern's documentation!
@@ -53,7 +56,7 @@ Keep the following principles in mind:
 - **Write in clear, concise language**, using [active voice](https://developers.google.com/style/voice) whenever possible. Keep sentences and paragraphs short and to the point. Be conversational and friendly tone. Stay away from jargon as much as you can.
 - **Use [Fern’s documentation components](https://buildwithfern.com/learn/docs/writing-content/components/overview)** whenever you can.
 - **When editing an existing page** - Match the existing heading structure, tone, and level of detail to ensure your changes integrate as seamlessly as possible.
-- **Use diagrams when it makes sense** – Show, don't tell! Use [Mermaid](https://buildwithfern.com/learn/docs/writing-content/markdown#diagrams), a Markdown-like diagramming syntax, to illustrate a workflow. 
+- **Use diagrams when it makes sense** – Show, don't tell! Use [Mermaid](https://buildwithfern.com/learn/docs/writing-content/markdown-media#diagrams), a Markdown-like diagramming syntax, to illustrate a workflow. 
 - [**Use sentence case**](https://developers.google.com/style/capitalization) for page and section headings. 
 
 > "Break any of these rules sooner than say anything outright barbarous."

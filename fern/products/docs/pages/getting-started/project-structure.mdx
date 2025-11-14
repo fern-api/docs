@@ -1,5 +1,5 @@
 ---
-title: Project Structure
+title: Project structure
 description: An overview of the file and folder structure of a Fern Docs project
 ---
 
@@ -13,7 +13,8 @@ This page provides an overview of the file and folder structure of a Fern Docs p
   ├─ pages
   ├─ assets
   ├─ docs.yml
-  ├─ openapi
+  ├─ openapi # or definition/ for the Fern Definition
+  ├─ generators.yml
   └─ fern.config.json
 ```
 </CodeBlock>
@@ -22,8 +23,9 @@ A Fern Docs project has the following top-level folders:
 
 - `pages`: Contains the Markdown (MDX) files that make up your documentation.
 - `assets`: Contains any images or videos used in your documentation.
-- `docs.yml`: The configuration file that defines the navigation, theme, and hosting details of your documentation.
-- `openapi`: Contains the OpenAPI Specification file (if you have an API Reference section in your documentation).
+- `docs.yml`: Defines the navigation, theme, and hosting details of your documentation.
+- `openapi` or `definition/`: Contains your API specification files (if you have an API Reference section).
+- `generators.yml`: Required for OpenAPI to reference your spec location. Also used to configure SDK generation. Not required for Fern Definition docs-only projects.
 - `fern.config.json`: The configuration file specifying your organization name and CLI version.
 
 ## Pages folder
@@ -68,7 +70,7 @@ The `assets` folder contains any images or videos used in your documentation. Yo
 
 The `docs.yml` file is the heart of your Fern documentation site. This configuration file controls your documentation's navigation structure, visual design, site functionality, and hosting settings.
 
-For complete configuration options, see the [docs.yml reference](/docs/configuration/what-is-docs-yml).
+For complete configuration options, see the [docs.yml reference](/docs/configuration/site-level-settings).
 
 <CodeBlock title="fern/docs.yml of this website">
 ```yml
@@ -106,11 +108,26 @@ title: Fern's Documentation
 ```
 </CodeBlock>
 
-## API Definitions 
+## API definitions and `generators.yml`
+
+To generate [API Reference](/docs/api-references/generate-api-ref) documentation, you need to provide your API definition. How you do this depends on your format:
+
+- **OpenAPI/AsyncAPI**: Always requires a `generators.yml` file with an `api.specs` section. You can optionally add a `groups` section for SDK generation.
+- **Fern Definition**: Auto-detected when you have a `definition/` directory. Only add `generators.yml` if you're generating SDKs.
+
+<Info>Using Fern for both API Reference docs and SDKs? You'll use `docs.yml` for your documentation settings and `generators.yml` to configure [SDK code snippets](/docs/api-references/sdk-snippets) in your API Reference.</Info>
 
 <AccordionGroup>
   <Accordion title="OpenAPI">
-    The `openapi` folder contains the OpenAPI Specification file for your API Reference section. Fern will read either a YAML or JSON file from this folder to generate the API Reference documentation. If you don't have an API Reference section, you can skip this folder.
+    The `openapi` folder contains your OpenAPI Specification file. Fern supports either YAML or JSON format.
+
+    You must also create a `generators.yml` file that references your spec:
+
+    ```yaml title="generators.yml"
+    api:
+      specs:
+        - openapi: ../openapi/openapi.json
+    ```
 
     In addition to your specification file, you can optionally [add an overrides file](/api-definitions/overview/overrides) for additional customizations. 
 
@@ -126,9 +143,9 @@ title: Fern's Documentation
 
   </Accordion>
   <Accordion title="Fern Definition">
-    The `definition` folder contains the Fern Definition YAML files used to generate the API Reference section. If you don't have an API Reference section, you can skip this folder.
+    The `definition` folder contains the Fern Definition YAML files used to generate the API Reference section. Fern automatically detects this directory, so no `generators.yml` is needed for API Reference documentation.
 
-    In addition to your specification file, you can optionally [add an overrides file](/api-definitions/overview/overrides) for additional customizations. 
+    You can optionally [add an overrides file](/api-definitions/overview/overrides) for additional customizations. 
 
     <CodeBlock title="fern/definition">
     ```bash
@@ -145,41 +162,30 @@ title: Fern's Documentation
 
   </Accordion>
   <Accordion title="Multiple APIs">
-    If you have multiple APIs, you can organize them into separate folders within the `apis` folder. Each API should have its own API definition and [(optional) overrides file](/api-definitions/overview/overrides). 
-    
-    For example:
+    Organize multiple APIs into separate folders. You can mix OpenAPI and Fern Definition formats:
+
     <CodeBlock title="fern/apis">
     ```bash
     apis
-    ├─ admin
-    │  ├─ openapi.json 
-    │  └─ overrides.yaml
-    ├─ user
-    │  ├─ openapi.yaml 
-    │  └─ overrides.yaml
+    ├─ admin-api
+    │  ├─ openapi.json
+    │  ├─ generators.yml       # Required for OpenAPI
+    │  └─ overrides.yaml       # Optional
+    └─ user-api
+       └─ definition/          # Auto-detected for Fern Definition
+          ├─ api.yml
+          └─ overrides.yaml    # Optional
     ```
     </CodeBlock>
 
-    To see this in practice, check out [Vapi's Fern configuration](https://github.com/VapiAI/docs/tree/main/fern/apis).
+    Reference each API in `docs.yml` using `api-name` that matches the folder name. To see this in practice, check out [Vapi's Fern configuration](https://github.com/VapiAI/docs/tree/main/fern/apis).
 
   </Accordion>
 </AccordionGroup>
 
-<Note>
-  If you're using Fern for both API Reference documentation and SDKs, you'll use both `docs.yml` (the Docs configuration file) and `generators.yml` ([the SDK configuration file](/sdks/overview/project-structure#generatorsyml)) to configure [how SDK code snippets appear](/docs/api-references/sdk-snippets) in your API reference documentation.  
-
-  If you're only using Fern for API Reference docs, not SDKs, your `generators.yml` should simply link to your spec:
-
-  ```yaml title="generators.yml"
-  api:
-    specs:
-      - openapi: ../openapi/openapi.json
-  ```
-</Note>
-
 
 ## `fern.config.json`
 
-<Markdown src="/snippets/fern-config-json-reference.mdx" />      
+<Markdown src="/snippets/fern-config-json-reference.mdx" />            
 
 
