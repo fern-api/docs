@@ -1045,7 +1045,7 @@ Analyze this issue and discussion to:
 3. Suggest additional search terms that would find the right pages
 
 Be specific about page paths. For example:
-- If it's about images, suggest "/learn/docs/writing-content/markdown" (which covers images)
+- If it's about images, suggest "/learn/docs/writing-content/markdown-media" (which covers images)
 - If it's about API configuration, suggest specific product pages like "/learn/sdks/generators/[language]/configuration"
 - If it's about navigation features, suggest "/learn/docs/navigation/*" pages
 
