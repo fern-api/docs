@@ -63,6 +63,8 @@ Fern supports two approaches for working with multiple API definitions:
 
 Use this approach when each API should generate its own independent set of SDKs. This works for both distinct APIs (e.g., `user-api` and `payments-api`) and versioned APIs where you want each version to be independently installable (e.g., `@company/sdk-v1`, `@company/sdk-v2`).
 
+<Steps>
+<Step title="Place each API in its own directory">
 Place each API or version of an API into a separate subfolder of `fern/apis/`:
 <Tabs>
 <Tab title="Multiple distinct APIs">
@@ -100,7 +102,9 @@ Place each API or version of an API into a separate subfolder of `fern/apis/`:
 </Files>
 </Tab>
 </Tabs>
+</Step>
 
+<Step title="Configure generators.yml for each API">
 Each API directory contains its own `generators.yml` file that references the spec in the same folder:
 
 ```yaml title="generators.yml"
@@ -110,6 +114,8 @@ api:
 groups:
   # SDK generator configuration
 ```
+</Step>
+</Steps>
 
 ### Combined SDKs from multiple APIs
 
@@ -117,10 +123,12 @@ groups:
     This feature is available only for the [Pro and Enterprise plans](https://buildwithfern.com/pricing). You can merge up to five APIs into a single SDK on the Pro plan, and unlimited APIs on the Enterprise plan. To get started, reach out to support@buildwithfern.com.
 </Warning>
 
-Use this approach when you want to merge multiple APIs into a single SDK package, with optional namespacing to organize them. This works for both distinct APIs and versioned APIs, though it increases package size as all APIs are bundled together. 
+Use this approach when you want to merge multiple APIs into a single SDK package, with optional namespacing to organize them. This works for both distinct APIs and versioned APIs, though it increases package size as all APIs are bundled together.
 
-For versioned APIs, namespacing let you access different versions like `client.v1` and `client.v2` within the same package. 
+For versioned APIs, [namespacing](#add-namespaces-optional) let you access different versions like `client.v1` and `client.v2` within the same package.
 
+<Steps>
+<Step title="Place each API in separate subfolders">
 Place each API into a separate subfolder of `fern/apis/`:
 
 <Tabs>
@@ -157,7 +165,9 @@ Place each API into a separate subfolder of `fern/apis/`:
 </Files>
 </Tab>
 </Tabs>
+</Step>
 
+<Step title="List all APIs in a single generators.yml">
 List all APIs in a single `generators.yml`:
 
 ```yaml title="generators.yml"
@@ -168,17 +178,19 @@ api:
 groups:
   # SDK generator configuration
 ```
+</Step>
 
-<Anchor id="namespaces">Add namespaces</Anchor> to handle overlapping schema names between APIs or to organize different API versions:
+<Step title="Add namespaces (optional)">
+Add namespaces to handle overlapping schema names between APIs or to organize different API versions:
 
 <Tabs>
 <Tab title="Distinct APIs">
-```yaml title="generators.yml"
+```yaml title="generators.yml" {4}
 api:
   specs:
-    - openapi: user-api/openapi.yml
+    - openapi: apis/user-api/openapi.yml
     - namespace: payments
-      openapi: payments-api/openapi.yml
+      openapi: apis/payments-api/openapi.yml
 groups:
   # SDK generator configuration
 ```
@@ -186,7 +198,7 @@ groups:
 <Tab title="Versioned APIs">
 List all API versions in a single `generators.yml` with namespaces:
 
-```yaml title="generators.yml"
+```yaml title="generators.yml" {3, 5}
 api:
   specs:
     - namespace: v1
@@ -198,3 +210,5 @@ groups:
 ```
 </Tab>
 </Tabs>
+</Step>
+</Steps>
