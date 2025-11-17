@@ -17,37 +17,62 @@ groups:
 ```
 
 <ParamField path="allowCustomFetcher" type="boolean" default="false" toc={true}>
-When enabled, the generated SDK accepts a `fetcher` parameter in the client options. This allows you to wrap the default fetcher with custom logic, enabling dynamic authentication patterns like JWT signing, OAuth token refresh, or HMAC signing.
-
-The custom fetcher acts as middleware for all HTTP requests, giving you a single injection point for authentication logic without overriding individual methods.
+Enables passing a custom fetcher function to the client. The custom fetcher intercepts all SDK HTTP requests and can be used for logging, tracing, metrics, header injection, routing through proxies, custom retries, or other cross-cutting behavior.
 
 ```yaml title="generators.yml"
 config:
   allowCustomFetcher: true
 ```
 
-With this enabled, you can provide a custom fetcher when instantiating the client:
+Example using a custom fetcher for request logging:
+
+```typescript title="src/wrapper/loggingFetcher.ts"
+import { fetcher as defaultFetcher, type FetchFunction } from "../core/fetcher";
+
+export function createLoggingFetcher(): FetchFunction {
+  return async (args) => {
+    const start = Date.now();
+    const headers = {
+      ...(args.headers ?? {}),
+      "X-Request-Id": globalThis.crypto?.randomUUID?.() ?? `${Date.now()}`
+    };
+    const res = await defaultFetcher({ ...args, headers });
+    const ms = Date.now() - start;
+    console.log(`${args.method} ${args.url} -> ${res.status} (${ms}ms)`);
+    return res;
+  };
+}
+```
+
+```typescript title="src/wrapper/PlantStoreClient.ts"
+import { PlantStoreClient as FernClient } from "../Client";
+import { createLoggingFetcher } from "./loggingFetcher";
+
+type FernClientOptions = ConstructorParameters<typeof FernClient>[0];
+type Options = Omit<FernClientOptions, "fetcher">;
+
+export class PlantStoreClient extends FernClient {
+  constructor(options: Options) {
+    super({
+      ...options,
+      fetcher: createLoggingFetcher()
+    });
+  }
+}
+```
 
 ```typescript
 import { PlantStoreClient } from "plant-store-sdk";
-import { fetcher as defaultFetcher } from "plant-store-sdk/core";
-
-const customFetcher = async (args) => {
-  // Add custom authentication logic here
-  const headers = {
-    ...args.headers,
-    Authorization: `Bearer ${getToken()}`,
-  };
-  return defaultFetcher({ ...args, headers });
-};
 
 const client = new PlantStoreClient({
-  environment: "https://api.plantstore.com",
-  fetcher: customFetcher,
+  environment: "https://api.plantstore.com"
 });
+
+await client.plants.get("monstera-123");
+// Logs: GET /plants/monstera-123 -> 200 (42ms)
 ```
 
-See [Dynamic authentication](/sdks/generators/typescript/dynamic-authentication) for detailed implementation examples.
+See [Dynamic authentication](/sdks/generators/typescript/dynamic-authentication) for an example of adding authentication middleware with a custom fetcher.
 </ParamField>
 
 <ParamField path="allowExtraFields" type="boolean" toc={true}>
