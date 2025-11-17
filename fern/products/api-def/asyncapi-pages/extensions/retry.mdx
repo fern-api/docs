@@ -1,19 +1,28 @@
 ---
 title: Retry behavior
-description: Configure retry behavior for operations using `x-fern-retry` extension
+description: The `x-fern-retries` extension is not supported for AsyncAPI
 ---
 
-Configure retry behavior for operations:
+<Callout intent="warning">
+  The `x-fern-retries` extension is **not supported** for AsyncAPI WebSocket channels. Retry configuration is only available for OpenAPI HTTP endpoints. If you use this extension in your AsyncAPI specification, it will be ignored and a warning will be emitted during import.
+</Callout>
 
-```yaml title="asyncapi.yml" {6-10}
+For retry configuration on HTTP endpoints, use the [`x-fern-retries` extension in OpenAPI](/api-definition/openapi/extensions/retries) instead.
+
+## Why retries aren't supported for AsyncAPI
+
+AsyncAPI specifications define WebSocket channels, which are persistent, bidirectional connections. Unlike HTTP requests that follow a request-response pattern where retry logic is meaningful, WebSocket connections maintain a continuous connection where retry semantics don't apply in the same way.
+
+## Example (not supported)
+
+The following example shows the `x-fern-retries` extension in an AsyncAPI specification. This will emit a warning during import and the extension will be ignored:
+
+```yaml title="asyncapi.yml" {6-7}
 operations:
   sendCriticalAlert:
     action: send
     channel:
       $ref: '#/channels/alerts'
-    x-fern-retry:
-      max_attempts: 3
-      exponential_backoff: true
-      initial_delay: 1000
-      max_delay: 30000
+    x-fern-retries:
+      disabled: true
 ```
