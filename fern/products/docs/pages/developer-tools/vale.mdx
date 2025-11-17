@@ -1,37 +1,75 @@
 ---
 title: Using Vale 
+description: Learn how to set up Vale to lint your Fern documentation and maintain consistent writing style across your docs.
 ---
 
-## What is Vale?
+[Vale](https://vale.sh/) is an open-source linting tool that helps maintain consistent writing style and catch common errors in documentation. 
 
-[Vale](https://vale.sh/) is an open-source tool for linting content from a variety of different file types, including Markdown.
+Use Vale with your Fern docs to automatically check for style issues and enforce writing guidelines. Vale runs locally or in CI/CD to catch issues before they're published.
 
-## Using Vale with MDX
+## Setup
 
-Once installed, you can use Vale with MDX files by adding a `.vale.ini` file to your Fern repo. please
+<Steps>
+<Step title="Install Vale">
+[Install Vale](https://vale.sh/docs/vale-cli/installation/) on your local machine.
+</Step>
+<Step title="Create a `.vale.ini` file in your repository root">
 
-<Tip>
-Be sure to add 
-```txt
+Create a [`.vale.ini` file](https://vale.sh/docs/vale-ini) and add the following to it so Vale parses MDX files as Markdown:
+
+```txt vale.ini
 [formats]
 mdx = md
 ```
-to your `.vale.ini` configuration so the MDX format is recognized. 
-</Tip>
 
-To use Vale's HTML-style comments (`<!-- comment -->`) in an MDX file, wrap within an MDX-styled comment (`{/* comment */}`). For example:
-- **disable Vale**: `{/* <!-- vale off --> */}`
-- **enable Vale**: `{/* <!-- vale on --> */}`
+</Step>
+<Step title="Add style rules">
+[Import existing Vale style packages](https://vale.sh/explorer) or create your own [style rules](https://vale.sh/docs/styles).
+</Step>
+<Step title="Check your docs">
 
+Check your entire documentation set, all pages in a directory, or a specific page:
+```bash
+vale fern/
+vale fern/pages/payments/
+vale fern/pages/payments/overview.mdx
+```
+</Step>
+<Step title="Disable Vale for certain kinds of content">
 
-```markdown title='Example Vale Usage'
+To disable Vale in specific sections of your Fern docs, use Vale comments wrapped in MDX syntax. This is particularly useful for code blocks, where Vale might flag variable names or code syntax as style violations.
+
+````jsx Example Vale Usage maxLines=10
 Vale will check this text.
 
 {/* <!-- vale off --> */}
 
-Vale won't check this text.
+Vale won't check this text
+
+<CodeBlock>
+```typescript
+import { PlantClient } from "@plantstore/sdk";
+
+const client = new PlantClient({ apiKey: "YOUR_API_KEY" });
+const plant = await client.createPlant({
+  name: "Monstera",
+  species: "Monstera deliciosa"
+});
+```
+</CodeBlock>
 
 {/* <!-- vale on --> */}
 
 Vale will start checking this text again.
-```
+````
+
+</Step>
+<Step title="Automate Vale (optional)">
+Consider integrating Vale into your workflow so it runs automatically for all contributors:
+
+- **GitHub Actions**: Use the [Vale Action](https://github.com/errata-ai/vale-action) to run Vale on pull requests and add inline comments on style issues
+- **Pre-commit hooks**: Use [Vale's pre-commit integration](https://vale.sh/docs/integrations/pre-commit) to check files before they're committed
+
+This helps enforce consistent style standards across your documentation team without requiring manual Vale runs.
+</Step>
+</Steps>
