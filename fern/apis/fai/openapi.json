@@ -3198,9 +3198,16 @@
           {
             "name": "org_name",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Org Name"
             }
           }
@@ -3301,6 +3308,49 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/UpstashCallbackRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-fern-audiences": [
+          "internal"
+        ]
+      }
+    },
+    "/settings/ask-ai/reindex-callback": {
+      "post": {
+        "tags": [
+          "Settings"
+        ],
+        "summary": "Reindex Callback",
+        "description": "Handle callback from SQS reindexing worker when reindex completes.",
+        "operationId": "reindex_callback",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReindexCallbackRequest"
               }
             }
           },
@@ -6463,6 +6513,51 @@
           "success"
         ],
         "title": "ReconstructIndexResponse"
+      },
+      "ReindexCallbackRequest": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "success",
+              "failure"
+            ],
+            "title": "Status"
+          },
+          "sourceMessageId": {
+            "type": "string",
+            "title": "Sourcemessageid"
+          },
+          "domain": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Domain"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "sourceMessageId"
+        ],
+        "title": "ReindexCallbackRequest",
+        "description": "Callback payload from SQS reindexing worker when a reindex job completes."
       },
       "ReindexWebsiteRequest": {
         "properties": {
