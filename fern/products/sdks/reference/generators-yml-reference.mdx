@@ -116,12 +116,13 @@ Defines the API specification (OpenAPI, AsyncAPI, etc.) and how to parse it. For
 
 ```yaml title="generators.yml" maxLines=10
 api:
+  settings:
+    inline-path-parameters: true # Applies to all OpenAPI specs
   specs:
     - openapi: "./openapi.yml"
       namespace: "v1"
       settings:
-        title-as-schema-name: true
-        inline-path-parameters: false
+        title-as-schema-name: true # Applies only to this OpenAPI spec
     - asyncapi: "./events.yml"
       namespace: "events"
   headers:
@@ -171,34 +172,14 @@ api:
 </ParamField>
 
 <ParamField path="settings" type="object" toc={true}>
-  Global API settings that apply to all specifications. These settings can be overridden at the spec level or generator level. The precedence hierarchy is: generator-level settings > spec-level settings > global settings.
+  Settings that apply to all specs of a given type (e.g., all OpenAPI specs). Can be overridden at the spec or generator level. Precedence: generator-level settings override spec-level settings, which override global settings.
 
-  ```yaml title="generators.yml"
-  api:
-    settings:
-      coerce-enums-to-literals: false
-      inline-path-parameters: true
-    specs:
-      - openapi: "./openapi.yml"
-        settings:
-          # Spec-level settings override global settings
-          coerce-enums-to-literals: true
-  
-  groups:
-    production:
-      generators:
-        - name: fernapi/fern-typescript-node-sdk
-          version: 0.9.0
-          api:
-            settings:
-              # Generator-level settings override both spec and global settings
-              coerce-enums-to-literals: false
-  ```
-
-  Global settings are useful for configuration flags that apply to the IR generator and should be consistent across all specifications and generators. For available settings, see the specification type documentation below.
+  For example, use this to ensure consistent parsing behavior across all your OpenAPI specs. For available settings, see the [specification type](#specification-types) documentation below.
 </ParamField>
 
 ### Specification types
+
+Each specification type (OpenAPI, AsyncAPI, etc.) supports various configuration options including the spec file location, namespace, overrides, and type-specific settings.
 
 <AccordionGroup>
 <Accordion title="OpenAPI">
@@ -236,7 +217,7 @@ api:
 </ParamField>
 
 <ParamField path="settings" type="object" toc={true}>
-  AsyncAPI-specific generation settings.
+  AsyncAPI-specific generation settings for this individual spec. To apply the same settings across all AsyncAPI specs, use global [`api.settings`](/learn/sdks/reference/generators-yml#settings) instead.
 </ParamField>
 
 <ParamField path="settings.message-naming" type="object" default="v1" toc={true}>
