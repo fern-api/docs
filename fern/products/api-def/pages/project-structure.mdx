@@ -30,7 +30,18 @@ When you run `fern init` (for the Fern Definition) or `fern init --spec-type pat
 
 ### `fern.config.json`
 
-<Markdown src="/snippets/fern-config-json-reference.mdx" />
+The `fern.config.json` file stores your organization name and the Fern CLI version. Pinning the version provides deterministic builds.
+
+```json title="fern.config.json"
+{
+  "organization": "plant-catalog",
+  "version": "<Markdown src="/snippets/version-number-cli.mdx"/>"
+}
+```
+
+<Info> 
+  When working with a locally installed CLI, set `version` to `"*"`. See [Install Fern CLI locally](/cli-api-reference/cli-reference/overview#install-fern-cli-locally) for details.
+</Info>
 
 ### `generators.yml`
 
@@ -54,15 +65,20 @@ For the other specification formats ([OpenAPI](/api-definitions/openapi/overview
 
 ## Multiple APIs
 
-When working with multiple API definitions, you can organize them in multiple ways depending on your SDK generation needs.
+Fern supports two approaches for working with multiple API definitions:
 
-<AccordionGroup>
-<Accordion title="Separate SDKs for each API">
+1. **Separate SDKs for each API** - Each API generates its own independent set of SDK packages (e.g., `@company/user-api`, `@company/payments-api` or versioned like `@company/sdk-v1`, `@company/sdk-v2`)
+2. **Combined SDKs from multiple APIs** - Multiple APIs merge into a single SDK package with optional namespacing (e.g., `client.users`, `client.payments` or versioned like `client.v1`, `client.v2`)
 
-Use this approach when each API should generate its own independent set of SDKs. 
+### Separate SDKs for each API
 
-Place each API into a separate subfolder of `fern/apis/`:
+Use this approach when each API should generate its own independent set of SDKs. This works for both distinct APIs (e.g., `user-api` and `payments-api`) and versioned APIs where you want each version to be independently installable (e.g., `@company/sdk-v1`, `@company/sdk-v2`).
 
+<Steps>
+<Step title="Place each API in its own directory">
+Place each API or version of an API into a separate subfolder of `fern/apis/`:
+<Tabs>
+<Tab title="Multiple distinct APIs">
 <Files>
   <Folder name="fern" defaultOpen>
     <File name="fern.config.json" />
@@ -78,111 +94,76 @@ Place each API into a separate subfolder of `fern/apis/`:
     </Folder>
   </Folder>
 </Files>
+</Tab>
+<Tab title="Multiple versioned APIs">
+<Files>
+  <Folder name="fern" defaultOpen>
+    <File name="fern.config.json" />
+    <Folder name="apis" defaultOpen>
+      <Folder name="v1" highlighted defaultOpen>
+        <File name="generators.yml" comment="Configures v1 SDKs" />
+        <File name="openapi.yml" />
+      </Folder>
+      <Folder name="v2" highlighted defaultOpen>
+        <File name="generators.yml" comment="Configures v2 SDKs" />
+        <File name="openapi.yml" />
+      </Folder>
+    </Folder>
+  </Folder>
+</Files>
+</Tab>
+</Tabs>
+</Step>
 
-Each API must have its own `generators.yml` file:
+<Step title="Configure generators.yml for each API">
+Each API directory contains its own `generators.yml` file that references the spec in the same folder:
 
-```yaml title="apis/user-api/generators.yml"
+```yaml title="generators.yml"
 api:
   specs:
-    - openapi: openapi.yml
+    - openapi: openapi.yml # Spec file in the same folder
 groups:
-  ts-sdk:
-    generators:
-      - name: fernapi/fern-typescript-sdk
-        github:
-          repository: company/user-api-typescript
+  # SDK generator configuration
 ```
-<Info>
-  You can use this same pattern for API versioning. See [Versioned APIs](#versioned-apis) below.
-</Info>
+</Step>
+</Steps>
 
-</Accordion>
-<Accordion title="Combined SDKs from multiple APIs">
+### Combined SDKs from multiple APIs
 
 <Warning title="Pro and Enterprise feature">
     This feature is available only for the [Pro and Enterprise plans](https://buildwithfern.com/pricing). You can merge up to five APIs into a single SDK on the Pro plan, and unlimited APIs on the Enterprise plan. To get started, reach out to support@buildwithfern.com.
 </Warning>
 
-Use this approach to merge multiple APIs into a single set of SDKs. Place each API into a separate subfolder of `fern/apis/`:
+Use this approach when you want to merge multiple APIs into a single SDK package, with optional namespacing to organize them. This works for both distinct APIs and versioned APIs, though it increases package size as all APIs are bundled together.
 
+For versioned APIs, [namespacing](#add-namespaces-optional) let you access different versions like `client.v1` and `client.v2` within the same package.
+
+<Steps>
+<Step title="Place each API in separate subfolders">
+Place each API into a separate subfolder of `fern/apis/`:
+
+<Tabs>
+<Tab title="Multiple distinct APIs">
 <Files>
   <Folder name="fern" defaultOpen>
     <File name="fern.config.json" />
     <File name="generators.yml" highlighted comment="Single config for combined SDKs" />
-    <Folder name="user-api" defaultOpen>
-      <File name="openapi.yml" />
-    </Folder>
-    <Folder name="payments-api" defaultOpen>
-      <File name="openapi.yml" />
-    </Folder>
-  </Folder>
-</Files>
-
-List all APIs in a single `generators.yml`:
-
-```yaml title="generators.yml"
-api: 
-  specs: 
-    - openapi: user-api/openapi.yml
-    - openapi: payments-api/openapi.yml
-```
-
-If your APIs have overlapping schema names, add namespaces:
-
-```yaml title="generators.yml"
-api: 
-  specs: 
-    - openapi: user-api/openapi.yml
-    - namespace: payments
-      openapi: payments-api/openapi.yml
-```
-</Accordion>
-<Accordion title="Versioned APIs">
-
-When supporting multiple API versions, you can publish them as separate packages or combine them into a single package with namespaces.
-
-#### Option 1: Separate packages for each API version
-
-Use this approach when you want each API version to be independently installable (e.g., `@company/sdk-v1`, `@company/sdk-v2`). This use case follows the [Separate SDKs for each API](#separate-sdks-for-each-api) pattern. 
-
-<Files>
-  <Folder name="fern" defaultOpen>
-    <File name="fern.config.json" />
     <Folder name="apis" defaultOpen>
-      <Folder name="v1" defaultOpen>
-        <File name="generators.yml" highlighted comment="Configures v1 SDKs" />
+      <Folder name="user-api">
         <File name="openapi.yml" />
       </Folder>
-      <Folder name="v2" defaultOpen>
-        <File name="generators.yml" highlighted comment="Configures v2 SDKs" />
+      <Folder name="payments-api">
         <File name="openapi.yml" />
       </Folder>
     </Folder>
   </Folder>
 </Files>
-
-Each API must have its own `generators.yml` file:
-
-```yaml title="apis/v1/generators.yml"
-api:
-  specs:
-    - openapi: openapi.yml
-groups:
-  ts-sdk:
-    generators:
-      - name: fernapi/fern-typescript-sdk
-        github:
-          repository: company/sdk-v1
-```
-
-#### Option 2: Namespace-based versioning
-
-If you prefer a single package with multiple API versions, use namespaces. This generates clients like `client.v1` and `client.v2` within the same package. Note that this increases package size as all versions are bundled together.
-
+</Tab>
+<Tab title="Multiple versioned APIs">
 <Files>
   <Folder name="fern" defaultOpen>
     <File name="fern.config.json" />
-    <File name="generators.yml" highlighted comment="Single config for all versions" />
+    <File name="generators.yml" highlighted comment="Single config for combined SDKs" />
     <Folder name="apis" defaultOpen>
       <Folder name="v1">
         <File name="openapi.yml" />
@@ -193,23 +174,52 @@ If you prefer a single package with multiple API versions, use namespaces. This 
     </Folder>
   </Folder>
 </Files>
+</Tab>
+</Tabs>
+</Step>
 
-List all API versions in a single `generators.yml` with namespaces:
+<Step title="List all APIs in a single generators.yml">
+List all APIs in a single `generators.yml`:
 
 ```yaml title="generators.yml"
-api: 
-  specs: 
+api:
+  specs:
+    - openapi: user-api/openapi.yml
+    - openapi: payments-api/openapi.yml
+groups:
+  # SDK generator configuration
+```
+</Step>
+
+<Step title="Add namespaces (optional)">
+Add namespaces to handle overlapping schema names between APIs or to organize different API versions:
+
+<Tabs>
+<Tab title="Distinct APIs">
+```yaml title="generators.yml" {4}
+api:
+  specs:
+    - openapi: apis/user-api/openapi.yml
+    - namespace: payments
+      openapi: apis/payments-api/openapi.yml
+groups:
+  # SDK generator configuration
+```
+</Tab>
+<Tab title="Versioned APIs">
+List all API versions in a single `generators.yml` with namespaces:
+
+```yaml title="generators.yml" {3, 5}
+api:
+  specs:
     - namespace: v1
       openapi: apis/v1/openapi.yml
     - namespace: v2
       openapi: apis/v2/openapi.yml
 groups:
-  ts-sdk:
-    generators:
-      - name: fernapi/fern-typescript-sdk
-        github:
-          repository: company/sdk
+  # SDK generator configuration
 ```
-
-</Accordion>
-</AccordionGroup>
+</Tab>
+</Tabs>
+</Step>
+</Steps>

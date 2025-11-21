@@ -2854,52 +2854,6 @@
         ]
       }
     },
-    "/settings/ask-ai": {
-      "get": {
-        "tags": [
-          "Settings"
-        ],
-        "summary": "Get Settings",
-        "description": "Get settings for a domain and organization.",
-        "operationId": "get_settings",
-        "parameters": [
-          {
-            "name": "domain",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Domain"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GetSettingsResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        },
-        "x-fern-audiences": [
-          "internal"
-        ]
-      }
-    },
     "/settings/ask-ai/docs": {
       "get": {
         "tags": [
@@ -3198,9 +3152,16 @@
           {
             "name": "org_name",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "string",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "title": "Org Name"
             }
           }
@@ -3301,6 +3262,49 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/UpstashCallbackRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-fern-audiences": [
+          "internal"
+        ]
+      }
+    },
+    "/settings/ask-ai/reindex-callback": {
+      "post": {
+        "tags": [
+          "Settings"
+        ],
+        "summary": "Reindex Callback",
+        "description": "Handle callback from SQS reindexing worker when reindex completes.",
+        "operationId": "reindex_callback",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReindexCallbackRequest"
               }
             }
           },
@@ -5622,7 +5626,7 @@
           "ask_ai_enabled": {
             "type": "boolean",
             "title": "Ask Ai Enabled",
-            "description": "Whether Ask AI is enabled"
+            "description": "Whether Ask AI is enabled (requires one of docs, slack, or discord to be enabled as well as the content to be indexed)"
           },
           "job_id": {
             "anyOf": [
@@ -5635,6 +5639,42 @@
             ],
             "title": "Job Id",
             "description": "Active job ID if reindexing is in progress"
+          },
+          "docs_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Docs Enabled",
+            "description": "Whether Ask AI is enabled for docs"
+          },
+          "slack_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slack Enabled",
+            "description": "Whether Ask AI is enabled for slack"
+          },
+          "discord_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Discord Enabled",
+            "description": "Whether Ask AI is enabled for discord"
           }
         },
         "type": "object",
@@ -5905,7 +5945,7 @@
               }
             ],
             "title": "Url Pattern",
-            "description": "Regex pattern to filter URLs (e.g., 'https://example\\.com/(docs|api)/.*')."
+            "description": "Regex pattern to filter URLs (e.g., `https://example\\.com/(docs|api)/.*`)."
           },
           "chunk_size": {
             "anyOf": [
@@ -6265,7 +6305,7 @@
             "anyOf": [
               {
                 "type": "integer",
-                "maximum": 1000.0,
+                "maximum": 3500.0,
                 "minimum": 100.0
               },
               {
@@ -6273,8 +6313,8 @@
               }
             ],
             "title": "Max Tokens",
-            "description": "The maximum number of tokens to generate. Defaults to 1000. Note: setting a token count lower than 400 may result in incomplete responses. You can add a custom system prompt to let the model know the maximum token count it can use.",
-            "default": 1000
+            "description": "The maximum number of tokens to generate. Note: setting a token count lower than 2000 may result in incomplete responses. You can add a custom system prompt to control the verbosity of the response.",
+            "default": 3000
           },
           "system_prompt": {
             "anyOf": [
@@ -6295,6 +6335,19 @@
             "type": "array",
             "title": "Messages",
             "description": "The messages to use for the chat completion"
+          },
+          "rewrite_query": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rewrite Query",
+            "description": "Whether to rewrite the query using query decomposition",
+            "default": false
           }
         },
         "type": "object",
@@ -6451,6 +6504,51 @@
         ],
         "title": "ReconstructIndexResponse"
       },
+      "ReindexCallbackRequest": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "success",
+              "failure"
+            ],
+            "title": "Status"
+          },
+          "sourceMessageId": {
+            "type": "string",
+            "title": "Sourcemessageid"
+          },
+          "domain": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Domain"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "sourceMessageId"
+        ],
+        "title": "ReindexCallbackRequest",
+        "description": "Callback payload from SQS reindexing worker when a reindex job completes."
+      },
       "ReindexWebsiteRequest": {
         "properties": {
           "base_url": {
@@ -6492,7 +6590,7 @@
               }
             ],
             "title": "Url Pattern",
-            "description": "Regex pattern to filter URLs (e.g., 'https://example\\.com/(docs|api)/.*'). If not provided, uses previous config."
+            "description": "Regex pattern to filter URLs (e.g., `https://example\\.com/(docs|api)/.*`). If not provided, uses previous config."
           },
           "chunk_size": {
             "anyOf": [
