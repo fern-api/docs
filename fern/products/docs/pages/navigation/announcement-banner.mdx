@@ -20,41 +20,41 @@ Announcements can be configured at multiple levels to target specific products o
 2. **Product-level** (if defined, used when no version-level announcement exists)
 3. **Config-level** (fallback when no product or version-level announcement is defined)
 
-### Version-level announcements
+Add the `announcement` property directly to items in the `products:` or `versions:` lists in your `docs.yml` file.
 
-To configure an announcement for a specific version, add the `announcement` property to the version's configuration file:
-
-```yaml version-docs.yml
-announcement:
-    message: "This version is deprecated. Please upgrade to v2."
-
-navigation:
-  - page: Getting started
-    path: ./getting-started.mdx
-```
-
-### Product-level announcements
-
-To configure an announcement for a specific product, add the `announcement` property to the product's configuration file:
-
-```yaml product-docs.yml
-announcement:
-    message: "New SDK features available! Check out the changelog."
-
-navigation:
-  - page: Overview
-    path: ./overview.mdx
-```
-
-### Config-level announcements
-
-Config-level announcements are defined in the root `docs.yml` file and serve as the default for all products and versions:
+### Example with all three levels
 
 ```yaml docs.yml
+# Config-level announcement (fallback for all products/versions)
 announcement:
-    message: "Welcome to our documentation!"
+  message: "Welcome to our documentation!"
 
 products:
-  - display-name: API Reference
-    path: ./products/api/api.yml
+  - display-name: Docs
+    path: ./products/docs/docs.yml
+    # Product-level announcement (overrides config-level for this product)
+    announcement:
+      message: "Docs product is in beta. Features may change."
+
+  - display-name: SDKs
+    path: ./products/sdks/sdks.yml
+    announcement:
+      message: "New SDK features available!"
+    
+    versions:
+      - display-name: v1
+        path: ./products/sdks/v1/docs.yml
+        # Version-level announcement (highest priority, overrides product and config)
+        announcement:
+          message: "v1 is in maintenance mode. Please upgrade to v2."
+      
+      - display-name: v2
+        path: ./products/sdks/v2/docs.yml
+        # This version will show the product-level announcement
 ```
+
+In this example:
+- Pages in SDKs v1 show "v1 is in maintenance mode. Please upgrade to v2."
+- Pages in SDKs v2 show "New SDK features available!" (product-level)
+- Pages in Docs show "Docs product is in beta. Features may change." (product-level)
+- Any other products without their own announcement show "Welcome to our documentation!" (config-level)
