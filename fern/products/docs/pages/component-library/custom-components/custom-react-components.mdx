@@ -59,6 +59,170 @@ import { CustomCard } from "../components/CustomCard"
   ```
 </Steps>
 
+## Importing files and assets
+
+Custom React components can import other files from your `fern/` folder, including CSS files, JavaScript/TypeScript modules, and assets like SVGs and images.
+
+### Importing CSS files
+
+You can create separate CSS files and import them directly into your components:
+
+```css components/PlantCard.css
+.plant-card {
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+}
+
+.plant-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.plant-card-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+```
+
+```tsx components/PlantCard.tsx
+import "./PlantCard.css";
+
+export const PlantCard = ({ name, species }) => {
+  return (
+    <div className="plant-card">
+      <h3 className="plant-card-title">{name}</h3>
+      <p>{species}</p>
+    </div>
+  );
+};
+```
+
+### Importing other modules
+
+You can split your component logic across multiple files and import them as needed:
+
+```ts components/utils/plantHelpers.ts
+export const formatPlantName = (name: string) => {
+  return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+};
+
+export const getWateringSchedule = (plantType: string) => {
+  const schedules = {
+    succulent: "Every 2 weeks",
+    fern: "Every 2-3 days",
+    cactus: "Every 3 weeks",
+  };
+  return schedules[plantType] || "Weekly";
+};
+```
+
+```tsx components/PlantInfo.tsx
+import { formatPlantName, getWateringSchedule } from "./utils/plantHelpers";
+
+export const PlantInfo = ({ name, type }) => {
+  return (
+    <div>
+      <h3>{formatPlantName(name)}</h3>
+      <p>Watering: {getWateringSchedule(type)}</p>
+    </div>
+  );
+};
+```
+
+### Using SVG and image assets
+
+You can import SVG files directly as React components or reference image assets:
+
+```tsx components/PlantIcon.tsx
+import LeafIcon from "./assets/leaf-icon.svg";
+
+export const PlantIcon = ({ size = 24 }) => {
+  return <img src={LeafIcon} width={size} height={size} alt="Plant" />;
+};
+```
+
+For images stored in your `fern/` folder, reference them using paths relative to the component file or relative to the `fern/` folder root:
+
+```tsx components/PlantGallery.tsx
+export const PlantGallery = () => {
+  return (
+    <div>
+      {/* Relative to component file */}
+      <img src="./assets/monstera.png" alt="Monstera" />
+      
+      {/* Relative to fern folder root */}
+      <img src="/images/fiddle-leaf.png" alt="Fiddle Leaf Fig" />
+    </div>
+  );
+};
+```
+
+<Note>
+Make sure to include any directories containing your CSS, utility files, or assets in the `mdx-components` configuration in `docs.yml`:
+
+```yaml docs.yml
+experimental:
+  mdx-components:
+    - ./components
+    - ./components/utils
+    - ./components/assets
+```
+</Note>
+
+## Making API calls
+
+Custom React components can make client-side API calls using `fetch` or other HTTP libraries. Since these components run in the browser, any API calls happen on the client side.
+
+```tsx components/PlantSearch.tsx
+import { useState } from "react";
+
+export const PlantSearch = ({ apiEndpoint }) => {
+  const [plants, setPlants] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const searchPlants = async (query: string) => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${apiEndpoint}/plants?search=${query}`);
+      const data = await response.json();
+      setPlants(data.plants);
+    } catch (error) {
+      console.error("Failed to fetch plants:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div>
+      <input
+        type="text"
+        placeholder="Search plants..."
+        onChange={(e) => searchPlants(e.target.value)}
+      />
+      {loading ? <p>Loading...</p> : (
+        <ul>
+          {plants.map((plant) => (
+            <li key={plant.id}>{plant.name}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+};
+```
+
+<Warning title="API key security">
+Never include secret API keys directly in your component code. Since custom React components run in the browser, any API keys embedded in the code are visible to users.
+
+For API calls that require authentication, consider these approaches:
+
+- **Use public API keys**: Some APIs provide publishable keys that are safe to expose in client-side code.
+- **Pass keys as props**: Pass API keys as props from your MDX file, where you can use environment variables or other secure methods.
+- **Use a backend proxy**: Route API calls through your own backend server that securely stores the API key.
+</Warning>
+
 ## Why not just use custom CSS and JS instead? 
 
 While you can bundle React components as custom JavaScript, using Fern's built-in React component support provides several key advantages:
