@@ -1,0 +1,173 @@
+---
+title: Publishing to crates.io
+description: How to publish the Fern Rust SDK to crates.io.
+---
+
+Publish your public-facing Fern Rust SDK to the [crates.io
+registry](https://crates.io/). After following the steps on this page,
+you'll have a versioned crate published on crates.io.
+
+<Markdown src="/products/sdks/snippets/setup-fern-folder-callout.mdx"/>
+
+## Configure `generators.yml`
+
+<Steps>
+
+  <Step title="Configure `output` location">
+
+  Change the output location in `generators.yml` from `local-file-system` (the default) to `crates` to indicate that Fern should publish your crate directly to the crates.io registry:
+
+    ```yaml title="generators.yml" {6-7}
+    groups: 
+      rust-sdk:
+        generators:
+          - name: fernapi/fern-rust-sdk
+            version: <Markdown src="/snippets/version-number-rust.mdx"/>
+            output:
+              location: crates
+
+    ```
+  </Step>
+
+  <Step title="Add a unique crate name">
+
+     Your crate name must be unique in the crates.io registry, otherwise publishing your SDK will fail. Update your crate name if you haven't done so already:
+
+
+```yaml title="generators.yml" {8}
+groups: 
+  rust-sdk:
+    generators:
+      - name: fernapi/fern-rust-sdk
+        version: <Markdown src="/snippets/version-number-rust.mdx"/>
+        output:
+          location: crates
+          package-name: your-crate-name
+```
+    
+  </Step>
+
+  <Step title="Configure `clientName`">
+
+     The `clientName` option controls the name of the generated client struct. This is the name users will use when instantiating your SDK client.
+
+
+```yaml title="generators.yml" {9-10}
+groups: 
+  rust-sdk:
+    generators:
+      - name: fernapi/fern-rust-sdk
+        version: <Markdown src="/snippets/version-number-rust.mdx"/>
+        output:
+          location: crates
+          package-name: your-crate-name
+        config:
+          clientName: YourClientName # must be PascalCase
+```
+    
+  </Step>
+
+  <Step title="Add repository location">
+
+  Add the path to your GitHub repository to `generators.yml`: 
+
+```yaml title="generators.yml" {11-12}
+groups: 
+  rust-sdk:
+    generators:
+      - name: fernapi/fern-rust-sdk
+        version: <Markdown src="/snippets/version-number-rust.mdx"/>
+        output:
+          location: crates
+          package-name: your-crate-name
+        config:
+          clientName: YourClientName
+        github: 
+          repository: your-org/your-rust-sdk
+```
+  
+  </Step>
+</Steps>
+
+## Set up crates.io publishing authentication
+
+<Steps>
+
+  <Step title="Log into crates.io">
+
+  Log into [crates.io](https://crates.io/) using your GitHub account.
+
+  </Step>
+
+  <Step title="Navigate to Account settings">
+
+  1. Click on your profile picture in the top right corner.
+  1. Select **Account Settings**.
+  1. Scroll down to the **API Tokens** section.
+
+  </Step>
+
+  <Step title="Create a new API token">
+
+  1. Click **New Token**.
+  1. Name your token (e.g., "Fern SDK Publishing").
+  1. Under **Scopes**, select **publish-new** to publish new crates or **publish-update** to update existing crates.
+  1. Click **Create**.
+
+  <Warning>Save your new token immediately. It won't be displayed again after you leave the page.</Warning>
+
+  </Step>
+
+  <Step title="Configure crates.io authentication token">
+
+  Add `api-key: ${CRATES_IO_API_KEY}` to `generators.yml` to tell Fern to use the `CRATES_IO_API_KEY` environment variable for authentication when publishing to crates.io.
+
+```yaml title="generators.yml" {9}
+groups: 
+  rust-sdk:
+    generators:
+      - name: fernapi/fern-rust-sdk
+        version: <Markdown src="/snippets/version-number-rust.mdx"/>
+        output:
+          location: crates
+          package-name: your-crate-name
+          api-key: ${CRATES_IO_API_KEY}
+        config:
+          clientName: YourClientName
+        github: 
+          repository: your-org/your-rust-sdk
+```
+  </Step>
+
+</Steps>
+
+## Release your SDK to crates.io
+
+At this point, you're ready to generate a release for your SDK.
+
+<Steps>
+
+  <Step title="Set crates.io environment variable">
+
+  On your local machine, set the `CRATES_IO_API_KEY` environment variable to the API token you generated earlier:
+
+  ```bash
+  export CRATES_IO_API_KEY=your-actual-crates-io-token
+  ```
+
+  </Step>
+
+  <Step title="Generate your release">
+
+  Regenerate your SDK and publish it to crates.io:
+
+  ```bash
+  fern generate --group rust-sdk --version <version>
+  ```
+
+  Local machine output will verify that the release is pushed to your
+  repository and tagged with the version you specified. Log back into crates.io and
+  navigate to your crate to see your new release.
+  </Step>
+
+</Steps>
