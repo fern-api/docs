@@ -7,6 +7,10 @@ Publish your public-facing Fern Rust SDK to the [crates.io
 registry](https://crates.io/). After following the steps on this page,
 you'll have a versioned crate published on crates.io.
 
+<Frame>
+  <img src="assets/published-crate.png" alt="Versioned package published on crates.io" />
+</Frame>
+
 <Markdown src="/products/sdks/snippets/setup-fern-folder-callout.mdx"/>
 
 ## Configure `generators.yml`
@@ -103,7 +107,7 @@ groups:
 
   1. Click on your profile picture in the top right corner.
   1. Select **Account Settings**.
-  1. Scroll down to the **API Tokens** section.
+  1. Go to the **API Tokens** section.
 
   </Step>
 
@@ -111,8 +115,12 @@ groups:
 
   1. Click **New Token**.
   1. Name your token (e.g., "Fern SDK Publishing").
-  1. Under **Scopes**, select **publish-new** to publish new crates or **publish-update** to update existing crates.
-  1. Click **Create**.
+  1. Under **Scopes**, select **publish-new** to publish new crates and **publish-update** to update existing crates.
+  1. Click **Generate Token**.
+
+  <Frame>
+  <img src="assets/api-token.png" alt="Create a new API token on crates.io" />
+</Frame>
 
   <Warning>Save your new token immediately. It won't be displayed again after you leave the page.</Warning>
 
@@ -120,7 +128,7 @@ groups:
 
   <Step title="Configure crates.io authentication token">
 
-  Add `api-key: ${CRATES_IO_API_KEY}` to `generators.yml` to tell Fern to use the `CRATES_IO_API_KEY` environment variable for authentication when publishing to crates.io.
+  Add `token: ${CRATES_IO_API_KEY}` to `generators.yml` to tell Fern to use the `CRATES_IO_API_KEY` environment variable for authentication when publishing to crates.io.
 
 ```yaml title="generators.yml" {9}
 groups: 
@@ -131,7 +139,7 @@ groups:
         output:
           location: crates
           package-name: your-crate-name
-          api-key: ${CRATES_IO_API_KEY}
+          token: ${CRATES_IO_API_KEY}
         config:
           clientName: YourClientName
         github: 
@@ -141,33 +149,117 @@ groups:
 
 </Steps>
 
-## Release your SDK to crates.io
 
-At this point, you're ready to generate a release for your SDK.
+## Publish your SDK
+
+Decide how you want to publish your SDK to crates.io. You can use GitHub workflows for automated releases or publish directly via the CLI.
+
+<AccordionGroup>
+<Accordion title="Release via a GitHub workflow (recommended)">
+
+Set up a release workflow via [GitHub Actions](https://docs.github.com/en/actions/get-started/quickstart) so you can trigger new SDK releases directly from your source repository. 
 
 <Steps>
 
+<Step title="Set up authentication">
+
+Open your source repository in GitHub. Click on the **Settings** tab in your repository. Then, under the **Security** section, open **Secrets and variables** > **Actions**. 
+
+You can also use the url `https://github.com/<your-repo>/settings/secrets/actions`.
+
+</Step>
+<Step title="Add secret for your crates.io token">
+
+1. Select **New repository secret**. 
+1. Name your secret `CRATES_IO_API_KEY`.
+1. Add the corresponding token you generated above.
+1. Click **Add secret**. 
+
+</Step>
+<Step title="Add secret for your Fern token">
+
+1. Select **New repository secret**. 
+1. Name your secret `FERN_TOKEN`.
+1. Add your Fern token. If you don't already have one, generate one by
+  running `fern token`. By default, the `fern_token` is generated for the
+  organization listed in `fern.config.json`.
+1. Click **Add secret**. 
+
+</Step>
+
+<Step title="Set up a new workflow">
+
+Set up a CI workflow that you can manually trigger from the GitHub UI. In your repository, navigate to **Actions**. Select **New workflow**, then **Set up workflow yourself**. Add a workflow that's similar to this: 
+
+  ```yaml title=".github/workflows/publish.yml" maxLines=0
+name: Publish Rust SDK
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "The version of the Rust SDK that you would like to release"
+        required: true
+        type: string
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install Fern CLI
+        run: npm install -g fern-api
+
+      - name: Release Rust SDK
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+          CRATES_IO_API_KEY: ${{ secrets.CRATES_IO_API_KEY }}
+        run: |
+          fern generate --group rust-sdk --version ${{ inputs.version }} --log-level debug
+  ```
+
+</Step>
+
+  <Step title="Regenerate and release your SDK"> 
+
+    Navigate to the **Actions** tab, select the workflow you just created, specify a version number, and click **Run workflow**. This regenerates your SDK. 
+  
+    <Markdown src="/products/sdks/snippets/release-sdk.mdx"/>
+
+    Once the workflow completes, you can view your new release by logging into crates.io, navigating to **Dashboard**, and looking under **My Crates**.
+  
+  </Step>
+</Steps>
+
+</Accordion>
+<Accordion title="Release via CLI and environment variables">
+<Steps>
+ 
   <Step title="Set crates.io environment variable">
 
-  On your local machine, set the `CRATES_IO_API_KEY` environment variable to the API token you generated earlier:
+  Set the `CRATES_IO_API_KEY` environment variable on your local machine:
 
   ```bash
-  export CRATES_IO_API_KEY=your-actual-crates-io-token
+  export CRATES_IO_API_KEY=your-actual-rust-token
   ```
 
   </Step>
 
-  <Step title="Generate your release">
+  <Step title="Regenerate and release your SDK">
 
-  Regenerate your SDK and publish it to crates.io:
+  Regenerate your SDK, specifying the version:
 
   ```bash
   fern generate --group rust-sdk --version <version>
   ```
+  <Markdown src="/products/sdks/snippets/release-sdk.mdx"/>
 
-  Local machine output will verify that the release is pushed to your
-  repository and tagged with the version you specified. Log back into crates.io and
-  navigate to your crate to see your new release.
-  </Step>
+  Once the workflow completes, you can view your new release by logging into crates.io, navigating to **Dashboard**, and looking under **My Crates**.
+    </Step>
 
 </Steps>
+</Accordion>
+</AccordionGroup>
+
