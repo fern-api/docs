@@ -1,0 +1,96 @@
+---
+title: Rust configuration
+description: Configuration options for the Fern Rust SDK.
+---
+
+You can customize the behavior of the Rust SDK generator in `generators.yml`:
+
+```yaml {6-7} title="generators.yml"
+groups:
+  rust-sdk:
+    generators:
+      - name: fernapi/fern-rust-sdk
+        version: <Markdown src="/snippets/version-number-rust.mdx"/>
+        config:
+          clientName: PlantStore
+        output:
+          location: local-file-system
+          path: ../generated/rust
+```
+
+<ParamField path="clientName" type="string" required={false} toc={true}>
+Specifies the name of the generated client struct. This determines the primary client type name that users will interact with in the generated Rust SDK.
+
+```yaml
+# generators.yml
+config:
+  clientName: PlantStore
+```
+
+This generates a client that users can instantiate as:
+
+```rust
+use plant_store::PlantStoreClient;
+
+let client = PlantStoreClient::builder()
+    .base_url("https://api.plantstore.com")
+    .build();
+```
+</ParamField>
+
+<ParamField path="extraDependencies" type="object" required={false} toc={true}>
+Specify extra dependencies in the generated `Cargo.toml`. This is useful when you add custom code to your SDK that requires additional dependencies.
+
+```yaml
+# generators.yml
+config:
+  extraDependencies:
+    chrono: "0.4"
+    uuid: { version: "1.0", features: ["v4"] }
+```
+</ParamField>
+
+<ParamField path="extraDevDependencies" type="object" required={false} toc={true}>
+Specify extra dev dependencies in the generated `Cargo.toml`.
+
+```yaml
+# generators.yml
+config:
+  extraDevDependencies:
+    mockall: "0.11"
+```
+</ParamField>
+
+<ParamField path="features" type="object" required={false} toc={true}>
+Define custom Cargo features and conditional dependency management for the generated SDK.
+
+```yaml
+# generators.yml
+config:
+  features:
+    blocking:
+      - reqwest/blocking
+    rustls:
+      - reqwest/rustls-tls
+```
+
+This generates a `Cargo.toml` with the specified features:
+
+```toml
+[features]
+blocking = ["reqwest/blocking"]
+rustls = ["reqwest/rustls-tls"]
+```
+</ParamField>
+
+<ParamField path="generateWireTests" type="boolean" default="true" required={false} toc={true}>
+Generates mock server (wire) tests using WireMock to verify that the SDK sends the correct HTTP requests and correctly handles responses per the API spec.
+
+```yaml
+# generators.yml
+config:
+  generateWireTests: true
+```
+
+When enabled, the generator creates tests that use WireMock to simulate API responses and verify request/response handling.
+</ParamField>
