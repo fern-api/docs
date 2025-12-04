@@ -1,20 +1,31 @@
 ---
-title: "Preview changes locally"
-subtitle: "View and share updates to your documentation"
-description: "View and share updates to your documentation"
+title: Preview changes
+description: Preview changes to your docs locally or with shareable preview links.
 ---
 
-Fern offers two ways to preview changes to your documentation: a [local development environment](#local-development) and [unique preview links](#generate-a-preview-link).
+Fern offers two ways to preview documentation changes:
+
+- **[Local development](#local-development)** - Fast iteration with hot reload, best for active development
+- **[Preview links](#preview-links)** - Shareable URLs for reviews and collaboration
 
 ## Local development
 
-Fern enables you to view changes to your documentation in a locally hosted environment.
+Run a local preview server to view documentation changes instantly with hot reload. Offline access is available after the first online run.
 
-<Info>**Prerequisite**: Please install Node.js (version 18+) before proceeding.</Info>
+<Note>
+Some features are disabled in local development:
+- Search
+- SEO (favicon, auto-generated meta tags, etc.)
+- Authentication
+</Note>
 
-Follow these steps to install and run the Fern CLI:
+<Steps>
+<Step title="Install Node.js">
 
-**Step 1**: Install the Fern CLI:
+Install Node.js version 18 or higher from [nodejs.org](https://nodejs.org).
+
+</Step>
+<Step title="Install the Fern CLI">
 
 <CodeGroup>
 
@@ -27,50 +38,130 @@ yarn global add fern-api
 ```
 
 </CodeGroup>
+</Step>
+<Step title="Preview docs">
 
-**Step 2**: Navigate to the docs directory (where the `fern` folder is located) and execute the following command:
+Navigate to the docs directory (where the `fern` folder is located) and [run the following command](/learn/cli-api-reference/cli-reference/commands#fern-docs-dev):
 
 ```bash
 fern docs dev
 ```
 
-A local preview of your documentation will be available at `http://localhost:3000`. The functionality is available offline if you have run local development mode online at least once.
-
-<Note>
-Some features are disabled in the local development environment, including: 
-- Search
-- SEO (favicon, auto-generated meta tags, etc.)
-- Authentication 
-</Note>
-
-### Custom ports
-
-By default, Fern uses port 3000. You can customize the port on which Fern runs by using the `--port` flag. For example, to run Fern on port 3002, use this command:
+Your documentation will be available at `http://localhost:3000`.
+<Anchor id="custom-ports">
+<Note title="Custom ports">
+By default, Fern uses port 3000. Customize the port on which Fern runs by [using the `--port` flag](/learn/cli-api-reference/cli-reference/commands#port):
 
 ```bash
 fern docs dev --port 3002
 ```
 
-If you attempt to run Fern on a port that's already in use, it will use the next available port:
+If you attempt to run Fern on a port that's already in use, it will use the next available port.
+</Note>
+</Anchor>
+</Step>
+</Steps>
 
-## Generate a preview link
 
-Fern allows you to generate a shareable preview link that displays the current state of your docs. Each preview link is appended with a UUID and is not indexed. Currently, these links do not expire (this behavior is subject to change in the future).
+## Preview links
 
-**Usage**:
+Generate shareable preview URLs to review and collaborate on documentation changes before publishing. Each preview link includes a unique UUID and isn't indexed by search engines. Links don't expire
 
 ```bash
 fern generate --docs --preview
 ```
 
-**Example**:
-
-```bash
-fern generate --docs --preview
-
+```bash Example output
 [docs]: Found 0 errors and 1 warnings. Run fern check --warnings to print out the warnings.
 [docs]: Published docs to https://fern-preview-c973a36e-337b-44f5-ab83-aab.docs.buildwithfern.com/learn
 ┌─
 │ ✓  docs.example.com
 └─
-``` 
+```
+
+### Automate with GitHub Actions
+
+Generate preview links automatically for every pull request by adding a GitHub Actions workflow. [Add your `FERN_TOKEN` to the repository secrets](/learn/cli-api-reference/cli-reference/commands#fern-token) before using these workflows.
+
+<CodeBlock title = ".github/workflows/preview-docs.yml">
+```yaml
+name: Preview Docs
+
+on:
+  pull_request
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    permissions: write-all
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Fern
+        run: npm install -g fern-api
+
+      - name: Generate preview URL
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+        run: |
+          OUTPUT=$(fern generate --docs --preview 2>&1) || true
+          echo "$OUTPUT"
+          URL=$(echo "$OUTPUT" | grep -oP 'Published docs to \K.*(?= \()')
+          echo "🌿 Preview your docs: $URL" > preview_url.txt
+
+      - name: Comment URL in PR
+        uses: thollander/actions-comment-pull-request@v2.4.3
+        with:
+          filePath: preview_url.txt
+```
+</CodeBlock>
+
+<Accordion title="For repositories that accept pull requests from forks">
+
+If your repository accepts contributions from forks, use `pull_request_target` instead of `pull_request` to allow the workflow to access your `FERN_TOKEN` secret:
+
+<CodeBlock title = ".github/workflows/preview-docs.yml">
+```yaml
+name: Preview Docs
+
+on:
+  pull_request_target:
+    branches:
+      - main
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Fern
+        run: npm install -g fern-api
+
+      - name: Checkout PR
+        run: |
+          git fetch origin pull/${{ github.event.pull_request.number }}/head:pr-${{ github.event.pull_request.number }}
+          git checkout pr-${{ github.event.pull_request.number }}
+
+      - name: Generate preview URL
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+        run: |
+          OUTPUT=$(fern generate --docs --preview 2>&1) || true
+          echo "$OUTPUT"
+          URL=$(echo "$OUTPUT" | grep -oP 'Published docs to \K.*(?= \()')
+          echo "🌿 Preview your docs: $URL" > preview_url.txt
+
+      - name: Comment URL in PR
+        uses: thollander/actions-comment-pull-request@v2.4.3
+        with:
+          filePath: preview_url.txt
+```
+</CodeBlock>
+
+</Accordion>
