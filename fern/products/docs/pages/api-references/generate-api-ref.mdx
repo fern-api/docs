@@ -46,29 +46,58 @@ More on customizing your API Reference [here](/learn/docs/api-references/customi
 
 To include multiple, distinct API definitions in your documentation, use the `api-name` property. The `api-name` corresponds to the folder name containing your API definition.
 
-This works with any combination of OpenAPI and Fern Definition formats. For example:
+#### Folder structure
 
-```bash
-fern/
-  ├─ fern.config.json
-  ├─ docs.yml
-  ├─ plant-api/
-  │   ├─ openapi.yml       # OpenAPI spec
-  │   └─ generators.yml    # References the OpenAPI spec
-  └─ garden-api/
-      └─ definition/       # Fern Definition (auto-detected)
-          └─ api.yml
-```
+Organize multiple APIs into an `apis/` folder, with each API in its own subfolder:
 
-For a simple setup without tabs, you can include multiple API References directly in your navigation:
+<Files>
+  <Folder name="fern" defaultOpen>
+    <File name="fern.config.json" />
+    <File name="docs.yml" />
+    <Folder name="apis" defaultOpen>
+      <Folder name="plant-store-api" defaultOpen>
+        <File name="openapi.yml" comment="Or definition/ for Fern Definition" />
+        <File name="generators.yml" comment="Required for OpenAPI" />
+      </Folder>
+      <Folder name="seed-api" defaultOpen>
+        <File name="openapi.yml" />
+        <File name="generators.yml" />
+      </Folder>
+    </Folder>
+  </Folder>
+</Files>
+
+This structure works with any combination of OpenAPI and Fern Definition formats.
+
+#### Basic configuration
+
+For a simple setup without tabs, include multiple API References directly in your navigation using `api-name` to match each folder name:
 
 ```yaml title="docs.yml"
 navigation:
   - api: Plant Store
-    api-name: plant-api   # Matches folder name containing your API definition
-  - api: Garden
-    api-name: garden-api  # Matches folder name containing your API definition
+    api-name: plant-store-api
+  - api: Seeds
+    api-name: seed-api
 ```
+
+#### Flattened API References
+
+When you have multiple APIs, you often want to display them without the extra nesting of an API Reference section title. Use `flattened: true` to display endpoints at the top level:
+
+```yaml title="docs.yml"
+navigation:
+  - api: Store
+    api-name: plant-store-api
+    flattened: true
+  - api: Seeds
+    api-name: seed-api
+    flattened: true
+```
+
+This removes the API Reference section title and displays each API's endpoints directly in the navigation, creating a cleaner sidebar when you have multiple APIs.
+
+#### Using tabs
 
 When using tabs, each API Reference must be placed within a tab's `layout`:
 
@@ -77,18 +106,18 @@ tabs:
   plant-api:
     display-name: Plant Store API
     icon: leaf
-  garden-api:
-    display-name: Garden API
-    icon: tree
+  seed-api:
+    display-name: Seed API
+    icon: seedling
 navigation:
-  - tab: plant-api  # References the tab defined above
+  - tab: plant-api
     layout:
       - api: Plant Store API
-        api-name: plant-api  # Matches folder name containing your API definition
-        skip-slug: true
-  - tab: garden-api  # References the tab defined above
+        api-name: plant-store-api
+        flattened: true
+  - tab: seed-api
     layout:
-      - api: Garden API
-        api-name: garden-api  # Matches folder name containing your API definition
-        skip-slug: true
+      - api: Seed API
+        api-name: seed-api
+        flattened: true
 ```
