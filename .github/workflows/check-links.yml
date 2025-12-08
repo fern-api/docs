@@ -70,16 +70,16 @@ jobs:
             --retry-wait-time 10
             --max-concurrency 10
             --files-from urls.txt
-          output: ./lychee-report.md
+          output: ./lychee-raw.md
           format: markdown
           fail: false
-          jobSummary: true
+          jobSummary: false
 
       - name: Extract 429 URLs and retry with exponential backoff
         id: retry429
         run: |
-          # Extract URLs that returned 429 from the lychee report
-          grep '\[429\]' ./lychee-report.md | sed -E 's/.*<([^>]+)>.*/\1/' | sort -u > urls-429.txt || true
+          # Extract URLs that returned 429 from the raw lychee report
+          grep '\[429\]' ./lychee-raw.md | sed -E 's/.*<([^>]+)>.*/\1/' | sort -u > urls-429.txt || true
           
           count=$(wc -l < urls-429.txt | tr -d ' ')
           echo "Found $count URLs with 429 status"
@@ -88,12 +88,12 @@ jobs:
           if [ "$count" -eq "0" ] || [ ! -s urls-429.txt ]; then
             echo "No 429 URLs to retry"
             echo "has_429_failures=false" >> $GITHUB_OUTPUT
+            echo "still_failing_429=0" >> $GITHUB_OUTPUT
             exit 0
           fi
           
           echo "Retrying $count URLs with exponential backoff..."
           > urls-429-still-failing.txt
-          > urls-429-recovered.txt
           
           while IFS= read -r url; do
             [ -z "$url" ] && continue
@@ -111,7 +111,6 @@ jobs:
               if [ "$status" -lt 400 ]; then
                 echo "OK on retry (status $status): $url"
                 success=true
-                echo "$url" >> urls-429-recovered.txt
                 break
               elif [ "$status" -eq 429 ]; then
                 echo "Still 429, sleeping ${delay}s before next attempt..."
@@ -124,24 +123,13 @@ jobs:
             done
             
             if [ "$success" = false ]; then
-              echo "$url (status: $status)" >> urls-429-still-failing.txt
+              echo "- [${status}] $url" >> urls-429-still-failing.txt
             fi
           done < urls-429.txt
           
           still_failing=$(wc -l < urls-429-still-failing.txt | tr -d ' ')
-          recovered=$(wc -l < urls-429-recovered.txt | tr -d ' ')
-          echo "URLs recovered after retry: $recovered"
           echo "URLs still failing after retry: $still_failing"
-          
-          # Remove recovered 429 entries from the report to avoid confusion
-          if [ "$recovered" -gt 0 ]; then
-            echo "Cleaning up recovered 429 entries from report..."
-            while IFS= read -r url; do
-              # Escape special characters for sed
-              escaped_url=$(echo "$url" | sed 's/[&/\]/\\&/g')
-              sed -i "/$escaped_url/d" ./lychee-report.md
-            done < urls-429-recovered.txt
-          fi
+          echo "still_failing_429=$still_failing" >> $GITHUB_OUTPUT
           
           if [ "$still_failing" -gt 0 ]; then
             echo "has_429_failures=true" >> $GITHUB_OUTPUT
@@ -149,17 +137,55 @@ jobs:
             echo "has_429_failures=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Check for non-429 failures and summarize
+      - name: Build errors-only report and summarize
         id: check_failures
         run: |
-          # Check if there are any non-429 failures in the report
           # Pattern matches 4xx (except 429) and 5xx status codes
           FAILURE_PATTERN='\[40[0-9]\]|\[41[0-9]\]|\[42[0-8]\]|\[4[3-9][0-9]\]|\[5[0-9]{2}\]'
           
-          # Extract broken links for summary
-          grep -E "$FAILURE_PATTERN" ./lychee-report.md > broken-links.txt 2>/dev/null || true
+          # Extract broken links from raw report
+          grep -E "$FAILURE_PATTERN" ./lychee-raw.md > broken-links.txt 2>/dev/null || true
           broken_count=$(wc -l < broken-links.txt | tr -d ' ')
           
+          # Get rate limit stats
+          rate_limited="${{ steps.retry429.outputs.rate_limited_count }}"
+          rate_limited=${rate_limited:-0}
+          still_failing_429="${{ steps.retry429.outputs.still_failing_429 }}"
+          still_failing_429=${still_failing_429:-0}
+          
+          # Build clean errors-only report
+          cat > lychee-report.md << 'HEADER'
+          # Link Check Report
+          
+          This report only shows broken links (errors). Redirects and successful links are not included.
+          
+          HEADER
+          
+          if [ "$broken_count" -gt 0 ]; then
+            echo "## Broken Links ($broken_count)" >> lychee-report.md
+            echo "" >> lychee-report.md
+            # Format: - [STATUS] URL
+            sed -E 's/.*\[([0-9]+)\].*<([^>]+)>.*/- [\1] \2/' broken-links.txt >> lychee-report.md
+            echo "" >> lychee-report.md
+          fi
+          
+          if [ "$still_failing_429" -gt 0 ]; then
+            echo "## Rate-Limited URLs (429) - Still Failing After Retry" >> lychee-report.md
+            echo "" >> lychee-report.md
+            cat urls-429-still-failing.txt >> lychee-report.md
+            echo "" >> lychee-report.md
+          fi
+          
+          if [ "$broken_count" -eq 0 ] && [ "$still_failing_429" -eq 0 ]; then
+            echo "No broken links found!" >> lychee-report.md
+          fi
+          
+          echo "" >> lychee-report.md
+          echo "---" >> lychee-report.md
+          echo "" >> lychee-report.md
+          echo "Rate-limited URLs (429) that recovered after retry: $rate_limited" >> lychee-report.md
+          
+          # Print summary to logs
           echo ""
           echo "=========================================="
           echo "           LINK CHECK SUMMARY"
@@ -168,23 +194,26 @@ jobs:
           
           if [ "$broken_count" -gt 0 ]; then
             echo "has_other_failures=true" >> $GITHUB_OUTPUT
-            echo "broken_count=$broken_count" >> $GITHUB_OUTPUT
             echo "BROKEN LINKS FOUND: $broken_count"
             echo ""
-            echo "The following links are broken:"
             cat broken-links.txt | sed -E 's/.*\[([0-9]+)\].*<([^>]+)>.*/  - [\1] \2/'
             echo ""
           else
             echo "has_other_failures=false" >> $GITHUB_OUTPUT
-            echo "broken_count=0" >> $GITHUB_OUTPUT
             echo "No broken links found!"
-            echo ""
           fi
           
-          echo "Rate-limited URLs (429) that recovered after retry: ${{ steps.retry429.outputs.rate_limited_count || '0' }}"
+          if [ "$still_failing_429" -gt 0 ]; then
+            echo ""
+            echo "RATE-LIMITED URLs STILL FAILING: $still_failing_429"
+            cat urls-429-still-failing.txt
+          fi
+          
+          echo ""
+          echo "Rate-limited URLs (429) that recovered after retry: $rate_limited"
           echo "=========================================="
 
-      - name: Upload lychee report
+      - name: Upload errors-only report
         if: always()
         uses: actions/upload-artifact@v4
         with:
