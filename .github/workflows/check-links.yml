@@ -185,16 +185,6 @@ jobs:
           echo "" >> lychee-report.md
           echo "Rate-limited URLs (429) that recovered after retry: $rate_limited" >> lychee-report.md
           
-          # Parse lychee's raw output to get counts for custom summary
-          # Count all link-result lines (format: [STATUS] <URL>)
-          total_links=$(grep -cE '^\s*\[[0-9]{3}\]' ./lychee-raw.md 2>/dev/null || echo "0")
-          
-          # Successful = 2xx status codes
-          success_links=$(grep -cE '^\s*\[2[0-9]{2}\]' ./lychee-raw.md 2>/dev/null || echo "0")
-          
-          # Redirected = 3xx status codes (these are accepted, so counted as successful)
-          redirected_links=$(grep -cE '^\s*\[3[0-9]{2}\]' ./lychee-raw.md 2>/dev/null || echo "0")
-          
           # Calculate recovered 429s (rate_limited - still_failing_429)
           recovered_429=0
           if [ "$rate_limited" -gt 0 ]; then
@@ -208,18 +198,17 @@ jobs:
             echo "has_other_failures=false" >> $GITHUB_OUTPUT
           fi
           
+          # Extract lychee's summary table from raw output (everything from "# Summary" to before "## Redirects")
+          # and add 429 recovery info
+          sed -n '/^# Summary$/,/^## Redirects/p' ./lychee-raw.md | head -n -1 > lychee-summary.md
+          
           # Print summary to logs
           echo ""
-          echo "=========================================="
-          echo "           LINK CHECK SUMMARY"
-          echo "=========================================="
-          echo "Total links checked: $total_links"
-          echo "Successful (2xx): $success_links"
-          echo "Redirected (3xx): $redirected_links"
-          echo "Broken links: $broken_count"
-          echo "Rate-limited (429) - recovered: $recovered_429"
-          echo "Rate-limited (429) - still failing: $still_failing_429"
-          echo "=========================================="
+          cat lychee-summary.md
+          echo ""
+          echo "429 Recovery Info:"
+          echo "  Rate-limited (429) - recovered after retry: $recovered_429"
+          echo "  Rate-limited (429) - still failing: $still_failing_429"
           
           if [ "$broken_count" -gt 0 ]; then
             echo ""
@@ -233,18 +222,19 @@ jobs:
             cat urls-429-still-failing.txt
           fi
           
-          # Build custom GitHub Step Summary (no redirect details)
+          # Build GitHub Step Summary using lychee's table + 429 info + broken links
           {
-            echo "# Link Check Summary"
+            # Copy lychee's summary table
+            cat lychee-summary.md
+            
+            # Add 429 recovery info
+            echo ""
+            echo "### 429 Rate Limit Recovery"
             echo ""
             echo "| Status | Count |"
             echo "|--------|------:|"
-            echo "| Total links checked | $total_links |"
-            echo "| Successful (2xx) | $success_links |"
-            echo "| Redirected (3xx) | $redirected_links |"
-            echo "| Broken links (4xx/5xx) | $broken_count |"
-            echo "| Rate-limited (429) - recovered | $recovered_429 |"
-            echo "| Rate-limited (429) - still failing | $still_failing_429 |"
+            echo "| Recovered after retry | $recovered_429 |"
+            echo "| Still failing | $still_failing_429 |"
             echo ""
             
             if [ "$broken_count" -gt 0 ]; then
