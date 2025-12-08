@@ -5,78 +5,88 @@ on:
   schedule:
     - cron: '0 10 * * 1,3,5'
   workflow_dispatch:
+
 jobs:
   check-links:
     name: Check links
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        site:
-        - name: Fern Docs
-          url: "buildwithfern.com/learn"
     steps:
-      - name: Install link checker
-        run: pip install linkchecker
-      - name: Create config
-        run: echo -e "[csv]\nseparator=,\n[filtering]\nignore=\n\texample.com\n\tus.i.posthog.com\n\tdocs.stack-auth.com\n\tgithub.com/owner/repo\n\t/_vercel/(speed-)?insights/\n\tc.vialoops.com/CL0\n[output]\nignoreerrors=\n  ^http ^403 Forbidden" > lcconfig
-      - name: Check ${{ matrix.site.name }} Links
+      - name: Create lychee config
         run: |
-          set +e
-          cat lcconfig
-          linkchecker https://${{ matrix.site.url }} --check-extern --no-status --no-warnings --threads 25 --timeout 120 --config lcconfig -F csv/utf-8/link_report.csv
+          cat > lychee.toml << 'EOF'
+          # Lychee link checker configuration
+          # https://lychee.cli.rs/
 
-          if [ $? -ne 0 ]; then
-            echo "Bad links found. Please see report."
-          else
-            echo "Check completed. No issues found."
-            exit 0
-          fi
+          # Verbose mode
+          verbose = true
 
-          echo "Scan done, generating summary"
+          # Don't show progress bar (cleaner CI output)
+          no_progress = true
 
-          started=false
-          shouldfail=false
-          while read p; do
-            # skip comments (top and bottom)
-            if [[ $p == \#* ]]; then
-              continue
-            fi
-            # make sure first line after comments is skipped
-            if [[ "$started" = false ]]; then
-              started=true
-              continue
-            fi
+          # Accept these status codes as valid
+          accept = [200, 204, 301, 302, 307, 308]
+
+          # Timeout for each request in seconds
+          timeout = 30
+
+          # Number of retries for failed requests
+          max_retries = 3
+
+          # Maximum number of concurrent requests
+          max_concurrency = 10
+
+          # User agent to avoid being blocked
+          user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+
+          # Exclude patterns (regex)
+          exclude = [
+            # Placeholder/example URLs
+            "^https://example\\.com",
+            "^https://github\\.com/owner/repo",
             
-            IFS=',' read -r -a array <<< "$p"
-
-            ret=$(curl -I -s "${array[0]}" -o /dev/null -w "%{http_code}\n")
-            if [[ $ret == 200 ]]; then
-              echo "Site now seems to be working, we should continue here"
-              continue
-            else
-              echo "There is still an issue with ${array[0]}"
-            fi
-
-            shouldfail=true
-
-            if [[ ${array[10]} == '' ]]; then
-              echo "::error::URL: ${array[0]} on page: ${array[1]} is returning a ${array[3]}"
-            else
-              echo "::error::URL: ${array[0]} linked from '${array[10]}' on page: ${array[1]} is returning a ${array[3]}"
-            fi
-
-          done < link_report.csv
-
-          if [[ "$shouldfail" = false ]]; then
-            exit 0
-          fi
+            # Analytics and tracking
+            "^https://us\\.i\\.posthog\\.com",
+            "^https://c\\.vialoops\\.com",
+            "_vercel/(speed-)?insights",
             
-          exit 1
+            # Sites that block automated requests
+            "^https://docs\\.stack-auth\\.com",
+            "^https://www\\.linkedin\\.com",
+            "^https://linkedin\\.com",
+            "^https://twitter\\.com",
+            "^https://x\\.com",
+            
+            # Non-HTTP links
+            "^mailto:",
+            "^tel:",
+            "^javascript:",
+            
+            # Anchor-only links
+            "^#"
+          ]
 
-      - name: Upload report
-        if: failure()
+          # Include these file extensions when checking local files
+          include_mail = false
+
+          # Output format
+          format = "markdown"
+
+          # Cache results to speed up subsequent runs
+          cache = true
+          EOF
+
+      - name: Check Fern Docs Links
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: --config lychee.toml 'https://buildwithfern.com/learn'
+          output: ./lychee-report.md
+          fail: true
+          jobSummary: true
+
+      - name: Upload lychee report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: Report - ${{ matrix.site.name }}
-          path: link_report.csv
+          name: lychee-report
+          path: ./lychee-report.md
+          if-no-files-found: ignore
