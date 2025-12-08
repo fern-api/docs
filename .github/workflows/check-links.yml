@@ -51,6 +51,11 @@ jobs:
           ]
           EOF
 
+      - name: Fetch sitemap and extract URLs
+        run: |
+          curl -s https://buildwithfern.com/learn/sitemap.xml | grep -oP '(?<=<loc>)[^<]+' > urls.txt
+          echo "Found $(wc -l < urls.txt) URLs in sitemap"
+
       - name: Check Fern Docs Links
         uses: lycheeverse/lychee-action@v2
         with:
@@ -60,7 +65,7 @@ jobs:
             --timeout 30
             --max-retries 3
             --max-concurrency 10
-            'https://buildwithfern.com/learn'
+            urls.txt
           output: ./lychee-report.md
           format: markdown
           fail: true
