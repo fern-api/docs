@@ -73,7 +73,7 @@ jobs:
           output: ./lychee-raw.md
           format: markdown
           fail: false
-          jobSummary: true
+          jobSummary: false
 
       - name: Extract 429 URLs and retry with exponential backoff
         id: retry429
@@ -185,57 +185,87 @@ jobs:
           echo "" >> lychee-report.md
           echo "Rate-limited URLs (429) that recovered after retry: $rate_limited" >> lychee-report.md
           
+          # Parse lychee's raw output to get counts for custom summary
+          # Count all link-result lines (format: [STATUS] <URL>)
+          total_links=$(grep -cE '^\s*\[[0-9]{3}\]' ./lychee-raw.md 2>/dev/null || echo "0")
+          
+          # Successful = 2xx status codes
+          success_links=$(grep -cE '^\s*\[2[0-9]{2}\]' ./lychee-raw.md 2>/dev/null || echo "0")
+          
+          # Redirected = 3xx status codes (these are accepted, so counted as successful)
+          redirected_links=$(grep -cE '^\s*\[3[0-9]{2}\]' ./lychee-raw.md 2>/dev/null || echo "0")
+          
+          # Calculate recovered 429s (rate_limited - still_failing_429)
+          recovered_429=0
+          if [ "$rate_limited" -gt 0 ]; then
+            recovered_429=$((rate_limited - still_failing_429))
+          fi
+          
+          # Set output for failure detection
+          if [ "$broken_count" -gt 0 ]; then
+            echo "has_other_failures=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_other_failures=false" >> $GITHUB_OUTPUT
+          fi
+          
           # Print summary to logs
           echo ""
           echo "=========================================="
           echo "           LINK CHECK SUMMARY"
           echo "=========================================="
-          echo ""
+          echo "Total links checked: $total_links"
+          echo "Successful (2xx): $success_links"
+          echo "Redirected (3xx): $redirected_links"
+          echo "Broken links: $broken_count"
+          echo "Rate-limited (429) - recovered: $recovered_429"
+          echo "Rate-limited (429) - still failing: $still_failing_429"
+          echo "=========================================="
           
           if [ "$broken_count" -gt 0 ]; then
-            echo "has_other_failures=true" >> $GITHUB_OUTPUT
-            echo "BROKEN LINKS FOUND: $broken_count"
             echo ""
+            echo "BROKEN LINKS:"
             cat broken-links.txt | sed -E 's/.*\[([0-9]+)\].*<([^>]+)>.*/  - [\1] \2/'
-            echo ""
-          else
-            echo "has_other_failures=false" >> $GITHUB_OUTPUT
-            echo "No broken links found!"
           fi
           
           if [ "$still_failing_429" -gt 0 ]; then
             echo ""
-            echo "RATE-LIMITED URLs STILL FAILING: $still_failing_429"
+            echo "RATE-LIMITED URLs STILL FAILING:"
             cat urls-429-still-failing.txt
           fi
           
-          echo ""
-          echo "Rate-limited URLs (429) that recovered after retry: $rate_limited"
-          echo "=========================================="
-          
-          # Append broken links to GitHub Step Summary (after lychee's table)
+          # Build custom GitHub Step Summary (no redirect details)
           {
+            echo "# Link Check Summary"
             echo ""
-            echo "## Broken Links (Errors Only)"
+            echo "| Status | Count |"
+            echo "|--------|------:|"
+            echo "| Total links checked | $total_links |"
+            echo "| Successful (2xx) | $success_links |"
+            echo "| Redirected (3xx) | $redirected_links |"
+            echo "| Broken links (4xx/5xx) | $broken_count |"
+            echo "| Rate-limited (429) - recovered | $recovered_429 |"
+            echo "| Rate-limited (429) - still failing | $still_failing_429 |"
             echo ""
+            
             if [ "$broken_count" -gt 0 ]; then
-              echo "The following $broken_count link(s) are broken:"
+              echo "## Broken Links"
               echo ""
               sed -E 's/.*\[([0-9]+)\].*<([^>]+)>.*/- [\1] \2/' broken-links.txt
-            else
-              echo "No broken links found!"
+              echo ""
             fi
             
             if [ "$still_failing_429" -gt 0 ]; then
-              echo ""
-              echo "### Rate-Limited URLs (429) Still Failing After Retry"
+              echo "## Rate-Limited URLs (429) - Still Failing After Retry"
               echo ""
               cat urls-429-still-failing.txt
+              echo ""
             fi
             
-            echo ""
-            echo "---"
-            echo "*Rate-limited URLs (429) that recovered after retry: $rate_limited*"
+            if [ "$broken_count" -eq 0 ] && [ "$still_failing_429" -eq 0 ]; then
+              echo "## Result"
+              echo ""
+              echo "No broken links found!"
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload errors-only report
