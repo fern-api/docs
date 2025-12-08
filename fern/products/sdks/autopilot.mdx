@@ -1,51 +1,80 @@
 ---
 title: Fern Autopilot
-description: Fern Autopilot is a GitHub App that automatically generates SDKs and keeps your Fern configuration up to date
+description: Fern Autopilot automates SDK releases end-to-end, from detection to publishing
 ---
 
-<Note>
-Fern Autopilot is not yet generally available. Interested in early access? Reach out via [Slack](https://buildwithfern.com/slack) or support@buildwithfern.com.
-</Note>
-
-Fern Autopilot is a GitHub App that automates SDK generation and configuration management for your Fern projects. When you push changes to your repository, Autopilot automatically triggers SDK generation and keeps your CLI and generator versions up to date.
+Fern Autopilot automates SDK releases end-to-end. When your API specification changes, Autopilot regenerates SDKs, determines the version bump, and publishes to package registries.
 
 ## How it works
 
-When you install Fern Autopilot on your repository, it monitors your Fern configuration repository for changes. On each push to the default branch, Autopilot:
+Autopilot detects changes to your spec using either **git-based detection** (monitors your spec repository for commits) or **pull-based detection** (periodically fetches your hosted spec from a URL). Once changes are detected, Autopilot:
 
-1. **Detects configuration changes** - Identifies updates to your API definition or `generators.yml` files
-2. **Triggers SDK generation** - Automatically runs SDK generation for all configured generators
-3. **Reports status** - Creates GitHub check runs showing generation progress and results
-4. **Manages versions** - Optionally keeps your Fern CLI and generator versions up to date
+1. Regenerates SDKs for all configured languages
+2. Analyzes the API diff and determines the next version (semantic, calendar-based, integer, or custom)
+3. Commits to repositories, tags releases, and publishes packages
+4. Updates changelogs automatically
 
-## Features
+Autopilot pauses and requests confirmation if it's uncertain about the version bump. Publishing uses tokens stored in your GitHub Actions secrets—Fern never has access to these credentials.
 
-Fern Autopilot provides the following capabilities:
-
-**Automatic SDK generation** triggers generation for all configured SDK generators whenever you push changes to your default branch. Results appear as GitHub check runs on your commits, showing success or failure status for each generator.
-
-**CLI version updates** automatically creates pull requests to update your Fern CLI version when new releases are available, keeping your configuration current with the latest features and fixes.
-
-**Generator version updates** monitors your configured generators and creates pull requests to update them to newer versions, ensuring your SDKs benefit from the latest improvements.
-
-**Preview generation** generates SDK previews for version bump pull requests, allowing you to review changes before merging.
+View results as GitHub check runs on your commits, showing status, per-generator results, and logs. If a release fails, Autopilot pauses and sends alerts via Slack (if configured) or the Fern Dashboard where you can review and retry.
 
 ## Setup
 
-Once you have access to Fern Autopilot, installation involves:
+Autopilot is enabled with git-based detection on all repositories with the [Fern GitHub App](https://github.com/apps/fern-api) installed. Releases trigger automatically on commits to your spec repository. No changes to your CI/CD setup are required.
 
-1. Installing the Fern Autopilot GitHub App on your organization
-2. Granting access to your Fern configuration repositories
-3. Configuring which features to enable for your organization
+Customize Autopilot if you need to fetch from a hosted spec URL, review releases before publishing, or disable automatic releases entirely:
 
-After installation, Autopilot begins monitoring your repositories and automatically triggers SDK generation on pushes to the default branch.
+<AccordionGroup>
+<Accordion title="Enable pull-based detection">
 
-## Viewing generation results
+Add a cron schedule to your `generators.yml`:
 
-SDK generation results appear as GitHub check runs on your commits. Each check run shows:
+```yaml
+autopilot:
+  cron:
+    schedule: "0 0 * * 0"  # Weekly on Sunday at midnight
+```
 
-- Overall generation status (success, failure, or in progress)
-- Individual results for each configured generator
-- Detailed output logs for troubleshooting failures
+Or configure per-generator:
 
-You can view these results directly on your commit or pull request in GitHub.
+```yaml
+groups:
+  python-sdk:
+    generators:
+      - name: fernapi/fern-python-sdk
+        version: 4.38.2
+        autopilot:
+          cron:
+            schedule: "0 */6 * * *"  # Every 6 hours
+```
+</Accordion>
+
+<Accordion title="Enable approval mode">
+
+Enable approval mode to review releases before publishing. Autopilot will open a pull request instead of publishing directly.
+</Accordion>
+
+<Accordion title="Disable Autopilot">
+
+Disable globally:
+
+```yaml
+autopilot:
+  git_based_autogeneration: false
+```
+
+Or per-generator:
+
+```yaml
+groups:
+  ts-sdk:
+    generators:
+      - name: fernapi/fern-typescript-node-sdk
+        version: 0.40.0
+        autopilot:
+          git_based_autogeneration: false
+```
+
+To disable Autopilot entirely for your organization, reach out via Slack.
+</Accordion>
+</AccordionGroup>
