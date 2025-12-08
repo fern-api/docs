@@ -143,7 +143,13 @@ jobs:
         run: |
           # Check if there are any non-429 failures in the original report
           # Look for status codes 4xx (except 429) and 5xx
-          if grep -E '\[4[0-28][0-9]\]|\[5[0-9]{2}\]' ./lychee-report.md > /dev/null 2>&1; then
+          # Pattern breakdown:
+          # - \[40[0-9]\] matches 400-409
+          # - \[41[0-9]\] matches 410-419
+          # - \[42[0-8]\] matches 420-428 (excludes 429)
+          # - \[4[3-9][0-9]\] matches 430-499
+          # - \[5[0-9]{2}\] matches 500-599
+          if grep -E '\[40[0-9]\]|\[41[0-9]\]|\[42[0-8]\]|\[4[3-9][0-9]\]|\[5[0-9]{2}\]' ./lychee-report.md > /dev/null 2>&1; then
             echo "has_other_failures=true" >> $GITHUB_OUTPUT
             echo "Found non-429 failures in the report"
           else
