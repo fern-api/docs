@@ -198,13 +198,12 @@ jobs:
             echo "has_other_failures=false" >> $GITHUB_OUTPUT
           fi
           
-          # Extract lychee's summary table from raw output (everything from "# Summary" to before "## Redirects")
-          # and add 429 recovery info
-          sed -n '/^# Summary$/,/^## Redirects/p' ./lychee-raw.md | head -n -1 > lychee-summary.md
+          # Extract lychee's summary table only (stop at first ## heading)
+          sed -n '/^# Summary$/,/^## /p' ./lychee-raw.md | head -n -1 > lychee-summary-table.md
           
           # Print summary to logs
           echo ""
-          cat lychee-summary.md
+          cat lychee-summary-table.md
           echo ""
           echo "429 Recovery Info:"
           echo "  Rate-limited (429) - recovered after retry: $recovered_429"
@@ -212,20 +211,20 @@ jobs:
           
           if [ "$broken_count" -gt 0 ]; then
             echo ""
-            echo "BROKEN LINKS:"
+            echo "BROKEN LINKS (non-429):"
             cat broken-links.txt | sed -E 's/.*\[([0-9]+)\].*<([^>]+)>.*/  - [\1] \2/'
           fi
           
           if [ "$still_failing_429" -gt 0 ]; then
             echo ""
-            echo "RATE-LIMITED URLs STILL FAILING:"
+            echo "RATE-LIMITED URLs STILL FAILING (429):"
             cat urls-429-still-failing.txt
           fi
           
-          # Build GitHub Step Summary using lychee's table + 429 info + broken links
+          # Build GitHub Step Summary using lychee's table + 429 info + persistent errors only
           {
             # Copy lychee's summary table
-            cat lychee-summary.md
+            cat lychee-summary-table.md
             
             # Add 429 recovery info
             echo ""
@@ -237,25 +236,27 @@ jobs:
             echo "| Still failing | $still_failing_429 |"
             echo ""
             
+            # Show persistent errors only (non-429 broken links + 429s that didn't recover)
+            echo "## Errors (after retry)"
+            echo ""
+            
+            has_persistent_errors=false
+            
             if [ "$broken_count" -gt 0 ]; then
-              echo "## Broken Links"
-              echo ""
+              has_persistent_errors=true
               sed -E 's/.*\[([0-9]+)\].*<([^>]+)>.*/- [\1] \2/' broken-links.txt
-              echo ""
             fi
             
             if [ "$still_failing_429" -gt 0 ]; then
-              echo "## Rate-Limited URLs (429) - Still Failing After Retry"
-              echo ""
+              has_persistent_errors=true
               cat urls-429-still-failing.txt
-              echo ""
             fi
             
-            if [ "$broken_count" -eq 0 ] && [ "$still_failing_429" -eq 0 ]; then
-              echo "## Result"
-              echo ""
-              echo "No broken links found!"
+            if [ "$has_persistent_errors" = false ]; then
+              echo "No errors remained after retry."
             fi
+            
+            echo ""
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload errors-only report
