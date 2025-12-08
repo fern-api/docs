@@ -73,7 +73,7 @@ jobs:
           output: ./lychee-raw.md
           format: markdown
           fail: false
-          jobSummary: false
+          jobSummary: true
 
       - name: Extract 429 URLs and retry with exponential backoff
         id: retry429
@@ -212,6 +212,31 @@ jobs:
           echo ""
           echo "Rate-limited URLs (429) that recovered after retry: $rate_limited"
           echo "=========================================="
+          
+          # Append broken links to GitHub Step Summary (after lychee's table)
+          {
+            echo ""
+            echo "## Broken Links (Errors Only)"
+            echo ""
+            if [ "$broken_count" -gt 0 ]; then
+              echo "The following $broken_count link(s) are broken:"
+              echo ""
+              sed -E 's/.*\[([0-9]+)\].*<([^>]+)>.*/- [\1] \2/' broken-links.txt
+            else
+              echo "No broken links found!"
+            fi
+            
+            if [ "$still_failing_429" -gt 0 ]; then
+              echo ""
+              echo "### Rate-Limited URLs (429) Still Failing After Retry"
+              echo ""
+              cat urls-429-still-failing.txt
+            fi
+            
+            echo ""
+            echo "---"
+            echo "*Rate-limited URLs (429) that recovered after retry: $rate_limited*"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload errors-only report
         if: always()
