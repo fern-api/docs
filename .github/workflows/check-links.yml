@@ -18,8 +18,7 @@ jobs:
           # https://lychee.cli.rs/
 
           # Accept these status codes as valid
-          # 429 is included to handle rate limiting (especially from GitHub)
-          accept = [200, 204, 301, 302, 307, 308, 429]
+          accept = [200, 204, 301, 302, 307, 308]
 
           # User agent to avoid being blocked
           user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -35,14 +34,14 @@ jobs:
             "^https://c\\.vialoops\\.com",
             "_vercel/(speed-)?insights",
             
-              # Sites that block automated requests
-              "^https://docs\\.stack-auth\\.com",
-              "^https://www\\.linkedin\\.com",
-              "^https://linkedin\\.com",
-              "^https://twitter\\.com",
-              "^https://x\\.com",
-              "^https://www\\.npmjs\\.com",
-              "^https://cdn\\.simpleicons\\.org",
+            # Sites that block automated requests
+            "^https://docs\\.stack-auth\\.com",
+            "^https://www\\.linkedin\\.com",
+            "^https://linkedin\\.com",
+            "^https://twitter\\.com",
+            "^https://x\\.com",
+            "^https://www\\.npmjs\\.com",
+            "^https://cdn\\.simpleicons\\.org",
             
             # Non-HTTP links
             "^mailto:",
@@ -59,7 +58,8 @@ jobs:
           curl -s https://buildwithfern.com/learn/sitemap.xml | grep -oP '(?<=<loc>)[^<]+' > urls.txt
           echo "Found $(wc -l < urls.txt) URLs in sitemap"
 
-      - name: Check Fern Docs Links
+      - name: Check Fern Docs Links (first pass)
+        id: lychee
         uses: lycheeverse/lychee-action@v2
         with:
           args: >-
@@ -67,12 +67,89 @@ jobs:
             --no-progress
             --timeout 30
             --max-retries 3
+            --retry-wait-time 10
             --max-concurrency 10
             --files-from urls.txt
           output: ./lychee-report.md
           format: markdown
-          fail: true
+          fail: false
           jobSummary: true
+
+      - name: Extract 429 URLs and retry with exponential backoff
+        id: retry429
+        run: |
+          # Extract URLs that returned 429 from the lychee report
+          grep '\[429\]' ./lychee-report.md | sed -E 's/.*<([^>]+)>.*/\1/' | sort -u > urls-429.txt || true
+          
+          count=$(wc -l < urls-429.txt | tr -d ' ')
+          echo "Found $count URLs with 429 status"
+          
+          if [ "$count" -eq "0" ] || [ ! -s urls-429.txt ]; then
+            echo "No 429 URLs to retry"
+            echo "has_429_failures=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          echo "Retrying $count URLs with exponential backoff..."
+          > urls-429-still-failing.txt
+          
+          while IFS= read -r url; do
+            [ -z "$url" ] && continue
+            delay=15
+            max_attempts=4
+            success=false
+            
+            for attempt in $(seq 1 $max_attempts); do
+              echo "[$attempt/$max_attempts] Checking: $url"
+              status=$(curl -s -o /dev/null -w "%{http_code}" \
+                -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
+                --max-time 30 \
+                "$url" || echo "000")
+              
+              if [ "$status" -lt 400 ]; then
+                echo "OK on retry (status $status): $url"
+                success=true
+                break
+              elif [ "$status" -eq 429 ]; then
+                echo "Still 429, sleeping ${delay}s before next attempt..."
+                sleep "$delay"
+                delay=$((delay * 2))
+              else
+                echo "Non-429 failure (status $status): $url"
+                break
+              fi
+            done
+            
+            if [ "$success" = false ]; then
+              echo "$url (status: $status)" >> urls-429-still-failing.txt
+            fi
+          done < urls-429.txt
+          
+          still_failing=$(wc -l < urls-429-still-failing.txt | tr -d ' ')
+          echo "URLs still failing after retry: $still_failing"
+          
+          if [ "$still_failing" -gt 0 ]; then
+            echo "has_429_failures=true" >> $GITHUB_OUTPUT
+            echo "### URLs still failing after exponential backoff retry:" >> ./lychee-report.md
+            echo "" >> ./lychee-report.md
+            cat urls-429-still-failing.txt >> ./lychee-report.md
+          else
+            echo "has_429_failures=false" >> $GITHUB_OUTPUT
+            echo "### All 429 URLs recovered after retry" >> ./lychee-report.md
+          fi
+
+      - name: Check for non-429 failures
+        id: check_failures
+        run: |
+          # Check if there are any non-429 failures in the original report
+          # Look for status codes 4xx (except 429) and 5xx
+          if grep -E '\[4[0-28][0-9]\]|\[5[0-9]{2}\]' ./lychee-report.md > /dev/null 2>&1; then
+            echo "has_other_failures=true" >> $GITHUB_OUTPUT
+            echo "Found non-429 failures in the report"
+          else
+            echo "has_other_failures=false" >> $GITHUB_OUTPUT
+            echo "No non-429 failures found"
+          fi
 
       - name: Upload lychee report
         if: always()
@@ -81,3 +158,16 @@ jobs:
           name: lychee-report
           path: ./lychee-report.md
           if-no-files-found: ignore
+
+      - name: Fail if there are broken links
+        if: steps.check_failures.outputs.has_other_failures == 'true' || steps.retry429.outputs.has_429_failures == 'true'
+        run: |
+          echo "Link check failed!"
+          if [ "${{ steps.check_failures.outputs.has_other_failures }}" == "true" ]; then
+            echo "There are broken links (non-429 failures) in the report."
+          fi
+          if [ "${{ steps.retry429.outputs.has_429_failures }}" == "true" ]; then
+            echo "Some URLs still returned 429 after exponential backoff retry."
+            echo "These URLs may need to be excluded or the rate limit needs more time to reset."
+          fi
+          exit 1
