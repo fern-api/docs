@@ -325,22 +325,9 @@ jobs:
           path: ./lychee-report.md
           if-no-files-found: ignore
 
-      # ============================================================
-      # TEMPORARY TEST FLAG - REMOVE BEFORE MERGING
-      # This step creates fake broken links to test PR creation and Slack notification
-      # ============================================================
-      - name: "[TEST] Create fake broken links for testing"
-        id: test-flag
-        run: |
-          echo "Creating fake broken links for testing..."
-          echo "* [404] <https://example.com/fake-broken-link-1> | Not Found" > broken-links.txt
-          echo "* [500] <https://example.com/fake-broken-link-2> | Server Error" >> broken-links.txt
-          echo "- [429] https://example.com/fake-rate-limited | Rate limited" > urls-429-still-failing.txt
-          echo "test_mode=true" >> $GITHUB_OUTPUT
-
       - name: Create PR for broken links
         id: create-pr
-        if: steps.test-flag.outputs.test_mode == 'true' || steps.check_failures.outputs.has_other_failures == 'true' || steps.retry429.outputs.has_429_failures == 'true'
+        if: steps.check_failures.outputs.has_other_failures == 'true' || steps.retry429.outputs.has_429_failures == 'true'
         uses: actions/github-script@v7
         env:
           DEVIN_PROMPT: |
@@ -604,8 +591,7 @@ jobs:
             }
 
       - name: Fail if there are broken links
-        # TEMPORARY: Skip failure during test mode - REMOVE BEFORE MERGING
-        if: steps.test-flag.outputs.test_mode != 'true' && (steps.check_failures.outputs.has_other_failures == 'true' || steps.retry429.outputs.has_429_failures == 'true')
+        if: steps.check_failures.outputs.has_other_failures == 'true' || steps.retry429.outputs.has_429_failures == 'true'
         run: |
           echo "Link check failed!"
           if [ "${{ steps.check_failures.outputs.has_other_failures }}" == "true" ]; then
