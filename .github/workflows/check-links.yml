@@ -53,6 +53,9 @@ jobs:
           ]
           EOF
 
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Fetch sitemap and extract URLs
         run: |
           curl -s https://buildwithfern.com/learn/sitemap.xml | grep -oP '(?<=<loc>)[^<]+' > urls.txt
@@ -81,60 +84,92 @@ jobs:
           # Extract all 429 URLs from the raw lychee report
           grep '\[429\]' ./lychee-raw.md | sed -E 's/.*<([^>]+)>.*/\1/' | sort -u > urls-429-all.txt || true
           
-          # Filter out repo-internal GitHub URLs that are often rate limited but valid
-          # These are links to the repo's own files which GitHub rate-limits aggressively
-          grep -vE '^https://github\.com/fern-api/docs/' urls-429-all.txt > urls-429.txt || true
+          # Initialize counters for repo-internal GitHub URLs
+          verified_locally=0
+          missing_locally=0
           
-          # Count ignored repo URLs for reporting
-          ignored_count=$(grep -cE '^https://github\.com/fern-api/docs/' urls-429-all.txt || echo "0")
-          echo "Ignored $ignored_count repo-internal GitHub URLs (rate-limited but assumed valid)"
-          echo "ignored_repo_urls=$ignored_count" >> $GITHUB_OUTPUT
-          
-          count=$(wc -l < urls-429.txt | tr -d ' ')
-          echo "Found $count URLs with 429 status (excluding repo-internal GitHub URLs)"
-          echo "rate_limited_count=$count" >> $GITHUB_OUTPUT
-          
-          if [ "$count" -eq "0" ] || [ ! -s urls-429.txt ]; then
-            echo "No 429 URLs to retry"
-            echo "has_429_failures=false" >> $GITHUB_OUTPUT
-            echo "still_failing_429=0" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-          
-          echo "Retrying $count URLs with exponential backoff..."
-          > urls-429-still-failing.txt
+          # Process repo-internal GitHub URLs by checking if files exist locally
+          # This avoids false positives from GitHub rate limiting while still catching real broken links
+          > urls-429.txt
+          > urls-429-repo-missing.txt
           
           while IFS= read -r url; do
             [ -z "$url" ] && continue
-            delay=15
-            max_attempts=4
-            success=false
             
-            for attempt in $(seq 1 $max_attempts); do
-              echo "[$attempt/$max_attempts] Checking: $url"
-              status=$(curl -s -o /dev/null -w "%{http_code}" \
-                -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
-                --max-time 30 \
-                "$url" || echo "000")
+            # Check if this is a repo-internal GitHub URL (blob/main pattern)
+            if echo "$url" | grep -qE '^https://github\.com/fern-api/docs/blob/main/'; then
+              # Extract relative path from URL (strip prefix and query string)
+              rel_path="${url#https://github.com/fern-api/docs/blob/main/}"
+              rel_path="${rel_path%%\?*}"
               
-              if [ "$status" -lt 400 ]; then
-                echo "OK on retry (status $status): $url"
-                success=true
-                break
-              elif [ "$status" -eq 429 ]; then
-                echo "Still 429, sleeping ${delay}s before next attempt..."
-                sleep "$delay"
-                delay=$((delay * 2))
+              if [ -f "$rel_path" ]; then
+                echo "Verified locally (file exists): $url -> $rel_path"
+                verified_locally=$((verified_locally + 1))
               else
-                echo "Non-429 failure (status $status): $url"
-                break
+                echo "MISSING locally: $url -> $rel_path"
+                echo "- [LOCAL_MISSING] $url (expected path: $rel_path)" >> urls-429-repo-missing.txt
+                missing_locally=$((missing_locally + 1))
               fi
-            done
-            
-            if [ "$success" = false ]; then
-              echo "- [${status}] $url" >> urls-429-still-failing.txt
+            else
+              # Non-repo URL, add to retry list
+              echo "$url" >> urls-429.txt
             fi
-          done < urls-429.txt
+          done < urls-429-all.txt
+          
+          echo "Repo-internal GitHub URLs verified locally: $verified_locally"
+          echo "Repo-internal GitHub URLs missing locally: $missing_locally"
+          echo "verified_locally=$verified_locally" >> $GITHUB_OUTPUT
+          echo "missing_locally=$missing_locally" >> $GITHUB_OUTPUT
+          
+          count=$(wc -l < urls-429.txt | tr -d ' ')
+          echo "Found $count other URLs with 429 status to retry"
+          echo "rate_limited_count=$count" >> $GITHUB_OUTPUT
+          
+          # Initialize still-failing file
+          > urls-429-still-failing.txt
+          
+          # Add any locally-missing repo URLs to the still-failing list
+          if [ -s urls-429-repo-missing.txt ]; then
+            cat urls-429-repo-missing.txt >> urls-429-still-failing.txt
+          fi
+          
+          if [ "$count" -eq "0" ] || [ ! -s urls-429.txt ]; then
+            echo "No other 429 URLs to retry"
+          else
+            echo "Retrying $count URLs with exponential backoff..."
+            
+            while IFS= read -r url; do
+              [ -z "$url" ] && continue
+              delay=15
+              max_attempts=4
+              success=false
+              
+              for attempt in $(seq 1 $max_attempts); do
+                echo "[$attempt/$max_attempts] Checking: $url"
+                status=$(curl -s -o /dev/null -w "%{http_code}" \
+                  -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
+                  --max-time 30 \
+                  "$url" || echo "000")
+                
+                if [ "$status" -lt 400 ]; then
+                  echo "OK on retry (status $status): $url"
+                  success=true
+                  break
+                elif [ "$status" -eq 429 ]; then
+                  echo "Still 429, sleeping ${delay}s before next attempt..."
+                  sleep "$delay"
+                  delay=$((delay * 2))
+                else
+                  echo "Non-429 failure (status $status): $url"
+                  break
+                fi
+              done
+              
+              if [ "$success" = false ]; then
+                echo "- [${status}] $url" >> urls-429-still-failing.txt
+              fi
+            done < urls-429.txt
+          fi
           
           still_failing=$(wc -l < urls-429-still-failing.txt | tr -d ' ')
           echo "URLs still failing after retry: $still_failing"
@@ -214,12 +249,15 @@ jobs:
           echo ""
           cat lychee-summary-table.md
           echo ""
-          # Get ignored repo URLs count
-          ignored_repo_urls="${{ steps.retry429.outputs.ignored_repo_urls }}"
-          ignored_repo_urls=${ignored_repo_urls:-0}
+          # Get repo-internal GitHub URL counts
+          verified_locally="${{ steps.retry429.outputs.verified_locally }}"
+          verified_locally=${verified_locally:-0}
+          missing_locally="${{ steps.retry429.outputs.missing_locally }}"
+          missing_locally=${missing_locally:-0}
           
           echo "429 Recovery Info:"
-          echo "  Repo-internal GitHub URLs (ignored): $ignored_repo_urls"
+          echo "  Repo-internal GitHub URLs (verified locally): $verified_locally"
+          echo "  Repo-internal GitHub URLs (missing locally): $missing_locally"
           echo "  Rate-limited (429) - recovered after retry: $recovered_429"
           echo "  Rate-limited (429) - still failing: $still_failing_429"
           
@@ -246,7 +284,8 @@ jobs:
             echo ""
             echo "| Status | Count |"
             echo "|--------|------:|"
-            echo "| Repo-internal GitHub URLs (ignored) | $ignored_repo_urls |"
+            echo "| Repo-internal GitHub URLs (verified locally) | $verified_locally |"
+            echo "| Repo-internal GitHub URLs (missing locally) | $missing_locally |"
             echo "| Recovered after retry | $recovered_429 |"
             echo "| Still failing | $still_failing_429 |"
             echo ""
