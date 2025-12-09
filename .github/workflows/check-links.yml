@@ -78,11 +78,20 @@ jobs:
       - name: Extract 429 URLs and retry with exponential backoff
         id: retry429
         run: |
-          # Extract URLs that returned 429 from the raw lychee report
-          grep '\[429\]' ./lychee-raw.md | sed -E 's/.*<([^>]+)>.*/\1/' | sort -u > urls-429.txt || true
+          # Extract all 429 URLs from the raw lychee report
+          grep '\[429\]' ./lychee-raw.md | sed -E 's/.*<([^>]+)>.*/\1/' | sort -u > urls-429-all.txt || true
+          
+          # Filter out repo-internal GitHub URLs that are often rate limited but valid
+          # These are links to the repo's own files which GitHub rate-limits aggressively
+          grep -vE '^https://github\.com/fern-api/docs/' urls-429-all.txt > urls-429.txt || true
+          
+          # Count ignored repo URLs for reporting
+          ignored_count=$(grep -cE '^https://github\.com/fern-api/docs/' urls-429-all.txt || echo "0")
+          echo "Ignored $ignored_count repo-internal GitHub URLs (rate-limited but assumed valid)"
+          echo "ignored_repo_urls=$ignored_count" >> $GITHUB_OUTPUT
           
           count=$(wc -l < urls-429.txt | tr -d ' ')
-          echo "Found $count URLs with 429 status"
+          echo "Found $count URLs with 429 status (excluding repo-internal GitHub URLs)"
           echo "rate_limited_count=$count" >> $GITHUB_OUTPUT
           
           if [ "$count" -eq "0" ] || [ ! -s urls-429.txt ]; then
@@ -205,7 +214,12 @@ jobs:
           echo ""
           cat lychee-summary-table.md
           echo ""
+          # Get ignored repo URLs count
+          ignored_repo_urls="${{ steps.retry429.outputs.ignored_repo_urls }}"
+          ignored_repo_urls=${ignored_repo_urls:-0}
+          
           echo "429 Recovery Info:"
+          echo "  Repo-internal GitHub URLs (ignored): $ignored_repo_urls"
           echo "  Rate-limited (429) - recovered after retry: $recovered_429"
           echo "  Rate-limited (429) - still failing: $still_failing_429"
           
@@ -232,6 +246,7 @@ jobs:
             echo ""
             echo "| Status | Count |"
             echo "|--------|------:|"
+            echo "| Repo-internal GitHub URLs (ignored) | $ignored_repo_urls |"
             echo "| Recovered after retry | $recovered_429 |"
             echo "| Still failing | $still_failing_429 |"
             echo ""
