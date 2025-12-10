@@ -192,7 +192,40 @@ jobs:
           FAILURE_PATTERN='\[40[0-9]\]|\[41[0-9]\]|\[42[0-8]\]|\[4[3-9][0-9]\]|\[5[0-9]{2}\]'
           
           # Extract broken links from raw report
-          grep -E "$FAILURE_PATTERN" ./lychee-raw.md > broken-links.txt 2>/dev/null || true
+          grep -E "$FAILURE_PATTERN" ./lychee-raw.md > broken-links-raw.txt 2>/dev/null || true
+          
+          # Filter out repo-internal GitHub URLs that exist locally (handles 5xx false positives)
+          # This is similar to how 429 errors are handled for repo-internal URLs
+          verified_5xx=0
+          > broken-links.txt
+          while IFS= read -r line; do
+            [ -z "$line" ] && continue
+            
+            # Extract URL from the line (format: ... [STATUS] <URL> ...)
+            url=$(echo "$line" | sed -E 's/.*<([^>]+)>.*/\1/')
+            
+            # Check if this is a repo-internal GitHub URL (blob/main pattern)
+            if echo "$url" | grep -qE '^https://github\.com/fern-api/docs/blob/main/'; then
+              # Extract relative path from URL (strip prefix and query string)
+              rel_path="${url#https://github.com/fern-api/docs/blob/main/}"
+              rel_path="${rel_path%%\?*}"
+              
+              if [ -f "$rel_path" ]; then
+                echo "Verified locally (5xx but file exists): $url -> $rel_path"
+                verified_5xx=$((verified_5xx + 1))
+              else
+                # File doesn't exist locally, this is a real broken link
+                echo "$line" >> broken-links.txt
+              fi
+            else
+              # Not a repo-internal URL, keep it in the broken links list
+              echo "$line" >> broken-links.txt
+            fi
+          done < broken-links-raw.txt
+          
+          echo "Repo-internal GitHub URLs with 5xx verified locally: $verified_5xx"
+          echo "verified_5xx=$verified_5xx" >> $GITHUB_OUTPUT
+          
           broken_count=$(wc -l < broken-links.txt | tr -d ' ')
           
           # Get rate limit stats
@@ -259,9 +292,10 @@ jobs:
           missing_locally="${{ steps.retry429.outputs.missing_locally }}"
           missing_locally=${missing_locally:-0}
           
-          echo "429 Recovery Info:"
-          echo "  Repo-internal GitHub URLs (verified locally): $verified_locally"
-          echo "  Repo-internal GitHub URLs (missing locally): $missing_locally"
+          echo "Recovery Info:"
+          echo "  Repo-internal GitHub URLs (429 verified locally): $verified_locally"
+          echo "  Repo-internal GitHub URLs (429 missing locally): $missing_locally"
+          echo "  Repo-internal GitHub URLs (5xx verified locally): $verified_5xx"
           echo "  Rate-limited (429) - recovered after retry: $recovered_429"
           echo "  Rate-limited (429) - still failing: $still_failing_429"
           
@@ -282,16 +316,17 @@ jobs:
             # Copy lychee's summary table
             cat lychee-summary-table.md
             
-            # Add 429 recovery info
+            # Add recovery info
             echo ""
-            echo "### 429 Rate Limit Recovery"
+            echo "### Local Verification & Rate Limit Recovery"
             echo ""
             echo "| Status | Count |"
             echo "|--------|------:|"
-            echo "| Repo-internal GitHub URLs (verified locally) | $verified_locally |"
-            echo "| Repo-internal GitHub URLs (missing locally) | $missing_locally |"
-            echo "| Recovered after retry | $recovered_429 |"
-            echo "| Still failing | $still_failing_429 |"
+            echo "| Repo-internal GitHub URLs (429 verified locally) | $verified_locally |"
+            echo "| Repo-internal GitHub URLs (429 missing locally) | $missing_locally |"
+            echo "| Repo-internal GitHub URLs (5xx verified locally) | $verified_5xx |"
+            echo "| Rate-limited (429) recovered after retry | $recovered_429 |"
+            echo "| Rate-limited (429) still failing | $still_failing_429 |"
             echo ""
             
             # Show persistent errors only (non-429 broken links + 429s that didn't recover)
