@@ -372,12 +372,12 @@ jobs:
           [ -f lychee-raw-github.md ] && cat lychee-raw-github.md >> lychee-raw.md
           echo "Combined lychee outputs into lychee-raw.md"
 
-      - name: Extract 403/429 URLs and retry with exponential backoff
+      - name: Extract 429 URLs and retry with exponential backoff
         id: retry429
         run: |
-          # Extract all 403 and 429 URLs from the raw lychee report
-          # 403s are often from bot-blocking sites (npmjs, simpleicons) and should be treated like 429s
-          grep -E '\[403\]|\[429\]' ./lychee-raw.md | sed -E 's/.*<([^>]+)>.*/\1/' | sort -u > urls-429-all.txt || true
+          # Extract all 429 URLs from the raw lychee report
+          # Note: 403s are excluded from broken links report but NOT retried (bot-blocking sites won't change)
+          grep '\[429\]' ./lychee-raw.md | sed -E 's/.*<([^>]+)>.*/\1/' | sort -u > urls-429-all.txt || true
           
           # Initialize counters for repo-internal GitHub URLs
           verified_locally=0
@@ -450,12 +450,12 @@ jobs:
                     echo "OK on retry (status $status): $url"
                     success=true
                     break
-                  elif [ "$status" -eq 429 ] || [ "$status" -eq 403 ]; then
-                    echo "Still $status, sleeping ${delay}s before next attempt..."
+                  elif [ "$status" -eq 429 ]; then
+                    echo "Still 429, sleeping ${delay}s before next attempt..."
                     sleep "$delay"
                     delay=$((delay * 2))
                   else
-                    echo "Non-retryable failure (status $status): $url"
+                    echo "Non-429 failure (status $status): $url"
                     break
                   fi
               done
