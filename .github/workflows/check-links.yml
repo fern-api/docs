@@ -247,8 +247,8 @@ jobs:
           # Cleanup cloned repos
           rm -rf .github-repos
 
-      - name: Check Fern Docs Links (first pass)
-        id: lychee
+      - name: Check non-GitHub links (high concurrency)
+        id: lychee_main
         uses: lycheeverse/lychee-action@v2
         with:
           args: >-
@@ -258,11 +258,38 @@ jobs:
             --max-retries 3
             --retry-wait-time 10
             --max-concurrency 10
+            --exclude "^https://github\\.com/"
             --files-from urls.txt
-          output: ./lychee-raw.md
+          output: ./lychee-raw-main.md
           format: markdown
           fail: false
           jobSummary: false
+
+      - name: Check GitHub links (low concurrency to avoid 503 rate limiting)
+        id: lychee_github
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: >-
+            --config lychee.toml
+            --no-progress
+            --timeout 30
+            --max-retries 5
+            --retry-wait-time 15
+            --max-concurrency 2
+            --include "^https://github\\.com/"
+            --files-from urls.txt
+          output: ./lychee-raw-github.md
+          format: markdown
+          fail: false
+          jobSummary: false
+
+      - name: Combine lychee outputs
+        run: |
+          # Combine both lychee runs into a single raw file for downstream processing
+          : > lychee-raw.md
+          [ -f lychee-raw-main.md ] && cat lychee-raw-main.md >> lychee-raw.md
+          [ -f lychee-raw-github.md ] && cat lychee-raw-github.md >> lychee-raw.md
+          echo "Combined lychee outputs into lychee-raw.md"
 
       - name: Extract 429 URLs and retry with exponential backoff
         id: retry429
