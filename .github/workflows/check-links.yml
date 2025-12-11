@@ -350,6 +350,7 @@ jobs:
         uses: lycheeverse/lychee-action@v2
         with:
           args: >-
+            --config lychee.toml
             --no-progress
             --timeout 30
             --max-retries 3
@@ -518,6 +519,10 @@ jobs:
               echo "$line" >> broken-links.txt
             fi
           done < broken-links-raw.txt
+          
+          # Deduplicate error files (same URL may appear multiple times if linked from multiple pages)
+          sort -u broken-links.txt -o broken-links.txt
+          sort -u external-5xx-links.txt -o external-5xx-links.txt
           
           echo "Repo-internal GitHub URLs with 5xx verified locally: $verified_5xx"
           echo "External GitHub URLs with 5xx (likely rate limiting): $external_5xx"
