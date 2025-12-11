@@ -52,15 +52,13 @@ jobs:
               sed -i "s/^last-updated:.*$/last-updated: $CURRENT_DATE/" "$file"
             else
               echo "Adding last-updated field to existing frontmatter"
-              # Add last-updated after the opening ---
-              sed -i "0,/^---$/!{0,/^---$/b;s/^---$/last-updated: $CURRENT_DATE\n---/}" "$file"
-              # If the above didn't work (complex sed), try awk
-              if ! grep -q "^last-updated:" "$file"; then
-                awk -v date="$CURRENT_DATE" '
-                  NR==1 && /^---$/ { print; getline; print "last-updated: " date; print; next }
-                  { print }
-                ' "$file" > "${file}.tmp" && mv "${file}.tmp" "$file"
-              fi
+              # Add last-updated before the closing --- (bottom of frontmatter)
+              awk -v date="$CURRENT_DATE" '
+                BEGIN { in_frontmatter=0; added=0 }
+                NR==1 && /^---$/ { in_frontmatter=1; print; next }
+                in_frontmatter && /^---$/ && !added { print "last-updated: " date; added=1; print; in_frontmatter=0; next }
+                { print }
+              ' "$file" > "${file}.tmp" && mv "${file}.tmp" "$file"
             fi
           done
 
