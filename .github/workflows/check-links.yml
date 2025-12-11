@@ -103,6 +103,13 @@ jobs:
           # Deduplicate URLs
           sort -u github-urls.txt -o github-urls.txt
           
+          # Remove example/placeholder URLs (e.g., github.com/your-org/...)
+          # These are documentation examples, not real repos to verify
+          if [ -s github-urls.txt ]; then
+            grep -v 'github\.com/your-org/' github-urls.txt > github-urls.filtered || true
+            mv github-urls.filtered github-urls.txt
+          fi
+          
           total_urls=$(wc -l < github-urls.txt | tr -d ' ')
           end_time=$(date +%s)
           echo "Found $total_urls unique GitHub URLs to verify locally (took $((end_time - start_time))s)"
