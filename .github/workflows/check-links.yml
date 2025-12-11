@@ -254,6 +254,24 @@ jobs:
           # Cleanup cloned repos
           rm -rf .github-repos
 
+      - name: Check GitHub links (very low concurrency to avoid 503 rate limiting)
+        id: lychee_github
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: >-
+            --no-progress
+            --timeout 30
+            --max-retries 5
+            --retry-wait-time 20
+            --max-concurrency 1
+            --include "^https://github\\.com/[^/]+/[^/]+/?$"
+            --include "^https://github\\.com/[^/]+/[^/]+/(issues|pull|pulls|compare|commit|commits|discussions)/"
+            --files-from urls.txt
+          output: ./lychee-raw-github.md
+          format: markdown
+          fail: false
+          jobSummary: false
+
       - name: Check non-GitHub links (high concurrency)
         id: lychee_main
         uses: lycheeverse/lychee-action@v2
@@ -267,25 +285,6 @@ jobs:
             --exclude "^https://github\\.com/"
             --files-from urls.txt
           output: ./lychee-raw-main.md
-          format: markdown
-          fail: false
-          jobSummary: false
-
-      - name: Check GitHub links (very low concurrency to avoid 503 rate limiting)
-        id: lychee_github
-        uses: lycheeverse/lychee-action@v2
-        with:
-          args: >-
-            --no-progress
-            --timeout 30
-            --max-retries 5
-            --retry-wait-time 20
-            --max-concurrency 1
-            --include "^https://github\\.com/"
-            --exclude "^https://github\\.com/[^/]+/[^/]+/(blob|tree)/"
-            --exclude "^https://github\\.com/[^/]+/[^/]+/releases/tag/"
-            --files-from urls.txt
-          output: ./lychee-raw-github.md
           format: markdown
           fail: false
           jobSummary: false
