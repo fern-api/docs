@@ -247,14 +247,14 @@ jobs:
           # Cleanup cloned repos
           rm -rf .github-repos
 
-      - name: Extract GitHub issues/compare/commit/discussions URLs from source files
+      - name: Extract GitHub URLs for HTTP checking from source files
         id: extract_github_http
         run: |
-          # Extract GitHub URLs that need HTTP checking (issues, compare, commit, discussions)
+          # Extract GitHub URLs that need HTTP checking (issues, compare, commit, discussions, non-fern-api PRs)
           # These are extracted from source files and passed directly to lychee
           # This avoids the --include filter issue where lychee applies it to input pages, not discovered links
           
-          echo "Scanning repo for GitHub issues/compare/commit/discussions URLs..."
+          echo "Scanning repo for GitHub URLs to check via HTTP..."
           > github-http-urls.txt
           
           # Search for issues URLs
@@ -280,6 +280,13 @@ jobs:
             fern/ README.md \
             --exclude-dir=.git --exclude-dir=.github-repos \
             >> github-http-urls.txt 2>/dev/null || true
+          
+          # Search for pull request URLs (excluding fern-api org - those are too slow to check)
+          grep -RhoE 'https://github\.com/[^/]+/[^/]+/pull/[^"'"'"')<>[:space:]]+' \
+            fern/ README.md \
+            --exclude-dir=.git --exclude-dir=.github-repos \
+            2>/dev/null | grep -v 'github\.com/fern-api/' \
+            >> github-http-urls.txt || true
           
           # Deduplicate URLs
           sort -u github-http-urls.txt -o github-http-urls.txt
