@@ -200,6 +200,10 @@ jobs:
               ref=$(echo "$clean_url" | sed -E 's#https://github\.com/[^/]+/[^/]+/(blob|tree)/([^/]+)/.*#\2#')
               rel_path=$(echo "$clean_url" | sed -E 's#https://github\.com/[^/]+/[^/]+/(blob|tree)/[^/]+/(.*)#\2#')
               
+              # URL-decode the relative path (handles %5B -> [, %5D -> ], spaces, etc.)
+              # This is needed because GitHub URLs encode special characters like [ and ]
+              rel_path=$(python3 -c "import sys, urllib.parse; print(urllib.parse.unquote(sys.argv[1]))" "$rel_path")
+              
               # Handle HEAD ref specially
               if [ "$ref" = "HEAD" ]; then
                 ref=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@' || echo "main")
