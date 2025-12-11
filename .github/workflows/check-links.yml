@@ -71,13 +71,6 @@ jobs:
           curl -s https://buildwithfern.com/learn/sitemap.xml | grep -oP '(?<=<loc>)[^<]+' > urls.txt
           echo "Found $(wc -l < urls.txt) URLs in sitemap"
 
-      - name: Upload sitemap URLs (early, for debugging)
-        uses: actions/upload-artifact@v4
-        with:
-          name: sitemap-urls
-          path: urls.txt
-          if-no-files-found: ignore
-
       - name: Extract and verify GitHub blob/tree/tag URLs locally
         id: verify_github
         run: |
@@ -299,6 +292,17 @@ jobs:
             echo "URLs to check:"
             cat github-http-urls.txt
           fi
+
+
+      - name: Upload URLs (early, for debugging)
+        uses: actions/upload-artifact@v4
+        with:
+          name: urls
+          path: |
+            github-urls.txt
+            github-http-urls.txt
+            urls.txt
+          if-no-files-found: ignore
 
       - name: Check GitHub links (very low concurrency to avoid 503 rate limiting)
         id: lychee_github
@@ -677,8 +681,6 @@ jobs:
         with:
           name: lychee-outputs
           path: |
-            github-urls.txt
-            github-http-urls.txt
             github-verified.txt
             github-missing.txt
             lychee-raw-main.md
