@@ -94,6 +94,95 @@ last-updated: December 9, 2025
 ```
 </CodeBlock>
 
+### Auto-update with CI
+
+You can use a GitHub Actions workflow to automatically update the `last-updated` field whenever MDX files are modified in a pull request. This workflow detects changed MDX files, updates or adds the `last-updated` frontmatter with the current date, and commits the changes back to the PR branch.
+
+<Accordion title="GitHub Actions workflow">
+<CodeBlock title=".github/workflows/update-last-updated.yml">
+```yaml
+name: Update Last Updated Date
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+    branches:
+      - main
+
+jobs:
+  update-last-updated:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get changed MDX files
+        id: changed-files
+        uses: tj-actions/changed-files@v45
+        with:
+          files: |
+            **/*.mdx
+
+      - name: Update last-updated frontmatter
+        if: steps.changed-files.outputs.any_changed == 'true'
+        run: |
+          # Get current date in "Month Day, Year" format
+          CURRENT_DATE=$(date +"%B %-d, %Y")
+          echo "Current date: $CURRENT_DATE"
+
+          for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
+            echo "Processing: $file"
+
+            if [ ! -f "$file" ]; then
+              echo "File not found, skipping: $file"
+              continue
+            fi
+
+            # Check if file has frontmatter (starts with ---)
+            if ! head -1 "$file" | grep -q "^---"; then
+              echo "No frontmatter found, skipping: $file"
+              continue
+            elif grep -q "^last-updated:" "$file"; then
+              echo "Updating existing last-updated field"
+              # Update existing last-updated field
+              sed -i "s/^last-updated:.*$/last-updated: $CURRENT_DATE/" "$file"
+            else
+              echo "Adding last-updated field to existing frontmatter"
+              # Add last-updated before the closing --- (bottom of frontmatter)
+              awk -v date="$CURRENT_DATE" '
+                BEGIN { in_frontmatter=0; added=0 }
+                NR==1 && /^---$/ { in_frontmatter=1; print; next }
+                in_frontmatter && /^---$/ && !added { print "last-updated: " date; added=1; print; in_frontmatter=0; next }
+                { print }
+              ' "$file" > "${file}.tmp" && mv "${file}.tmp" "$file"
+            fi
+          done
+
+      - name: Commit changes
+        if: steps.changed-files.outputs.any_changed == 'true'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add -A
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: update last-updated date in MDX files"
+            git push
+          fi
+```
+</CodeBlock>
+</Accordion>
+
+The workflow runs on pull requests to the `main` branch and performs the following steps: it checks out the PR branch, identifies which MDX files have changed, and for each changed file either updates an existing `last-updated` field or adds one to the frontmatter. The changes are then committed and pushed back to the PR branch automatically.
+
 ## Slug
 
 <ParamField path="slug" type="string" required={false}>
