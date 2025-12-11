@@ -2219,6 +2219,66 @@
         ]
       }
     },
+    "/index/{domain}/sync-incremental": {
+      "post": {
+        "tags": [
+          "Index"
+        ],
+        "summary": "Sync Index To Query Index Incremental",
+        "operationId": "sync_index_to_query_index_incremental",
+        "parameters": [
+          {
+            "name": "domain",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Domain"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SyncIndexIncrementalRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncIndexResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-fern-audiences": [
+          "internal"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/jobs/{job_id}/status": {
       "get": {
         "tags": [
@@ -4514,6 +4574,21 @@
             "type": "array",
             "title": "Parent Ids",
             "default": []
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 1000.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "description": "The number of content hashes to return",
+            "default": 1000
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Offset",
+            "description": "The offset to start from",
+            "default": 0
           }
         },
         "type": "object",
@@ -4528,6 +4603,22 @@
             },
             "type": "array",
             "title": "Entries"
+          },
+          "total_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Count"
+          },
+          "has_more": {
+            "type": "boolean",
+            "title": "Has More",
+            "default": false
           }
         },
         "type": "object",
@@ -7124,6 +7215,29 @@
           "success"
         ],
         "title": "SetJobIdResponse"
+      },
+      "SyncIndexIncrementalRequest": {
+        "properties": {
+          "index_name": {
+            "type": "string",
+            "title": "Index Name",
+            "description": "The name of the index to sync"
+          },
+          "parent_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Parent Ids",
+            "description": "List of parent_ids to incrementally sync"
+          }
+        },
+        "type": "object",
+        "required": [
+          "index_name",
+          "parent_ids"
+        ],
+        "title": "SyncIndexIncrementalRequest"
       },
       "SyncIndexRequest": {
         "properties": {
