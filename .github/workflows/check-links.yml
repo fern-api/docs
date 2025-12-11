@@ -70,27 +70,12 @@ jobs:
         run: |
           curl -s https://buildwithfern.com/learn/sitemap.xml | grep -oP '(?<=<loc>)[^<]+' > urls.txt
           echo "Found $(wc -l < urls.txt) URLs in sitemap"
-          
-          # Split URLs into separate files for different lychee runs
-          # Non-GitHub URLs (for high-concurrency run)
-          grep -v '^https://github\.com/' urls.txt > urls-non-github.txt || true
-          echo "Non-GitHub URLs: $(wc -l < urls-non-github.txt)"
-          
-          # GitHub URLs excluding blob/tree/tag (for low-concurrency run)
-          # These are issues, PRs, compare, commits, repo roots, etc.
-          grep '^https://github\.com/' urls.txt \
-            | grep -vE '/blob/|/tree/|/releases/tag/' \
-            > urls-github-non-code.txt || true
-          echo "GitHub non-code URLs: $(wc -l < urls-github-non-code.txt)"
 
-      - name: Upload URL lists (early, for debugging)
+      - name: Upload sitemap URLs (early, for debugging)
         uses: actions/upload-artifact@v4
         with:
-          name: url-lists-early
-          path: |
-            urls.txt
-            urls-non-github.txt
-            urls-github-non-code.txt
+          name: sitemap-urls
+          path: urls.txt
           if-no-files-found: ignore
 
       - name: Extract and verify GitHub blob/tree/tag URLs locally
@@ -280,11 +265,11 @@ jobs:
             --max-retries 3
             --retry-wait-time 10
             --max-concurrency 20
-            --files-from urls-non-github.txt
+            --exclude "^https://github\\.com/"
+            --files-from urls.txt
           output: ./lychee-raw-main.md
           format: markdown
           fail: false
-          failIfEmpty: false
           jobSummary: false
 
       - name: Check GitHub links (very low concurrency to avoid 503 rate limiting)
@@ -298,11 +283,11 @@ jobs:
             --max-retries 5
             --retry-wait-time 20
             --max-concurrency 1
-            --files-from urls-github-non-code.txt
+            --include "^https://github\\.com/"
+            --files-from urls.txt
           output: ./lychee-raw-github.md
           format: markdown
           fail: false
-          failIfEmpty: false
           jobSummary: false
 
       - name: Combine lychee outputs
