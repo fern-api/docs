@@ -1,53 +1,129 @@
 ---
-title: Single Sign-On
-subtitle: Enterprise authentication for secure access to your docs
+title: Single sign-on (SSO)
+subtitle: Let teammates sign in to Fern with your IdP (SAML or OIDC)
 ---
 
 <Markdown src="/snippets/enterprise-plan.mdx"/>
 
-Fern’s Single Sign-On (SSO) is an enterprise feature that lets your team securely access your docs through your organization’s identity provider.
+<Info>
+  SSO is available on enterprise plans. Ping us in your Fern Slack channel or [contact us](https://buildwithfern.com/contact) to enable it.
+</Info>
 
-<Note>SSO does not support Role-Based Access Control or API Key Injection.</Note>
+Use SAML or OIDC so your team signs in with the identity provider they already use. We have steps for Okta, Google Workspace, and Microsoft Entra; if you use another IdP, we’ll help you wire it up.
 
-## What SSO unlocks
+<Note>SSO does not currently support Role-Based Access Control (RBAC) or API Key Injection.</Note>
 
-When SSO is enabled for your organization, authenticated users of Fern can:
+## Okta
 
-- **Use the Fern Editor**: Make edits to your docs from the browser
-- **Send Authenticated Preview Links** Only authenticated users can view [preview links](/learn/docs/preview-publish/preview-changes#preview-links)
+<Tabs>
+  <Tab title="SAML">
+    <Steps>
+      <Step title="Create an application">
+        In **Applications**, create a new app integration using **SAML 2.0**.
+      </Step>
 
-## How it works
+      <Step title="Configure integration">
+        Use these Fern values:
+        - Single sign-on URL: provided by Fern
+        - Audience URI: provided by Fern
+        - Name ID format: `EmailAddress`
+        - Attribute Statements:
+          | Name   | Value                                  |
+          | ------ | -------------------------------------- |
+          | `name` | `user.firstName + " " + user.lastName` |
+          | `email`| `user.email`                           |
+      </Step>
 
-Fern's SSO integration allows your team to use their existing corporate credentials to access your Fern Docs site. 
+      <Step title="Send Fern your IdP info">
+        From the **Sign-On** tab, copy the Metadata URL and X.509 certificate. Send them through the secure channel we provide (not Slack/email). We’ll enable the connection and do a test login with you.
+      </Step>
+    </Steps>
+  </Tab>
 
-### Architecture diagram
+  <Tab title="OIDC">
+    <Steps>
+      <Step title="Create an application">
+        In **Applications**, create a new **Web Application** using OIDC.
+      </Step>
 
-```mermaid
-sequenceDiagram
-    autonumber
-    participant U as User
-    participant F as Fern Docs
-    participant I as Identity Provider
+      <Step title="Configure integration">
+        Use Authorization Code grant and set the Redirect URI to what we have provided you.
+      </Step>
 
-    U->>F: Click "Login" 
-    F->>I: Redirect to SSO login
-    
-    Note over I: User authenticates with corporate credentials
-    
-    I->>I: Validate user credentials
-    I->>F: Redirect back with fern_token
-    F->>F: Grant access to organizational features
-    F->>U: Show docs site
-```
+      <Step title="Send Fern your IdP info">
+        Share the Client ID, Client Secret, and your Okta domain (e.g., `<your-tenant>.okta.com`) via a secure tool (1Password/SendSafely). We’ll finish the hookup and test together.
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
 
-## Supported identity providers
+## Google Workspace
 
-Fern supports SSO integration with any identity provider that implements industry-standard protocols:
+<Tabs>
+  <Tab title="SAML">
+    <Steps>
+      <Step title="Create an application">
+        In **Web and mobile apps**, choose **Add app → Add custom SAML app**.
+      </Step>
 
-- **SAML 2.0**: Compatible with providers like Okta, OneLogin, Azure AD, and others
-- **OIDC (OpenID Connect)**: Works with Google Workspace, Auth0, and other OIDC-compliant providers
+      <Step title="Send Fern your IdP info">
+        Copy the SSO URL, Entity ID, and x509 certificate and send them via the secure channel we provide.
+      </Step>
 
-## Setting up SSO
+      <Step title="Configure integration">
+        On **Service provider details**, enter:
+        - ACS URL: provided by Fern
+        - Entity ID: provided by Fern
+        - Name ID format: `EMAIL`
+        - Name ID: `Primary email`
 
-Reach out via Slack or [contact our team](https://buildwithfern.com/contact) to begin the SSO setup process. Fern will work with one of your security administrators to connect to your identity provider.
+        Attribute statements:
+        | Google Directory Attribute | App Attribute |
+        | -------------------------- | ------------- |
+        | `First name`               | `firstName`   |
+        | `Last name`                | `lastName`    |
 
+        Assign users to the app, then tell us so we can turn on SSO.
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
+
+## Microsoft Entra
+
+<Tabs>
+  <Tab title="SAML">
+    <Steps>
+      <Step title="Create an application">
+        Under **Enterprise applications**, select **New application → Create your own application → Non-gallery**.
+      </Step>
+
+      <Step title="Configure SAML">
+        In **Single Sign-On**, choose **SAML** and set:
+        - Identifier (Entity ID): provided by Fern
+        - Reply URL (ACS): provided by Fern
+      </Step>
+
+      <Step title="Configure attributes & claims">
+        - Set **Name ID** to `user.primaryauthoritativeemail` (email).
+        - Add claims:
+          | Name        | Value            |
+          | ----------- | ---------------- |
+          | `firstName` | `user.givenname` |
+          | `lastName`  | `user.surname`   |
+      </Step>
+
+      <Step title="Send Fern your IdP info">
+        From **SAML Certificates**, copy the **App Federation Metadata URL**. Send it via the secure channel we provide, and we’ll enable the connection.
+      </Step>
+
+      <Step title="Assign users">
+        In **Users and groups**, add the people who should access Fern.
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
+
+## Using another provider?
+
+Share your IdP type (SAML/OIDC), the metadata URL (or issuer + client credentials for OIDC), and your docs domain(s). We’ll send a secure upload link, configure the connection, and run a quick login test with you.
