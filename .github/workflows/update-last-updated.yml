@@ -1,0 +1,78 @@
+name: Update Last Updated Date
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+    branches:
+      - main
+
+jobs:
+  update-last-updated:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get changed MDX files
+        id: changed-files
+        uses: tj-actions/changed-files@v45
+        with:
+          files: |
+            **/*.mdx
+
+      - name: Update last-updated frontmatter
+        if: steps.changed-files.outputs.any_changed == 'true'
+        run: |
+          # Get current date in "Month Day, Year" format
+          CURRENT_DATE=$(date +"%B %-d, %Y")
+          echo "Current date: $CURRENT_DATE"
+
+          for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
+            echo "Processing: $file"
+
+            if [ ! -f "$file" ]; then
+              echo "File not found, skipping: $file"
+              continue
+            fi
+
+            # Check if file has frontmatter (starts with ---)
+            if ! head -1 "$file" | grep -q "^---"; then
+              echo "No frontmatter found, skipping: $file"
+              continue
+            elif grep -q "^last-updated:" "$file"; then
+              echo "Updating existing last-updated field"
+              # Update existing last-updated field
+              sed -i "s/^last-updated:.*$/last-updated: $CURRENT_DATE/" "$file"
+            else
+              echo "Adding last-updated field to existing frontmatter"
+              # Add last-updated after the opening ---
+              sed -i "0,/^---$/!{0,/^---$/b;s/^---$/last-updated: $CURRENT_DATE\n---/}" "$file"
+              # If the above didn't work (complex sed), try awk
+              if ! grep -q "^last-updated:" "$file"; then
+                awk -v date="$CURRENT_DATE" '
+                  NR==1 && /^---$/ { print; getline; print "last-updated: " date; print; next }
+                  { print }
+                ' "$file" > "${file}.tmp" && mv "${file}.tmp" "$file"
+              fi
+            fi
+          done
+
+      - name: Commit changes
+        if: steps.changed-files.outputs.any_changed == 'true'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add -A
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: update last-updated date in MDX files"
+            git push
+          fi
