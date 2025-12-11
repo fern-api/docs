@@ -72,24 +72,30 @@ jobs:
       - name: Extract and verify fern-api GitHub URLs locally
         id: verify_fern_api
         run: |
-          # Extract all fern-api GitHub blob/tree URLs from the documentation pages
-          # These are excluded from lychee and verified locally instead to avoid 503 errors
+          # Extract all fern-api GitHub blob/tree URLs from the repo source files
+          # This is much faster than fetching all published pages via HTTP (~11 min -> seconds)
+          # These URLs are excluded from lychee and verified locally instead to avoid 503 errors
           
-          echo "Fetching documentation pages to extract fern-api GitHub URLs..."
+          echo "Scanning repo for fern-api GitHub URLs..."
+          start_time=$(date +%s)
           > fern-api-urls.txt
           
-          # Fetch each page and extract fern-api GitHub blob/tree URLs
-          while IFS= read -r page_url; do
-            [ -z "$page_url" ] && continue
-            curl -s "$page_url" | grep -oE 'https://github\.com/fern-api/[^/]+/(blob|tree)/[^"<>[:space:]]+' >> fern-api-urls.txt 2>/dev/null || true
-          done < urls.txt
+          # Search the content directories for fern-api blob/tree URLs
+          # Include fern/ (main docs) and README.md (root)
+          # Exclude .git and any cloned repos
+          grep -RhoE 'https://github\.com/fern-api/[^/]+/(blob|tree)/[^"'"'"')<>[:space:]]+' \
+            fern/ \
+            README.md \
+            --exclude-dir=.git \
+            --exclude-dir=.fern-api-repos \
+            >> fern-api-urls.txt 2>/dev/null || true
           
           # Deduplicate URLs
-          sort -u fern-api-urls.txt > fern-api-urls-unique.txt
-          mv fern-api-urls-unique.txt fern-api-urls.txt
+          sort -u fern-api-urls.txt -o fern-api-urls.txt
           
           total_urls=$(wc -l < fern-api-urls.txt | tr -d ' ')
-          echo "Found $total_urls unique fern-api GitHub URLs to verify locally"
+          end_time=$(date +%s)
+          echo "Found $total_urls unique fern-api GitHub URLs to verify locally (took $((end_time - start_time))s)"
           
           if [ "$total_urls" -eq 0 ]; then
             echo "No fern-api GitHub URLs to verify"
