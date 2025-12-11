@@ -50,6 +50,10 @@ jobs:
             "^https://www\\.npmjs\\.com",
             "^https://cdn\\.simpleicons\\.org",
             
+            # fern-api org GitHub file/tree links - verified locally instead of via HTTP
+            # This avoids 503 errors from GitHub rate limiting automated requests
+            "^https://github\\.com/fern-api/[^/]+/(blob|tree)/",
+            
             # Non-HTTP links
             "^mailto:",
             "^tel:",
@@ -64,6 +68,134 @@ jobs:
         run: |
           curl -s https://buildwithfern.com/learn/sitemap.xml | grep -oP '(?<=<loc>)[^<]+' > urls.txt
           echo "Found $(wc -l < urls.txt) URLs in sitemap"
+
+      - name: Extract and verify fern-api GitHub URLs locally
+        id: verify_fern_api
+        run: |
+          # Extract all fern-api GitHub blob/tree URLs from the documentation pages
+          # These are excluded from lychee and verified locally instead to avoid 503 errors
+          
+          echo "Fetching documentation pages to extract fern-api GitHub URLs..."
+          > fern-api-urls.txt
+          
+          # Fetch each page and extract fern-api GitHub blob/tree URLs
+          while IFS= read -r page_url; do
+            [ -z "$page_url" ] && continue
+            curl -s "$page_url" | grep -oE 'https://github\.com/fern-api/[^/]+/(blob|tree)/[^"<>[:space:]]+' >> fern-api-urls.txt 2>/dev/null || true
+          done < urls.txt
+          
+          # Deduplicate URLs
+          sort -u fern-api-urls.txt > fern-api-urls-unique.txt
+          mv fern-api-urls-unique.txt fern-api-urls.txt
+          
+          total_urls=$(wc -l < fern-api-urls.txt | tr -d ' ')
+          echo "Found $total_urls unique fern-api GitHub URLs to verify locally"
+          
+          if [ "$total_urls" -eq 0 ]; then
+            echo "No fern-api GitHub URLs to verify"
+            echo "verified_count=0" >> $GITHUB_OUTPUT
+            echo "missing_count=0" >> $GITHUB_OUTPUT
+            echo "has_missing=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # Extract unique repos that need to be cloned
+          grep -oE 'https://github\.com/fern-api/[^/]+' fern-api-urls.txt | sort -u > fern-api-repos.txt
+          
+          echo "Repos to clone:"
+          cat fern-api-repos.txt
+          
+          # Clone each repo (shallow clone for efficiency)
+          mkdir -p .fern-api-repos
+          while IFS= read -r repo_url; do
+            [ -z "$repo_url" ] && continue
+            repo_name="${repo_url##*/}"
+            echo "Cloning $repo_name..."
+            
+            # Use sparse checkout for efficiency - we only need to check if paths exist
+            git clone --depth 1 --filter=blob:none --sparse "$repo_url.git" ".fern-api-repos/$repo_name" 2>/dev/null || {
+              echo "Warning: Failed to clone $repo_url, will mark URLs from this repo as unverifiable"
+              continue
+            }
+          done < fern-api-repos.txt
+          
+          # Verify each URL by checking if the path exists in the cloned repo
+          verified_count=0
+          missing_count=0
+          > fern-api-missing.txt
+          > fern-api-verified.txt
+          
+          while IFS= read -r url; do
+            [ -z "$url" ] && continue
+            
+            # Parse URL: https://github.com/fern-api/REPO/(blob|tree)/BRANCH/PATH
+            # Remove any URL fragments or query strings
+            clean_url="${url%%#*}"
+            clean_url="${clean_url%%\?*}"
+            
+            # Extract repo name and path
+            # Format: https://github.com/fern-api/REPO/(blob|tree)/BRANCH/PATH
+            repo_name=$(echo "$clean_url" | sed -E 's|https://github\.com/fern-api/([^/]+)/.*|\1|')
+            # Extract path after branch (everything after blob/BRANCH/ or tree/BRANCH/)
+            rel_path=$(echo "$clean_url" | sed -E 's|https://github\.com/fern-api/[^/]+/(blob|tree)/[^/]+/(.*)|\2|')
+            
+            # Check if we have the repo cloned
+            if [ ! -d ".fern-api-repos/$repo_name" ]; then
+              echo "Repo not cloned, cannot verify: $url"
+              echo "- [UNVERIFIABLE] $url (repo clone failed)" >> fern-api-missing.txt
+              missing_count=$((missing_count + 1))
+              continue
+            fi
+            
+            # For sparse checkout, we need to fetch the specific path to check if it exists
+            # Use git ls-tree to check if the path exists without fetching content
+            cd ".fern-api-repos/$repo_name"
+            
+            # Get the default branch
+            default_branch=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@' || echo "main")
+            
+            # Check if path exists using git ls-tree (works with sparse checkout)
+            if git ls-tree -r --name-only "$default_branch" -- "$rel_path" 2>/dev/null | grep -q "^${rel_path}$" || \
+               git ls-tree -d --name-only "$default_branch" -- "$rel_path" 2>/dev/null | grep -q "^${rel_path}$"; then
+              echo "Verified: $url -> $rel_path"
+              echo "$url" >> ../../fern-api-verified.txt
+              verified_count=$((verified_count + 1))
+            else
+              # Also check if it's a directory (tree link)
+              if git ls-tree -d "$default_branch" -- "$rel_path" 2>/dev/null | grep -q .; then
+                echo "Verified (directory): $url -> $rel_path"
+                echo "$url" >> ../../fern-api-verified.txt
+                verified_count=$((verified_count + 1))
+              else
+                echo "MISSING: $url -> $rel_path"
+                echo "- [LOCAL_MISSING] $url (path: $rel_path in $repo_name)" >> ../../fern-api-missing.txt
+                missing_count=$((missing_count + 1))
+              fi
+            fi
+            
+            cd ../..
+          done < fern-api-urls.txt
+          
+          echo ""
+          echo "=== fern-api GitHub URL Verification Summary ==="
+          echo "Total URLs checked: $total_urls"
+          echo "Verified locally: $verified_count"
+          echo "Missing/unverifiable: $missing_count"
+          
+          echo "verified_count=$verified_count" >> $GITHUB_OUTPUT
+          echo "missing_count=$missing_count" >> $GITHUB_OUTPUT
+          
+          if [ "$missing_count" -gt 0 ]; then
+            echo "has_missing=true" >> $GITHUB_OUTPUT
+            echo ""
+            echo "Missing URLs:"
+            cat fern-api-missing.txt
+          else
+            echo "has_missing=false" >> $GITHUB_OUTPUT
+          fi
+          
+          # Cleanup cloned repos
+          rm -rf .fern-api-repos
 
       - name: Check Fern Docs Links (first pass)
         id: lychee
@@ -234,6 +366,12 @@ jobs:
           still_failing_429="${{ steps.retry429.outputs.still_failing_429 }}"
           still_failing_429=${still_failing_429:-0}
           
+          # Get fern-api local verification stats
+          fern_api_verified="${{ steps.verify_fern_api.outputs.verified_count }}"
+          fern_api_verified=${fern_api_verified:-0}
+          fern_api_missing="${{ steps.verify_fern_api.outputs.missing_count }}"
+          fern_api_missing=${fern_api_missing:-0}
+          
           # Build clean errors-only report
           cat > lychee-report.md << 'HEADER'
           # Link Check Report
@@ -257,7 +395,14 @@ jobs:
             echo "" >> lychee-report.md
           fi
           
-          if [ "$broken_count" -eq 0 ] && [ "$still_failing_429" -eq 0 ]; then
+          if [ "$fern_api_missing" -gt 0 ]; then
+            echo "## fern-api GitHub URLs - Missing Locally ($fern_api_missing)" >> lychee-report.md
+            echo "" >> lychee-report.md
+            cat fern-api-missing.txt >> lychee-report.md
+            echo "" >> lychee-report.md
+          fi
+          
+          if [ "$broken_count" -eq 0 ] && [ "$still_failing_429" -eq 0 ] && [ "$fern_api_missing" -eq 0 ]; then
             echo "No broken links found!" >> lychee-report.md
           fi
           
@@ -298,6 +443,8 @@ jobs:
           echo "  Repo-internal GitHub URLs (5xx verified locally): $verified_5xx"
           echo "  Rate-limited (429) - recovered after retry: $recovered_429"
           echo "  Rate-limited (429) - still failing: $still_failing_429"
+          echo "  fern-api GitHub URLs verified locally: $fern_api_verified"
+          echo "  fern-api GitHub URLs missing locally: $fern_api_missing"
           
           if [ "$broken_count" -gt 0 ]; then
             echo ""
@@ -309,6 +456,12 @@ jobs:
             echo ""
             echo "RATE-LIMITED URLs STILL FAILING (429):"
             cat urls-429-still-failing.txt
+          fi
+          
+          if [ "$fern_api_missing" -gt 0 ]; then
+            echo ""
+            echo "FERN-API GITHUB URLs MISSING LOCALLY:"
+            cat fern-api-missing.txt
           fi
           
           # Build GitHub Step Summary using lychee's table + 429 info + persistent errors only
@@ -327,6 +480,8 @@ jobs:
             echo "| Repo-internal GitHub URLs (5xx verified locally) | $verified_5xx |"
             echo "| Rate-limited (429) recovered after retry | $recovered_429 |"
             echo "| Rate-limited (429) still failing | $still_failing_429 |"
+            echo "| fern-api GitHub URLs verified locally | $fern_api_verified |"
+            echo "| fern-api GitHub URLs missing locally | $fern_api_missing |"
             echo ""
             
             # Show persistent errors only (non-429 broken links + 429s that didn't recover)
@@ -343,6 +498,11 @@ jobs:
             if [ "$still_failing_429" -gt 0 ]; then
               has_persistent_errors=true
               cat urls-429-still-failing.txt
+            fi
+            
+            if [ "$fern_api_missing" -gt 0 ]; then
+              has_persistent_errors=true
+              cat fern-api-missing.txt
             fi
             
             if [ "$has_persistent_errors" = false ]; then
@@ -362,7 +522,7 @@ jobs:
 
       - name: Create PR for broken links
         id: create-pr
-        if: steps.check_failures.outputs.has_other_failures == 'true' || steps.retry429.outputs.has_429_failures == 'true'
+        if: steps.check_failures.outputs.has_other_failures == 'true' || steps.retry429.outputs.has_429_failures == 'true' || steps.verify_fern_api.outputs.has_missing == 'true'
         uses: actions/github-script@v7
         env:
           DEVIN_PROMPT: |
@@ -393,6 +553,7 @@ jobs:
             // Read broken links files
             let brokenLinksContent = '';
             let urls429Content = '';
+            let fernApiMissingContent = '';
             
             try {
               brokenLinksContent = fs.readFileSync('broken-links.txt', 'utf8');
@@ -405,8 +566,14 @@ jobs:
             } catch (e) {
               console.log('No urls-429-still-failing.txt found');
             }
+            
+            try {
+              fernApiMissingContent = fs.readFileSync('fern-api-missing.txt', 'utf8');
+            } catch (e) {
+              console.log('No fern-api-missing.txt found');
+            }
 
-            if (!brokenLinksContent && !urls429Content) {
+            if (!brokenLinksContent && !urls429Content && !fernApiMissingContent) {
               console.log('No broken links to report');
               return;
             }
@@ -431,6 +598,11 @@ jobs:
             if (urls429Content.trim()) {
               scaffoldContent += '\n## Rate-Limited URLs (429) Still Failing After Retry\n\n';
               scaffoldContent += urls429Content.trim() + '\n';
+            }
+            
+            if (fernApiMissingContent.trim()) {
+              scaffoldContent += '\n## fern-api GitHub URLs Missing Locally\n\n';
+              scaffoldContent += fernApiMissingContent.trim() + '\n';
             }
 
             scaffoldContent += '\n---\n';
@@ -628,7 +800,7 @@ jobs:
             }
 
       - name: Fail if there are broken links
-        if: steps.check_failures.outputs.has_other_failures == 'true' || steps.retry429.outputs.has_429_failures == 'true'
+        if: steps.check_failures.outputs.has_other_failures == 'true' || steps.retry429.outputs.has_429_failures == 'true' || steps.verify_fern_api.outputs.has_missing == 'true'
         run: |
           echo "Link check failed!"
           if [ "${{ steps.check_failures.outputs.has_other_failures }}" == "true" ]; then
@@ -637,5 +809,8 @@ jobs:
           if [ "${{ steps.retry429.outputs.has_429_failures }}" == "true" ]; then
             echo "Some URLs still returned 429 after exponential backoff retry."
             echo "These URLs may need to be excluded or the rate limit needs more time to reset."
+          fi
+          if [ "${{ steps.verify_fern_api.outputs.has_missing }}" == "true" ]; then
+            echo "Some fern-api GitHub URLs point to paths that don't exist in the repos."
           fi
           exit 1
