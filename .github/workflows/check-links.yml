@@ -214,9 +214,10 @@ jobs:
                 git fetch --depth 1 origin "$ref" 2>/dev/null || true
               fi
               
-              # Check if path exists using git ls-tree (works with sparse checkout)
-              if git ls-tree -r --name-only "$ref" -- "$rel_path" 2>/dev/null | grep -q "^${rel_path}$" || \
-                 git ls-tree -d --name-only "$ref" -- "$rel_path" 2>/dev/null | grep -q "^${rel_path}$"; then
+                # Check if path exists using git ls-tree (works with sparse checkout)
+                # Use grep -qxF for literal string matching (paths may contain regex chars like [ and ])
+                if git ls-tree -r --name-only "$ref" -- "$rel_path" 2>/dev/null | grep -qxF "$rel_path" || \
+                   git ls-tree -d --name-only "$ref" -- "$rel_path" 2>/dev/null | grep -qxF "$rel_path"; then
                 echo "Verified: $url -> $rel_path (ref: $ref)"
                 echo "$url" >> ../../../github-verified.txt
                 verified_count=$((verified_count + 1))
@@ -371,11 +372,12 @@ jobs:
           [ -f lychee-raw-github.md ] && cat lychee-raw-github.md >> lychee-raw.md
           echo "Combined lychee outputs into lychee-raw.md"
 
-      - name: Extract 429 URLs and retry with exponential backoff
+      - name: Extract 403/429 URLs and retry with exponential backoff
         id: retry429
         run: |
-          # Extract all 429 URLs from the raw lychee report
-          grep '\[429\]' ./lychee-raw.md | sed -E 's/.*<([^>]+)>.*/\1/' | sort -u > urls-429-all.txt || true
+          # Extract all 403 and 429 URLs from the raw lychee report
+          # 403s are often from bot-blocking sites (npmjs, simpleicons) and should be treated like 429s
+          grep -E '\[403\]|\[429\]' ./lychee-raw.md | sed -E 's/.*<([^>]+)>.*/\1/' | sort -u > urls-429-all.txt || true
           
           # Initialize counters for repo-internal GitHub URLs
           verified_locally=0
@@ -444,18 +446,18 @@ jobs:
                   --max-time 30 \
                   "$url" || echo "000")
                 
-                if [ "$status" -lt 400 ]; then
-                  echo "OK on retry (status $status): $url"
-                  success=true
-                  break
-                elif [ "$status" -eq 429 ]; then
-                  echo "Still 429, sleeping ${delay}s before next attempt..."
-                  sleep "$delay"
-                  delay=$((delay * 2))
-                else
-                  echo "Non-429 failure (status $status): $url"
-                  break
-                fi
+                  if [ "$status" -lt 400 ]; then
+                    echo "OK on retry (status $status): $url"
+                    success=true
+                    break
+                  elif [ "$status" -eq 429 ] || [ "$status" -eq 403 ]; then
+                    echo "Still $status, sleeping ${delay}s before next attempt..."
+                    sleep "$delay"
+                    delay=$((delay * 2))
+                  else
+                    echo "Non-retryable failure (status $status): $url"
+                    break
+                  fi
               done
               
               if [ "$success" = false ]; then
@@ -477,8 +479,9 @@ jobs:
       - name: Build errors-only report and summarize
         id: check_failures
         run: |
-          # Pattern matches 4xx (except 429) and 5xx status codes
-          FAILURE_PATTERN='\[40[0-9]\]|\[41[0-9]\]|\[42[0-8]\]|\[4[3-9][0-9]\]|\[5[0-9]{2}\]'
+          # Pattern matches 4xx (except 403 and 429) and 5xx status codes
+          # 403 and 429 are handled separately (retried with exponential backoff)
+          FAILURE_PATTERN='\[400\]|\[401\]|\[402\]|\[40[4-9]\]|\[41[0-9]\]|\[42[0-8]\]|\[4[3-9][0-9]\]|\[5[0-9]{2}\]'
           
           # Extract broken links from raw report
           grep -E "$FAILURE_PATTERN" ./lychee-raw.md > broken-links-raw.txt 2>/dev/null || true
