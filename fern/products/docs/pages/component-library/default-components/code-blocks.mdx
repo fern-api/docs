@@ -283,3 +283,183 @@ A very very very long line of text that may cause the code block to overflow and
 ```
 ````
 
+### Deep linking
+
+Make specific text within code blocks clickable by defining a `links` map. This is useful for linking to documentation, API references, or related resources directly from your code examples.
+
+The `links` property accepts a map where keys are matching patterns (exact strings or regex) and values are the URLs to link to.
+
+<AccordionGroup>
+<Accordion title="Exact string matching">
+  <div className="highlight-frame">
+  <CodeBlock
+    links={{"PlantClient": "/learn/docs/writing-content/demo#plantclient", "createPlant": "/learn/docs/writing-content/demo#createplant"}}
+  >
+  ```typescript
+  import { PlantClient } from "@plantstore/sdk";
+
+  const client = new PlantClient({ apiKey: "YOUR_API_KEY" });
+  const plant = await client.createPlant({
+    name: "Monstera",
+    species: "Monstera deliciosa"
+  });
+  ```
+  </CodeBlock>
+  </div>
+
+  ````markdown Markdown
+  <CodeBlock
+    links={{"PlantClient": "/learn/docs/writing-content/demo#plantclient", "createPlant": "/learn/docs/writing-content/demo#create_plant"}}
+  >
+  ```typescript 
+  import { PlantClient } from "@plantstore/sdk";
+
+  const client = new PlantClient({ apiKey: "YOUR_API_KEY" });
+  const plant = await client.createPlant({
+    name: "Monstera",
+    species: "Monstera deliciosa"
+  });
+  ```
+  </CodeBlock>
+  ````
+
+  <Note>
+    The `links` property uses JSON format. Each key in the map is matched exactly against text in the code block, and matching text becomes a clickable link to the corresponding URL.
+  </Note>
+</Accordion>
+
+<Accordion title="Regex pattern matching">
+
+You can use regex patterns for more flexible matching. This is useful when you want to link multiple variations or patterns of text. 
+
+In the example below, the pattern `/get\\w+/` matches both `getPlant` and `getGarden`, while `/Plant(Store|Client)/` matches both `PlantStore` and `PlantClient`.
+
+<div className="highlight-frame">
+<CodeBlock
+  links={{"/get\\w+/": "/learn/docs/writing-content/demo#get-methods", "/Plant(Store|Client)/": "/learn/docs/writing-content/demo#type-definitions"}}
+>
+```python
+from plantstore import PlantStore, PlantClient
+
+store = PlantStore(api_key="YOUR_API_KEY")
+client = PlantClient(store)
+
+plant = store.getPlant(plant_id="123")
+garden = store.getGarden(garden_id="456")
+```
+</CodeBlock>
+</div>
+
+````markdown Markdown
+<CodeBlock
+   links={{"/get\\w+/": "/learn/docs/writing-content/demo#get-methods", "/Plant(Store|Client)/": "/learn/docs/writing-content/demo#type-definitions"}}
+>
+```python
+from plantstore import PlantStore, PlantClient
+
+store = PlantStore(api_key="YOUR_API_KEY")
+client = PlantClient(store)
+
+plant = store.getPlant(plant_id="123")
+garden = store.getGarden(garden_id="456")
+```
+</CodeBlock>
+````
+
+<Note>
+  When using regex patterns, remember to escape special characters with double backslashes (e.g., `\\w+`, `\\d+`) in the JSON string.
+</Note>
+</Accordion>
+</AccordionGroup>
+
+### Embedding code files
+
+You can embed code from local or external files using the `<Code>` component with the `src` prop. For local files, reference files relative to your docs directory. For external files, use full URLs to pull code samples directly from remote sources like GitHub.
+
+The `<Code>` component supports the same props as `<CodeBlock>`, including `title`, `language`, and `maxLines`.
+
+<div className="highlight-frame">
+```js Local file
+<Markdown src="snippets/example-code.mdx" />
+```
+<Code src="snippets/example-code.js" />
+</div>
+
+<div className="modify-titled-snippet">
+`````tsx Markdown
+```js
+<Markdown src="snippets/example-code.mdx" />
+```
+<Code src="snippets/example-code.js" />
+`````
+</div>
+
+<div className="highlight-frame">
+<Code
+  src="https://raw.githubusercontent.com/fern-api/docs-starter/refs/heads/main/.github/workflows/check.yml"
+  title="GitHub Actions workflow (external file)"
+  language="yaml"
+  maxLines={15}
+/>
+</div>
+
+<div className="modify-titled-snippet">
+`````tsx Markdown
+<Code
+  src="https://raw.githubusercontent.com/fern-api/docs-starter/refs/heads/main/.github/workflows/check.yml"
+  title="GitHub Actions workflow"
+  language="yaml"
+  maxLines={15}
+/>
+`````
+</div>
+
+### Code blocks with tabs
+
+Display multiple code blocks in a tabbed interface.
+
+<div className="highlight-frame">
+<CodeBlocks>
+  ```ruby title="hello_world.rb"
+  puts "Hello World"
+  ```
+
+  ```php title="hello_world.php"
+  <?php
+  echo "Hello World";
+  ?>
+  ```
+
+  ```rust title="hello_world.rs"
+  fn main() {
+      println!("Hello World");
+  }
+  ```
+</CodeBlocks>
+</div>
+
+````jsx Markdown
+<CodeBlocks>
+  ```ruby title="hello_world.rb"
+  puts "Hello World"
+  ```
+
+  ```php title="hello_world.php"
+  <?php
+  echo "Hello World";
+  ?>
+  ```
+
+  ```rust title="hello_world.rs"
+  fn main() {
+      println!("Hello World");
+  }
+  ```
+</CodeBlocks>
+````
+
+## Language synchronization
+
+Code blocks with the same language automatically synchronize across your documentation site. When a user selects a language, all code blocks with that language switch to match. Language preferences persist across browser sessions.
+
+<div className="highlight-frame">
