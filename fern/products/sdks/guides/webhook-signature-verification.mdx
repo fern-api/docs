@@ -1,0 +1,89 @@
+---
+title: Webhook signature verification
+description: Verify the authenticity of incoming webhook requests in your server-side code
+---
+
+Fern SDKs are client libraries for making outbound API requests. Webhook signature verification is a server-side concern for validating inbound requests, so Fern does not generate webhook verification code in SDKs.
+
+## What Fern provides for webhooks
+
+Fern helps with webhooks in two ways:
+
+1. **Webhook reference documentation**: Fern generates interactive webhook documentation from your API definition. See [Generate your webhook reference](/learn/docs/api-references/generate-webhook-ref) for setup instructions.
+
+2. **Webhook payload schemas**: Your API definition contains webhook payload schemas that you can reference when implementing your webhook handler.
+
+## Implementing signature verification
+
+Webhook signature verification ensures that incoming requests are authentic and haven't been tampered with. The implementation depends on your webhook provider's signing scheme.
+
+A typical verification flow:
+
+1. Extract the signature from the request headers
+2. Compute the expected signature using your webhook secret and the request body
+3. Compare the signatures using a timing-safe comparison
+4. Reject requests with invalid signatures
+
+<CodeBlocks>
+  <CodeBlock title="TypeScript">
+    ```ts
+    import crypto from "crypto";
+
+    function verifyWebhookSignature(
+      payload: string,
+      signature: string,
+      secret: string
+    ): boolean {
+      const expectedSignature = crypto
+        .createHmac("sha256", secret)
+        .update(payload)
+        .digest("hex");
+      
+      return crypto.timingSafeEqual(
+        Buffer.from(signature),
+        Buffer.from(expectedSignature)
+      );
+    }
+    ```
+  </CodeBlock>
+  <CodeBlock title="Python">
+    ```python
+    import hmac
+    import hashlib
+
+    def verify_webhook_signature(
+        payload: bytes,
+        signature: str,
+        secret: str
+    ) -> bool:
+        expected_signature = hmac.new(
+            secret.encode(),
+            payload,
+            hashlib.sha256
+        ).hexdigest()
+        
+        return hmac.compare_digest(signature, expected_signature)
+    ```
+  </CodeBlock>
+  <CodeBlock title="Go">
+    ```go
+    import (
+        "crypto/hmac"
+        "crypto/sha256"
+        "encoding/hex"
+    )
+
+    func verifyWebhookSignature(payload []byte, signature, secret string) bool {
+        mac := hmac.New(sha256.New, []byte(secret))
+        mac.Write(payload)
+        expectedSignature := hex.EncodeToString(mac.Sum(nil))
+        
+        return hmac.Equal([]byte(signature), []byte(expectedSignature))
+    }
+    ```
+  </CodeBlock>
+</CodeBlocks>
+
+<Note>
+  The exact signing algorithm and header names vary by provider. Consult your webhook provider's documentation for their specific implementation requirements.
+</Note>
