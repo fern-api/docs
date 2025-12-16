@@ -3,6 +3,125 @@ title: Adding custom code
 description: Augment your PHP SDK with custom utilities
 ---
 
-Learn how to extend your Fern PHP SDK with custom code and utilities.
+This page covers how to add custom logic, methods, and dependencies to your PHP SDK. 
 
-<Warning>This page is a WIP, please refer to our previous [documentation](https://buildwithfern.com/learn/sdks/capabilities/custom-code).</Warning>
+<Markdown src="/products/sdks/snippets/custom-code-callout.mdx"/>
+
+## Adding custom logic
+
+To get started adding custom code:
+
+<Steps>
+
+    ### Create a new file and add your custom logic
+    
+    ```php title="src/Helper.php"
+    <?php
+
+    namespace YourNamespace;
+
+    class Helper
+    {
+        public static function myHelper(): void
+        {
+            echo "Hello World!";
+        }
+    }
+    ```
+
+    ### Add your file to `.fernignore`
+
+    ```yaml {3} title=".fernignore"
+    # Specify files that shouldn't be modified by Fern
+
+    src/Helper.php
+    ```
+
+    ### Consume the helper
+
+    <Markdown src="/products/sdks/snippets/consume-method.mdx"/>
+
+    ```php
+    <?php
+
+    use YourNamespace\Helper;
+
+    Helper::myHelper();
+    ```
+</Steps>
+
+## Adding custom SDK methods
+
+<Markdown src="/products/sdks/snippets/custom-sdk-methods-intro.mdx"/>
+
+<Steps>
+  ### Update `generators.yml` configuration
+
+  Name your Fern-generated client something like `BaseClient` to reflect that this client will be extended.
+
+  ```yaml {4} title="generators.yml"
+  - name: fernapi/fern-php-sdk
+    version: "..."
+    config:
+      clientName: BaseClient
+  ```
+
+  ### Import and extend the generated client
+
+  First, import the Fern generated base client and extend it. Then, add whatever methods you want.
+
+  ```php title="src/MyClient.php"
+  <?php
+
+  namespace YourNamespace;
+
+  class MyClient extends BaseClient
+  {
+      public function myHelper(): void
+      {
+          echo "Hello World!";
+      }
+  }
+  ```
+
+  ### Update `.fernignore`
+
+  Add the `MyClient.php` to `.fernignore`.
+
+  ```diff title=".fernignore"
+  + src/MyClient.php
+  ```
+
+  ### Consume the method
+
+  Instead of constructing the generated client, your users will want to construct the extended client.
+
+  ```php
+  <?php
+
+  use YourNamespace\MyClient;
+
+  $client = new MyClient();
+  ```
+
+  <Markdown src="/products/sdks/snippets/consume-method.mdx"/>
+
+  ```php
+  $client->myHelper();
+  ```
+</Steps>
+
+## Adding custom dependencies
+
+To add packages that your custom code requires, update your `generators.yml` using the `composerJson` configuration option.
+
+```yaml {4-8} title="generators.yml"
+- name: fernapi/fern-php-sdk
+  version: "..."
+  config:
+    composerJson:
+      require:
+        guzzlehttp/guzzle: "^7.0"
+      require-dev:
+        phpunit/phpunit: "^10.0"
+```
