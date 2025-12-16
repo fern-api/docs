@@ -18,7 +18,6 @@ The table below shows all available extensions and links to detailed documentati
 | [`x-fern-server-name`](./server-names) | Specify custom names for servers |
 | [`x-fern-availability`](./availability) | Mark features as available in specific SDK versions |
 | [`x-fern-audiences`](./audiences) | Filter operations by audience |
-| [`x-fern-sdk-method-name`](./method-names) | Customize SDK method names |
 
 <Note title="Request a new extension">
     If there's an extension you want that doesn't already exist, file an [issue](https://github.com/fern-api/fern/issues/new) to start a discussion about it.
