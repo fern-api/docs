@@ -12,9 +12,7 @@ This page covers how to add custom logic, methods, and dependencies to your Ruby
 To get started adding custom code:
 
 <Steps>
-
-    ### Create a new file and add your custom logic
-    
+  <Step title="Create a new file and add your custom logic">
     ```ruby title="lib/<gem_name>/helper.rb"
     module YourGem
       class Helper
@@ -24,17 +22,15 @@ To get started adding custom code:
       end
     end
     ```
-
-    ### Add your file to `.fernignore`
-
+  </Step>
+  <Step title="Add your file to `.fernignore`">
     ```yaml {3} title=".fernignore"
     # Specify files that shouldn't be modified by Fern
 
     lib/<gem_name>/helper.rb
     ```
-
-    ### Consume the helper
-
+  </Step>
+  <Step title="Consume the helper">
     <Markdown src="/products/sdks/snippets/consume-method.mdx"/>
 
     ```ruby
@@ -42,6 +38,7 @@ To get started adding custom code:
 
     YourGem::Helper.my_helper
     ```
+  </Step>
 </Steps>
 
 ## Adding custom SDK methods
@@ -49,56 +46,53 @@ To get started adding custom code:
 <Markdown src="/products/sdks/snippets/custom-sdk-methods-intro.mdx"/>
 
 <Steps>
-  ### Update `generators.yml` configuration
+  <Step title="Update `generators.yml` configuration">
+    Name your Fern-generated client something like `BaseClient` to reflect that this client will be extended.
 
-  Name your Fern-generated client something like `BaseClient` to reflect that this client will be extended.
+    ```yaml {4} title="generators.yml"
+    - name: fernapi/fern-ruby-sdk
+      version: "..."
+      config:
+        clientClassName: BaseClient
+    ```
+  </Step>
+  <Step title="Import and extend the generated client">
+    First, import the Fern generated base client and extend it. Then, add whatever methods you want.
 
-  ```yaml {4} title="generators.yml"
-  - name: fernapi/fern-ruby-sdk
-    version: "..."
-    config:
-      clientClassName: BaseClient
-  ```
+    ```ruby title="lib/<gem_name>/my_client.rb"
+    require_relative "client"
 
-  ### Import and extend the generated client
-
-  First, import the Fern generated base client and extend it. Then, add whatever methods you want.
-
-  ```ruby title="lib/<gem_name>/my_client.rb"
-  require_relative "client"
-
-  module YourGem
-    class MyClient < BaseClient
-      def my_helper
-        puts "Hello World!"
+    module YourGem
+      class MyClient < BaseClient
+        def my_helper
+          puts "Hello World!"
+        end
       end
     end
-  end
-  ```
+    ```
+  </Step>
+  <Step title="Update `.fernignore`">
+    Add the `my_client.rb` to `.fernignore`.
 
-  ### Update `.fernignore`
+    ```diff title=".fernignore"
+    + lib/<gem_name>/my_client.rb
+    ```
+  </Step>
+  <Step title="Consume the method">
+    Instead of constructing the generated client, your users will want to construct the extended client.
 
-  Add the `my_client.rb` to `.fernignore`.
+    ```ruby
+    require "your_gem"
 
-  ```diff title=".fernignore"
-  + lib/<gem_name>/my_client.rb
-  ```
+    client = YourGem::MyClient.new
+    ```
 
-  ### Consume the method
+    <Markdown src="/products/sdks/snippets/consume-method.mdx"/>
 
-  Instead of constructing the generated client, your users will want to construct the extended client.
-
-  ```ruby
-  require "your_gem"
-
-  client = YourGem::MyClient.new
-  ```
-
-  <Markdown src="/products/sdks/snippets/consume-method.mdx"/>
-
-  ```ruby
-  client.my_helper
-  ```
+    ```ruby
+    client.my_helper
+    ```
+  </Step>
 </Steps>
 
 ## Adding custom dependencies

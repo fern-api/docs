@@ -12,9 +12,7 @@ This page covers how to add custom logic, methods, and dependencies to your PHP 
 To get started adding custom code:
 
 <Steps>
-
-    ### Create a new file and add your custom logic
-    
+  <Step title="Create a new file and add your custom logic">
     ```php title="src/Helper.php"
     <?php
 
@@ -28,17 +26,15 @@ To get started adding custom code:
         }
     }
     ```
-
-    ### Add your file to `.fernignore`
-
+  </Step>
+  <Step title="Add your file to `.fernignore`">
     ```yaml {3} title=".fernignore"
     # Specify files that shouldn't be modified by Fern
 
     src/Helper.php
     ```
-
-    ### Consume the helper
-
+  </Step>
+  <Step title="Consume the helper">
     <Markdown src="/products/sdks/snippets/consume-method.mdx"/>
 
     ```php
@@ -48,6 +44,7 @@ To get started adding custom code:
 
     Helper::myHelper();
     ```
+  </Step>
 </Steps>
 
 ## Adding custom SDK methods
@@ -55,60 +52,57 @@ To get started adding custom code:
 <Markdown src="/products/sdks/snippets/custom-sdk-methods-intro.mdx"/>
 
 <Steps>
-  ### Update `generators.yml` configuration
+  <Step title="Update `generators.yml` configuration">
+    Name your Fern-generated client something like `BaseClient` to reflect that this client will be extended.
 
-  Name your Fern-generated client something like `BaseClient` to reflect that this client will be extended.
+    ```yaml {4} title="generators.yml"
+    - name: fernapi/fern-php-sdk
+      version: "..."
+      config:
+        clientName: BaseClient
+    ```
+  </Step>
+  <Step title="Import and extend the generated client">
+    First, import the Fern generated base client and extend it. Then, add whatever methods you want.
 
-  ```yaml {4} title="generators.yml"
-  - name: fernapi/fern-php-sdk
-    version: "..."
-    config:
-      clientName: BaseClient
-  ```
+    ```php title="src/MyClient.php"
+    <?php
 
-  ### Import and extend the generated client
+    namespace YourNamespace;
 
-  First, import the Fern generated base client and extend it. Then, add whatever methods you want.
+    class MyClient extends BaseClient
+    {
+        public function myHelper(): void
+        {
+            echo "Hello World!";
+        }
+    }
+    ```
+  </Step>
+  <Step title="Update `.fernignore`">
+    Add the `MyClient.php` to `.fernignore`.
 
-  ```php title="src/MyClient.php"
-  <?php
+    ```diff title=".fernignore"
+    + src/MyClient.php
+    ```
+  </Step>
+  <Step title="Consume the method">
+    Instead of constructing the generated client, your users will want to construct the extended client.
 
-  namespace YourNamespace;
+    ```php
+    <?php
 
-  class MyClient extends BaseClient
-  {
-      public function myHelper(): void
-      {
-          echo "Hello World!";
-      }
-  }
-  ```
+    use YourNamespace\MyClient;
 
-  ### Update `.fernignore`
+    $client = new MyClient();
+    ```
 
-  Add the `MyClient.php` to `.fernignore`.
+    <Markdown src="/products/sdks/snippets/consume-method.mdx"/>
 
-  ```diff title=".fernignore"
-  + src/MyClient.php
-  ```
-
-  ### Consume the method
-
-  Instead of constructing the generated client, your users will want to construct the extended client.
-
-  ```php
-  <?php
-
-  use YourNamespace\MyClient;
-
-  $client = new MyClient();
-  ```
-
-  <Markdown src="/products/sdks/snippets/consume-method.mdx"/>
-
-  ```php
-  $client->myHelper();
-  ```
+    ```php
+    $client->myHelper();
+    ```
+  </Step>
 </Steps>
 
 ## Adding custom dependencies

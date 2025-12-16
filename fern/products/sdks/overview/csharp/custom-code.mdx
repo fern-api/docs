@@ -12,9 +12,7 @@ This page covers how to add custom logic and methods to your .NET SDK.
 To get started adding custom code:
 
 <Steps>
-
-    ### Create a new file and add your custom logic
-    
+  <Step title="Create a new file and add your custom logic">
     ```csharp title="src/YourNamespace/Helper.cs"
     namespace YourNamespace;
 
@@ -26,17 +24,15 @@ To get started adding custom code:
         }
     }
     ```
-
-    ### Add your file to `.fernignore`
-
+  </Step>
+  <Step title="Add your file to `.fernignore`">
     ```yaml {3} title=".fernignore"
     # Specify files that shouldn't be modified by Fern
 
     src/YourNamespace/Helper.cs
     ```
-
-    ### Consume the helper
-
+  </Step>
+  <Step title="Consume the helper">
     <Markdown src="/products/sdks/snippets/consume-method.mdx"/>
 
     ```csharp
@@ -44,6 +40,7 @@ To get started adding custom code:
 
     Helper.MyHelper();
     ```
+  </Step>
 </Steps>
 
 ## Adding custom SDK methods
@@ -51,58 +48,55 @@ To get started adding custom code:
 <Markdown src="/products/sdks/snippets/custom-sdk-methods-intro.mdx"/>
 
 <Steps>
-  ### Update `generators.yml` configuration
+  <Step title="Update `generators.yml` configuration">
+    Name your Fern-generated client something like `BaseClient` to reflect that this client will be extended.
 
-  Name your Fern-generated client something like `BaseClient` to reflect that this client will be extended.
+    ```yaml {4} title="generators.yml"
+    - name: fernapi/fern-csharp-sdk
+      version: "..."
+      config:
+        client-class-name: BaseClient
+    ```
+  </Step>
+  <Step title="Import and extend the generated client">
+    First, import the Fern generated base client and extend it. Then, add whatever methods you want.
 
-  ```yaml {4} title="generators.yml"
-  - name: fernapi/fern-csharp-sdk
-    version: "..."
-    config:
-      client-class-name: BaseClient
-  ```
+    ```csharp title="src/YourNamespace/MyClient.cs"
+    namespace YourNamespace;
 
-  ### Import and extend the generated client
+    public class MyClient : BaseClient
+    {
+        public MyClient(ClientOptions? clientOptions = null) : base(clientOptions)
+        {
+        }
 
-  First, import the Fern generated base client and extend it. Then, add whatever methods you want.
+        public void MyHelper()
+        {
+            Console.WriteLine("Hello World!");
+        }
+    }
+    ```
+  </Step>
+  <Step title="Update `.fernignore`">
+    Add the `MyClient.cs` to `.fernignore`.
 
-  ```csharp title="src/YourNamespace/MyClient.cs"
-  namespace YourNamespace;
+    ```diff title=".fernignore"
+    + src/YourNamespace/MyClient.cs
+    ```
+  </Step>
+  <Step title="Consume the method">
+    Instead of constructing the generated client, your users will want to construct the extended client.
 
-  public class MyClient : BaseClient
-  {
-      public MyClient(ClientOptions? clientOptions = null) : base(clientOptions)
-      {
-      }
+    ```csharp
+    using YourNamespace;
 
-      public void MyHelper()
-      {
-          Console.WriteLine("Hello World!");
-      }
-  }
-  ```
+    var client = new MyClient();
+    ```
 
-  ### Update `.fernignore`
+    <Markdown src="/products/sdks/snippets/consume-method.mdx"/>
 
-  Add the `MyClient.cs` to `.fernignore`.
-
-  ```diff title=".fernignore"
-  + src/YourNamespace/MyClient.cs
-  ```
-
-  ### Consume the method
-
-  Instead of constructing the generated client, your users will want to construct the extended client.
-
-  ```csharp
-  using YourNamespace;
-
-  var client = new MyClient();
-  ```
-
-  <Markdown src="/products/sdks/snippets/consume-method.mdx"/>
-
-  ```csharp
-  client.MyHelper();
-  ```
+    ```csharp
+    client.MyHelper();
+    ```
+  </Step>
 </Steps>
