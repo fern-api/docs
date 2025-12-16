@@ -994,6 +994,57 @@
         ]
       }
     },
+    "/content-hash/{domain}/delete-all": {
+      "delete": {
+        "tags": [
+          "Content_Hash"
+        ],
+        "summary": "Delete All Content Hashes",
+        "description": "Delete all content hashes for a domain.\nUsed when forcing a full reindex.",
+        "operationId": "delete_all_content_hashes",
+        "parameters": [
+          {
+            "name": "domain",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Domain"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteContentHashesResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-fern-audiences": [
+          "internal"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/conversation/{domain}/{conversation_id}": {
       "get": {
         "tags": [
@@ -3309,7 +3360,7 @@
           "Settings"
         ],
         "summary": "Reindex Ask Ai",
-        "description": "Manually trigger reindex for an already enabled Ask AI setup.",
+        "description": "Manually trigger reindex for an already enabled Ask AI setup.\n\nArgs:\n    domain: Domain to reindex\n    org_name: Organization name (unused, kept for backwards compatibility)\n    force_full_reindex: If True, deletes all existing data and performs a fresh full index",
         "operationId": "reindex_ask_ai",
         "parameters": [
           {
@@ -3335,6 +3386,16 @@
                 }
               ],
               "title": "Org Name"
+            }
+          },
+          {
+            "name": "force_full_reindex",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Force Full Reindex"
             }
           }
         ],
