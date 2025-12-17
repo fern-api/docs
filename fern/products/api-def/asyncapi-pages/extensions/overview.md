@@ -15,12 +15,10 @@ The table below shows all available extensions and links to detailed documentati
 | --- | --- |
 | [`x-fern-ignore`](./ignoring-elements) | Skip reading specific operations, channels, or schemas |
 | [`x-fern-examples`](./request-response-examples) | Provide additional examples for better SDK documentation |
-| [`x-fern-pagination`](./pagination) | Configure pagination for operations that return multiple results |
-| [`x-fern-retry`](./retry-behavior) | Configure retry behavior for operations |
-| [`x-fern-streaming`](./streaming-operations) | Mark operations as streaming for appropriate SDK generation |
-| [`x-fern-error-handling`](./error-handling) | Configure error handling for operations |
 | [`x-fern-server-name`](./server-names) | Specify custom names for servers |
 | [`x-fern-availability`](./availability) | Mark features as available in specific SDK versions |
+| [`x-fern-audiences`](./audiences) | Filter operations by audience |
+| [`x-fern-sdk-method-name`](./method-names) | Customize SDK method names |
 
 <Note title="Request a new extension">
     If there's an extension you want that doesn't already exist, file an [issue](https://github.com/fern-api/fern/issues/new) to start a discussion about it.
