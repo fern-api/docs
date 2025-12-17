@@ -1,53 +1,61 @@
 ---
-title: Single sign-on (SSO)
-subtitle: Let teammates sign in to Fern with your IdP (SAML or OIDC)
+title: Set up Single Sign-On (SSO)
+description: Let teammates sign in to Fern with your IdP (SAML or OIDC)
 ---
 
-<Info>
-  SSO is available on enterprise plans. Ping us in your Fern Slack channel or [contact us](https://buildwithfern.com/contact) to get setup with a plan.
-</Info>
+<Markdown src="/snippets/enterprise-plan.mdx" />
 
-Use SAML or OIDC so your team signs in with the identity provider they already use. We have steps for Okta, Google Workspace, and Microsoft Entra; if you use another IdP, we’ll help you wire it up.
+Set up Single Sign-On (SSO) to sign in to Fern using the identity provider you already use. SSO setup requires coordination with Fern: you'll need configuration values from Fern (like callback URLs and entity IDs) to set up your IdP, and you'll share your IdP metadata back with Fern to complete the connection.
+
+Choose SAML or OIDC depending on your IdP, then follow the steps below for Okta, Google Workspace, or Microsoft Entra.
+
+<Note title="Using another provider?">
+  If you use another IdP, Fern will help you configure it. Reach out via Slack or support@buildwithfern.com to get started. 
+</Note >
 
 ## Okta
 
 <Tabs>
   <Tab title="SAML">
     <Steps>
-      <Step title="Create an application">
-        In **Applications**, create a new app integration using **SAML 2.0**.
+      <Step title="Receive configuration values from Fern">
+        Fern will send you the SSO URL and Audience URI through a secure channel (not Slack/email).
       </Step>
 
-      <Step title="Configure integration">
-        Use these Fern values:
-        - Single sign-on URL: provided by Fern
-        - Audience URI: provided by Fern
-        - Name ID format: `EmailAddress`
-        - Attribute Statements:
-          | Name   | Value                                  |
-          | ------ | -------------------------------------- |
-          | `name` | `user.firstName + " " + user.lastName` |
-          | `email`| `user.email`                           |
+      <Step title="Create and configure application in Okta">
+        In **Applications**, create a new app integration using **SAML 2.0**. Configure with these values:
+
+        | Field | Value |
+        | ----- | ----- |
+        | Single sign-on URL | [value from Fern] |
+        | Audience URI | [value from Fern] |
+        | Name ID format | `EmailAddress` |
+
+        Then, add attribute statements:
+        | Name   | Value                                  |
+        | ------ | -------------------------------------- |
+        | `name` | `user.firstName + " " + user.lastName` |
+        | `email`| `user.email`                           |
       </Step>
 
-      <Step title="Send Fern your IdP info">
-        From the **Sign-On** tab, copy the Metadata URL and X.509 certificate. Send them through the secure channel we provide (not Slack/email). We’ll enable the connection and do a test login with you.
+      <Step title="Send Fern your IdP metadata">
+        From the **Sign-On** tab, copy the Metadata URL and X.509 certificate. Send them back to Fern. Fern will enable the connection and run a test login with you.
       </Step>
     </Steps>
   </Tab>
 
   <Tab title="OIDC">
     <Steps>
-      <Step title="Create an application">
-        In **Applications**, create a new **Web Application** using OIDC.
+      <Step title="Receive configuration values from Fern">
+        Fern will send you the Redirect URI through a secure channel (not Slack/email).
       </Step>
 
-      <Step title="Configure integration">
-        Use Authorization Code grant and set the Redirect URI to what we have provided you.
+      <Step title="Create and configure application in Okta">
+        In **Applications**, create a new **Web Application** using OIDC. Use Authorization Code grant and set the Redirect URI to the value Fern provided.
       </Step>
 
-      <Step title="Send Fern your IdP info">
-        Share the Client ID, Client Secret, and your Okta domain (e.g., `<your-tenant>.okta.com`) via a secure tool (1Password/SendSafely). We’ll finish the hookup and test together.
+      <Step title="Send Fern your IdP credentials">
+        Share the Client ID, Client Secret, and your Okta domain (e.g., `<your-tenant>.okta.com`) back to Fern. Fern will enable the connection and run a test login with you.
       </Step>
     </Steps>
   </Tab>
@@ -62,24 +70,31 @@ Use SAML or OIDC so your team signs in with the identity provider they already u
         In **Web and mobile apps**, choose **Add app → Add custom SAML app**.
       </Step>
 
-      <Step title="Send Fern your IdP info">
-        Copy the SSO URL, Entity ID, and x509 certificate and send them via the secure channel we provide.
+      <Step title="Send Fern your IdP metadata">
+        Copy the SSO URL, Entity ID, and X.509 certificate from Google. Send them to Fern.
       </Step>
 
-      <Step title="Configure integration">
-        On **Service provider details**, enter:
-        - ACS URL: provided by Fern
-        - Entity ID: provided by Fern
-        - Name ID format: `EMAIL`
-        - Name ID: `Primary email`
+      <Step title="Receive configuration values from Fern">
+        Fern will send you the ACS URL and Entity ID through the secure channel.
+      </Step>
 
-        Attribute statements:
+      <Step title="Complete configuration in Google">
+        On **Service provider details**, enter these values:
+
+        | Field | Value |
+        | ----- | ----- |
+        | ACS URL | [value from Fern] |
+        | Entity ID | [value from Fern] |
+        | Name ID format | `EMAIL` |
+        | Name ID | `Primary email` |
+
+        Then, add attribute statements:
         | Google Directory Attribute | App Attribute |
         | -------------------------- | ------------- |
         | `First name`               | `firstName`   |
         | `Last name`                | `lastName`    |
 
-        Assign users to the app, then tell us so we can turn on SSO.
+        Assign users to the app, then notify Fern. Fern will enable SSO and run a test login with you.
       </Step>
     </Steps>
   </Tab>
@@ -94,23 +109,30 @@ Use SAML or OIDC so your team signs in with the identity provider they already u
         Under **Enterprise applications**, select **New application → Create your own application → Non-gallery**.
       </Step>
 
+      <Step title="Receive configuration values from Fern">
+        Fern will send you the Identifier (Entity ID) and Reply URL (ACS) through a secure channel.
+      </Step>
+
       <Step title="Configure SAML">
-        In **Single Sign-On**, choose **SAML** and set:
-        - Identifier (Entity ID): provided by Fern
-        - Reply URL (ACS): provided by Fern
+        In **Single Sign-On**, choose **SAML** and enter these values:
+
+        | Field | Value |
+        | ----- | ----- |
+        | Identifier (Entity ID) | [value from Fern] |
+        | Reply URL (ACS) | [value from Fern] |
       </Step>
 
       <Step title="Configure attributes & claims">
-        - Set **Name ID** to `user.primaryauthoritativeemail` (email).
-        - Add claims:
-          | Name        | Value            |
-          | ----------- | ---------------- |
-          | `firstName` | `user.givenname` |
-          | `lastName`  | `user.surname`   |
+        Set **Name ID** to `user.primaryauthoritativeemail` (email) and add these claims:
+
+        | Name        | Value            |
+        | ----------- | ---------------- |
+        | `firstName` | `user.givenname` |
+        | `lastName`  | `user.surname`   |
       </Step>
 
-      <Step title="Send Fern your IdP info">
-        From **SAML Certificates**, copy the **App Federation Metadata URL**. Send it via the secure channel we provide, and we’ll enable the connection.
+      <Step title="Send Fern your IdP metadata">
+        From **SAML Certificates**, copy the **App Federation Metadata URL**. Send it to Fern. Fern will enable the connection and run a test login with you.
       </Step>
 
       <Step title="Assign users">
@@ -119,7 +141,3 @@ Use SAML or OIDC so your team signs in with the identity provider they already u
     </Steps>
   </Tab>
 </Tabs>
-
-## Using another provider?
-
-Share your IdP type (SAML/OIDC), the metadata URL (or issuer + client credentials for OIDC), and your docs domain(s). We’ll send a secure upload link, configure the connection, and run a quick login test with you.
