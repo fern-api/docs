@@ -6,7 +6,7 @@ subtitle: See how Fern SDKs provide a production-ready developer experience comp
 
 ## Overview
 
-Fern generates production-ready SDKs with built-in features like automatic OAuth token refresh, pagination, retries, typed errors, and comprehensive documentation. OpenAPI Generator produces a thin wrapper around your API that requires developers to implement these features themselves.
+Fern generates production-ready, batteries-included SDKs with built-in features like automatic OAuth token refresh, pagination, retries, typed errors, and comprehensive documentation. OpenAPI Generator produces a thin wrapper around your API that pushes these concerns onto the end user, offering more customization flexibility at the cost of requiring additional implementation work.
 
 | Capability | Fern | OpenAPI Generator |
 |------------|------|-------------------|
@@ -35,15 +35,13 @@ Fern SDKs ship with comprehensive documentation that enables developers to get s
 
 Fern presents a single unified client with intuitive namespaces that align with how developers think about APIs. OpenAPI Generator requires instantiating separate API classes.
 
-**Fern SDK:**
-```typescript
+```typescript Fern SDK
 const client = new PlantStoreClient({ clientId, clientSecret });
 await client.plant.add({ name: "Fern", status: "available" });
 await client.user.login();
 ```
 
-**OpenAPI Generator:**
-```typescript
+```typescript OpenAPI Generator
 const config = new Configuration({ accessToken: async () => token });
 const plantApi = new PlantApi(config);
 const userApi = new UserApi(config);
@@ -75,8 +73,7 @@ Fern includes a built-in OAuth token provider that automatically retrieves and r
 
 Fern provides first-class pagination support with async iterators, allowing developers to write idiomatic code. OpenAPI Generator returns raw responses requiring manual cursor management.
 
-**Fern SDK:**
-```typescript
+```typescript Fern SDK
 const pageableResponse = await client.plant.list();
 for await (const item of pageableResponse) {
     console.log(item);
@@ -89,8 +86,7 @@ while (page.hasNextPage()) {
 }
 ```
 
-**OpenAPI Generator:**
-```typescript
+```typescript OpenAPI Generator
 let cursor: string | undefined;
 do {
     const response = await plantApi.listPlants({ cursor });
@@ -113,8 +109,7 @@ do {
 
 Fern generates typed error classes for specific HTTP status codes, making it easy to handle different error scenarios. OpenAPI Generator uses generic error classes.
 
-**Fern SDK:**
-```typescript
+```typescript Fern SDK
 try {
     await client.plant.add({ name: "Fern", status: "available" });
 } catch (err) {
@@ -128,8 +123,7 @@ try {
 }
 ```
 
-**OpenAPI Generator:**
-```typescript
+```typescript OpenAPI Generator
 try {
     await plantApi.addPlant({ plant });
 } catch (err) {
@@ -164,8 +158,7 @@ Fern includes production-ready resilience features out of the box. OpenAPI Gener
 | **Request cancellation** | `abortSignal` option | Possible via `initOverrides` |
 | **Max retries** | Configurable per-request or globally | None |
 
-**Fern SDK:**
-```typescript
+```typescript Fern SDK
 const response = await client.plant.add(
     { name: "Fern", status: "available" },
     {
@@ -189,8 +182,7 @@ Fern has a configurable logging system with automatic redaction of sensitive dat
 | **Sensitive data redaction** | Automatic for auth headers, tokens, API keys | None |
 | **Request/response logging** | Debug-level with redacted URLs | Manual implementation |
 
-**Fern SDK:**
-```typescript
+```typescript Fern SDK
 const client = new PlantStoreClient({
     clientId,
     clientSecret,
@@ -208,8 +200,7 @@ const client = new PlantStoreClient({
 
 Fern provides an elegant `.withRawResponse()` pattern. OpenAPI Generator uses a dual-method approach.
 
-**Fern SDK:**
-```typescript
+```typescript Fern SDK
 const { data, rawResponse } = await client.plant.add({
     name: "Fern",
     status: "available"
@@ -218,8 +209,7 @@ const { data, rawResponse } = await client.plant.add({
 console.log(rawResponse.headers);
 ```
 
-**OpenAPI Generator:**
-```typescript
+```typescript OpenAPI Generator
 const response = await plantApi.addPlantRaw({ plant });
 const data = await response.value();
 console.log(response.raw.headers);
@@ -263,9 +253,3 @@ Fern SDKs include a comprehensive test suite. OpenAPI Generator output typically
 <br/>
 </Accordion>
 </AccordionGroup>
-
-## Summary
-
-Fern SDKs are production-ready client libraries with strong developer experience defaults, operational features, and modern packaging. OpenAPI Generator output is primarily a thin OpenAPI-shaped wrapper that pushes concerns like authentication lifecycle, pagination, retries, and logging onto the end user.
-
-Choose Fern when you want a polished, batteries-included SDK that your users can adopt immediately. Choose OpenAPI Generator when you need maximum customization flexibility and are prepared to implement production features yourself.
