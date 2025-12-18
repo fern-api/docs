@@ -1,41 +1,42 @@
 ---
-title: Fern SDKs vs OpenAPI Generator
+title: Fern vs OpenAPI Generator
 description: A detailed comparison of Fern-generated SDKs versus OpenAPI Generator SDKs
-subtitle: See how Fern SDKs provide a production-ready developer experience compared to OpenAPI Generator output
 ---
 
-## Overview
-
-Fern generates production-ready, batteries-included SDKs with built-in features like automatic OAuth token refresh, pagination, retries, typed errors, and comprehensive documentation. OpenAPI Generator produces a thin wrapper around your API that pushes these concerns onto the end user, offering more customization flexibility at the cost of requiring additional implementation work.
+Fern generates production-ready SDKs with built-in OAuth token refresh, pagination, retries, typed errors, and comprehensive documentation. OpenAPI Generator produces basic API wrappers that require implementing these features yourself.
 
 | Capability | Fern | OpenAPI Generator |
 |------------|------|-------------------|
-| **Documentation** | Comprehensive README + API Reference | Minimal (title only) |
+| **Documentation** | Comprehensive README + endpoint docs | Minimal (title only) |
 | **Authentication** | Automatic OAuth token refresh | Manual token management |
 | **Pagination** | Async iterators with `for await` | Manual cursor handling |
 | **Error handling** | Typed error classes per status code | Generic `ResponseError` |
 | **Resilience** | Built-in retries, timeouts, abort signals | None (requires custom code) |
 
-## Detailed comparison
+## Documentation and onboarding
 
-<AccordionGroup>
-<Accordion title="Documentation and onboarding" defaultOpen={true}>
-
-Fern SDKs ship with comprehensive documentation that enables developers to get started without reading generated code. OpenAPI Generator output requires developers to infer usage patterns from the generated files.
+Fern SDKs include comprehensive documentation covering installation, authentication, types, errors, pagination, and retries. OpenAPI Generator provides minimal documentation.
 
 | Feature | Fern | OpenAPI Generator |
 |---------|------|-------------------|
 | **README** | Comprehensive guide covering installation, auth, types, errors, pagination, retries, timeouts, logging, and runtime compatibility | Minimal (often just a title) |
-| **API Reference** | Generated `reference.md` with usage examples for every endpoint | None |
+| **Endpoint documentation** | Generated `reference.md` with usage examples for every endpoint | None |
 | **Code examples** | Inline examples in method documentation | None |
+
+## Client ergonomics
+
+Fern provides a single unified client with namespaced resources. OpenAPI Generator uses separate API classes per resource.
+
+| Feature | Fern | OpenAPI Generator |
+|---------|------|-------------------|
+| **Client structure** | Single unified client with namespaced resources | Separate API classes per resource |
+| **Method naming** | Clean, idiomatic names (`client.plant.add()`) | Verbose names (`plantApi.addPlant()`) |
+| **Configuration** | Centralized in client constructor | Passed to each API class |
+
+<Accordion title="Code examples">
 <br/>
-</Accordion>
 
-<Accordion title="Client ergonomics">
-
-Fern presents a single unified client with intuitive namespaces that align with how developers think about APIs. OpenAPI Generator requires instantiating separate API classes.
-
-```typescript Fern SDK
+```typescript Fern
 const client = new PlantStoreClient({ clientId, clientSecret });
 await client.plant.add({ name: "Fern", status: "available" });
 await client.user.login();
@@ -49,31 +50,32 @@ await plantApi.addPlant({ plant: { name: "Fern", status: "available" } });
 await userApi.loginUser({ username, password });
 ```
 
-| Feature | Fern | OpenAPI Generator |
-|---------|------|-------------------|
-| **Client structure** | Single unified client with namespaced resources | Separate API classes per resource |
-| **Method naming** | Clean, idiomatic names (`client.plant.add()`) | Verbose names (`plantApi.addPlant()`) |
-| **Configuration** | Centralized in client constructor | Passed to each API class |
-<br/>
 </Accordion>
 
-<Accordion title="Authentication and token lifecycle">
+## Authentication and token lifecycle
 
-Fern includes a built-in OAuth token provider that automatically retrieves and refreshes tokens with a configurable buffer before expiration. This eliminates a common source of production bugs.
+Fern includes a built-in OAuth token provider that automatically retrieves and refreshes tokens with a configurable buffer before expiration. OpenAPI Generator requires manual token management.
 
 | Feature | Fern | OpenAPI Generator |
 |---------|------|-------------------|
 | **OAuth token refresh** | Automatic with `OAuthTokenProvider` | Manual implementation required |
 | **Token expiration handling** | Built-in buffer before expiration | Developer responsibility |
 | **Environment variables** | Automatic fallback to env vars | Manual configuration |
+
+## Pagination
+
+Fern provides async iterators for pagination with `for await` support. OpenAPI Generator returns raw responses with manual cursor tracking.
+
+| Feature | Fern | OpenAPI Generator |
+|---------|------|-------------------|
+| **Async iterators** | Built-in `for await` support | None |
+| **Page navigation** | `hasNextPage()` / `getNextPage()` methods | Manual cursor tracking |
+| **Underlying response** | Accessible via `page.response` | Direct return value |
+
+<Accordion title="Code examples">
 <br/>
-</Accordion>
 
-<Accordion title="Pagination">
-
-Fern provides first-class pagination support with async iterators, allowing developers to write idiomatic code. OpenAPI Generator returns raw responses requiring manual cursor management.
-
-```typescript Fern SDK
+```typescript Fern
 const pageableResponse = await client.plant.list();
 for await (const item of pageableResponse) {
     console.log(item);
@@ -97,19 +99,22 @@ do {
 } while (cursor);
 ```
 
-| Feature | Fern | OpenAPI Generator |
-|---------|------|-------------------|
-| **Async iterators** | Built-in `for await` support | None |
-| **Page navigation** | `hasNextPage()` / `getNextPage()` methods | Manual cursor tracking |
-| **Underlying response** | Accessible via `page.response` | Direct return value |
-<br/>
 </Accordion>
 
-<Accordion title="Error handling">
+## Error handling
 
-Fern generates typed error classes for specific HTTP status codes, making it easy to handle different error scenarios. OpenAPI Generator uses generic error classes.
+Fern generates typed error classes for specific HTTP status codes. OpenAPI Generator uses a generic `ResponseError` class.
 
-```typescript Fern SDK
+| Feature | Fern | OpenAPI Generator |
+|---------|------|-------------------|
+| **Typed errors** | `BadRequestError`, `NotFoundError`, `MethodNotAllowedError` | Generic `ResponseError` |
+| **Error body** | Parsed and typed | Requires manual parsing |
+| **Raw response access** | `err.rawResponse` | `err.response` |
+
+<Accordion title="Code examples">
+<br/>
+
+```typescript Fern
 try {
     await client.plant.add({ name: "Fern", status: "available" });
 } catch (err) {
@@ -138,17 +143,11 @@ try {
 }
 ```
 
-| Feature | Fern | OpenAPI Generator |
-|---------|------|-------------------|
-| **Typed errors** | `BadRequestError`, `NotFoundError`, `MethodNotAllowedError` | Generic `ResponseError` |
-| **Error body** | Parsed and typed | Requires manual parsing |
-| **Raw response access** | `err.rawResponse` | `err.response` |
-<br/>
 </Accordion>
 
-<Accordion title="Resilience features">
+## Resilience features
 
-Fern includes production-ready resilience features out of the box. OpenAPI Generator requires developers to implement these patterns themselves.
+Fern includes automatic retries with exponential backoff, configurable timeouts, and request cancellation. OpenAPI Generator requires custom implementation of these features.
 
 | Feature | Fern | OpenAPI Generator |
 |---------|------|-------------------|
@@ -158,7 +157,10 @@ Fern includes production-ready resilience features out of the box. OpenAPI Gener
 | **Request cancellation** | `abortSignal` option | Possible via `initOverrides` |
 | **Max retries** | Configurable per-request or globally | None |
 
-```typescript Fern SDK
+<Accordion title="Code examples">
+<br/>
+
+```typescript Fern
 const response = await client.plant.add(
     { name: "Fern", status: "available" },
     {
@@ -168,12 +170,12 @@ const response = await client.plant.add(
     }
 );
 ```
-<br/>
+
 </Accordion>
 
-<Accordion title="Logging and observability">
+## Logging and observability
 
-Fern has a configurable logging system with automatic redaction of sensitive data. OpenAPI Generator has no built-in logging.
+Fern includes configurable logging with automatic redaction of auth headers, tokens, and API keys. OpenAPI Generator has no built-in logging.
 
 | Feature | Fern | OpenAPI Generator |
 |---------|------|-------------------|
@@ -182,7 +184,10 @@ Fern has a configurable logging system with automatic redaction of sensitive dat
 | **Sensitive data redaction** | Automatic for auth headers, tokens, API keys | None |
 | **Request/response logging** | Debug-level with redacted URLs | Manual implementation |
 
-```typescript Fern SDK
+<Accordion title="Code examples">
+<br/>
+
+```typescript Fern
 const client = new PlantStoreClient({
     clientId,
     clientSecret,
@@ -193,14 +198,23 @@ const client = new PlantStoreClient({
     }
 });
 ```
-<br/>
+
 </Accordion>
 
-<Accordion title="Raw response access">
+## Raw response access
 
-Fern provides an elegant `.withRawResponse()` pattern. OpenAPI Generator uses a dual-method approach.
+Fern provides a `.withRawResponse()` method for accessing HTTP response details. OpenAPI Generator uses separate `*Raw()` methods.
 
-```typescript Fern SDK
+| Feature | Fern | OpenAPI Generator |
+|---------|------|-------------------|
+| **Access pattern** | Single method with `.withRawResponse()` | Separate `*Raw()` methods |
+| **Headers access** | `rawResponse.headers` | `response.raw.headers` |
+| **Response body** | `data` property | `value()` method |
+
+<Accordion title="Code examples">
+<br/>
+
+```typescript Fern
 const { data, rawResponse } = await client.plant.add({
     name: "Fern",
     status: "available"
@@ -215,41 +229,30 @@ const data = await response.value();
 console.log(response.raw.headers);
 ```
 
-| Feature | Fern | OpenAPI Generator |
-|---------|------|-------------------|
-| **Access pattern** | Single method with `.withRawResponse()` | Separate `*Raw()` methods |
-| **Headers access** | `rawResponse.headers` | `response.raw.headers` |
-| **Response body** | `data` property | `value()` method |
-<br/>
 </Accordion>
 
-<Accordion title="Runtime compatibility and packaging">
+## Runtime compatibility and packaging
 
-Fern explicitly supports multiple JavaScript runtimes and ships with proper ESM/CJS dual builds. OpenAPI Generator has basic module support.
+Fern supports multiple JavaScript runtimes with ESM/CJS dual builds and automatic runtime detection. OpenAPI Generator provides ESM/CJS support.
 
 | Feature | Fern | OpenAPI Generator |
 |---------|------|-------------------|
-| **Node.js** | 18+ | Yes |
-| **Deno** | v1.25+ | Not documented |
-| **Bun** | 1.0+ | Not documented |
-| **Cloudflare Workers** | Yes | Not documented |
-| **React Native** | Yes | Not documented |
+| **Node.js** | 18+ | Supported |
+| **Deno** | v1.25+ | Not supported |
+| **Bun** | 1.0+ | Not supported |
+| **Cloudflare Workers** | Supported | Not supported |
+| **React Native** | Supported | Not supported |
 | **ESM/CJS builds** | Dual builds with proper exports | Basic ESM/CJS |
 | **Subpackage exports** | Tree-shakeable imports | None |
 | **Runtime detection** | Automatic | None |
-<br/>
-</Accordion>
 
-<Accordion title="Testing and quality">
+## Testing and quality
 
-Fern SDKs include a comprehensive test suite. OpenAPI Generator output typically has no tests.
+Fern SDKs include unit and wire tests with linting enabled. OpenAPI Generator does not include tests.
 
 | Feature | Fern | OpenAPI Generator |
 |---------|------|-------------------|
-| **Unit tests** | Included | None |
-| **Wire tests** | Included | None |
+| **Unit tests** | Yes | None |
+| **Wire tests** | Yes | None |
 | **Linting** | Biome (enabled) | Disabled (`/* eslint-disable */`) |
 | **Zero dependencies** | Yes | Yes |
-<br/>
-</Accordion>
-</AccordionGroup>
