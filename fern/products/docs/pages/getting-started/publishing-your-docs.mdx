@@ -67,13 +67,108 @@ jobs:
 </Step>
 </Steps>
 
+## Staging and production environments
+
+You can configure separate staging and production documentation sites by defining multiple instances in your `docs.yml` file. This allows you to preview changes on a staging site before publishing to production.
+
+<Steps>
+<Step title="Configure instances">
+
+Add both staging and production URLs to your `docs.yml` file. Don't include `https://` in the URLs.
+
+```yaml docs.yml
+instances:
+  - url: plantstore-prod.docs.buildwithfern.com
+  - url: plantstore-staging.docs.buildwithfern.com
+```
+</Step>
+<Step title="Publish to a specific instance">
+
+Use the `--instance` flag to publish to a specific environment:
+
+```bash
+# Publish to staging
+fern generate --docs --instance plantstore-staging.docs.buildwithfern.com
+
+# Publish to production
+fern generate --docs --instance plantstore-prod.docs.buildwithfern.com
+```
+
+Both instances will appear in the [Fern Dashboard](https://dashboard.buildwithfern.com) after publishing.
+</Step>
+</Steps>
+
+### Automate staging deployments
+
+You can set up GitHub Actions to automatically deploy to staging on every push, while keeping production deployments manual.
+
+<Accordion title="Auto-deploy to staging workflow">
+
+This workflow automatically publishes to your staging instance when changes are pushed to the `main` branch:
+
+```yaml .github/workflows/publish-staging.yml
+name: Publish Staging Docs
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Fern
+        run: npm install -g fern-api
+
+      - name: Publish to Staging
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+        run: fern generate --docs --instance plantstore-staging.docs.buildwithfern.com
+```
+
+</Accordion>
+
+<Accordion title="Manual production deployment workflow">
+
+This workflow allows you to manually trigger a production deployment from the GitHub Actions UI:
+
+```yaml .github/workflows/publish-production.yml
+name: Publish Production Docs
+
+on:
+  workflow_dispatch:
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Fern
+        run: npm install -g fern-api
+
+      - name: Publish to Production
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+        run: fern generate --docs --instance plantstore-prod.docs.buildwithfern.com
+```
+
+To deploy to production, go to the Actions tab in your GitHub repository, select the workflow, and click "Run workflow".
+
+</Accordion>
+
 ## Hosting 
 
 When you publish your docs, Fern takes care of hosting them for you. You can also [publish your docs to a custom domain](/docs/preview-publish/setting-up-your-domain). 
 
 ### Self-hosting your docs
 
-If you need access to your docs offline or would like to host your docs on your own server, Fern [offers that option as well](/docs/self-hosted/overview). Self-hosted docs have limited access to certain features (including Ask Fern and analytics). 
+If you need access to your docs offline or would like to host your docs on your own server, Fern [offers that option as well](/docs/self-hosted/overview). Self-hosted docs have limited access to certain features (including Ask Fern and analytics).
 
 ## Unpublishing your docs
 
