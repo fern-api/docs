@@ -47,9 +47,17 @@ In the directory containing your `fern/` folder, create a new `Dockerfile` with 
 FROM fernapi/fern-self-hosted:<latest-tag>
 
 COPY fern/ /fern/
+
+RUN fern-generate
 ```
 
 Replace `<latest-tag>` with the actual tag used in the previous step.
+
+The `fern-generate` command processes your documentation at build time, which provides several advantages:
+
+- **Faster container startup**: Documentation is pre-generated, so the container starts quickly
+- **Air-gapped runtime**: No network access required when the container runs
+- **Smaller attack surface**: The running container doesn't need to fetch external dependencies
 
 </Step>
 <Step title="Build Your Custom Docker Image">
@@ -93,5 +101,103 @@ instances:
 You can now deploy the image to your own infrastructure, allowing you to host the documentation on your own domain.
 
 </Step>
-</Steps>  
+</Steps>
+
+## Runtime documentation generation
+
+By default, the `fern-generate` command processes your documentation at Docker build time. However, you can defer documentation generation to runtime using the `--only-deps` flag.
+
+### Using the `--only-deps` flag
+
+The `--only-deps` flag starts all required services (PostgreSQL, MinIO, FDR) at build time but skips the actual documentation generation:
+
+```dockerfile
+FROM fernapi/fern-self-hosted:<latest-tag>
+
+COPY fern/ /fern/
+
+RUN fern-generate --only-deps
+```
+
+When the container starts, it will automatically detect that documentation hasn't been generated and run `fern generate --docs` at runtime.
+
+### When to use runtime generation
+
+Runtime generation is useful when:
+
+- **Dynamic configuration**: You want to pass documentation configuration (like environment variables or secrets) at runtime rather than baking them into the image
+- **Faster builds**: You want to reduce Docker build time during development
+- **Shared base images**: You want to build a single image that can serve different documentation configurations
+
+<Warning>
+Runtime generation requires network access when the container starts. If you're deploying to an air-gapped environment, use the default build-time generation instead.
+</Warning>
+
+## gRPC APIs and air-gapped environments
+
+If your API uses gRPC/Protocol Buffers with dependencies from the [Buf Schema Registry](https://buf.build) (BSR), special consideration is needed for air-gapped deployments.
+
+### Understanding the challenge
+
+When Fern generates documentation for gRPC APIs, it uses the `buf` CLI to resolve protobuf dependencies. By default, `buf` fetches modules from `buf.build` at generation time. In air-gapped environments where external network access is blocked, this will fail.
+
+### Solution 1: Build-time generation (recommended)
+
+The simplest solution is to run `fern-generate` at build time when network access is available:
+
+```dockerfile
+FROM fernapi/fern-self-hosted:<latest-tag>
+
+COPY fern/ /fern/
+
+RUN fern-generate
+```
+
+This approach downloads all BSR dependencies during the Docker build (when network access is typically available) and bakes the generated documentation into the image. At runtime, no network access is required.
+
+### Solution 2: Vendor buf dependencies
+
+If you need runtime generation in an air-gapped environment, you can vendor your buf dependencies locally in your repository. This eliminates the need for network access entirely.
+
+Add a step in your Dockerfile to export buf dependencies before copying your fern folder:
+
+```dockerfile
+FROM fernapi/fern-self-hosted:<latest-tag>
+
+COPY fern/ /fern/
+
+# Export buf dependencies to vendor them locally
+RUN cd /fern && buf export . --output ./vendor
+
+RUN fern-generate --only-deps
+```
+
+Then update your `buf.yaml` to reference the vendored dependencies instead of BSR modules:
+
+```yaml
+# Before (requires network access)
+deps:
+  - buf.build/googleapis/googleapis
+
+# After (uses local vendored files)
+deps:
+  - ./vendor/googleapis
+```
+
+<Info>
+For more information on vendoring buf dependencies, see the [Buf documentation on dependency management](https://buf.build/docs/bsr/module/dependency-management).
+</Info>
+
+### Checking for BSR dependencies
+
+To determine if your project uses BSR dependencies, check your `buf.yaml` file for a `deps` section:
+
+```yaml
+version: v2
+deps:
+  - buf.build/googleapis/googleapis
+  - buf.build/grpc-ecosystem/grpc-gateway
+```
+
+If your `buf.yaml` has no `deps` section or only references local paths, your project doesn't require BSR access and will work in air-gapped environments without additional configuration.      
 
