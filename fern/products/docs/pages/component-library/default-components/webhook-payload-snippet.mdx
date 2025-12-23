@@ -1,0 +1,63 @@
+---
+title: Webhook payload snippet
+description: Reference a webhook payload from your API Reference to display example payloads in your documentation.
+---
+
+Use the `<WebhookPayloadSnippet>` component to reference a webhook payload from your API Reference.
+
+## Usage
+
+```jsx Markdown
+<WebhookPayloadSnippet webhook="onOrderCreated" />
+```
+
+## Webhook identifiers
+
+The component supports multiple identifier formats to locate webhooks in your API definition:
+
+- **Operation ID**: The `operationId` from your OpenAPI spec (e.g., `on-order-created`)
+- **camelCase name**: Automatically converts to kebab-case for matching (e.g., `onOrderCreated` matches `on-order-created`)
+- **Exact ID**: The full webhook ID including any subpackage prefix (e.g., `subpackage_orders.onOrderCreated`)
+- **ID suffix**: The webhook name after the last dot (e.g., `onOrderCreated`)
+- **Path**: The webhook path (e.g., `/webhooks/my-webhook`)
+
+<AccordionGroup>
+  <Accordion title="OpenAPI">
+    ```yaml openapi.yml {4}
+    webhooks:
+      onOrderCreated:
+        post:
+          operationId: on-order-created
+          summary: Order created webhook
+          requestBody:
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/OrderCreatedPayload'
+                examples:
+                  default:
+                    value:
+                      orderId: "ord_123"
+                      status: "created"
+    ```
+  </Accordion>
+  <Accordion title="Fern Definition">
+    ```yaml webhooks.yml {3}
+    webhooks:
+      onOrderCreated:
+        display-name: Order created webhook
+        method: POST
+        payload: OrderCreatedPayload
+        examples:
+          - payload:
+              orderId: "ord_123"
+              status: "created"
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Properties
+
+<ParamField path="webhook" type="string" required={true}>
+  The identifier for the webhook to display. Supports operation ID, camelCase name, exact ID, ID suffix, or path.
+</ParamField>
