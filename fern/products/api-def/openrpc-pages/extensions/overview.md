@@ -1,6 +1,6 @@
 ---
 title: Overview of OpenRPC extensions
-description: Learn about Fern's OpenRPC extensions for generating higher-quality SDKs
+description: OpenRPC extensions guide for Fern. Use x-fern-ignore, x-fern-examples, x-fern-availability, and more to improve SDK generation.
 ---
 
 Fern supports a variety of OpenRPC extensions that enhance your API specification and generate higher-quality SDKs. 
