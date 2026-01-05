@@ -77,14 +77,27 @@ Unless you have specific requirements that prevent using Fern's default hosting,
 
 ## How it works
 
-When you run `fern generate --local`, the Fern CLI executes SDK generation on your local machine instead of using Fern's cloud infrastructure. The CLI handles downloading the necessary generator packages and running the generation process locally.
+When you run `fern generate --local`, the Fern CLI executes SDK generation on your local machine instead of using Fern's cloud infrastructure.
+
+<Note>
+A Docker daemon must be running on the machine where you run the command, as SDK generation runs inside a Docker container.
+</Note>
 
 The self-hosted process works as follows:
 
-1. **Run the CLI** - Execute `fern generate --local` on your machine
-1. **Generate SDK** - The Fern CLI generates SDK files based on your API definition and `generators.yml` configuration
+1. **Organization verification** - The CLI verifies your organization registration with Fern
+1. **Download generator image** - If not already cached, the CLI downloads the generator's Docker image
+1. **Generate SDK** - The CLI runs the generator container locally to produce SDK files based on your API definition and `generators.yml` configuration
 1. **Output SDK** - Generated SDK files are saved to your configured output location (local file system or GitHub repository)
-1. **Organization verification** - Fern verifies your organization registration and completes SDK generation by adding package distribution files like `pyproject.toml`, READMEs, and dependency configurations
+
+### Network calls
+
+When using the `--local` flag, the Fern CLI makes only two network calls:
+
+1. **Organization verification** - Validates your Fern organization registration
+1. **Docker image download** - Downloads the generator image if not already available locally
+
+No API definition or specification data is sent over the network. All SDK generation happens locally on your machine.
 
 ### Architecture diagram
 
@@ -94,11 +107,13 @@ sequenceDiagram
     participant C as Customer
     participant CLI as Fern CLI
     participant F as Fern
+    participant D as Docker
     participant O as Output (Local/GitHub)
     C->>CLI: Runs fern generate --local
-    CLI->>CLI: Generates SDK files
-    CLI->>O: Outputs SDK to configured location
     CLI->>F: Verifies organization
-    F->>CLI: Completes SDK with package files
-    CLI->>O: Outputs final SDK
+    F->>CLI: Confirms registration
+    CLI->>F: Downloads generator image (if needed)
+    CLI->>D: Runs generator container
+    D->>D: Generates SDK files locally
+    D->>O: Outputs SDK to configured location
 ```
