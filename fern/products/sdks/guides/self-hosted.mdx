@@ -6,100 +6,30 @@ description: Fern supports self-hosting SDK generation so that you can run SDK g
 
 <Markdown src="/snippets/enterprise-plan.mdx" />
 
-Fern SDK generation [runs on Fern's infrastructure by default](/sdks/overview/how-it-works). Self-hosting allows you to run SDK generation on your own infrastructure to meet specific security or compliance requirements.
+Fern SDK generation [runs on Fern's infrastructure by default](/sdks/overview/how-it-works). Self-hosting allows you to run SDK generation on your own infrastructure. Use self-hosting if your organization:
 
-## Setup
+- Operates without internet access
+- Has strict compliance or security requirements
+- Needs full control over your SDK generation process
 
-To run SDK generation locally, use the `--local` flag with the `fern generate` command. This runs SDK generation on your own machine instead of using Fern's cloud infrastructure.
+When you self-host, you're responsible for infrastructure management and SDK distribution. Self-hosted SDK generation includes [all Fern SDK features](/learn/sdks/overview/capabilities).
 
-```bash
-fern generate --local
-```
-
-You can combine `--local` with other flags like `--group` to generate specific SDKs:
-
-```bash
-fern generate --group python-sdk --local
-```
-
-### Configure output location
-
-For self-hosted generation, configure your `generators.yml` to output SDKs to your local file system or a GitHub repository you control.
-
-<Tabs>
-<Tab title="Local file system">
-
-Output generated SDKs directly to a local directory:
-
-```yaml title="generators.yml"
-groups:
-  python-sdk:
-    generators:
-      - name: fernapi/fern-python-sdk
-        version: 4.0.0
-        output:
-          location: local-file-system
-          path: ../sdks/python
-```
-
-</Tab>
-<Tab title="GitHub repository">
-
-Push generated SDKs to your own GitHub repository. When using the `--local` flag, configure the `github` property with the self-hosted schema:
-
-```yaml title="generators.yml"
-groups:
-  python-sdk:
-    generators:
-      - name: fernapi/fern-python-sdk
-        version: 4.0.0
-        github:
-          uri: https://github.com/your-org/python-sdk
-          token: ${GITHUB_TOKEN}
-          mode: push
-          branch: main
-```
-
-The self-hosted GitHub configuration uses `uri` and `token` properties instead of `repository`. The `mode` can be `push` or `pull-request`.
-
-</Tab>
-</Tabs>
-
-## When to use self-hosting
-
-Self-hosting is typically required for organizations that operate without internet access, have strict compliance requirements, or need full control over their SDK generation process.
-
-When you self-host, you're responsible for server setup, security, maintenance, and deciding how to distribute your generated SDKs. Self-hosted SDK generation includes [all Fern SDK features](/learn/sdks/overview/capabilities).
-
-<Warning>
+<Info>
 Unless you have specific requirements that prevent using Fern's default hosting, we recommend **using our managed cloud generation solution** for easier setup and maintenance.
-</Warning>
+</Info>
 
 ## How it works
 
-When you run `fern generate --local`, the Fern CLI executes SDK generation on your local machine instead of using Fern's cloud infrastructure.
+When you run `fern generate --local`, the Fern CLI executes SDK generation on your local machine instead of using Fern's cloud infrastructure. The self-hosted process works as follows:
 
-<Note>
-A Docker daemon must be running on the machine where you run the command, as SDK generation runs inside a Docker container.
-</Note>
+1. **Organization verification** (network call) - The CLI verifies your organization registration with Fern
+1. **Download generator image** (network call if not cached) - The CLI downloads the generator's Docker image if not already available locally
+1. **Generate SDK** (local) - The CLI runs the generator container locally to produce SDK files based on your API definition and `generators.yml` configuration
+1. **Output SDK** (local) - Generated SDK files are saved to your configured output location (local file system or GitHub repository)
 
-The self-hosted process works as follows:
+These are the only network calls made when using the `--local` flag. No API definition or specification data is sent over the network: all SDK generation happens locally on your machine.
 
-1. **Organization verification** - The CLI verifies your organization registration with Fern
-1. **Download generator image** - If not already cached, the CLI downloads the generator's Docker image
-1. **Generate SDK** - The CLI runs the generator container locally to produce SDK files based on your API definition and `generators.yml` configuration
-1. **Output SDK** - Generated SDK files are saved to your configured output location (local file system or GitHub repository)
-
-### Network calls
-
-When using the `--local` flag, the Fern CLI makes only two network calls:
-
-1. **Organization verification** - Validates your Fern organization registration
-1. **Docker image download** - Downloads the generator image if not already available locally
-
-No API definition or specification data is sent over the network. All SDK generation happens locally on your machine.
-
-### Architecture diagram
+<Accordion title="Architecture diagram">
 
 ```mermaid
 sequenceDiagram
@@ -114,3 +44,83 @@ sequenceDiagram
     CLI->>CLI: Run container, generate SDK
     CLI->>CLI: Push to output (local/GitHub)
 ```
+
+</Accordion>
+
+## Setup
+
+<Steps>
+<Step title="Ensure Docker is running">
+
+Verify that a Docker daemon is running on your machine, as SDK generation runs inside a Docker container:
+
+```bash
+docker ps
+```
+
+</Step>
+
+<Step title="Generate a token">
+
+Generate a `FERN_TOKEN` variable in your local environment (required for local generation):
+
+```bash
+fern token
+```
+
+</Step>
+
+<Step title="Configure output location">
+
+Configure your `generators.yml` to output SDKs to your local file system or a GitHub repository you control.
+
+<Tabs>
+<Tab title="Local file system">
+
+Output generated SDKs directly to a local directory:
+
+```yaml title="generators.yml" {7-8}
+groups:
+  python-sdk:
+    generators:
+      - name: fernapi/fern-python-sdk
+        version: 4.0.0
+        output:
+          location: local-file-system
+          path: ../sdks/python
+```
+
+</Tab>
+<Tab title="GitHub repository">
+
+To push generated SDKs to your GitHub repository, configure the `github` property with `uri` and `token`. Set the [publishing `mode`](/learn/sdks/reference/generators-yml#github) to `push` for direct commits or `pull-request` to create PRs.
+
+```yaml title="generators.yml" {7-8}
+groups:
+  python-sdk:
+    generators:
+      - name: fernapi/fern-python-sdk
+        version: 4.0.0
+        github:
+          uri: https://github.com/your-org/python-sdk
+          token: ${GITHUB_TOKEN}
+          mode: push
+          branch: main
+```
+
+</Tab>
+</Tabs>
+</Step>
+<Step title="Run generation locally">
+
+Use the `--local` flag to generate SDKs locally instead of using Fern's cloud infrastructure. You can combine `--local` with other flags like `--group` to generate specific SDKs locally.
+
+```bash
+fern generate --local
+fern generate --group python-sdk --local
+```
+
+</Step>
+</Steps>
+
+
