@@ -8,6 +8,66 @@ description: Fern supports self-hosting SDK generation so that you can run SDK g
 
 Fern SDK generation [runs on Fern's infrastructure by default](/sdks/overview/how-it-works). Self-hosting allows you to run SDK generation on your own infrastructure to meet specific security or compliance requirements.
 
+## Setup
+
+To run SDK generation locally, use the `--local` flag with the `fern generate` command. This downloads and runs the SDK generator Docker containers on your own machine instead of using Fern's cloud infrastructure.
+
+```bash
+fern generate --local
+```
+
+You can combine `--local` with other flags like `--group` to generate specific SDKs:
+
+```bash
+fern generate --group python-sdk --local
+```
+
+### Configure output location
+
+For self-hosted generation, configure your `generators.yml` to output SDKs to your local file system or a GitHub repository you control.
+
+<Tabs>
+<Tab title="Local file system">
+
+Output generated SDKs directly to a local directory:
+
+```yaml title="generators.yml"
+groups:
+  python-sdk:
+    generators:
+      - name: fernapi/fern-python-sdk
+        version: 4.0.0
+        output:
+          location: local-file-system
+          path: ../sdks/python
+```
+
+</Tab>
+<Tab title="GitHub repository">
+
+Push generated SDKs to your own GitHub repository. Configure the `github` property with your repository details:
+
+```yaml title="generators.yml"
+groups:
+  python-sdk:
+    generators:
+      - name: fernapi/fern-python-sdk
+        version: 4.0.0
+        github:
+          repository: your-org/python-sdk
+          mode: push
+          branch: main
+```
+
+For more details on GitHub publishing modes (`release`, `pull-request`, `push`), see the [generators.yml reference](/learn/sdks/reference/generators-yml#github).
+
+</Tab>
+</Tabs>
+
+<Note>
+Self-hosted SDK generation uses the Fern CLI with the `--local` flag. The self-hosted Docker image referenced in [self-hosted docs setup](/learn/docs/enterprise/self-hosted) is specifically for documentation generation, not SDK generation.
+</Note>
+
 ## When to use self-hosting
 
 Self-hosting is typically required for organizations that operate without internet access, have strict compliance requirements, or need full control over their SDK generation process.
