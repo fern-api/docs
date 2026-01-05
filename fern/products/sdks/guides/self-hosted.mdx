@@ -10,7 +10,7 @@ Fern SDK generation [runs on Fern's infrastructure by default](/sdks/overview/ho
 
 ## Setup
 
-To run SDK generation locally, use the `--local` flag with the `fern generate` command. This downloads and runs the SDK generator Docker containers on your own machine instead of using Fern's cloud infrastructure.
+To run SDK generation locally, use the `--local` flag with the `fern generate` command. This runs SDK generation on your own machine instead of using Fern's cloud infrastructure.
 
 ```bash
 fern generate --local
@@ -77,34 +77,28 @@ Unless you have specific requirements that prevent using Fern's default hosting,
 
 ## How it works
 
-When you run `fern generate`, Fern uses Docker containers to execute SDK generation logic. By default, Fern runs **cloud generation** by allocating compute space and running the container remotely. With **self-hosted (local) generation**, you download and run the same Docker container on your own infrastructure.
-
-Both approaches generate partial SDK files to your configured output location, then Fern verifies your organization registration and completes the SDK by adding package distribution files.
+When you run `fern generate --local`, the Fern CLI executes SDK generation on your local machine instead of using Fern's cloud infrastructure. The CLI handles downloading the necessary generator packages and running the generation process locally.
 
 The self-hosted process works as follows:
 
-1. **Download the Docker image** - Fern provides the location of the most up-to-date Docker image containing the SDK generation logic
-1. **Upload your fern folder** - Add your API definition and other configuration files to the container
-1. **Run the container** - Execute SDK generation using standard Docker commands
-1. **Partial SDK output** - Core SDK files are generated and saved to your configured output location (local file system, GitHub repository, package registry, etc.)
+1. **Run the CLI** - Execute `fern generate --local` on your machine
+1. **Generate SDK** - The Fern CLI generates SDK files based on your API definition and `generators.yml` configuration
+1. **Output SDK** - Generated SDK files are saved to your configured output location (local file system or GitHub repository)
 1. **Organization verification** - Fern verifies your organization registration and completes SDK generation by adding package distribution files like `pyproject.toml`, READMEs, and dependency configurations
-1. **Receive updated Docker images** - Fern releases new versions of the Docker image that your team can evaluate and deploy when ready
 
 ### Architecture diagram
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant F as Fern
     participant C as Customer
-    participant S as Customer Server
-    F->>C: Provides Docker image
-    C->>S: Uploads fern folder
-    C->>S: Runs Docker command
-    S->>S: Output partial SDK
-    F->>F: Checks organization registration
-    F->>S: Completes SDK generation
-    F->>C: Releases updated Docker image
-    C->>C: Evaluates new version
-    C->>S: Deploys updated image
+    participant CLI as Fern CLI
+    participant F as Fern
+    participant O as Output (Local/GitHub)
+    C->>CLI: Runs fern generate --local
+    CLI->>CLI: Generates SDK files
+    CLI->>O: Outputs SDK to configured location
+    CLI->>F: Verifies organization
+    F->>CLI: Completes SDK with package files
+    CLI->>O: Outputs final SDK
 ```
