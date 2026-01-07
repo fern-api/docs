@@ -1,5 +1,6 @@
 ---
-title: Overview of OpenAPI extensions
+title: Extensions overview
+headline: Extensions overview (OpenAPI)
 description: Learn about OpenAPI extensions in Fern. Customize authentication, SDK methods, versioning, and more for better API specs.
 ---
 Fern supports a variety of OpenAPI extensions that enhance your API specification and generate higher-quality SDKs. 
