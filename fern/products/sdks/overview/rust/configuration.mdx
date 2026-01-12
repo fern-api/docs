@@ -36,11 +36,27 @@ The name of the generated environment enum. This allows you to customize the enu
 </ParamField>
 
 <ParamField path="enableWireTests" type="boolean" default="false" required={false} toc={true}>
-When enabled, generates [mock server (wire) tests](/sdks/deep-dives/testing#mock-server-tests) to verify that the SDK sends the correct HTTP requests and correctly handles responses per the API spec.
+When enabled, generates [mock server (wire) tests](/learn/sdks/deep-dives/testing#mock-server-tests) to verify that the SDK sends the correct HTTP requests and correctly handles responses per the API spec.
 </ParamField>
 
 <ParamField path="generateExamples" type="boolean" default="true" required={false} toc={true}>
 When enabled, generates code examples in the README and reference documentation.
+</ParamField>
+
+### DateTime configuration
+
+Configure how datetime values are handled in the generated SDK:
+
+```yaml title="generators.yml"
+config:
+  dateTimeType: "utc"
+```
+
+<ParamField path="dateTimeType" type="'offset' | 'utc'" default="offset" required={false} toc={true}>
+The DateTime type to use for datetime primitives:
+
+- `offset`: Uses `DateTime<FixedOffset>` which preserves the original timezone from the API response. Accepts any datetime format and assumes UTC when no timezone is specified.
+- `utc`: Uses `DateTime<Utc>` which converts all datetimes to UTC. Accepts any datetime format and assumes UTC when no timezone is specified.
 </ParamField>
 
 ### Package metadata
@@ -85,9 +101,65 @@ config:
 ```
 
 <ParamField path="extraDependencies" type="object" required={false} toc={true}>
-Additional dependencies to include in the generated `Cargo.toml`. Specify as a map of crate names to version requirements.
+Additional dependencies to include in the generated `Cargo.toml`. Specify as a map of crate names to version requirements. You can also specify full dependency specifications with features, git sources, and more:
+
+```yaml title="generators.yml"
+config:
+  extraDependencies:
+    tokio: "1.0"
+    my-crate:
+      version: "1.0"
+      features:
+        - "feature-a"
+        - "feature-b"
+      optional: true
+```
 </ParamField>
 
 <ParamField path="extraDevDependencies" type="object" required={false} toc={true}>
 Additional dev dependencies to include in the generated `Cargo.toml`. These are only used during development and testing.
+</ParamField>
+
+### Cargo features
+
+Configure custom Cargo features for your generated SDK:
+
+```yaml title="generators.yml"
+config:
+  features:
+    experimental:
+      - "dep-a"
+      - "dep-b"
+    advanced:
+      - "sse"
+  defaultFeatures:
+    - "sse"
+```
+
+<ParamField path="features" type="object" required={false} toc={true}>
+Custom Cargo features to add to the generated crate. Maps feature names to lists of dependencies or other features they enable. This allows users to opt-in to specific functionality.
+</ParamField>
+
+<ParamField path="defaultFeatures" type="array of strings" required={false} toc={true}>
+Override which features are included in the default feature set. By default, the generator automatically detects and enables features based on your API (such as `multipart` for file uploads and `sse` for streaming endpoints). Use this option to customize the default features.
+</ParamField>
+
+### README customization
+
+Add custom sections to the generated README:
+
+```yaml title="generators.yml"
+config:
+  customReadmeSections:
+    - title: "Rate limiting"
+      content: |
+        This API implements rate limiting. Please refer to the
+        [rate limiting documentation](https://docs.example.com/rate-limits)
+        for more information.
+    - title: "Support"
+      content: "For support, please contact support@example.com"
+```
+
+<ParamField path="customReadmeSections" type="array of objects" required={false} toc={true}>
+Additional sections to include in the generated README file. Each section requires a `title` and `content` field. The content supports Markdown formatting.
 </ParamField>
