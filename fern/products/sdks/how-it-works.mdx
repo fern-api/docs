@@ -59,50 +59,50 @@ sequenceDiagram
 The following diagram illustrates the complete SDK generation system, from API specification input through to published packages and documentation.
 
 ```mermaid
+---
+config:
+  layout: fixed
+---
 flowchart LR
-    subgraph inputs["API input formats"]
-        openapi["OpenAPI\nSpec"]
-        protobuf["Protobuf\nSpec"]
-        asyncapi["AsyncAPI\nSpec"]
-    end
+ subgraph API_INPUTS["API input formats"]
+    direction LR
+        OAS["OpenAPI\nSpec"]
+        PBS["Protobuf\nSpec"]
+        AAS["AsyncAPI\nSpec"]
+  end
+ subgraph DOCKERHUB["DockerHub"]
+    direction LR
+        TS["TypeScript"]
+        PY["Python"]
+        GO["Go"]
+        RB["Ruby"]
+        JV["Java"]
+        CS["C#"]
+        PHP["PHP"]
+  end
+ subgraph GITHUB["GitHub repositories"]
+        GO_SDK@{ label: "Square's\\nGo SDK" }
+        JAVA_SDK@{ label: "Square's\\nJava SDK" }
+  end
+ subgraph PKG_MGRS["Package managers"]
+        MODULE_PROXY["Module\nProxy"]
+        MAVEN["Maven"]
+  end
+    AAS L_AAS_CLI_0@--> CLI["CLI"]
+    CLI -. Compiler .-> IR["IR"]
+    AST_LABEL["AST"] --- IR
+    IR <--> IR_MIGRATOR["IR Migrator"]
+    IR --> RCGS["Remote Code Generation\nService"]
+    DOCKERHUB --> RCGS
+    RCGS -. Source Code\n+ Snippets .-> DOCKER_GEN["Docker\nContainer\n(e.g. Go generator)"]
+    DOCKER_GEN -- Snippets --> FERN_REG["Fern Definition\nRegistry"]
+    RCGS -- Source Code --> GO_SDK & JAVA_SDK
+    GO_SDK --> MODULE_PROXY
+    JAVA_SDK --> MAVEN
+    FERN_REG -- Snippets --> SQUARE_DOCS["Square\nDocs"]
 
-    subgraph dockerhub["DockerHub"]
-        ts["TypeScript"]
-        python["Python"]
-        go["Go"]
-        ruby["Ruby"]
-        java["Java"]
-        csharp["C#"]
-        php["PHP"]
-    end
+    GO_SDK@{ shape: rect}
+    JAVA_SDK@{ shape: rect}
 
-    subgraph repos["GitHub repositories"]
-        gosdk["Square's\nGo SDK"]
-        javasdk["Square's\nJava SDK"]
-    end
-
-    subgraph packages["Package managers"]
-        moduleproxy["Module\nProxy"]
-        maven["Maven"]
-    end
-
-    cli(["CLI"])
-    ir(["IR"])
-    migrator["IR\nMigrator"]
-    rcgs["Remote Code\nGeneration\nService"]
-    docker{"Docker\nContainer\n(e.g. Go generator)"}
-    registry["Fern Definition\nRegistry"]
-    docs(["Square\nDocs"])
-
-    inputs --> cli
-    cli -. "Compiler" .-> ir
-    ir <--> migrator
-    ir --> rcgs
-    dockerhub --> rcgs
-    rcgs -- "Source Code" --> repos
-    rcgs -. "Source Code\n+ Snippets" .-> docker
-    docker -. "Snippets" .-> registry
-    registry -- "Snippets" --> docs
-    gosdk --> moduleproxy
-    javasdk --> maven
+    L_AAS_CLI_0@{ curve: linear }
 ```
