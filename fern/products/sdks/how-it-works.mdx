@@ -5,11 +5,9 @@ description: Understand Fern's SDK generation process. Cloud-based workflow tran
 
 Fern combines your API specifications with generator configurations and custom code to produce SDKs in multiple languages. By default, SDK generation runs on Fern's managed cloud infrastructure.
 
-<Info>
-    Alternatively, [you can run SDK generation on your own infrastructure](/sdks/deep-dives/self-hosted) to meet specific security or compliance requirements.
-</Info>
+Alternatively, [you can run SDK generation on your own infrastructure](/sdks/deep-dives/self-hosted) to meet specific security or compliance requirements.
 
-## Generation workflow
+## Cloud generation workflow
 
 Before generating SDKs, you'll configure your `fern/` folder with SDK generators specified in `generators.yml` and connect your API specification. You can also add custom code, tests, and other configuration as needed.
 
@@ -33,15 +31,13 @@ Fern publishes or saves the complete SDK to your configured location (local file
 </Step>
 </Steps>
 
-<Accordion title="Architecture diagram" toc={true}>
-
 ```mermaid
 sequenceDiagram
     autonumber
     participant Dev as Developer
     participant Fern as Fern
-    participant Docker as Docker Container
-    participant Dest as Output Destination
+    participant Docker as Docker container
+    participant Dest as Output destination
     
     Dev->>Fern: fern generate
     Fern->>Fern: Allocate cloud compute
@@ -52,4 +48,54 @@ sequenceDiagram
     Fern->>Fern: Add package metadata
     Fern->>Dest: Output complete SDK
 ```
-</Accordion>
+
+## SDK generation architecture
+
+The below diagram shows the complete SDK generation architecture, including all components involved in transforming your API specification into production-ready SDKs.
+
+<Tip>
+This core SDK architecture applies to both cloud-based and [self-hosted](/sdks/deep-dives/self-hosted) generation. The key difference is where the generation runs (Fern's infrastructure vs. your infrastructure), not the underlying components or how they work together.
+</Tip>
+
+```mermaid
+flowchart TD
+    subgraph inputs["API input formats"]
+        OpenAPI["OpenAPI spec"] ~~~ Protobuf["Protobuf spec"] ~~~ AsyncAPI["AsyncAPI spec"]
+    end
+
+    subgraph dockerhub["DockerHub"]
+        TS["TypeScript"] ~~~ Python["Python"] ~~~ Other["Other languages"]
+    end
+
+    subgraph outputs["Output destinations"]
+        subgraph repos["GitHub repositories"]
+            GoSDK["Go SDK"]
+            JavaSDK["Java SDK"]
+        end
+        subgraph registries["Package registries"]
+            ModProxy["Go Module Proxy"]
+            Maven["Maven"]
+        end
+    end
+
+    CLI["Fern CLI (compiler)"]
+    IRMigrator["IR Migrator"]
+    IR["IR"]
+    RemoteGen["Remote code generation"]
+    DockerContainer["Docker container"]
+    Registry["Fern Definition registry"]
+    Docs["API Docs"]
+
+    inputs --> CLI
+    CLI --> IR
+    IRMigrator <--> IR
+    IR --> RemoteGen
+    dockerhub --> RemoteGen
+    RemoteGen --> DockerContainer
+    DockerContainer -->|"Source code + snippets"| RemoteGen
+    RemoteGen -->|"Snippets"| Registry
+    RemoteGen -->|"Source Code"| repos
+    Registry -->|"Snippets"| Docs
+    GoSDK --> ModProxy
+    JavaSDK --> Maven
+```
