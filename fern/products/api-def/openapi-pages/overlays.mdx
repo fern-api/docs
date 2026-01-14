@@ -42,19 +42,28 @@ Each action in an overlay targets specific elements using [JSONPath](https://dat
 
 ### Update action
 
-Use `update` to add or modify properties on the targeted element:
+Use `update` to add or modify properties on the targeted element. A common use case is adding [Fern extensions](/api-definitions/openapi/extensions/overview) to customize SDK generation:
 
 ```yaml title="openapi-overlays.yml"
 overlay: 1.0.0
 info:
-  title: Add SDK method names
+  title: Add Fern SDK customizations
   version: 1.0.0
 actions:
+  # Add SDK group and method names
+  - target: $.paths['/plants'].get
+    update:
+      x-fern-sdk-group-name: plants
+      x-fern-sdk-method-name: list
   - target: $.paths['/plants'].post
     description: Customize the create plant endpoint
     update:
       x-fern-sdk-group-name: plants
       x-fern-sdk-method-name: create
+  # Rename a parameter
+  - target: $.paths['/plants/{plantId}'].get.parameters[?(@.name == 'includeDetails')]
+    update:
+      x-fern-parameter-name: withDetails
 ```
 
 ### Remove action
@@ -89,32 +98,3 @@ Overlays use JSONPath to target elements in your OpenAPI document. Here are comm
 <Warning>
 Fern's implementation requires parentheses around filter expressions in JSONPath. For example, use `[?(@.name == 'plantId')]` instead of `[?@.name == 'plantId']`.
 </Warning>
-
-## Example: Add Fern extensions
-
-A common use case is adding [Fern extensions](/api-definitions/openapi/extensions/overview) to customize SDK generation:
-
-```yaml title="openapi-overlays.yml"
-overlay: 1.0.0
-info:
-  title: Add Fern SDK customizations
-  version: 1.0.0
-actions:
-  # Add SDK group and method names
-  - target: $.paths['/plants'].get
-    update:
-      x-fern-sdk-group-name: plants
-      x-fern-sdk-method-name: list
-  - target: $.paths['/plants'].post
-    update:
-      x-fern-sdk-group-name: plants
-      x-fern-sdk-method-name: create
-  - target: $.paths['/plants/{plantId}'].get
-    update:
-      x-fern-sdk-group-name: plants
-      x-fern-sdk-method-name: get
-  # Rename a parameter
-  - target: $.paths['/plants/{plantId}'].get.parameters[?(@.name == 'includeDetails')]
-    update:
-      x-fern-parameter-name: withDetails
-```
