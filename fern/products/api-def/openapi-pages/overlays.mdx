@@ -3,7 +3,12 @@ title: OpenAPI overlays
 description: Use the OpenAPI Overlay Specification to customize your OpenAPI definition without modifying the original spec.
 ---
 
-The [OpenAPI Overlay Specification](https://spec.openapis.org/overlay/v1.0.0.html) is an official standard for applying transformations to OpenAPI documents. Overlays let you customize your API specification without modifying the original file, making them ideal for auto-generated specs or when you need different configurations for SDKs versus documentation.
+Overlays let you customize your OpenAPI specification without modifying the original file. This is useful when:
+
+- Your API specification is auto-generated from server code
+- You need different configurations for SDKs versus documentation 
+
+Overlays follow the [OpenAPI Overlay Specification](https://spec.openapis.org/overlay/v1.0.0.html).
 
 <Note>
 Overlays are the recommended approach for customizing OpenAPI specifications. While Fern still supports [overrides](/api-definitions/overview/overrides) for backward compatibility, overlays follow an industry standard and are portable across different tools.
@@ -11,16 +16,18 @@ Overlays are the recommended approach for customizing OpenAPI specifications. Wh
 
 ## Configure overlays
 
-Add an overlay file to your project by specifying the `overlays` field in your `generators.yml`:
+To use overlays, create an `overlays.yml` file in the same folder as your spec and reference it in `generators.yml`:
 
 ```yaml title="generators.yml"
 api:
   specs:
     - openapi: openapi.json
-      overlays: openapi-overlays.yml
+      overlays: overlays.yml
 ```
 
-The overlay file uses the [Overlay Specification v1.0.0](https://spec.openapis.org/overlay/v1.0.0.html) format:
+## Define the overlays file
+
+Each action in an overlay targets elements using [JSONPath](https://datatracker.ietf.org/doc/html/rfc9535) and applies an `update` or `remove` operation:
 
 ```yaml title="openapi-overlays.yml"
 overlay: 1.0.0 # Required: Overlay Specification version
@@ -31,18 +38,18 @@ actions: # Required: Ordered list of changes to apply
   - target: $.info # JSONPath expression selecting the element to modify
     update: # Properties to merge with the targeted element
       x-fern-sdk-group-name: plants
-  - target: $.paths['/plants/{plantId}'].get
+  - target: $.paths['/plants/{plantId}'].get.parameters[?(@.name == 'plantId')]
     update:
-      x-fern-sdk-method-name: getPlant
+      x-fern-parameter-name: id
 ```
 
-## Overlay actions
+<Warning>
+Fern requires parentheses around JSONPath filter expressions. Use `[?(@.name == 'plantId')]` instead of `[?@.name == 'plantId']`.
+</Warning>
 
-Each action in an overlay targets specific elements using [JSONPath](https://datatracker.ietf.org/doc/html/rfc9535) expressions and applies either an `update` or `remove` operation.
+### Customizing with extensions
 
-### Update action
-
-Use `update` to add or modify properties on the targeted element. A common use case is adding [Fern extensions](/api-definitions/openapi/extensions/overview) to customize SDK generation:
+Use `update` to add [Fern extensions](/api-definitions/openapi/extensions/overview):
 
 ```yaml title="openapi-overlays.yml"
 overlay: 1.0.0
@@ -66,7 +73,7 @@ actions:
       x-fern-parameter-name: withDetails
 ```
 
-### Remove action
+### Removing elements
 
 Use `remove: true` to delete elements from your specification:
 
@@ -81,20 +88,10 @@ actions:
     remove: true
 ```
 
-## JSONPath expressions
+## Separate overlays for SDKs and docs
 
-Overlays use JSONPath to target elements in your OpenAPI document. Here are common patterns:
+<Markdown src="/snippets/separate-sdks-docs.mdx" type="overlays" />
 
-| Target | JSONPath expression |
-|--------|---------------------|
-| Root document | `$` |
-| Info object | `$.info` |
-| Specific path | `$.paths['/plants/{plantId}']` |
-| Specific operation | `$.paths['/plants'].get` |
-| All GET operations | `$.paths.*.get` |
-| Schema by name | `$.components.schemas.Plant` |
-| Parameter by name | `$.paths['/plants/{plantId}'].get.parameters[?(@.name == 'plantId')]` |
+## Overlays for different environments
 
-<Warning>
-Fern's implementation requires parentheses around filter expressions in JSONPath. For example, use `[?(@.name == 'plantId')]` instead of `[?@.name == 'plantId']`.
-</Warning>
+<Markdown src="/snippets/different-environments.mdx" type="overlays" />
