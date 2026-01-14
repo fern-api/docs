@@ -1,0 +1,134 @@
+---
+title: OpenAPI overlays
+description: Use the OpenAPI Overlay Specification to customize your OpenAPI definition without modifying the original spec.
+---
+
+The [OpenAPI Overlay Specification](https://spec.openapis.org/overlay/v1.0.0.html) is an official standard for applying transformations to OpenAPI documents. Overlays let you customize your API specification without modifying the original file, making them ideal for auto-generated specs or when you need different configurations for SDKs versus documentation.
+
+<Note>
+Overlays are the recommended approach for customizing OpenAPI specifications. While Fern still supports [overrides](/api-definitions/overview/overrides) for backward compatibility, overlays follow an industry standard and are portable across different tools.
+</Note>
+
+## Configure overlays
+
+Add an overlay file to your project by specifying the `overlays` field in your `generators.yml`:
+
+```yaml title="generators.yml"
+api:
+  specs:
+    - openapi: openapi.json
+      overlays: openapi-overlays.yml
+```
+
+The overlay file uses the [Overlay Specification v1.0.0](https://spec.openapis.org/overlay/v1.0.0.html) format:
+
+```yaml title="openapi-overlays.yml"
+overlay: 1.0.0
+info:
+  title: Customize Plant Store API
+  version: 1.0.0
+actions:
+  - target: $.info
+    update:
+      x-fern-sdk-group-name: plants
+  - target: $.paths['/plants/{plantId}'].get
+    update:
+      x-fern-sdk-method-name: getPlant
+```
+
+## Overlay actions
+
+Each action in an overlay targets specific elements using [JSONPath](https://datatracker.ietf.org/doc/html/rfc9535) expressions and applies either an `update` or `remove` operation.
+
+### Update action
+
+Use `update` to add or modify properties on the targeted element:
+
+```yaml title="openapi-overlays.yml"
+overlay: 1.0.0
+info:
+  title: Add SDK method names
+  version: 1.0.0
+actions:
+  - target: $.paths['/plants'].post
+    description: Customize the create plant endpoint
+    update:
+      x-fern-sdk-group-name: plants
+      x-fern-sdk-method-name: create
+```
+
+### Remove action
+
+Use `remove: true` to delete elements from your specification:
+
+```yaml title="openapi-overlays.yml"
+overlay: 1.0.0
+info:
+  title: Remove internal endpoints
+  version: 1.0.0
+actions:
+  - target: $.paths['/internal/debug']
+    description: Remove debug endpoint from public SDK
+    remove: true
+```
+
+## JSONPath expressions
+
+Overlays use JSONPath to target elements in your OpenAPI document. Here are common patterns:
+
+| Target | JSONPath expression |
+|--------|---------------------|
+| Root document | `$` |
+| Info object | `$.info` |
+| Specific path | `$.paths['/plants/{plantId}']` |
+| Specific operation | `$.paths['/plants'].get` |
+| All GET operations | `$.paths.*.get` |
+| Schema by name | `$.components.schemas.Plant` |
+| Parameter by name | `$.paths['/plants/{plantId}'].get.parameters[?(@.name == 'plantId')]` |
+
+<Warning>
+Fern's implementation requires parentheses around filter expressions in JSONPath. For example, use `[?(@.name == 'plantId')]` instead of `[?@.name == 'plantId']`.
+</Warning>
+
+## Example: Add Fern extensions
+
+A common use case is adding [Fern extensions](/api-definitions/openapi/extensions/overview) to customize SDK generation:
+
+```yaml title="openapi-overlays.yml"
+overlay: 1.0.0
+info:
+  title: Add Fern SDK customizations
+  version: 1.0.0
+actions:
+  # Add SDK group and method names
+  - target: $.paths['/plants'].get
+    update:
+      x-fern-sdk-group-name: plants
+      x-fern-sdk-method-name: list
+  - target: $.paths['/plants'].post
+    update:
+      x-fern-sdk-group-name: plants
+      x-fern-sdk-method-name: create
+  - target: $.paths['/plants/{plantId}'].get
+    update:
+      x-fern-sdk-group-name: plants
+      x-fern-sdk-method-name: get
+  # Rename a parameter
+  - target: $.paths['/plants/{plantId}'].get.parameters[?(@.name == 'includeDetails')]
+    update:
+      x-fern-parameter-name: withDetails
+```
+
+## Overlays vs. overrides
+
+Both overlays and [overrides](/api-definitions/overview/overrides) let you customize your OpenAPI specification without modifying the original file. Here's how they compare:
+
+| Feature | Overlays | Overrides |
+|---------|----------|-----------|
+| Standard | OpenAPI Overlay Specification | Fern-specific |
+| Portability | Works with other tools | Fern only |
+| Targeting | JSONPath expressions | Mirror document structure |
+| Remove elements | Yes (`remove: true`) | No |
+| Supported specs | OpenAPI only | OpenAPI, AsyncAPI, OpenRPC |
+
+Use overlays for OpenAPI specifications when you want a portable, standards-based approach. Use overrides when working with AsyncAPI or OpenRPC, or when you prefer mirroring the document structure.
