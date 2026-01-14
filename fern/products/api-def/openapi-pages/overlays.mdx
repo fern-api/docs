@@ -6,12 +6,13 @@ description: Use the OpenAPI Overlay Specification to customize your OpenAPI def
 Overlays let you customize your OpenAPI specification without modifying the original file. This is useful when:
 
 - Your API specification is auto-generated from server code
-- You need different configurations for SDKs versus documentation 
+- You need different configurations for SDKs versus documentation
+- You want to add Fern configurations like pagination or SDK method names
 
 Overlays follow the [OpenAPI Overlay Specification](https://spec.openapis.org/overlay/v1.0.0.html).
 
 <Note>
-Overlays are the recommended approach for customizing OpenAPI specifications. While Fern still supports [overrides](/api-definitions/overview/overrides) for backward compatibility, overlays follow an industry standard and are portable across different tools.
+Overlays are the recommended approach for customizing OpenAPI specifications. Compared to [overrides](/api-definitions/overview/overrides), overlays offer additional capabilities like bulk modifications using JSONPath wildcards and the ability to modify elements within arrays.
 </Note>
 
 ## Configure overlays
@@ -47,9 +48,25 @@ actions: # Required: Ordered list of changes to apply
 Fern requires parentheses around JSONPath filter expressions. Use `[?(@.name == 'plantId')]` instead of `[?@.name == 'plantId']`.
 </Warning>
 
+### Modifying OpenAPI properties
+
+Use `update` to change standard OpenAPI properties like descriptions, summaries, or other fields:
+
+```yaml title="openapi-overlays.yml"
+overlay: 1.0.0
+info:
+  title: Improve API documentation
+  version: 1.0.0
+actions:
+  - target: $.paths['/plants'].get
+    update:
+      summary: List all available plants
+      description: Returns a paginated list of plants in the store inventory.
+```
+
 ### Customizing with extensions
 
-Use `update` to add [Fern extensions](/api-definitions/openapi/extensions/overview):
+Use `update` to add [Fern extensions](/api-definitions/openapi/extensions/overview) for SDK generation:
 
 ```yaml title="openapi-overlays.yml"
 overlay: 1.0.0
@@ -63,7 +80,6 @@ actions:
       x-fern-sdk-group-name: plants
       x-fern-sdk-method-name: list
   - target: $.paths['/plants'].post
-    description: Customize the create plant endpoint
     update:
       x-fern-sdk-group-name: plants
       x-fern-sdk-method-name: create
