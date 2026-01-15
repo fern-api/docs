@@ -3,7 +3,7 @@ title: Overview
 description: Ask Fern is an AI search feature that indexes your documentation and helps users find answers instantly. Reduce support burden and accelerate onboarding.
 ---
 
-Ask Fern is Fern's AI Search feature that indexes your documentation and provides an interface for your end users to ask questions and get answers. It appears as a side panel on your documentation site so users can ask questions without leaving the page. 
+Ask Fern is Fern's AI Search feature, powered by **Retrieval Augmented Generation (RAG)**, that indexes your documentation and provides an interface for your end users to ask questions and get answers. It appears as a side panel that works with all [Fern Docs layouts](/learn/docs/configuration/site-level-settings#layout-configuration), so users can ask questions without leaving the page.
 
 <Frame>
   <video 
@@ -16,6 +16,8 @@ Ask Fern is Fern's AI Search feature that indexes your documentation and provide
   </video>
 </Frame>
 
+The side panel stays open as users navigate between pages, expands to full screen on mobile, and supports document-specific queries via a dropdown. Responses are filtered by version, product, and role, and Ask Fern can reference your SDK code alongside documentation.
+
 Ask Fern helps you:
 
 - **Reduce support burden** – Enable your users to quickly find answers in your documentation without contacting your support team.
@@ -23,7 +25,7 @@ Ask Fern helps you:
 - **Identify documentation gaps** – Understand where your docs need improvement through user search patterns and feedback.
 
 
-## Quickstart
+## Get started
 
 Enable Ask Fern in your [`docs.yml` file](/learn/docs/ai-features/ask-fern/setup):
 
@@ -34,75 +36,64 @@ ai-search:
     - slack # or discord
 ```
 
-<CardGroup cols={2}>
-  <Card 
+<CardGroup cols={3}>
+  <Card
     title="Setup"
-    icon="regular lightbulb"
+    icon="regular gear"
     href="/learn/docs/ai-features/ask-fern/setup"
   >
-    Configure locations and additional data sources.
+    Configure where Ask Fern is available.
   </Card>
-  
-  <Card 
-    title="How it works"
-    icon="regular lightbulb"
-    href="/learn/docs/ai-features/ask-fern/how-it-works"
+  <Card
+    title="Features"
+    icon="regular sparkles"
+    href="/learn/docs/ai-features/ask-fern/features"
   >
-    Learn about Ask Fern's interface, behavior, and technical architecture.
+    Analytics, citations, and more.
   </Card>
-
+  <Card
+    title="Content sources"
+    icon="regular file-plus"
+    href="/learn/docs/ai-features/ask-fern/content-sources"
+  >
+    Add documents and websites.
+  </Card>
 </CardGroup>
 
-## Features 
 
-<CardGroup cols={2}>
+## Under the hood
 
-  <Card 
-    title="Custom prompting"
-    icon="regular book-open"
-    href="/learn/docs/ai-features/ask-fern/setup#ai-searchsystem-prompt"
-  >
-    Write custom prompts to improve accuracy and tailor responses for your users. 
-  </Card>
+<Steps>
+  <Step title="Content and code indexing">
+    Fern automatically processes your documentation pages and Fern-generated SDK code, breaking them into semantic chunks and converting each chunk into a vector using sentence embedding models. They're stored in a database that serves as Ask Fern's search index.
+  </Step>
+  <Step title="Query processing">
+    When users ask questions, Ask Fern vectorizes their query and searches the database to find the most relevant documentation and code chunks. If you have [role-based access control](/learn/docs/authentication/rbac) configured, Ask Fern filters results based on the user's permissions.
+  </Step>
+  <Step title="Response generation">
+    Ask Fern uses the retrieved chunks as context to generate accurate answers with [citations](/learn/docs/ai-features/ask-fern/features#citations) for the user. If the initial context isn't sufficient, it performs an additional keyword search.
+  </Step>
+</Steps>
 
-  <Card 
-    title="Analytics" 
-    icon="regular fa-chart-simple"
-    href="/learn/docs/ai-features/ask-fern/features#analytics" 
-    >
-    View Ask Fern usage metrics and full conversation details on your Fern Dashboard.
-  </Card>
+<Accordion title="Architecture diagram">
 
-  <Card 
-    title="Citations" 
-    icon="fa-solid fa-quote-right"
-    href="/learn/docs/ai-features/ask-fern/features#citations" 
-    >
-    Point users to the exact source of the answer. 
-  </Card>
+```mermaid
+sequenceDiagram
+  autonumber
+    participant U as User
+    participant C as /chat Endpoint
+    participant V as Documentation Database
+    participant A as Ask Fern
 
-  <Card 
-    title="Guidance" 
-    icon="regular fa-question-circle"
-    href="/learn/docs/ai-features/ask-fern/guidance" 
-    >
-    Use guidance documents to override Ask Fern's responses to sensitive topics.
-  </Card>
-
-  <Card 
-    title="Additional content sources" 
-    icon="regular file-alt"
-    href="/learn/docs/ai-features/ask-fern/content-sources" 
-    >
-    Add custom data sources to broaden Ask Fern's capabilities. 
-  </Card>
-
-  <Card 
-    title="Role-based access control" 
-    icon="regular shield-alt"
-    href="/learn/docs/ai-features/ask-fern/features#role-based-access-control" 
-    >
-    Ask Fern enforces your documentation's role-based permissions.
-  </Card>
-
-</CardGroup>
+    U->>C: Submit question via Ask Fern searchbox
+    C->>C: Convert query to vector
+    C->>C: Check user roles (if RBAC enabled)
+    C->>V: Search for relevant chunks
+    V->>C: Return matching documents user can access
+    C->>A: Send query + context
+    A->>V: Perform additional keyword search if needed
+    V->>A: Return additional chunks user can access
+    A->>A: Generate response
+    A->>U: Return answer with citations
+```
+</Accordion>
