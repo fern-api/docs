@@ -5,44 +5,108 @@ description: Configuration options for the Fern Ruby SDK.
 
 You can customize the behavior of the Ruby SDK generator in `generators.yml`:
 
-```yaml {6-7} title="generators.yml"
+```yaml {6-8} title="generators.yml"
 groups:
   ruby-sdk:
     generators:
-      - name: fernapi/fern-ruby
+      - name: fernapi/fern-ruby-sdk
         version: <Markdown src="/snippets/version-number-ruby.mdx"/>
         config:
-          clientClassName: YourClientName
+          module: YourModuleName
+          enableWireTests: true
 ```
 
-<ParamField path="clientClassName" type="string" required={false} toc={true}>
-The name of the generated client class. This allows you to customize the class name that users will instantiate when using your SDK.
+<ParamField path="clientModuleName" type="string" required={false} toc={true}>
+Custom name for the client module. This allows you to customize the module name that wraps the generated client class.
 </ParamField>
-<ParamField path="defaultTimeoutInSeconds" type="number | 'infinity'" required={false} toc={true}>
-The default timeout for network requests in seconds. In the generated client, this can be overridden at the request level. Set to 'infinity' to disable timeouts.
+
+<ParamField path="customPagerName" type="string" required={false} toc={true}>
+Custom name for the pager class used in paginated endpoints. By default, the generator creates a standard pager class, but you can customize its name to match your SDK's naming conventions.
 </ParamField>
-<ParamField path="extraDependencies" type="ExtraDependenciesSchema" required={false} toc={true}>
+
+<ParamField path="customReadmeSections" type="array of objects" required={false} toc={true}>
+Add custom sections to the generated README file. Each section requires a title and content.
+
+```yaml
+config:
+  customReadmeSections:
+    - title: "Custom Integration"
+      content: "Instructions for custom integration..."
+    - title: "Advanced Usage"
+      content: "Advanced usage examples for {{ packageName }}"
+```
+
+The content supports template variables like `{{ packageName }}` that are replaced with actual values during generation.
+</ParamField>
+
+<ParamField path="customReadmeSections[].title" type="string" required={true}>
+The title of the custom README section.
+</ParamField>
+
+<ParamField path="customReadmeSections[].content" type="string" required={true}>
+The content of the custom README section. Supports template variables.
+</ParamField>
+
+<ParamField path="enableWireTests" type="boolean" default="false" required={false} toc={true}>
+When enabled, generates [mock server (wire) tests](/sdks/deep-dives/testing#mock-server-tests) to verify that the SDK sends and receives HTTP requests as expected.
+</ParamField>
+
+<ParamField path="extraDependencies" type="object" required={false} toc={true}>
 <Markdown src="/snippets/pro-plan.mdx"/>
 
 Specify additional dependencies to include in the generated SDK's gemspec. This is useful when you need to add custom gems that your SDK depends on.
+
+```yaml
+config:
+  extraDependencies:
+    faraday: "~> 2.0"
+    oj: "~> 3.0"
+```
 </ParamField>
-<ParamField path="extraDevDependencies" type="ExtraDependenciesSchema" required={false} toc={true}>
+
+<ParamField path="extraDevDependencies" type="object" required={false} toc={true}>
 <Markdown src="/snippets/pro-plan.mdx"/>
 
-Specify additional development dependencies to include in the generated SDK's gemspec. These are dependencies used for development and testing but not required by end users.
-</ParamField>
-<ParamField path="flattenModuleStructure" type="boolean" default="false" required={false} toc={true}>
-When enabled, flattens the module structure of the generated SDK. This creates a simpler namespace hierarchy by reducing nested modules.
-</ParamField>
-<ParamField path="package-name" type="string" default="null" required={false} toc={true}>
+Specify additional development dependencies to include in the generated SDK's Gemfile. These are dependencies used for development and testing but not required by end users.
 
-Specifies the Ruby package name that users will import your generated client
-from.
-  
-For example, setting `package-name: "my_custom_package"` enables users to use
-`my_custom_package import Client` to import your client.
-
+```yaml
+config:
+  extraDevDependencies:
+    rspec: "~> 3.0"
+    webmock: "~> 3.0"
+```
 </ParamField>
-<ParamField path="useProvidedDefaults" type="boolean" required={false} toc={true}>
-When enabled, the SDK will use default values specified in your API definition. This allows you to leverage defaults defined in your Fern specification within the generated Ruby client.
+
+<ParamField path="module" type="string" required={false} toc={true}>
+Custom module name for the generated SDK. This sets the top-level Ruby module that wraps all generated code. By default, the module name is derived from the package name in your publish configuration or your organization name.
+
+```yaml
+config:
+  module: MyCustomModule
+```
+
+This generates code like:
+
+```ruby
+module MyCustomModule
+  class Client
+    # ...
+  end
+end
+```
+</ParamField>
+
+<ParamField path="requirePaths" type="array of strings" required={false} toc={true}>
+<Markdown src="/snippets/pro-plan.mdx"/>
+
+Paths to files that will be auto-loaded when the gem is required. This is useful for including custom integrations or extensions that should be loaded automatically.
+
+```yaml
+config:
+  requirePaths:
+    - custom_integration
+    - sentry_integration
+```
+
+This will load `lib/<gem>/custom_integration.rb` and `lib/<gem>/sentry_integration.rb` when the gem is required.
 </ParamField>
