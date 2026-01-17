@@ -31,6 +31,9 @@ Fern publishes or saves the complete SDK to your configured location (local file
 </Step>
 </Steps>
 
+<AccordionGroup>
+<Accordion title="Cloud generation sequence diagram">
+
 ```mermaid
 sequenceDiagram
     autonumber
@@ -38,7 +41,7 @@ sequenceDiagram
     participant Fern as Fern
     participant Docker as Docker container
     participant Dest as Output destination
-    
+
     Dev->>Fern: fern generate
     Fern->>Fern: Allocate cloud compute
     Fern->>Docker: Pull & run generator image
@@ -48,135 +51,11 @@ sequenceDiagram
     Fern->>Fern: Add package metadata
     Fern->>Dest: Output complete SDK
 ```
+</Accordion>
 
-## SDK generation architecture
-
-The below diagram shows the complete SDK generation architecture, including all components involved in transforming your API specification into production-ready SDKs.
-
-<Tip>
-This core SDK architecture applies to both cloud-based and [self-hosted](/sdks/deep-dives/self-hosted) generation. The key difference is where the generation runs (Fern's infrastructure vs. your infrastructure), not the underlying components or how they work together.
-</Tip>
-
-```mermaid
-flowchart TD
-    subgraph inputs["API input formats"]
-        direction LR
-        OpenAPI["OpenAPI spec"]
-        Protobuf["Protobuf spec"]
-        AsyncAPI["AsyncAPI spec"]
-        OpenAPI ~~~ Protobuf ~~~ AsyncAPI
-    end
-
-    subgraph dockerhub["Dockerhub"]
-        direction LR
-        TS["TypeScript"]
-        Python["Python"]
-        Other["Other languages"]
-        TS ~~~ Python ~~~ Other
-    end
-
-
-    CLI(("Compiler<br/>(CLI)"))
-    IR(("AST<br/>(IR)"))
-    IRMigrator{{"IR migrator"}}
-
-    RemoteGen["Remote code<br/>generation service"]
-    DockerContainer{{"Docker container<br/>(e.g. Go generator)"}}
-
-
-    Registry["Fern Definition<br/>registry"]
-    Docs{{"API Reference<br/>docs"}}
-
-    subgraph repos["GitHub repositories"]
-        direction LR
-        TSSDK{{"TypeScript<br/>SDK"}}
-        PythonSDK{{"Python<br/>SDK"}}
-    end
-
-    subgraph registries["Package managers"]
-        direction LR
-        npm(("npm"))
-        PyPI(("PyPI"))
-    end
-
-    inputs --> CLI
-    CLI -.-> IR
-    IR <-.-> IRMigrator
-    IR --> RemoteGen
-
-    dockerhub -.-> RemoteGen
-
-    RemoteGen -->|"Source code"| TSSDK
-    RemoteGen -->|"Source code"| PythonSDK
-    RemoteGen <-->|"Source code<br/>+ snippets"| DockerContainer
-
-    DockerContainer -->|"Snippets"| Registry
-    Registry -->|"Snippets"| Docs
-
-    TSSDK -.-> npm
-    PythonSDK -.-> PyPI
-
-    classDef groupStyle fill:#f9f9f9,stroke:#333,stroke-width:2px,stroke-dasharray: 5 5
-    class inputs,dockerhub,repos,registries groupStyle
-```
-
-```mermaid
-flowchart LR
-    subgraph inputs["API input formats"]
-        direction TB
-        OpenAPI["OpenAPI spec"]
-        Protobuf["Protobuf spec"]
-        AsyncAPI["AsyncAPI spec"]
-        OpenAPI ~~~ Protobuf ~~~ AsyncAPI
-    end
-
-    subgraph dockerhub["Dockerhub"]
-        direction TB
-        TS["TypeScript"]
-        Python["Python"]
-        Other["Other languages"]
-    end
-
-    CLI(("Compiler<br/>(CLI)"))
-    IR(("AST<br/>(IR)"))
-    IRMigrator{{"IR migrator"}}
-
-    RemoteGen["Remote code<br/>generation service"]
-    DockerContainer{{"Docker container<br/>(e.g. Go generator)"}}
-
-    Registry["Fern Definition<br/>registry"]
-    Docs{{"API Reference<br/>docs"}}
-
-    subgraph repos["GitHub repositories"]
-        direction TB
-        TSSDK{{"TypeScript<br/>SDK"}}
-        PythonSDK{{"Python<br/>SDK"}}
-    end
-
-    subgraph registries["Package managers"]
-        direction TB
-        npm(("npm"))
-        PyPI(("PyPI"))
-    end
-
-    inputs --> CLI
-    CLI -.-> IR
-    IR <-.-> IRMigrator
-    IR --> RemoteGen
-
-    dockerhub -.-> RemoteGen
-
-    RemoteGen -->|"Source code"| TSSDK
-    RemoteGen -->|"Source code"| PythonSDK
-    RemoteGen <-->|"Source code<br/>+ Snippets"| DockerContainer
-
-    DockerContainer -->|"Snippets"| Registry
-    Registry -->|"Snippets"| Docs
-
-    TSSDK -.-> npm
-    PythonSDK -.-> PyPI
-
-    classDef groupStyle fill:#f9f9f9,stroke:#333,stroke-width:2px,stroke-dasharray: 5 5
-    class inputs,dockerhub,repos,registries groupStyle
-```
-
+<Accordion title="Expanded architecture diagram" anchor="expanded-architecture">
+<Frame>
+![SDK generation architecture diagram](./images/sdk-gen.png)
+</Frame>
+</Accordion>
+</AccordionGroup>
