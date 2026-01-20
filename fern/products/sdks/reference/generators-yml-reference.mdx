@@ -59,6 +59,10 @@ Define authentication methods for your API that your endpoints can reference. Au
 
 Choose from custom headers (API keys), HTTP Basic, Bearer token, or OAuth 2.0 authentication.
 
+<Note>
+  After defining an authentication scheme, use [`api.auth`](#auth) to apply it as the default for all endpoints.
+</Note>
+
 <Info>
   Alternatively, you can [define authentication for individual SDKs](#override-api-authentication-settings). 
 </Info>
@@ -132,8 +136,38 @@ api:
     staging: "https://api.staging.com"
 ```
 
-<ParamField path="auth" type="object" toc={true}>
-  Authentication configuration for the API.
+<ParamField path="auth" type="string" toc={true}>
+  Sets the default authentication scheme for all endpoints. The value must reference a scheme name defined in [`auth-schemes`](#auth-schemes). This overrides any security schemes defined in your OpenAPI spec.
+
+  ```yaml title="generators.yml"
+  # Step 1: Define your authentication scheme
+  auth-schemes:
+    BearerAuth:
+      scheme: bearer
+      token:
+        name: apiKey
+        env: PLANTSTORE_API_KEY
+
+  # Step 2: Apply it as the default for all endpoints
+  api:
+    auth: BearerAuth
+    specs:
+      - openapi: ./openapi.yml
+  ```
+
+  With this configuration, all generated SDKs will require authentication using the `BearerAuth` scheme:
+
+  ```ts
+  // Uses process.env.PLANTSTORE_API_KEY
+  const client = new PlantStoreClient();
+
+  // Or provide the API key explicitly
+  const client = new PlantStoreClient({
+    apiKey: "your-api-key"
+  });
+  ```
+
+  You can also override authentication for individual generators using the [generator-level `api.auth`](#override-api-authentication-settings) setting.
 </ParamField>
 
 <ParamField path="headers" type="string or list of objects" toc={true}>
