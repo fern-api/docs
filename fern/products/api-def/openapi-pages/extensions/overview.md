@@ -26,10 +26,10 @@ The table below shows all available extensions and links to detailed documentati
 | [`x-fern-explorer`](./api-explorer-control) | Control API Explorer (playground) availability globally or per endpoint |
 | [`x-fern-global-headers`](./global-headers) | Configure headers used across all endpoints |
 | [`x-fern-header`](/api-definitions/openapi/authentication#apikey-security-scheme) | Customize API key header authentication parameter names and environment variables |
-| [`x-fern-idempotent`](/sdks/guides/configure-idempotency) | Mark an endpoint as idempotent |
-| [`x-fern-idempotency-headers`](/sdks/guides/configure-idempotency) | Configure idempotency headers for safe request retries |
+| [`x-fern-idempotent`](/sdks/deep-dives/idempotency) | Mark an endpoint as idempotent |
+| [`x-fern-idempotency-headers`](/sdks/deep-dives/idempotency) | Configure idempotency headers for safe request retries |
 | [`x-fern-ignore`](./ignoring-elements) | Skip reading specific endpoints or schemas |
-| [`x-fern-pagination`](/sdks/guides/configure-auto-pagination) | Configure auto-pagination for list endpoints |
+| [`x-fern-pagination`](/sdks/deep-dives/auto-pagination) | Configure auto-pagination for list endpoints |
 | [`x-fern-sdk-method-name`](./method-names) | Customize SDK method names |
 | [`x-fern-sdk-group-name`](./method-names) | Organize methods into SDK groups |
 | [`x-fern-sdk-variables`](./sdk-variables) | Set common path parameters across all requests |
@@ -39,7 +39,7 @@ The table below shows all available extensions and links to detailed documentati
 | [`x-fern-streaming`](/api-definitions/openapi/endpoints/sse) | Configure streaming endpoints (JSON or SSE) |
 | [`x-fern-type-name`](./schema-names) | Override auto-generated names for inline schemas |
 | [`x-fern-server-name`](./server-names) | Name your servers |
-| [`x-fern-webhook`](/api-definitions/openapi/webhooks) | Define webhooks in OpenAPI 3.0 specifications |
+| [`x-fern-webhook`](/api-definitions/openapi/endpoints/webhooks) | Define webhooks in OpenAPI 3.0 specifications |
 
 <Note title="Request a new extension">
     If there's an extension you want that doesn't already exist, file an [issue](https://github.com/fern-api/fern/issues/new) to start a discussion about it.
