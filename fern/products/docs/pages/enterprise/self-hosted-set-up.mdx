@@ -137,7 +137,9 @@ If your API uses gRPC with dependencies from the [Buf Schema Registry](https://b
 <Steps>
 <Step title="Check for BSR dependencies">
 
-Look for a `deps` section in your `buf.yaml` file:
+Check if your project has BSR dependencies in either location:
+
+**In `buf.yaml`:**
 
 ```yaml
 version: v2
@@ -146,7 +148,18 @@ deps:
   - buf.build/grpc-ecosystem/grpc-gateway
 ```
 
-If there's no `deps` section or only local paths, you can skip the rest of this section.
+**In `generators.yml`:**
+
+```yaml
+api:
+  specs:
+    - proto:
+        root: ./protos/
+        dependencies:
+          - buf.build/googleapis/googleapis
+```
+
+If there's no `deps` or `dependencies` section (or only local paths), you can skip the rest of this section.
 
 </Step>
 <Step title="Choose a solution">
@@ -204,6 +217,36 @@ deps:
 <Info>
 See the [Buf documentation on dependency management](https://buf.build/docs/bsr/module/dependency-management) for more details.
 </Info>
+</Accordion>
+<Accordion title="Option 3: Specify dependencies in generators.yml">
+
+If you don't have a `buf.yaml` file, you can specify proto dependencies directly in your `generators.yml`. The self-hosted container automatically creates a temporary `buf.yaml` from these dependencies during the build process.
+
+```yaml generators.yml
+api:
+  specs:
+    - proto:
+        root: ./protos/
+        dependencies:
+          - buf.build/googleapis/googleapis
+          - buf.build/bufbuild/protovalidate
+```
+
+This approach works with both build-time and runtime generation:
+
+```dockerfile
+FROM fernapi/fern-self-hosted:<latest-tag>
+
+COPY fern/ /fern/
+
+# For build-time generation (recommended for air-gapped deployments)
+RUN fern-generate
+
+# Or for runtime generation (requires network at startup)
+# RUN fern-generate --only-deps
+```
+
+The container parses all `generators.yml` files in your fern directory, finds proto specs with dependencies but no `buf.yaml`, and creates the necessary configuration automatically.
 </Accordion>
 </AccordionGroup>
 
