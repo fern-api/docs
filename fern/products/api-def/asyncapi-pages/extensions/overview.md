@@ -1,5 +1,6 @@
 ---
-title: Overview of AsyncAPI extensions
+title: Extensions overview
+headline: Extensions overview (AsyncAPI)
 description: Learn about Fern's AsyncAPI extensions for generating higher-quality SDKs
 ---
 

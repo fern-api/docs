@@ -168,15 +168,24 @@ This downloads BSR dependencies during the Docker build and bakes them into the 
 </Accordion>
 <Accordion title="Option 2: Vendor dependencies for runtime generation">
 
+Use this option when you don't have all the information at build time and need the docs to generate differently at runtime, such as injecting environment variables at runtime.
+
 To generate at runtime in an air-gapped environment, vendor buf dependencies locally:
 
 ```dockerfile
 FROM fernapi/fern-self-hosted:<latest-tag>
 
-COPY fern/ /fern/
+# Install buf CLI for dependency caching
+RUN npm install -g @bufbuild/buf
 
-RUN cd /fern && buf export . --output ./vendor
+# Copy fern configuration
+COPY fern/ fern/
+COPY protos/ protos/
 
+# Pre-fetch buf dependencies at build time (caches googleapis, protovalidate)
+RUN cd protos && buf dep update
+
+# Build fern dependencies
 RUN fern-generate --only-deps
 ```
 

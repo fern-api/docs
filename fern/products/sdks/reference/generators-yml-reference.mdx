@@ -737,11 +737,9 @@ Local directory path where generated files will be saved
 #### `github`
 
 Specify how your SDKs are generated in GitHub using the `github` configuration.
-Designate the `mode` to specifiy how Fern handles your code changes. For all of the
-modes, you must specify the GitHub repository in which you want to store your
-SDK code. You can also configure a branch name, license, and reviewers. 
+Designate the `mode` to specify how Fern handles your code changes. For cloud generation, specify the GitHub repository using `repository`. For [self-hosted generation](/learn/sdks/deep-dives/self-hosted), use `uri` and `token` instead.
 
-<Note>Make sure the [Fern GitHub app](https://github.com/apps/fern-api) is installed on your destination repository</Note>
+<Note>Make sure the [Fern GitHub app](https://github.com/apps/fern-api) is installed on your destination repository (not required for self-hosted generation)</Note>
 
 <AccordionGroup>
 <Accordion title="Release (recommended)">
@@ -844,6 +842,39 @@ Software license for the generated SDK.
 
 <ParamField path="reviewers" type="{ teams: list<string>, users: list<string> }" required={false} toc={true}>
 Specify which teams and users should review generated code. See [reviewers configuration](#reviewers-1).
+</ParamField>
+</Accordion>
+<Accordion title="Self-hosted">
+
+For [self-hosted SDK generation](/learn/sdks/deep-dives/self-hosted), configure the `github` property with `uri` and `token` instead of `repository`.
+
+```yml {6-10}
+groups: 
+  ts-sdk:
+    generators:
+      - name: fernapi/fern-typescript-sdk
+      ...
+        github: 
+          uri: "https://github.com/your-org/your-repo-name"
+          token: "${GITHUB_TOKEN}"
+          mode: "push"
+          branch: "main"
+```
+
+<ParamField path="uri" type="string" required={true} toc={true}>
+Full URL to your GitHub repository (e.g., `https://github.com/your-org/your-repo`).
+</ParamField>
+
+<ParamField path="token" type="string" required={true} toc={true}>
+GitHub Personal Access Token with repository write permissions. Use an environment variable reference (e.g., `${GITHUB_TOKEN}`).
+</ParamField>
+
+<ParamField path="mode" type="'push' | 'pull-request'" required={false} toc={true}>
+How to publish changes: `push` commits directly to the branch, `pull-request` opens a PR for review.
+</ParamField>
+
+<ParamField path="branch" type="string" required={false} toc={true}>
+Target branch for commits or pull requests.
 </ParamField>
 </Accordion>
 </AccordionGroup>

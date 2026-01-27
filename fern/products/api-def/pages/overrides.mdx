@@ -10,9 +10,9 @@ Use an overrides file to customize your OpenAPI, AsyncAPI, or OpenRPC definition
 
 Overrides are available for OpenAPI, AsyncAPI, and OpenRPC specifications. They are not needed for [Fern Definition](/api-definitions/ferndef/overview) since you can directly edit those files.
 
-<Note>
-While you can also embed [Fern extensions](/api-definitions/overview/overrides#definition-specific-extensions) directly in your API specification, using overrides files is the recommended approach as it keeps your original spec clean and separates concerns.
-</Note>
+<Warning>
+Fern recommends using [OpenAPI overlays](/api-definitions/openapi/overlays) instead of overrides for OpenAPI specs. Overlays follow the official [OpenAPI Overlay Specification](https://spec.openapis.org/overlay/v1.0.0.html) and are portable across different tools. Fern still supports OpenAPI overrides for backward compatibility.
+</Warning>
 
 ## Implement overrides
 
@@ -96,82 +96,10 @@ paths:
 </Step>
 </Steps>
 
-## Separate overrides for SDKs and Docs
+## Separate overrides for SDKs and docs
 
-For separate SDK and documentation configurations, you can use different override files in separate folders with their own `generators.yml` files.
-
-```bash
-fern/
-  ├─ fern.config.json
-  ├─ generators.yml 
-  └─ apis/
-    ├─ docs/ # Documentation configuration
-    │   ├─ generators.yml 
-    │   └─ docs-overrides.yml # Documentation-specific overrides
-    ├─ sdks/ # SDK configuration
-    │   ├─ generators.yml 
-    │   └─ sdk-overrides.yml # SDK-specific overrides
-    └─ openapi/
-        └─ openapi.yml # Original API specification
-```
-
-Both `generators.yml` files can be identical except for pointing to different override files:
-
-<Tabs>
-<Tab title="Docs">
-
-```yaml title="docs/generators.yml"
-api:
-  specs:
-    - openapi: ../openapi/openapi.yml 
-      overrides: ./docs-overrides.yml
-```
-</Tab>
-<Tab title="SDKs">
-```yaml title="sdks/generators.yml"
-api:
-  specs:
-    - openapi: ../openapi/openapi.yml 
-      overrides: ./sdk-overrides.yml
-```
-</Tab>
-</Tabs>
+<Markdown src="/snippets/separate-sdks-docs.mdx" type="overrides" />
 
 ## Overrides for different environments
 
-You can configure different override files for different environments. Overrides are applied in order, allowing you to build up customizations incrementally while keeping your original specification clean and focused. 
-
-```yaml title="generators.yml" {4-7, 12-15}
-groups:
-  production:
-    audiences: [public]
-    specs:
-      - openrpc: openrpc.yml
-        overrides:
-          - production-override.yml
-    generators:
-      - name: fernapi/fern-typescript-sdk
-        version: 0.8.8
-  internal:
-    audiences: [admin, internal]
-    specs:
-      - openrpc: openrpc.yml
-        override:
-          - internal-override.yml
-    generators:
-      - name: fernapi/fern-typescript-sdk
-        version: 0.8.8
-```
-
-## Definition-specific extensions
-
-Learn more about the Fern extensions you can use to customize your definition:
-
-<CardGroup cols={2}>
-  <Card title="OpenAPI" href="/api-definitions/openapi/extensions/overview">
-  </Card>
-  <Card title="AsyncAPI" href="/api-definitions/asyncapi/extensions/overview">
-  </Card>
-  <Card title="OpenRPC" href="/api-definitions/openrpc/extensions/overview">
-  </Card>
-</CardGroup>
+<Markdown src="/snippets/different-environments.mdx" type="overrides" />

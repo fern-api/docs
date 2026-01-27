@@ -1,5 +1,6 @@
 ---
-title: Overview of OpenRPC extensions
+title: Extensions overview
+headline: Extensions overview (OpenRPC)
 description: OpenRPC extensions guide for Fern. Use x-fern-ignore, x-fern-examples, x-fern-availability, and more to improve SDK generation.
 ---
 
