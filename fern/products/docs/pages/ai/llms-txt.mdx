@@ -3,11 +3,7 @@ title: llms.txt and llms-full.txt
 description: Fern automatically creates llms.txt files for AI developer tools. Filter by language, control visibility, and track analytics for LLM traffic.
 ---
 
-[llms.txt](https://llmstxt.org/) is a standard for exposing website content to AI developer tools. Fern automatically generates and maintains `llms.txt` and `llms-full.txt` files for your documentation site.
-
-## Automatically serve Markdown
-
-When Fern detects an LLM bot accessing your documentation, it automatically serves Markdown instead of HTML, reducing token consumption by 90%+.
+[llms.txt](https://llmstxt.org/) is a standard for exposing website content to AI developer tools. Fern automatically generates and maintains `llms.txt` and `llms-full.txt` Markdown files for your documentation site. When an LLM bot accesses your docs, Fern serves these Markdown files instead of HTML, reducing token consumption by 90%+.
 
 <Frame>
   <img
@@ -17,29 +13,22 @@ When Fern detects an LLM bot accessing your documentation, it automatically serv
   />
 </Frame>
 
-## `llms.txt`
+## Generated files
 
-Contains a lightweight summary of your documentation site with each page distilled into a one-sentence description and URL. The format is structured to help AI tools parse and understand your documentation's hierarchy and organization.
+Fern generates two files for LLMs:
 
-`llms.txt` is available at any level of your documentation hierarchy (`/llms.txt`, `/docs/llms.txt`, `/v1/api-reference/llms.txt`, etc.).
+- **`llms.txt`** contains a lightweight summary of your documentation site with each page distilled into a one-sentence description and URL.
 
-Examples from Eleven Labs: 
-- Developer documentation (Voices directory): [elevenlabs.io/docs/creative-platform/voices/llms.txt](https://elevenlabs.io/docs/creative-platform/voices/llms.txt)
-- API Reference (Create speech endpoint): [elevenlabs.io/docs/api-reference/text-to-speech/convert/llms.txt](https://elevenlabs.io/docs/api-reference/text-to-speech/convert/llms.txt)
+- **`llms-full.txt`** contains complete documentation content including the full text of all pages. For API documentation, this includes your complete API Reference with resolved OpenAPI specifications and SDK code examples for enabled languages.
 
-## `llms-full.txt`
+Both files are available at any level of your documentation hierarchy (`/llms.txt`, `/llms-full.txt`, `/docs/llms.txt`, `/docs/ai-features/llms-full.txt`, etc.).
 
-Contains complete documentation content including the full text of all pages. For API documentation, this includes your complete API Reference with resolved OpenAPI specifications and SDK code examples for enabled languages. Each API endpoint page includes its full OpenAPI spec.
+Examples: [Eleven Labs llms.txt](https://elevenlabs.io/docs/creative-platform/voices/llms.txt), [Cash App llms-full.txt](https://developers.cash.app/llms-full.txt).
 
-`llms-full.txt` is available only at the root of your documentation site.
+### Page descriptions
 
-Example from Cash App: [developers.cash.app/llms-full.txt](https://developers.cash.app/llms-full.txt)
+Both files include page descriptions pulled from [frontmatter](/learn/docs/configuration/page-level-settings). Fern uses the `description` field if present, otherwise falls back to `subtitle`.
 
-## Page descriptions from frontmatter
-
-Each page in `llms.txt` includes a description pulled from the page's frontmatter. Fern uses the `description` field if present, otherwise falls back to `subtitle`.
-
-<CodeBlocks>
 ```mdx title="Frontmatter"
 ---
 title: Fern Docs
@@ -47,32 +36,21 @@ subtitle: Build beautiful documentation websites with Fern.
 ---
 ```
 
-```txt title="llms.txt output"
+The output format differs slightly:
+
+<CodeBlocks>
+```txt title="llms.txt"
+- [Fern Docs](https://example.com/docs): Build beautiful documentation websites with Fern.
+```
+
+```txt title="llms-full.txt"
 # Fern Docs
 
 > Build beautiful documentation websites with Fern.
 ```
 </CodeBlocks>
 
-When both `subtitle` and `description` are present, `description` takes precedence:
-
-<CodeBlocks>
-```mdx title="Frontmatter"
----
-title: Site-level settings
-subtitle: Set theming, redirects, and more
-description: Configure your Fern documentation site with docs.yml.
----
-```
-
-```txt title="llms.txt output"
-# Site-level settings
-
-> Configure your Fern documentation site with docs.yml.
-```
-</CodeBlocks>
-
-## Filter with query parameters
+## Filter output
 
 Filter `llms.txt` and `llms-full.txt` output with the `lang` and `excludeSpec` query parameters to reduce token usage. Parameters can also be combined.
 
@@ -91,7 +69,7 @@ Filter `llms.txt` and `llms-full.txt` output with the `lang` and `excludeSpec` q
 </ParamField>
 
 
-## Control visibility for AI vs humans
+## Control visibility 
 
 You can exclude whole pages from LLM endpoints (`llms.txt` and `llms-full.txt`) by [adding `noindex: true`](/learn/docs/seo/setting-seo-metadata#noindex) to the page's frontmatter. Pages marked `noindex` are hidden from your documentation site’s navigation and not indexed by search engines but can still be accessed directly by URL.
 
@@ -104,7 +82,8 @@ noindex: true
 
 Within pages, use `<llms-only>` and `<llms-ignore>` tags to control what content is exposed to AI versus human readers on your documentation site. These tags affect all Markdown output intended for AI consumption: LLM endpoints, [Copy page, and View as Markdown](/learn/docs/configuration/site-level-settings#page-actions-configuration).
 
-### Content for AI only
+<AccordionGroup>
+<Accordion title="Content for AI only" toc={true}>
 
 Use the `<llms-only>` tag to show content to AI but hide it from human readers on your documentation site. This is useful for:
 - Technical context that's verbose but helpful for AI, like implementation details or architecture notes
@@ -116,8 +95,8 @@ Use the `<llms-only>` tag to show content to AI but hide it from human readers o
   This technical context is only visible to AI, not on your documentation site.
 </llms-only>
 ```
-
-### Content for humans only
+</Accordion>
+<Accordion title="Content for humans only" toc={true}>
 
 Use the `<llms-ignore>` tag to show content to human readers on your documentation site while hiding it from AI. This is useful for:
 - Marketing CTAs or promotional content
@@ -139,6 +118,8 @@ To authenticate your requests, include your API key in the header.
   </Callout>
 </llms-ignore>
 ```
+</Accordion>
+</AccordionGroup>
 
 ## Analytics and monitoring
 
