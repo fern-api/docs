@@ -25,6 +25,14 @@ jobs:
       - name: Install Fern
         run: npm install -g fern-api
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: pip install pyyaml
+
       - name: Generate preview URL
         id: generate-docs
         env:
@@ -33,8 +41,59 @@ jobs:
           OUTPUT=$(fern generate --docs --preview --instance fern-api.docs.buildwithfern.com/learn 2>&1) || true
           echo "$OUTPUT"
           URL=$(echo "$OUTPUT" | grep -oP 'Published docs to \K.*(?= \()')
+          echo "preview_url=$URL" >> $GITHUB_OUTPUT
           echo "Preview URL: $URL"
-          echo "🌿 Preview your docs: $URL" > preview_url.txt
+
+      - name: Get changed MDX files and generate page links
+        id: page-links
+        run: |
+          # Get the list of changed .mdx files in the PR
+          CHANGED_FILES=$(git diff --name-only origin/main...HEAD -- '*.mdx' 2>/dev/null || echo "")
+          
+          if [ -z "$CHANGED_FILES" ]; then
+            echo "No .mdx files changed"
+            echo "page_links=" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          echo "Changed MDX files:"
+          echo "$CHANGED_FILES"
+          
+          # Run the script to get slugs for changed files
+          PAGE_LINKS=""
+          while IFS= read -r file; do
+            if [ -n "$file" ]; then
+              RESULT=$(python3 .github/scripts/get-page-slugs.py "$file" 2>/dev/null || echo "")
+              if [ -n "$RESULT" ]; then
+                # Extract the slug from the result (format: file|slug)
+                SLUG=$(echo "$RESULT" | cut -d'|' -f2)
+                if [ -n "$SLUG" ]; then
+                  # Get just the filename for display
+                  FILENAME=$(basename "$file" .mdx)
+                  PAGE_LINKS="${PAGE_LINKS}\n- [${FILENAME}](${{ steps.generate-docs.outputs.preview_url }}${SLUG})"
+                fi
+              fi
+            fi
+          done <<< "$CHANGED_FILES"
+          
+          # Store the page links (escape newlines for GitHub Actions)
+          if [ -n "$PAGE_LINKS" ]; then
+            echo "page_links<<EOF" >> $GITHUB_OUTPUT
+            echo -e "$PAGE_LINKS" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "page_links=" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create comment content
+        run: |
+          echo "🌿 Preview your docs: ${{ steps.generate-docs.outputs.preview_url }}" > preview_url.txt
+          
+          if [ -n "${{ steps.page-links.outputs.page_links }}" ]; then
+            echo "" >> preview_url.txt
+            echo "**Pages changed in this PR:**" >> preview_url.txt
+            echo "${{ steps.page-links.outputs.page_links }}" >> preview_url.txt
+          fi
 
       - name: Comment URL in PR
         uses: thollander/actions-comment-pull-request@v2.4.3
