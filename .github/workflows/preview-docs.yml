@@ -64,20 +64,26 @@ jobs:
           
           echo "Calling API: $API_URL"
           
-          RESPONSE=$(curl -s -H "FERN_TOKEN: $FERN_TOKEN" "$API_URL" 2>/dev/null || echo "")
+          # Make API request with FERN_TOKEN for authentication (allows access to authed sites)
+          HTTP_RESPONSE=$(curl -s -w "\n%{http_code}" -H "FERN_TOKEN: $FERN_TOKEN" "$API_URL" 2>/dev/null || echo "")
           
-          if [ -z "$RESPONSE" ]; then
-            echo "Failed to get response from API"
+          # Extract HTTP status code and response body
+          HTTP_CODE=$(echo "$HTTP_RESPONSE" | tail -n1)
+          RESPONSE=$(echo "$HTTP_RESPONSE" | sed '$d')
+          
+          echo "API Response (HTTP $HTTP_CODE): $RESPONSE"
+          
+          # Handle errors gracefully - skip page links on any error
+          if [ -z "$RESPONSE" ] || [ "$HTTP_CODE" != "200" ]; then
+            echo "API request failed or returned error (HTTP $HTTP_CODE), skipping page links"
             echo "page_links=" >> $GITHUB_OUTPUT
             exit 0
           fi
           
-          echo "API Response: $RESPONSE"
-          
-          # Check if the docs are authenticated (skip page links if so)
-          IS_AUTHED=$(echo "$RESPONSE" | jq -r '.authed // false')
-          if [ "$IS_AUTHED" = "true" ]; then
-            echo "Docs require authentication, skipping page links"
+          # Check if response contains an error field
+          API_ERROR=$(echo "$RESPONSE" | jq -r '.error // empty')
+          if [ -n "$API_ERROR" ]; then
+            echo "API returned error: $API_ERROR, skipping page links"
             echo "page_links=" >> $GITHUB_OUTPUT
             exit 0
           fi
