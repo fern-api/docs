@@ -60,14 +60,21 @@ jobs:
           # Convert newlines to space-separated list for the command
           FILES_LIST=$(echo "$CHANGED_FILES" | tr '\n' ' ')
           
-          # Run fern docs diff
-          fern docs diff "$PREVIEW_URL" $FILES_LIST --output .fern/diff 2>&1 || true
+          # Create output directory
+          mkdir -p .fern/diff
           
-          # Check if diff JSON file exists
-          if [ -f ".fern/diff/diff.json" ]; then
+          # Run fern docs diff and capture JSON output to file
+          # The command outputs JSON to stdout, images go to --output directory
+          fern docs diff "$PREVIEW_URL" $FILES_LIST --output .fern/diff > .fern/diff/diff.json 2>&1 || true
+          
+          # Check if diff JSON file exists and has valid content
+          if [ -f ".fern/diff/diff.json" ] && grep -q '"diffs"' .fern/diff/diff.json 2>/dev/null; then
             echo "has_diffs=true" >> $GITHUB_OUTPUT
+            cat .fern/diff/diff.json
           else
             echo "has_diffs=false" >> $GITHUB_OUTPUT
+            echo "No diffs found or diff.json is invalid"
+            cat .fern/diff/diff.json 2>/dev/null || echo "File not found"
           fi
 
       - name: Upload diff images as artifacts
