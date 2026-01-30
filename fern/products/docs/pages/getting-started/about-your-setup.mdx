@@ -1,0 +1,104 @@
+---
+title: About your setup
+description: Learn how Fern sets up your documentation and how to troubleshoot common issues.
+---
+
+When you sign up with Fern, the initial setup of your documentation infrastructure is handled for you. This page explains what gets configured and how to troubleshoot common issues.
+
+## What Fern sets up for you
+
+When you start with Fern, the following is created and configured:
+
+<Steps>
+
+### Create your organization
+
+An organization is created using your org ID and you are added as a member. Your organization is visible in the [Fern Dashboard](https://dashboard.buildwithfern.com), where you can manage members, domains, and settings.
+
+### Set up your GitHub repository
+
+A GitHub repository is set up to store your documentation source files. This repository contains your `docs.yml` configuration, Markdown pages, and any API specifications.
+
+### Configure the Fern token
+
+A `FERN_TOKEN` is added to your repository's GitHub secrets. This token authenticates the Fern CLI in your CI/CD workflows and is scoped specifically to your organization.
+
+### Configure the GitHub Action
+
+A GitHub Action is set up that runs `fern generate --docs` whenever changes are pushed to your main branch. This automatically rebuilds and publishes your documentation.
+
+</Steps>
+
+## View your workflows
+
+You can monitor your documentation builds by viewing the GitHub Actions in your repository. Each workflow run shows the status of your documentation generation, including any errors or warnings.
+
+For example, view a workflow run at: `https://github.com/your-org/your-repo/actions/runs/{run_id}/job/{job_id}`
+
+## Troubleshooting
+
+### Fern token issues
+
+If your documentation build fails with an authentication error, the `FERN_TOKEN` may not be set correctly. To resolve this:
+
+<Steps>
+
+### Install the Fern CLI
+
+```bash
+npm install -g fern-api
+```
+
+### Clone the repository
+
+Add yourself as a collaborator to the repository if needed, then clone it locally.
+
+### Generate a new token
+
+Run the following command from within your Fern project directory:
+
+```bash
+fern token
+```
+
+This generates a token scoped to your organization (as defined in `fern.config.json`).
+
+### Add the token to GitHub secrets
+
+Copy the token and add it as a [repository secret](https://docs.github.com/en/actions/security-guides/using-secrets-in-github-actions#creating-secrets-for-a-repository) named `FERN_TOKEN`.
+
+### Re-run the GitHub Action
+
+Go to the Actions tab in your repository and re-run the failed workflow.
+
+</Steps>
+
+### API spec errors
+
+If your build fails due to issues parsing your API specification, you can troubleshoot locally:
+
+<Steps>
+
+### Clone the repository
+
+Clone your documentation repository locally if you haven't already.
+
+### Install the Fern CLI
+
+```bash
+npm install -g fern-api
+```
+
+### Validate your API spec
+
+Run the following command to see detailed validation errors with line numbers:
+
+```bash
+fern check --from-openapi
+```
+
+This command prints validation errors directly from your OpenAPI specification, including the line numbers where the errors originate.
+
+</Steps>
+
+Once you've resolved the errors in your API spec, commit and push the changes to trigger a new build.
