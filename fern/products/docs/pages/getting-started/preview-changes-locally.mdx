@@ -99,7 +99,6 @@ name: Preview Docs
 
 on:
   pull_request_target:
-    types: [opened, synchronize, ready_for_review]
     branches:
       - main
 
@@ -107,14 +106,13 @@ jobs:
   run:
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: write # Only for commenting
-      contents: read # For checking out code
+      pull-requests: write
+      contents: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Checkout PR
-        if: github.event_name == 'pull_request_target'
         run: |
           git fetch origin pull/${{ github.event.pull_request.number }}/head:pr-${{ github.event.pull_request.number }}
           git checkout pr-${{ github.event.pull_request.number }}
@@ -127,7 +125,7 @@ jobs:
         env:
           FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
         run: |
-          OUTPUT=$(fern generate --docs --preview --instance fern-api.docs.buildwithfern.com/learn 2>&1) || true
+          OUTPUT=$(fern generate --docs --preview 2>&1) || true
           echo "$OUTPUT"
           URL=$(echo "$OUTPUT" | grep -oP 'Published docs to \K.*(?= \()')
           echo "preview_url=$URL" >> $GITHUB_OUTPUT
