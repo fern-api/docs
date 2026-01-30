@@ -63,18 +63,27 @@ jobs:
           # Create output directory
           mkdir -p .fern/diff
           
-          # Run fern docs diff and capture JSON output to file
-          # The command outputs JSON to stdout, images go to --output directory
-          fern docs diff "$PREVIEW_URL" $FILES_LIST --output .fern/diff > .fern/diff/diff.json 2>&1 || true
+          # Run fern docs diff and capture output
+          # Progress messages go to stderr, JSON goes to stdout
+          # We capture everything to a temp file, then extract just the JSON
+          fern docs diff "$PREVIEW_URL" $FILES_LIST --output .fern/diff > .fern/diff/output.txt 2>&1 || true
+          
+          # Extract just the JSON part (starts with { and ends with })
+          # The JSON is the last thing output, so we find the line starting with { and take everything from there
+          sed -n '/^{/,$p' .fern/diff/output.txt > .fern/diff/diff.json
+          
+          # Debug: show what we captured
+          echo "=== Raw output ==="
+          cat .fern/diff/output.txt
+          echo "=== Extracted JSON ==="
+          cat .fern/diff/diff.json
           
           # Check if diff JSON file exists and has valid content
           if [ -f ".fern/diff/diff.json" ] && grep -q '"diffs"' .fern/diff/diff.json 2>/dev/null; then
             echo "has_diffs=true" >> $GITHUB_OUTPUT
-            cat .fern/diff/diff.json
           else
             echo "has_diffs=false" >> $GITHUB_OUTPUT
             echo "No diffs found or diff.json is invalid"
-            cat .fern/diff/diff.json 2>/dev/null || echo "File not found"
           fi
 
       - name: Upload diff images as artifacts
