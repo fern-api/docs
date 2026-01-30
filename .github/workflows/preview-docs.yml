@@ -54,7 +54,7 @@ jobs:
           }
           
           PAGE_LINKS=$(echo "$RESPONSE" | jq -r --arg url "$PREVIEW_URL" \
-            '.mappings[] | select(.slug != null) | "- [\(.filePath | split("/") | last | rtrimstr(".mdx"))](\($url)/\(.slug))"')
+            '.mappings[] | select(.slug != null) | "- <\($url)/\(.slug)>"')
           
           if [ -n "$PAGE_LINKS" ]; then
             { echo "page_links<<EOF"; echo "$PAGE_LINKS"; echo "EOF"; } >> $GITHUB_OUTPUT
@@ -64,11 +64,11 @@ jobs:
 
       - name: Create comment content
         run: |
-          echo "🌿 Preview your docs: ${{ steps.generate-docs.outputs.preview_url }}" > preview_url.txt
+          echo ":herb: **Preview your docs:** <${{ steps.generate-docs.outputs.preview_url }}>" > preview_url.txt
           
           if [ -n "${{ steps.page-links.outputs.page_links }}" ]; then
             echo "" >> preview_url.txt
-            echo "**Pages changed in this PR:**" >> preview_url.txt
+            echo "**Here are the markdown pages you've updated:**" >> preview_url.txt
             echo "${{ steps.page-links.outputs.page_links }}" >> preview_url.txt
           fi
 
