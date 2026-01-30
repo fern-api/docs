@@ -62,50 +62,20 @@ jobs:
           # The preview URL format is: https://fern-preview-{id}.docs.buildwithfern.com/learn
           API_URL="${PREVIEW_URL}/api/fern-docs/get-slug-for-file?files=${FILES_PARAM}"
           
-          echo "Calling API: $API_URL"
-          
-          # Make API request with FERN_TOKEN for authentication (allows access to authed sites)
-          HTTP_RESPONSE=$(curl -s -w "\n%{http_code}" -H "FERN_TOKEN: $FERN_TOKEN" "$API_URL" 2>/dev/null || echo "")
-          
-          # Extract HTTP status code and response body
-          HTTP_CODE=$(echo "$HTTP_RESPONSE" | tail -n1)
-          RESPONSE=$(echo "$HTTP_RESPONSE" | sed '$d')
-          
-          echo "API Response (HTTP $HTTP_CODE): $RESPONSE"
-          
-          # Handle errors gracefully - skip page links on any error
-          if [ -z "$RESPONSE" ] || [ "$HTTP_CODE" != "200" ]; then
-            echo "API request failed or returned error (HTTP $HTTP_CODE), skipping page links"
+          # Call API - skip page links on any error (curl -f fails on HTTP errors)
+          RESPONSE=$(curl -sf -H "FERN_TOKEN: $FERN_TOKEN" "$API_URL" 2>/dev/null) || {
+            echo "API request failed, skipping page links"
             echo "page_links=" >> $GITHUB_OUTPUT
             exit 0
-          fi
+          }
           
-          # Check if response contains an error field
-          API_ERROR=$(echo "$RESPONSE" | jq -r '.error // empty')
-          if [ -n "$API_ERROR" ]; then
-            echo "API returned error: $API_ERROR, skipping page links"
-            echo "page_links=" >> $GITHUB_OUTPUT
-            exit 0
-          fi
+          # Generate page links from valid slugs (filter out nulls, format as markdown links)
+          PAGE_LINKS=$(echo "$RESPONSE" | jq -r --arg url "$PREVIEW_URL" \
+            '.mappings[] | select(.slug != null) | "- [\(.filePath | split("/") | last | rtrimstr(".mdx"))](\($url)/\(.slug))"')
           
-          # Parse the response and generate page links
-          PAGE_LINKS=""
-          MAPPINGS=$(echo "$RESPONSE" | jq -c '.mappings // []')
-          
-          for row in $(echo "$MAPPINGS" | jq -c '.[]'); do
-            FILE_PATH=$(echo "$row" | jq -r '.filePath')
-            SLUG=$(echo "$row" | jq -r '.slug')
-            
-            if [ "$SLUG" != "null" ] && [ -n "$SLUG" ]; then
-              FILENAME=$(basename "$FILE_PATH" .mdx)
-              PAGE_LINKS="${PAGE_LINKS}\n- [${FILENAME}](${PREVIEW_URL}/${SLUG})"
-            fi
-          done
-          
-          # Store the page links
           if [ -n "$PAGE_LINKS" ]; then
             echo "page_links<<EOF" >> $GITHUB_OUTPUT
-            echo -e "$PAGE_LINKS" >> $GITHUB_OUTPUT
+            echo "$PAGE_LINKS" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
           else
             echo "page_links=" >> $GITHUB_OUTPUT
