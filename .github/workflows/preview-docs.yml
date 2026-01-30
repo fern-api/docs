@@ -48,13 +48,16 @@ jobs:
             echo "page_links=" >> $GITHUB_OUTPUT; exit 0
           fi
           
+          # Extract base URL (without path) since slug already contains the full path
+          BASE_URL=$(echo "$PREVIEW_URL" | grep -oP 'https?://[^/]+')
+          
           FILES_PARAM=$(echo "$CHANGED_FILES" | tr '\n' ',' | sed 's/,$//')
           RESPONSE=$(curl -sf -H "FERN_TOKEN: $FERN_TOKEN" "${PREVIEW_URL}/api/fern-docs/get-slug-for-file?files=${FILES_PARAM}" 2>/dev/null) || {
             echo "page_links=" >> $GITHUB_OUTPUT; exit 0
           }
           
-          PAGE_LINKS=$(echo "$RESPONSE" | jq -r --arg url "$PREVIEW_URL" \
-            '.mappings[] | select(.slug != null) | "- <\($url)/\(.slug)>"')
+          PAGE_LINKS=$(echo "$RESPONSE" | jq -r --arg url "$BASE_URL" \
+            '.mappings[] | select(.slug != null) | "- [\(.slug)](\($url)/\(.slug))"')
           
           if [ -n "$PAGE_LINKS" ]; then
             { echo "page_links<<EOF"; echo "$PAGE_LINKS"; echo "EOF"; } >> $GITHUB_OUTPUT
