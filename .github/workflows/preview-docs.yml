@@ -36,47 +36,28 @@ jobs:
           echo "preview_url=$URL" >> $GITHUB_OUTPUT
           echo "Preview URL: $URL"
 
-      - name: Get changed MDX files and generate page links
+      - name: Get page links for changed MDX files
         id: page-links
         env:
           FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
         run: |
           PREVIEW_URL="${{ steps.generate-docs.outputs.preview_url }}"
-          
-          # Get the list of changed .mdx files in the PR
           CHANGED_FILES=$(git diff --name-only origin/main...HEAD -- '*.mdx' 2>/dev/null || echo "")
           
           if [ -z "$CHANGED_FILES" ] || [ -z "$PREVIEW_URL" ]; then
-            echo "No .mdx files changed or no preview URL"
-            echo "page_links=" >> $GITHUB_OUTPUT
-            exit 0
+            echo "page_links=" >> $GITHUB_OUTPUT; exit 0
           fi
           
-          echo "Changed MDX files:"
-          echo "$CHANGED_FILES"
-          
-          # Convert newline-separated files to comma-separated for API call
           FILES_PARAM=$(echo "$CHANGED_FILES" | tr '\n' ',' | sed 's/,$//')
-          
-          # Call the API endpoint to get slugs for changed files
-          # The preview URL format is: https://fern-preview-{id}.docs.buildwithfern.com/learn
-          API_URL="${PREVIEW_URL}/api/fern-docs/get-slug-for-file?files=${FILES_PARAM}"
-          
-          # Call API - skip page links on any error (curl -f fails on HTTP errors)
-          RESPONSE=$(curl -sf -H "FERN_TOKEN: $FERN_TOKEN" "$API_URL" 2>/dev/null) || {
-            echo "API request failed, skipping page links"
-            echo "page_links=" >> $GITHUB_OUTPUT
-            exit 0
+          RESPONSE=$(curl -sf -H "FERN_TOKEN: $FERN_TOKEN" "${PREVIEW_URL}/api/fern-docs/get-slug-for-file?files=${FILES_PARAM}" 2>/dev/null) || {
+            echo "page_links=" >> $GITHUB_OUTPUT; exit 0
           }
           
-          # Generate page links from valid slugs (filter out nulls, format as markdown links)
           PAGE_LINKS=$(echo "$RESPONSE" | jq -r --arg url "$PREVIEW_URL" \
             '.mappings[] | select(.slug != null) | "- [\(.filePath | split("/") | last | rtrimstr(".mdx"))](\($url)/\(.slug))"')
           
           if [ -n "$PAGE_LINKS" ]; then
-            echo "page_links<<EOF" >> $GITHUB_OUTPUT
-            echo "$PAGE_LINKS" >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
+            { echo "page_links<<EOF"; echo "$PAGE_LINKS"; echo "EOF"; } >> $GITHUB_OUTPUT
           else
             echo "page_links=" >> $GITHUB_OUTPUT
           fi
