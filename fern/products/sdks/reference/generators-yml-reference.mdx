@@ -346,6 +346,50 @@ default-group: "production"
 <ParamField path="default-group" type="string" required={false} toc={true}>
 </ParamField>
 
+## `autorelease`
+
+Enable or disable [Fern Autorelease](/learn/sdks/overview/autorelease) for automated SDK releases. When enabled, Autorelease detects API spec changes, regenerates SDKs, determines version bumps, and publishes to package registries.
+
+```yaml title="generators.yml"
+autorelease: true
+```
+
+<ParamField path="autorelease" type="boolean | object" required={false} toc={true}>
+  Set to `true` to enable Autorelease, `false` to disable it. Explicit configuration in `generators.yml` takes precedence over other enablement methods. You can also configure Autorelease per-generator within the [`groups`](#groups) section.
+</ParamField>
+
+<AccordionGroup>
+<Accordion title="Enable with pull-based detection">
+
+Configure a cron schedule to periodically fetch and check for spec changes:
+
+```yaml title="generators.yml"
+autorelease:
+  cron:
+    schedule: "0 0 * * 0"  # Weekly on Sunday at midnight
+```
+
+<ParamField path="cron.schedule" type="string" required={true} toc={true}>
+  A cron expression defining how often to check for spec changes. Uses standard cron syntax.
+</ParamField>
+</Accordion>
+<Accordion title="Per-generator configuration">
+
+Enable or disable Autorelease for specific generators:
+
+```yaml title="generators.yml" {6}
+groups:
+  python-sdk:
+    generators:
+      - name: fernapi/fern-python-sdk
+        version: 2.0.0
+        autorelease: true
+```
+
+Per-generator settings override the global `autorelease` configuration.
+</Accordion>
+</AccordionGroup>
+
 ## `aliases`
 
 Define shortcuts that map to multiple generator groups, allowing you to run several groups with a single command. When you run `fern generate --group <alias>`, all groups in the alias run in parallel. You can also set an alias as your `default-group`.
