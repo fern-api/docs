@@ -1,0 +1,92 @@
+---
+title: Idempotent endpoints
+headline: Idempotent endpoints (OpenAPI)
+description: Mark endpoints as idempotent using the x-fern-idempotent extension to enable safe request retries
+---
+
+<Markdown src="/snippets/pro-plan.mdx"/>
+
+The `x-fern-idempotent` extension marks an endpoint as idempotent in your OpenAPI specification. When an endpoint is marked as idempotent, Fern's generated SDKs allow users to specify idempotency headers for that endpoint, enabling safe request retries.
+
+## How it works for SDK users
+
+For endpoints marked as idempotent, SDK users can specify an idempotency key:
+
+<CodeBlocks>
+  <CodeBlock title="TypeScript">
+    ```ts {5}
+    const response = await client.plants.create({
+      name: "Monstera",
+      species: "Monstera deliciosa",
+    }, {
+      idempotencyKey: "64099353-b48b-4dcd-98b7-74df1cc57933"
+    });
+    ```
+  </CodeBlock>
+  <CodeBlock title="Python">
+    ```python {4}
+    response = client.plants.create(
+      name="Monstera", 
+      species="Monstera deliciosa",
+      idempotency_key="64099353-b48b-4dcd-98b7-74df1cc57933"
+    )
+    ```
+  </CodeBlock>
+  <CodeBlock title="Java">
+    ```java {7}
+    var response = client.plants().create(
+      CreatePlantRequest.builder()
+        .name("Monstera")
+        .species("Monstera deliciosa")
+        .build(),
+      IdempotentRequestOptions.builder()
+        .idempotencyKey("64099353-b48b-4dcd-98b7-74df1cc57933")
+        .build()
+    );
+    ```
+  </CodeBlock>
+  <CodeBlock title="Go">
+    ```go {7}
+    response, err := client.Plants.Create(
+      ctx,
+      &CreatePlantRequest{
+        Name: "Monstera",
+        Species: "Monstera deliciosa",
+      },
+      option.WithIdempotencyKey("64099353-b48b-4dcd-98b7-74df1cc57933"),
+    )
+    ```
+  </CodeBlock>
+</CodeBlocks>
+
+<Note>
+The generated SDKs won't allow users to specify idempotency headers for non-idempotent endpoints. This ensures that users know exactly which invocations are idempotent and which aren't.
+</Note>
+
+## Setting up idempotent endpoints
+
+To mark an endpoint as idempotent, add the `x-fern-idempotent` extension to the endpoint and set it to `true`:
+
+```yaml title="openapi.yml" {5}
+paths:
+  /plants:
+    post:
+      operationId: create_plant
+      x-fern-idempotent: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                species:
+                  type: string
+      responses:
+        '201':
+          description: Plant created successfully
+```
+
+You must also configure idempotency headers at the API level using the [`x-fern-idempotency-headers`](./idempotency-headers) extension to specify which headers your API uses for idempotency.

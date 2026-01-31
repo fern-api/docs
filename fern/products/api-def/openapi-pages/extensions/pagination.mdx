@@ -1,0 +1,138 @@
+---
+title: Pagination
+headline: Pagination (OpenAPI)
+description: Configure auto-pagination for list endpoints using the x-fern-pagination extension
+---
+
+<Markdown src="/snippets/pro-plan.mdx"/>
+
+The `x-fern-pagination` extension configures auto-pagination for list endpoints in your OpenAPI specification. Fern's generated SDKs provide simple iterators that handle pagination automatically, so SDK users can loop through all results without managing pagination complexity manually.
+
+## How it works for SDK users
+
+<Tabs>
+<Tab title="TypeScript" language="typescript">
+
+Once you've configured pagination for an endpoint, Fern generates a TypeScript SDK method that returns a `Page<T>` where `T` is the underlying data type. The `Page<T>` implements the `AsyncIterable` interface, allowing users to use it in a `for await` loop.
+
+```typescript
+const response = await client.plants.list();
+for await (const plant of response) {
+  console.log(plant);
+}
+```
+
+</Tab>
+<Tab title="Python" language="python">
+
+Once you've configured pagination for an endpoint, Fern generates a Python SDK method that returns a `Pager[T]` where `T` is the underlying data type. The `Pager[T]` implements the `Generator` interface, allowing users to use it in a `for ... in` loop.
+
+```python
+for plant in client.plants.list(page=1, page_size=10):
+  print(plant)
+```
+
+Or with the asynchronous client:
+
+```python
+async for plant in await client.plants.list(page=1, page_size=10):
+  print(plant)
+```
+
+</Tab>
+</Tabs>
+
+## Setting up pagination
+
+To configure pagination, annotate the desired endpoint with the `x-fern-pagination` extension, specify the pagination scheme (`offset` or `cursor`), and indicate where your results are located using dot-access notation.
+
+<CodeBlocks>
+```yaml title="Offset pagination" {5-7}
+paths:
+  /plants:
+    get:
+      operationId: list_plants
+      x-fern-pagination:
+        offset: $request.page_number
+        results: $response.results
+      parameters:
+        - name: page_number
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of plants
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Plant'
+```
+
+```yaml title="Cursor pagination" {5-8}
+paths:
+  /plants:
+    get:
+      operationId: list_plants
+      x-fern-pagination:
+        cursor: $request.cursor
+        next_cursor: $response.next
+        results: $response.results
+      parameters:
+        - name: cursor
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of plants
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  next:
+                    type: string
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Plant'
+```
+</CodeBlocks>
+
+## Configuration options
+
+The `x-fern-pagination` extension supports the following properties:
+
+| Property | Description |
+| --- | --- |
+| `offset` | Path to the offset parameter in the request (e.g., `$request.page_number`) |
+| `cursor` | Path to the cursor parameter in the request (e.g., `$request.cursor`) |
+| `next_cursor` | Path to the next cursor value in the response (required for cursor pagination) |
+| `results` | Path to the results array in the response (e.g., `$response.results`) |
+| `step` | Path to the page size parameter, ensures offset increments correctly |
+| `has-next-page` | Path to a boolean indicator for additional pages |
+
+<Info title="Finding the location of your results">
+
+If your results are nested within the response object, use dot-access notation to specify the path. For example, if results are located in `my_nested_object.inner_list`, the path would be `$response.my_nested_object.inner_list`.
+
+```yaml {4, 7}
+MyResponseObject:
+  type: object
+  properties:
+    my_nested_object:
+      type: object
+      properties:
+        inner_list:
+          type: array
+          items:
+            $ref: '#/components/schemas/Plant'
+```
+
+</Info>

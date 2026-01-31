@@ -1,0 +1,113 @@
+---
+title: Idempotency headers
+headline: Idempotency headers (OpenAPI)
+description: Configure idempotency headers for safe request retries using the x-fern-idempotency-headers extension
+---
+
+<Markdown src="/snippets/pro-plan.mdx"/>
+
+The `x-fern-idempotency-headers` extension configures the idempotency headers that your API uses for safe request retries. This extension is used in combination with the [`x-fern-idempotent`](./idempotent) extension, which marks individual endpoints as idempotent.
+
+## Setting up idempotency headers
+
+To configure idempotency headers, add the `x-fern-idempotency-headers` extension at the root level of your OpenAPI specification:
+
+```yaml title="openapi.yml" {1-3}
+x-fern-idempotency-headers:
+  - header: Idempotency-Key
+    name: idempotency_key
+
+paths:
+  /plants:
+    post:
+      operationId: create_plant
+      x-fern-idempotent: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                species:
+                  type: string
+      responses:
+        '201':
+          description: Plant created successfully
+```
+
+## Configuration options
+
+Each idempotency header in the array supports the following properties:
+
+| Property | Description |
+| --- | --- |
+| `header` | The HTTP header name (e.g., `Idempotency-Key`) |
+| `name` | The parameter name used in the generated SDK (e.g., `idempotency_key`) |
+
+You can configure multiple idempotency headers if your API requires them:
+
+```yaml title="openapi.yml"
+x-fern-idempotency-headers:
+  - header: Idempotency-Key
+    name: idempotency_key
+  - header: Idempotency-Expiration
+    name: idempotency_expiration
+```
+
+## How it works for SDK users
+
+Once you've configured idempotency headers and marked endpoints as idempotent, SDK users can specify idempotency values when calling those endpoints:
+
+<CodeBlocks>
+  <CodeBlock title="TypeScript">
+    ```ts {5}
+    const response = await client.plants.create({
+      name: "Monstera",
+      species: "Monstera deliciosa",
+    }, {
+      idempotencyKey: "64099353-b48b-4dcd-98b7-74df1cc57933"
+    });
+    ```
+  </CodeBlock>
+  <CodeBlock title="Python">
+    ```python {4}
+    response = client.plants.create(
+      name="Monstera", 
+      species="Monstera deliciosa",
+      idempotency_key="64099353-b48b-4dcd-98b7-74df1cc57933"
+    )
+    ```
+  </CodeBlock>
+  <CodeBlock title="Java">
+    ```java {7}
+    var response = client.plants().create(
+      CreatePlantRequest.builder()
+        .name("Monstera")
+        .species("Monstera deliciosa")
+        .build(),
+      IdempotentRequestOptions.builder()
+        .idempotencyKey("64099353-b48b-4dcd-98b7-74df1cc57933")
+        .build()
+    );
+    ```
+  </CodeBlock>
+  <CodeBlock title="Go">
+    ```go {7}
+    response, err := client.Plants.Create(
+      ctx,
+      &CreatePlantRequest{
+        Name: "Monstera",
+        Species: "Monstera deliciosa",
+      },
+      option.WithIdempotencyKey("64099353-b48b-4dcd-98b7-74df1cc57933"),
+    )
+    ```
+  </CodeBlock>
+</CodeBlocks>
+
+<Note>
+The generated SDKs won't allow users to specify idempotency headers for non-idempotent endpoints. This ensures that users know exactly which invocations are idempotent and which aren't.
+</Note>
