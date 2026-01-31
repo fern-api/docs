@@ -26,8 +26,8 @@ The table below shows all available extensions and links to detailed documentati
 | [`x-fern-explorer`](./api-explorer-control) | Control API Explorer (playground) availability globally or per endpoint |
 | [`x-fern-global-headers`](./global-headers) | Configure headers used across all endpoints |
 | [`x-fern-header`](/api-definitions/openapi/authentication#apikey-security-scheme) | Customize API key header authentication parameter names and environment variables |
-| [`x-fern-idempotent`](./idempotent) | Mark an endpoint as idempotent |
-| [`x-fern-idempotency-headers`](./idempotency-headers) | Configure idempotency headers for safe request retries |
+| [`x-fern-idempotent`](./idempotency) | Mark an endpoint as idempotent |
+| [`x-fern-idempotency-headers`](./idempotency) | Configure idempotency headers for safe request retries |
 | [`x-fern-ignore`](./ignoring-elements) | Skip reading specific endpoints or schemas |
 | [`x-fern-pagination`](./pagination) | Configure auto-pagination for list endpoints |
 | [`x-fern-sdk-method-name`](./method-names) | Customize SDK method names |
