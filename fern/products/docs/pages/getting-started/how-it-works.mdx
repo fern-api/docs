@@ -3,10 +3,88 @@ title: How Fern Docs work
 description: Learn how Fern transforms your API specifications and documentation into a unified developer experience
 ---
 
-Fern combines your API specifications, static Markdown files (like how-to guides and tutorials), media assets (images, videos, etc.), and custom settings defined in your `docs.yml` file to generate a beautiful, interactive hosted documentation site. 
+Fern combines your API specifications, static Markdown files (like how-to guides and tutorials), media assets (images, videos, etc.), and custom settings defined in your `docs.yml` file to generate a beautiful, interactive hosted documentation site.
 
-This process is built around two major workflows: **editing** and **deploying** your documentation.
+## What Fern sets up for you
 
+When you start with Fern, the setup process creates and configures:
+
+- **Organization**: An organization using your org ID, with you as a member.
+- **GitHub repository**: A repository to store your documentation source files, including your `docs.yml` configuration, Markdown pages, and any API specifications.
+- **Fern token**: A `FERN_TOKEN` in your repository's GitHub secrets that authenticates the [Fern CLI](/learn/cli-api-reference/cli-reference/overview) in your CI/CD workflows, scoped to your organization.
+- **GitHub Action**: A workflow that runs [`fern generate --docs`](/learn/cli-api-reference/cli-reference/commands#fern-generate---docs) whenever you push changes to your main branch, automatically rebuilding and publishing your documentation.
+
+You can use the [Fern Dashboard](/learn/dashboard/getting-started/overview) to manage your GitHub repository connection, organization members, domains, and CLI version.
+
+## Content and deployment workflows
+
+Once your documentation is set up, there are two major workflows: **editing** and **deploying** your documentation.
+
+## Content workflows
+
+You can update your documentation in two ways:
+
+- **Direct editing**: Open a pull request directly in the [GitHub repository that contains your docs](/learn/docs/getting-started/project-structure) (including your `docs.yml` configuration and Markdown files). 
+- **Fern Editor**: Use the [Fern Editor](/learn/docs/writing-content/fern-editor) to modify your docs without touching code. The Fern GitHub App fetches the current state from your docs repository and passes it to the Fern Editor. When you submit changes, the Fern GitHub App automatically opens a pull request for review. 
+
+After the update goes through your review process, an approver can merge it.
+
+## Deployment workflows
+
+When a pull request is merged into your docs repository, an automated pipeline transforms your content into a live documentation site and syncs it with your API changes in three main stages:
+
+<Steps>
+
+### Trigger GitHub Action and fetch API specs
+
+The merged PR triggers a Fern GitHub Action. The action retrieves your API specification from a separate repository using secure token authentication. The GitHub Action only has access to the specific docs repository from which it's running.
+
+### Generate and process content
+[The Fern CLI](/learn/cli-api-reference/cli-reference/overview) runs `fern generate --docs` to merge your API specs with documentation content. Behind the scenes, this process involves several key components:
+
+- **Input processing**: The system combines your API specification files, `docs.yml` configuration file, `.mdx` files, and media content. 
+- **Core infrastructure**: The generation process runs on Fern's AWS VPC infrastructure, where the Fern Docs microservice acts as the central orchestrator. This microservice coordinates content processing while connecting to a database for storing indexed content and S3 for asset storage.
+- **Content indexing**: During generation, Fern automatically indexes your documentation content to enable search functionality across your entire site. This indexing integrates with external services: [Algolia](/learn/docs/customization/search) for advanced search capabilities, UpStash for caching, PostHog for analytics, TurboPuffer for vector storage, and AI inference services (Bedrock, Claude) for intelligent content processing.
+
+### Deploy to hosting platform
+
+The processed content is deployed to Vercel as a documentation site with an embedded [API explorer](/learn/docs/api-references/api-explorer/overview) that allows users to test endpoints directly within the documentation. 
+
+Vercel Edge middleware handles the underlying routing, authentication, and performance optimization.
+
+The deployed documentation site integrates with external systems like Cloudflare for CORS management and WorkOS for enterprise authentication. 
+
+
+</Steps>
+
+<AccordionGroup>
+<Accordion title="Editing and deployment workflow diagrams">
+
+This diagram shows how content flows from editing to deployment.
+
+```mermaid
+flowchart TD
+    FE[Fern Editor]
+    U[User]
+    DR[Docs Repo]
+    CLI[Fern CLI]
+    Decision{Make a PR or edit in Fern Editor?}
+    Spec((API Spec Repo))
+    GA[GitHub Actions]
+
+    U ==> Decision
+    Decision == Make edit ==> FE
+    Decision == Open and Merge PR ==> DR
+
+    FE <== Fetches state and opens PR ==> DR
+    DR == ① Merged PR triggers deployment flow ==> GA
+    
+    Spec <-. ② Fetches and merges API spec .-> GA
+
+    GA == ③ Triggers doc regeneration ==> CLI
+    CLI == ④ Deploys updated docs ==> Server[Fern Docs Server]
+```
+</Accordion>
 <Accordion title="System architecture">
 
 This diagram shows the technical infrastructure that powers the documentation generation process.
@@ -72,72 +150,4 @@ flowchart TD
     MICROSERVICE -.-> S3
 ```
 </Accordion>
-
-## Content workflows
-
-You can update your documentation in two ways:
-
-- **Direct editing**: Open a pull request directly in the [GitHub repository that contains your docs](/learn/docs/getting-started/project-structure) (including your `docs.yml` configuration and Markdown files). 
-- **Fern Editor**: Use the [Fern Editor](/learn/docs/writing-content/fern-editor) to modify your docs without touching code. The Fern GitHub App fetches the current state from your docs repository and passes it to the Fern Editor. When you submit changes, the Fern GitHub App automatically opens a pull request for review. 
-
-After the update goes through your review process, an approver can merge it. 
-
-<Info>
-    You can use the [Fern Dashboard](http://dashboard.buildwithfern.com) to manage your GitHub repository connection, organization members (add or remove), domains, and Fern CLI version.
-</Info>
-
-## Deployment workflows
-
-When a pull request is merged into your docs repository, an automated pipeline transforms your content into a live documentation site and syncs it with your API changes in three main stages:
-
-<Steps>
-
-### Trigger GitHub Action and fetch API specs
-
-The merged PR triggers a Fern GitHub Action. The action retrieves your API specification from a separate repository using secure token authentication. The GitHub Action only has access to the specific docs repository from which it's running.
-
-### Generate and process content
-[The Fern CLI](/learn/cli-api-reference/cli-reference/overview) runs `fern generate --docs` to merge your API specs with documentation content. Behind the scenes, this process involves several key components:
-
-- **Input processing**: The system combines your API specification files, `docs.yml` configuration file, `.mdx` files, and media content. 
-- **Core infrastructure**: The generation process runs on Fern's AWS VPC infrastructure, where the Fern Docs microservice acts as the central orchestrator. This microservice coordinates content processing while connecting to a database for storing indexed content and S3 for asset storage.
-- **Content indexing**: During generation, Fern automatically indexes your documentation content to enable search functionality across your entire site. This indexing integrates with external services: [Algolia](/learn/docs/customization/search) for advanced search capabilities, UpStash for caching, PostHog for analytics, TurboPuffer for vector storage, and AI inference services (Bedrock, Claude) for intelligent content processing.
-
-### Deploy to hosting platform
-
-The processed content is deployed to Vercel as a documentation site with an embedded [API explorer](/learn/docs/api-references/api-explorer/overview) that allows users to test endpoints directly within the documentation. 
-
-Vercel Edge middleware handles the underlying routing, authentication, and performance optimization.
-
-The deployed documentation site integrates with external systems like Cloudflare for CORS management and WorkOS for enterprise authentication. 
-
-
-</Steps>
-
-<Accordion title="Editing and deployment workflows">
-
-This diagram shows how content flows from editing to deployment.
-
-```mermaid
-flowchart TD
-    FE[Fern Editor]
-    U[User]
-    DR[Docs Repo]
-    CLI[Fern CLI]
-    Decision{Make a PR or edit in Fern Editor?}
-    Spec((API Spec Repo))
-    GA[GitHub Actions]
-
-    U ==> Decision
-    Decision == Make edit ==> FE
-    Decision == Open and Merge PR ==> DR
-
-    FE <== Fetches state and opens PR ==> DR
-    DR == ① Merged PR triggers deployment flow ==> GA
-    
-    Spec <-. ② Fetches and merges API spec .-> GA
-
-    GA == ③ Triggers doc regeneration ==> CLI
-    CLI == ④ Deploys updated docs ==> Server[Fern Docs Server]
-```
-</Accordion>
+</AccordionGroup>
