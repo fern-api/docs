@@ -143,8 +143,32 @@ jobs:
           echo ":herb: **Preview your docs:** <${{ steps.generate-docs.outputs.preview_url }}>" > comment.md
 
       - name: Post PR comment
-        uses: thollander/actions-comment-pull-request@v2.4.3
-        with:
-          filePath: comment.md
-          comment_tag: preview-docs
-          mode: upsert
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Add a hidden marker to identify this comment for future updates
+          echo "<!-- preview-docs-comment -->" >> comment.md
+          
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          COMMENT_BODY=$(cat comment.md)
+          
+          # Find existing comment with our marker
+          EXISTING_COMMENT_ID=$(gh api \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/${{ github.repository }}/issues/${PR_NUMBER}/comments" \
+            --jq '.[] | select(.body | contains("<!-- preview-docs-comment -->")) | .id' \
+            | head -n 1)
+          
+          if [ -n "$EXISTING_COMMENT_ID" ]; then
+            # Update existing comment
+            gh api \
+              --method PATCH \
+              -H "Accept: application/vnd.github+json" \
+              "/repos/${{ github.repository }}/issues/comments/${EXISTING_COMMENT_ID}" \
+              -f body="$COMMENT_BODY"
+            echo "Updated existing comment $EXISTING_COMMENT_ID"
+          else
+            # Create new comment
+            gh pr comment "$PR_NUMBER" --body "$COMMENT_BODY"
+            echo "Created new comment"
+          fi
