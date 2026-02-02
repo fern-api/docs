@@ -35,8 +35,8 @@ path-parameters:
 
 ### Overriding the base path
 
-If you have certain endpoints that do not live at the configured `base-path`, you can 
-override the `base-path` at the endpoint level. 
+If you have certain endpoints that don't live at the configured `base-path`, you can 
+override the `base-path` at the endpoint level.
 
 ```yml imdb.yml {5}
 service: 
@@ -51,5 +51,38 @@ service:
 
 ## Global query parameters
 
-You cannot yet specify query parameters that are meant to be included on every request.
-If you'd like to see this feature, please upvote [this issue](https://github.com/fern-api/fern/issues/2930).
+You can't yet specify query parameters that are meant to be included on every request.
+If you'd like to see this feature, upvote [this issue](https://github.com/fern-api/fern/issues/2930).
+
+## Idempotency headers
+
+Configure idempotency headers to allow SDK users to safely retry requests on [idempotent endpoints](/api-definitions/ferndef/endpoints#idempotent-endpoints). When configured, Fern's generated SDKs expose these headers as parameters for idempotent endpoint calls.
+
+```yaml title="api.yml"
+name: api
+auth: bearer
+idempotency-headers:
+  Idempotency-Key: string
+  Idempotency-Expiration: optional<integer>
+```
+
+Each key in `idempotency-headers` is the HTTP header name, and the value is the type. SDK users can then specify these headers when calling idempotent endpoints:
+
+<CodeBlocks>
+```typescript title="TypeScript"
+const response = await client.transactions.send({
+  amount: 100,
+  currency: "usd",
+}, {
+  idempotencyKey: "64099353-b48b-4dcd-98b7-74df1cc57933"
+});
+```
+
+```python title="Python"
+response = client.transactions.send(
+  amount=100, 
+  currency="USD",
+  idempotency_key="64099353-b48b-4dcd-98b7-74df1cc57933"
+)
+```
+</CodeBlocks>
