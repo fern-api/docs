@@ -143,32 +143,35 @@ jobs:
           echo ":herb: **Preview your docs:** <${{ steps.generate-docs.outputs.preview_url }}>" > comment.md
 
       - name: Post PR comment
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # Add a hidden marker to identify this comment for future updates
-          echo "<!-- preview-docs-comment -->" >> comment.md
-          
-          PR_NUMBER=${{ github.event.pull_request.number }}
-          COMMENT_BODY=$(cat comment.md)
-          
-          # Find existing comment with our marker
-          EXISTING_COMMENT_ID=$(gh api \
-            -H "Accept: application/vnd.github+json" \
-            "/repos/${{ github.repository }}/issues/${PR_NUMBER}/comments" \
-            --jq '.[] | select(.body | contains("<!-- preview-docs-comment -->")) | .id' \
-            | head -n 1)
-          
-          if [ -n "$EXISTING_COMMENT_ID" ]; then
-            # Update existing comment
-            gh api \
-              --method PATCH \
-              -H "Accept: application/vnd.github+json" \
-              "/repos/${{ github.repository }}/issues/comments/${EXISTING_COMMENT_ID}" \
-              -f body="$COMMENT_BODY"
-            echo "Updated existing comment $EXISTING_COMMENT_ID"
-          else
-            # Create new comment
-            gh pr comment "$PR_NUMBER" --body "$COMMENT_BODY"
-            echo "Created new comment"
-          fi
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const commentBody = fs.readFileSync('comment.md', 'utf8') + '\n<!-- preview-docs-comment -->';
+            const marker = '<!-- preview-docs-comment -->';
+            
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number
+            });
+            
+            const existingComment = comments.find(comment => comment.body.includes(marker));
+            
+            if (existingComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+                body: commentBody
+              });
+              console.log(`Updated existing comment ${existingComment.id}`);
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                body: commentBody
+              });
+              console.log('Created new comment');
+            }
