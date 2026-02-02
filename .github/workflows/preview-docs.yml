@@ -39,31 +39,29 @@ jobs:
 
       - name: Get changed MDX files and slugs
         id: changed-files
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
         run: |
+          PREVIEW_URL="${{ steps.generate-docs.outputs.preview_url }}"
           CHANGED_FILES=$(git diff --name-only origin/main...HEAD -- '*.mdx' 2>/dev/null || echo "")
           
-          if [ -z "$CHANGED_FILES" ]; then
+          if [ -z "$CHANGED_FILES" ] || [ -z "$PREVIEW_URL" ]; then
             echo "has_changes=false" >> $GITHUB_OUTPUT
             exit 0
           fi
           
           echo "has_changes=true" >> $GITHUB_OUTPUT
           
-          # Build JSON array of changed files with their slugs
-          echo "changes<<EOF" >> $GITHUB_OUTPUT
-          echo "$CHANGED_FILES" | while read -r file; do
-            if [ -n "$file" ] && [ -f "$file" ]; then
-              # Try to extract slug from frontmatter
-              SLUG=$(sed -n '/^---$/,/^---$/p' "$file" | grep -E '^slug:' | sed 's/^slug:[[:space:]]*//' | tr -d '"' | tr -d "'" || echo "")
-              
-              if [ -z "$SLUG" ]; then
-                # Derive slug from file path (remove fern/products prefix, pages folder, and .mdx extension)
-                SLUG=$(echo "$file" | sed 's|^fern/products/[^/]*/||' | sed 's|^pages/||' | sed 's|\.mdx$||' | sed 's|/index$||')
-              fi
-              
-              echo "${file}|${SLUG}"
-            fi
-          done
+          # Call the API to get slugs for the changed files
+          FILES_PARAM=$(echo "$CHANGED_FILES" | tr '\n' ',' | sed 's/,$//')
+          RESPONSE=$(curl -sf -H "FERN_TOKEN: $FERN_TOKEN" "${PREVIEW_URL}/api/fern-docs/get-slug-for-file?files=${FILES_PARAM}" 2>/dev/null) || {
+            echo "api_response=" >> $GITHUB_OUTPUT
+            exit 0
+          }
+          
+          # Store the API response for the next step
+          echo "api_response<<EOF" >> $GITHUB_OUTPUT
+          echo "$RESPONSE" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Post PR comment
@@ -72,22 +70,25 @@ jobs:
           script: |
             const previewUrl = '${{ steps.generate-docs.outputs.preview_url }}';
             const hasChanges = '${{ steps.changed-files.outputs.has_changes }}' === 'true';
-            const changesRaw = `${{ steps.changed-files.outputs.changes }}`;
+            const apiResponseRaw = `${{ steps.changed-files.outputs.api_response }}`;
             
             let body = `:herb: **Preview your docs:** <${previewUrl}>\n\n`;
             
-            if (hasChanges && changesRaw.trim()) {
-              const baseUrl = previewUrl ? new URL(previewUrl).origin : '';
-              
-              body += `### Changed pages:\n\n`;
-              
-              const lines = changesRaw.trim().split('\n').filter(line => line.trim());
-              for (const line of lines) {
-                const [file, slug] = line.split('|');
-                if (file && slug) {
-                  const pageUrl = `${baseUrl}/${slug}`;
-                  body += `- \`${file}\` → [${slug}](${pageUrl})\n`;
+            if (hasChanges && apiResponseRaw.trim()) {
+              try {
+                const response = JSON.parse(apiResponseRaw);
+                const mappings = response.mappings || [];
+                const validMappings = mappings.filter(m => m.slug != null);
+                
+                if (validMappings.length > 0) {
+                  body += `### Changed pages:\n\n`;
+                  for (const mapping of validMappings) {
+                    const pageUrl = `${previewUrl}/${mapping.slug}`;
+                    body += `- \`${mapping.file}\` → [${mapping.slug}](${pageUrl})\n`;
+                  }
                 }
+              } catch (e) {
+                console.log('Failed to parse API response:', e);
               }
             }
             
