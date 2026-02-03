@@ -310,6 +310,89 @@ types:
 ```
 </CodeBlock>
 
+### Pagination
+
+Endpoints can specify pagination configuration to enable auto-pagination in [generated SDKs](/learn/sdks/deep-dives/auto-pagination). Fern supports both offset-based and cursor-based pagination schemes.
+
+<CodeBlocks>
+```yaml title="Offset pagination" {8-12}
+service:
+  base-path: /users
+  auth: false
+  endpoints:
+    list:
+      path: ""
+      method: GET
+      pagination:
+        offset: $request.page
+        step: $request.page_size
+        results: $response.data
+        has-next-page: $response.has_more
+      request:
+        name: ListUsersRequest
+        query-parameters:
+          page: optional<integer>
+          page_size: optional<integer>
+      response: ListUsersResponse
+
+types:
+  ListUsersResponse:
+    properties:
+      data: list<User>
+      has_more: boolean
+```
+
+```yaml title="Cursor pagination" {8-11}
+service:
+  base-path: /users
+  auth: false
+  endpoints:
+    list:
+      path: ""
+      method: GET
+      pagination:
+        cursor: $request.starting_after
+        next_cursor: $response.page.next.starting_after
+        results: $response.data
+      request:
+        name: ListUsersRequest
+        query-parameters:
+          starting_after: optional<string>
+      response: ListUsersResponse
+
+types:
+  ListUsersResponse:
+    properties:
+      data: list<User>
+      page:
+        properties:
+          next:
+            properties:
+              starting_after: optional<string>
+```
+</CodeBlocks>
+
+The `pagination` field supports the following properties:
+
+<Markdown src="/snippets/pagination-properties.mdx"/>
+
+### Idempotent endpoints
+
+Mark an endpoint as idempotent to allow SDK users to specify idempotency headers for safe request retries. You must also configure [idempotency headers in your `api.yml`](/learn/api-definitions/ferndef/api-yml/global-headers#idempotency-headers) to define which headers are available.
+
+```yaml title="service.yml" {8}
+service:
+  base-path: /transactions
+  auth: true
+  endpoints:
+    send:
+      path: ""
+      method: POST
+      idempotent: true
+      request: SendTransactionRequest
+      response: Transaction
+```
+
 ### Error responses
 
 Endpoints can specify error responses, which detail the non-200 responses that
