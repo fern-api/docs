@@ -646,7 +646,7 @@ settings:
   http-snippets: false
   hide-404-page: true
   use-javascript-as-typescript: false
-  substitute-env-vars: false
+  substitute-env-vars: true
 ```
 
 <ParamField path="settings.search-text" type="string" required={false} default="Search" toc={true}>
@@ -705,26 +705,21 @@ settings:
 </ParamField>
 
 <ParamField path="settings.substitute-env-vars" type="boolean" required={false} default="false" toc={true}>
-  When set to true, substitutes `${ENV_VAR}` expressions with environment variable values across your documentation. This includes Markdown/MDX content and API specifications (OpenAPI, Fern definitions). Use this to inject dynamic values like API keys, URLs, or version numbers at build time.
+  If set to true, replaces `${ENV_VAR}` expressions with environment variable values at build time. Useful for injecting API keys, base URLs, or version numbers into your docs.
 
-  To output a literal `${VAR}` without substitution, escape it as `\$\{VAR\}`.
+  ```mdx title="example.mdx"
+  Connect to our API at ${API_BASE_URL}/v1
+
+  Your API key: ${API_KEY}
+  ```
+
+  Substitution works in Markdown/MDX files and API specifications (OpenAPI, Fern definitions). JavaScript files are excluded to avoid conflicts with template literals.
+
+  To output a literal `${VAR}`, escape it as `\$\{VAR\}`.
 
   <Note>
-  JavaScript files are excluded from substitution to avoid conflicts with template literals.
+  During local preview (`fern docs dev`), undefined variables resolve to empty strings. During publishing, undefined variables cause the build to fail.
   </Note>
-
-  During local preview (`fern docs dev`), undefined environment variables are replaced with empty strings to prevent errors. During publishing, undefined environment variables will cause the build to fail.
-
-```yaml title="docs.yml"
-settings:
-  substitute-env-vars: true
-```
-
-```mdx title="example.mdx"
-Connect to our API at ${API_BASE_URL}/v1
-
-Your API key: ${API_KEY}
-```
 </ParamField>
 
 ## Page actions configuration
