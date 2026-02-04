@@ -55,17 +55,9 @@ groups:
 
 ## `auth-schemes`
 
-Define authentication methods for your API that your endpoints can reference. Authentication schemes defined in `generators.yml` take precedence over authentication schemes defined in your spec. 
+Define authentication methods for your API that your endpoints can reference. Authentication schemes defined in `generators.yml` take precedence over authentication schemes [defined in your spec](/learn/api-definitions/openapi/authentication).
 
-Choose from custom headers (API keys), HTTP Basic, Bearer token, or OAuth 2.0 authentication.
-
-<Note>
-  After defining an authentication scheme, use [`api.auth`](#auth) to apply it as the default for all endpoints.
-</Note>
-
-<Info>
-  Alternatively, you can [define authentication for individual SDKs](#override-api-authentication-settings). 
-</Info>
+After defining an authentication scheme, you must use [`api.auth`](#auth) to apply it as the default across all generated SDKs. Alternatively, you can [define authentication for individual SDKs](#override-api-authentication-settings) if you need different auth behavior per language.
 
 ```yaml title="generators.yml" maxLines=10
 auth-schemes:
@@ -91,6 +83,9 @@ auth-schemes:
   jwt-bearer:
     scheme: bearer
 ```
+
+Choose from custom headers (API keys), HTTP Basic, Bearer token, or OAuth 2.0 authentication:
+
 <AccordionGroup>
 <Accordion title="Header">
 <Markdown src="/products/sdks/snippets/header-auth-params.mdx" />
@@ -137,27 +132,19 @@ api:
 ```
 
 <ParamField path="auth" type="string" toc={true}>
-  Sets the default authentication scheme for all endpoints. The value must reference a scheme name defined in [`auth-schemes`](#auth-schemes). This overrides any security schemes defined in your OpenAPI spec.
+  Sets the default authentication scheme for all endpoints. The value must reference a scheme name defined in [`auth-schemes`](#auth-schemes). This overrides any security schemes [defined in your OpenAPI spec](/learn/api-definitions/openapi/authentication).
 
   ```yaml title="generators.yml"
-  # Step 1: Define your authentication scheme
-  auth-schemes:
-    BearerAuth:
-      scheme: bearer
-      token:
-        name: apiKey
-        env: PLANTSTORE_API_KEY
-
-  # Step 2: Apply it as the default for all endpoints
+  # Apply it as the default for all endpoints
   api:
-    auth: BearerAuth
+    auth: BearerAuth # Defined in auth-schemes
     specs:
       - openapi: ./openapi.yml
   ```
 
   With this configuration, all generated SDKs will require authentication using the `BearerAuth` scheme:
 
-  ```ts
+  ```ts index.ts
   // Uses process.env.PLANTSTORE_API_KEY
   const client = new PlantStoreClient();
 
@@ -166,8 +153,9 @@ api:
     apiKey: "your-api-key"
   });
   ```
-
-  You can also override authentication for individual generators using the [generator-level `api.auth`](#override-api-authentication-settings) setting.
+  <Tip>
+    You can also override authentication for individual generators using the [generator-level `api.auth`](#override-api-authentication-settings) setting.
+  </Tip>
 </ParamField>
 
 <ParamField path="headers" type="string or list of objects" toc={true}>
@@ -968,14 +956,14 @@ groups:
 The path to the generated snippets file.
 </ParamField>
 
-#### Override API authentication settings 
+#### Override API authentication settings
 
-Override authentication settings in your API spec for a specific SDK using the `api` configuration.
+Override authentication settings for a specific SDK using the `api` configuration.
 
 <AccordionGroup>
 <Accordion title="Single authentication scheme">
 
-Reference a pre-defined authentication scheme by name.
+Reference a [pre-defined authentication scheme](#auth-schemes) by name.
 
 ```yml title="generators.yml" {6-7}
 groups: 
