@@ -19,6 +19,10 @@ security:
 
 All Fern-generated SDKs support both direct configuration and environment variables for authentication credentials. Authentication schemes are also automatically supported in the [API Explorer](/learn/docs/api-references/api-explorer/overview#authentication), including multiple schemes and combinations.
 
+<Note>
+You can also define authentication in `generators.yml` using [`auth-schemes`](/learn/sdks/reference/generators-yml#auth-schemes) and apply it as the default for all endpoints with [`api.auth`](/learn/sdks/reference/generators-yml#auth). This is useful for customizing SDK parameter names, environment variables, or configuring OAuth.
+</Note>
+
 ## Bearer security scheme
 
 Define a `bearer` security scheme in your `openapi.yml`: 
@@ -262,26 +266,46 @@ In this example, users can authenticate with either a bearer token OR with both 
 When using [OAuth client credentials](#oauth-client-credentials) with multiple authentication schemes, ensure the scheme name in your OpenAPI spec's `security` section matches the name defined in your `generators.yml` auth-schemes configuration.
 </Note>
 
-## Override security scheme
+## Set default authentication in generators.yml
 
-You can use `generators.yml` to define custom authentication schemes that will take precedence when generating SDKs. This is also how OAuth authentication is configured for OpenAPI specs.
+You can use `generators.yml` to define authentication schemes and set a default for all endpoints. This approach lets you customize SDK parameter names, environment variables, and is required for OAuth configuration.
 
-First, use the `auth-schemes` property to define your authentication scheme. Then, specify your auth scheme in the `api` property to override your OpenAPI spec. 
+Authentication in `generators.yml` is configured in two steps:
+
+1. **Define your scheme** in `auth-schemes`
+2. **Apply it as the default** with `api.auth`
 
 ```yml title="generators.yml"
+# Step 1: Define your authentication scheme
 auth-schemes:
-  bearerAuth:                  # Must match the name used in your OpenAPI security section
+  BearerAuth:
     scheme: bearer
     token:
       name: apiKey             # Custom parameter name in the SDK
-      env: YOUR_TOKEN_NAME     # Environment variable to auto-scan
+      env: PLANTSTORE_API_KEY  # Environment variable to auto-scan
+
+# Step 2: Apply it as the default for all endpoints
 api:
-  auth: bearerAuth             # Reference the same name from your OpenAPI spec
+  auth: BearerAuth
+  specs:
+    - openapi: ./openapi.yml
 ```
 
-<Warning>
-When overriding a security scheme in `generators.yml`, the name must match the scheme name referenced in your OpenAPI spec's `security` section. For example, if your OpenAPI spec uses `security: - bearerAuth: []`, then use `auth: bearerAuth` in generators.yml.
-</Warning>
+With this configuration, all generated SDKs will require authentication:
+
+```ts
+// Uses process.env.PLANTSTORE_API_KEY
+const client = new PlantStoreClient();
+
+// Or provide the API key explicitly
+const client = new PlantStoreClient({
+  apiKey: "your-api-key"
+});
+```
+
+<Note>
+Authentication schemes defined in `generators.yml` take precedence over schemes defined in your OpenAPI spec. For the full reference, see [`auth-schemes`](/learn/sdks/reference/generators-yml#auth-schemes) and [`api.auth`](/learn/sdks/reference/generators-yml#auth).
+</Note>
 
 ### Auth scheme reference
 
