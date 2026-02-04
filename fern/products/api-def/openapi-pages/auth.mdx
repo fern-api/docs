@@ -3,16 +3,12 @@ title: Authentication
 description: 'Model auth schemes such as bearer, basic, api key, and OAuth.'
 ---
 
-Fern supports two ways to configure authentication for your API. Your authentication configuration applies across all Fern products: generated SDKs, API Reference documentation, and the [API Explorer](/learn/docs/api-references/api-explorer).
+Fern supports two ways to configure authentication:
 
 - **In your OpenAPI spec** using `securitySchemes` — the standard approach that keeps auth configuration portable and works with other OpenAPI tools.
 - **In `generators.yml`** using `auth-schemes` — use this to customize parameter names and environment variables, override what's defined in your spec, or configure OAuth (which isn't available in OpenAPI).
 
-If you define the same scheme in both places, `generators.yml` takes precedence. This is useful when your spec is auto-generated or you want different behavior than what's in your spec.
-
-<Tip>
-All Fern-generated SDKs support both direct configuration and environment variables for authentication credentials. The [API Explorer](/learn/docs/api-references/api-explorer) automatically supports all configured authentication schemes, including [multiple schemes](#multiple-auth-schemes).
-</Tip>
+Your authentication configuration applies across generated SDKs and the [API Explorer](/learn/docs/api-references/api-explorer). All SDKs support both direct configuration and environment variables for credentials. If you define the same scheme in both places, `generators.yml` takes precedence.
 
 ## Configure authentication in your spec
 
@@ -31,6 +27,14 @@ security:
   - BearerAuth: []
 ```
 
+Generated SDK usage:
+
+```ts index.ts
+const client = new Client({
+  token: "ey34..."
+});
+```
+
 <AccordionGroup>
 <Accordion title="Bearer">
 
@@ -42,14 +46,6 @@ components:
       scheme: bearer
 ```
 
-Generated SDK usage:
-
-```ts index.ts
-const client = new Client({
-  token: "ey34..."
-})
-```
-
 To customize parameter names and environment variables, add `x-fern-bearer`:
 
 ```yaml title="openapi.yml"
@@ -58,19 +54,9 @@ components:
     BearerAuth:
       type: http
       scheme: bearer
-      x-fern-bearer: 
+      x-fern-bearer:
         name: apiKey
         env: PLANTSTORE_API_KEY
-```
-
-```ts index.ts
-// Uses process.env.PLANTSTORE_API_KEY
-let client = new Client(); 
-
-// Parameter renamed from 'token' to 'apiKey'
-client = new Client({
-  apiKey: "ey34..."
-})
 ```
 
 </Accordion>
@@ -84,21 +70,12 @@ components:
       scheme: basic
 ```
 
-Generated SDK usage:
-
-```ts index.ts
-const client = new Client({
-  username: "joeschmoe",
-  password: "ey34..."
-})
-```
-
 To customize parameter names and environment variables, add `x-fern-basic`:
 
 ```yaml title="openapi.yml"
 components:
   securitySchemes:
-    BasicAuth: 
+    BasicAuth:
       type: http
       scheme: basic
       x-fern-basic:
@@ -110,43 +87,24 @@ components:
           env: PLANTSTORE_CLIENT_SECRET
 ```
 
-```ts index.ts
-// Uses process.env.PLANTSTORE_CLIENT_ID and process.env.PLANTSTORE_CLIENT_SECRET
-let client = new Client(); 
-
-// Parameters renamed
-client = new Client({
-  clientId: "joeschmoe", 
-  clientSecret: "ey34..."
-})
-```
-
 </Accordion>
 <Accordion title="API key">
 
 ```yml title="openapi.yml"
-components: 
-  securitySchemes: 
+components:
+  securitySchemes:
     ApiKeyAuth: # User-defined scheme name
       type: apiKey
       in: header
       name: X_API_KEY
 ```
 
-Generated SDK usage:
-
-```ts index.ts
-const client = new Client({
-  apiKey: "ey34..."
-})
-```
-
 To customize parameter names and environment variables, add `x-fern-header`:
 
 ```yaml title="openapi.yml"
-components: 
-  securitySchemes: 
-    ApiKeyAuth: 
+components:
+  securitySchemes:
+    ApiKeyAuth:
       type: apiKey
       in: header
       name: X_API_KEY
@@ -154,16 +112,6 @@ components:
         name: apiToken
         env: PLANTSTORE_API_KEY
         prefix: "Token "
-```
-
-```ts index.ts
-// Uses process.env.PLANTSTORE_API_KEY
-let client = new Client(); 
-
-// Parameter renamed from 'apiKey' to 'apiToken'
-client = new Client({
-  apiToken: "ey34..."
-})
 ```
 
 <Note>
@@ -209,7 +157,7 @@ When using OAuth client credentials with multiple schemes, ensure the scheme nam
 
 ## Customize or override authentication in `generators.yml`
 
-Define your scheme in [`auth-schemes`](/learn/sdks/reference/generators-yml#auth-schemes), then apply it as the default across all generated SDKs with [`api.auth`](/learn/sdks/reference/generators-yml#auth):
+Define your scheme in [`auth-schemes`](/learn/sdks/reference/generators-yml#auth-schemes), then apply it as the default across all endpoints with [`api.auth`](/learn/sdks/reference/generators-yml#auth):
 
 ```yml title="generators.yml"
 # Define the scheme
@@ -220,7 +168,7 @@ auth-schemes:
       name: apiKey
       env: PLANTSTORE_API_KEY
 
-# Apply it as the default across all generated SDKs
+# Apply it as the default across all endpoints
 api:
   auth: BearerAuth
   specs:
@@ -311,22 +259,6 @@ auth-schemes:
       response-properties:
         access-token: access_token
         expires-in: expires_in
-```
-
-Generated SDK usage:
-
-```ts index.ts
-// Uses process.env.OAUTH_CLIENT_ID and process.env.OAUTH_CLIENT_SECRET
-let client = new Client(); 
-
-// Or provide credentials explicitly
-client = new Client({
-  clientId: "your_client_id",
-  clientSecret: "your_client_secret"
-})
-
-// Token management happens automatically
-await client.users.list();
 ```
 
 The `endpoint` values reference paths in your OpenAPI spec. When `expires-in` is returned, the SDK automatically refreshes tokens before they expire.
