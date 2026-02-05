@@ -37,42 +37,43 @@ jobs:
           echo "preview_url=$URL" >> $GITHUB_OUTPUT
           echo "Preview URL: $URL"
 
-      - name: Get changed MDX files
-        id: changed-files
+      - name: Get page links for changed MDX files
+        id: page-links
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
         run: |
           PREVIEW_URL="${{ steps.generate-docs.outputs.preview_url }}"
           CHANGED_FILES=$(git diff --name-only origin/main...HEAD -- '*.mdx' 2>/dev/null || echo "")
           
           if [ -z "$CHANGED_FILES" ] || [ -z "$PREVIEW_URL" ]; then
-            echo "has_changes=false" >> $GITHUB_OUTPUT
-            exit 0
+            echo "page_links=" >> $GITHUB_OUTPUT; exit 0
           fi
           
-          echo "has_changes=true" >> $GITHUB_OUTPUT
+          BASE_URL=$(echo "$PREVIEW_URL" | grep -oP 'https?://[^/]+')
           
-          # Save changed files to a file for the comment step
-          echo "$CHANGED_FILES" > changed_files.txt
+          FILES_PARAM=$(echo "$CHANGED_FILES" | tr '\n' ',' | sed 's/,$//')
+          RESPONSE=$(curl -sf -H "FERN_TOKEN: $FERN_TOKEN" "${PREVIEW_URL}/api/fern-docs/get-slug-for-file?files=${FILES_PARAM}" 2>/dev/null) || {
+            echo "page_links=" >> $GITHUB_OUTPUT; exit 0
+          }
+          
+          PAGE_LINKS=$(echo "$RESPONSE" | jq -r --arg url "$BASE_URL" \
+            '.mappings[] | select(.slug != null) | "- [\(.slug)](\($url)/\(.slug))"')
+          
+          if [ -n "$PAGE_LINKS" ]; then
+            { echo "page_links<<EOF"; echo "$PAGE_LINKS"; echo "EOF"; } >> $GITHUB_OUTPUT
+          else
+            echo "page_links=" >> $GITHUB_OUTPUT
+          fi
 
-      - name: Create comment with changed files
-        if: steps.changed-files.outputs.has_changes == 'true'
-        run: |
-          PREVIEW_URL="${{ steps.generate-docs.outputs.preview_url }}"
-          
-          echo ":herb: **Preview your docs:** <${PREVIEW_URL}>" > comment.md
-          echo "" >> comment.md
-          echo "### Changed MDX files:" >> comment.md
-          echo "" >> comment.md
-          
-          while IFS= read -r file; do
-            echo "- \`${file}\`" >> comment.md
-          done < changed_files.txt
-          
-          cat comment.md
-
-      - name: Create comment without changes
-        if: steps.changed-files.outputs.has_changes != 'true'
+      - name: Create comment content
         run: |
           echo ":herb: **Preview your docs:** <${{ steps.generate-docs.outputs.preview_url }}>" > comment.md
+          
+          if [ -n "${{ steps.page-links.outputs.page_links }}" ]; then
+            echo "" >> comment.md
+            echo "Here are the markdown pages you've updated:" >> comment.md
+            echo "${{ steps.page-links.outputs.page_links }}" >> comment.md
+          fi
 
       - name: Post PR comment
         uses: thollander/actions-comment-pull-request@v2.4.3
