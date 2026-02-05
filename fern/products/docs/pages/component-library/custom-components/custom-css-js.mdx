@@ -230,13 +230,91 @@ js:
 - Implement custom search (also requires [your Algolia credentials](/docs/customization/search))
 - Insert scripts and widgets
 
-## Custom components
+## Custom header and footer
 
 <Markdown src="/snippets/pro-plan.mdx"/>
 
-You can use custom CSS and JS to replace Fern's default UI components with your own. The `header` and `footer` 
-are the most commonly replaced components. You can replace any component in the docs, 
-including the sidebar, tabs, search bar, and more.
+Replace Fern's default header or footer with your own React components. Custom components are server-side rendered for better SEO and performance.
+
+<Steps>
+### Create a component file
+
+Create a TSX or JSX file with a default export that returns your component:
+
+<CodeBlock title="components/CustomFooter.tsx">
+```tsx
+export default function CustomFooter() {
+    return (
+        <footer className="w-full py-8 px-6 bg-gray-100 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800">
+            <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                    Plant Store API Documentation
+                </div>
+                <div className="flex gap-6">
+                    <a
+                        href="https://github.com/your-org"
+                        className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+                    >
+                        GitHub
+                    </a>
+                    <a
+                        href="https://your-site.com"
+                        className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+                    >
+                        Website
+                    </a>
+                </div>
+            </div>
+        </footer>
+    );
+}
+```
+</CodeBlock>
+
+### Reference in docs.yml
+
+Add the `header` or `footer` property to your `docs.yml` file, pointing to your component:
+
+<CodeBlock title="docs.yml">
+```yaml
+header: ./components/CustomHeader.tsx
+footer: ./components/CustomFooter.tsx
+```
+</CodeBlock>
+
+### Add to mdx-components (required)
+
+Include your components directory in the `experimental.mdx-components` configuration so the CLI can upload the files:
+
+<CodeBlock title="docs.yml">
+```yaml
+experimental:
+  mdx-components:
+    - ./components
+```
+</CodeBlock>
+</Steps>
+
+### Component requirements
+
+Custom header and footer components must meet these requirements:
+
+- The file must have a **default export** returning a React component
+- Use standard React and JSX syntax (TSX or JSX files)
+- Tailwind CSS classes are available for styling
+- Use the `.dark` class prefix for dark mode styles
+
+### Benefits over client-side injection
+
+Server-side rendered custom components provide several advantages over the [client-side JavaScript approach](#custom-components-client-side):
+
+- **No layout shifts**: Components render with the initial page load, eliminating flashes or jumps
+- **Better SEO**: Search engines can index the rendered content
+- **Faster page loads**: No additional JavaScript bundle to download and execute
+
+## Custom components (client-side)
+
+For components other than header and footer, or if you need more control over rendering, you can use client-side JavaScript to inject custom components into the DOM.
 
 To implement your own components in Fern Docs, write JavaScript to render your 
 custom components in the DOM. Build to CSS and JavaScript files that 
@@ -268,7 +346,7 @@ js: ./dist/output.js
 
 See this [GitHub repo](https://github.com/fern-api/docs-custom-js-example) 
 and its [generated docs page](https://custom-js-example.docs.buildwithfern.com/get-started/welcome) 
-for an example of how to replace the Fern `header` and `footer` with custom React components. 
+for an example of how to replace the Fern `header` and `footer` with custom React components using client-side JavaScript. 
 
 #### Example custom header
 
@@ -305,4 +383,4 @@ ReactDOM.render(
 
 <Info>
 This approach is subject to change, with notice, as we make improvements to the plugin architecture.
-</Info>        
+</Info>                                        
