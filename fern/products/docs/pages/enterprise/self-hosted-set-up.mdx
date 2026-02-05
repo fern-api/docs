@@ -252,3 +252,102 @@ The container parses all `generators.yml` files in your fern directory, finds pr
 
 </Step>
 </Steps>
+
+### Kubernetes deployment
+
+To deploy to Kubernetes, create a Deployment and Service configuration.
+
+**deployment.yaml:**
+
+```yaml deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fern-docs
+  labels:
+    app: fern-docs
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fern-docs
+  template:
+    metadata:
+      labels:
+        app: fern-docs
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        fsGroupChangePolicy: OnRootMismatch
+      containers:
+        - name: fern-docs
+          image: your-registry/fern-docs:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: docs
+              containerPort: 3000
+              protocol: TCP
+            - name: health
+              containerPort: 8081
+              protocol: TCP
+          resources:
+            requests:
+              memory: "2Gi"
+              cpu: "1000m"
+            limits:
+              memory: "4Gi"
+              cpu: "2000m"
+          livenessProbe:
+            httpGet:
+              path: /liveness
+              port: 8081
+            initialDelaySeconds: 120
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /readiness
+              port: 8081
+            initialDelaySeconds: 60
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 6
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+            privileged: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop:
+                - ALL
+      terminationGracePeriodSeconds: 30
+```
+
+**service.yaml:**
+
+```yaml service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: fern-docs
+  labels:
+    app: fern-docs
+spec:
+  type: NodePort
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3000
+      protocol: TCP
+      nodePort: 30080
+  selector:
+    app: fern-docs
+```
+
+Replace `your-registry/fern-docs:latest` with your image name. For health check endpoint details, see [Health check endpoints](/learn/docs/self-hosted/health-check-endpoints).
