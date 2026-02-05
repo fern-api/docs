@@ -23,13 +23,8 @@ jobs:
           git fetch origin pull/${{ github.event.pull_request.number }}/head:pr-${{ github.event.pull_request.number }}
           git checkout pr-${{ github.event.pull_request.number }}
 
-      - name: Install Fern and CML
-        run: |
-          npm install -g fern-api@latest
-          npm install -g @dvcorg/cml
-
-      - name: Install Chrome for Puppeteer
-        run: npx puppeteer browsers install chrome@141.0.7390.54
+      - name: Install Fern
+        run: npm install -g fern-api@latest
 
       - name: Generate preview URL
         id: generate-docs
@@ -42,103 +37,40 @@ jobs:
           echo "preview_url=$URL" >> $GITHUB_OUTPUT
           echo "Preview URL: $URL"
 
-      - name: Run fern docs diff for changed MDX files
-        id: docs-diff
-        env:
-          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+      - name: Get changed MDX files
+        id: changed-files
         run: |
           PREVIEW_URL="${{ steps.generate-docs.outputs.preview_url }}"
           CHANGED_FILES=$(git diff --name-only origin/main...HEAD -- '*.mdx' 2>/dev/null || echo "")
           
           if [ -z "$CHANGED_FILES" ] || [ -z "$PREVIEW_URL" ]; then
-            echo "has_diffs=false" >> $GITHUB_OUTPUT
+            echo "has_changes=false" >> $GITHUB_OUTPUT
             exit 0
           fi
           
-          # Convert newlines to space-separated list for the command
-          FILES_LIST=$(echo "$CHANGED_FILES" | tr '\n' ' ')
+          echo "has_changes=true" >> $GITHUB_OUTPUT
           
-          # Create output directory
-          mkdir -p .fern/diff
-          
-          # Run fern docs diff and capture output
-          # Progress messages go to stderr, JSON goes to stdout
-          # We capture everything to a temp file, then extract just the JSON
-          npx fern-api@latest docs diff "$PREVIEW_URL" $FILES_LIST --output .fern/diff > .fern/diff/output.txt 2>&1 || true
-          
-          # Extract just the JSON part (starts with { and ends with })
-          # The JSON is the last thing output, so we find the line starting with { and take everything from there
-          sed -n '/^{/,$p' .fern/diff/output.txt > .fern/diff/diff.json
-          
-          # Debug: show what we captured
-          echo "=== Raw output ==="
-          cat .fern/diff/output.txt
-          echo "=== Extracted JSON ==="
-          cat .fern/diff/diff.json
-          
-          # Check if diff JSON file exists and has valid content
-          if [ -f ".fern/diff/diff.json" ] && grep -q '"diffs"' .fern/diff/diff.json 2>/dev/null; then
-            echo "has_diffs=true" >> $GITHUB_OUTPUT
-          else
-            echo "has_diffs=false" >> $GITHUB_OUTPUT
-            echo "No diffs found or diff.json is invalid"
-          fi
+          # Save changed files to a file for the comment step
+          echo "$CHANGED_FILES" > changed_files.txt
 
-      - name: Upload diff images as artifacts
-        if: steps.docs-diff.outputs.has_diffs == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: docs-diff-images
-          path: .fern/diff/*.png
-          retention-days: 7
-
-      - name: Upload images and create comment
-        if: steps.docs-diff.outputs.has_diffs == 'true'
-        env:
-          REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PREVIEW_URL: ${{ steps.generate-docs.outputs.preview_url }}
+      - name: Create comment with changed files
+        if: steps.changed-files.outputs.has_changes == 'true'
         run: |
-          # Parse diff.json and upload images using cml
           PREVIEW_URL="${{ steps.generate-docs.outputs.preview_url }}"
-          BASE_URL=$(echo "$PREVIEW_URL" | grep -oP 'https?://[^/]+')
           
           echo ":herb: **Preview your docs:** <${PREVIEW_URL}>" > comment.md
           echo "" >> comment.md
-          echo "### Visual changes detected:" >> comment.md
+          echo "### Changed MDX files:" >> comment.md
           echo "" >> comment.md
           
-          # Process each diff entry
-          jq -c '.diffs[]' .fern/diff/diff.json | while read -r diff; do
-            FILE=$(echo "$diff" | jq -r '.file')
-            SLUG=$(echo "$diff" | jq -r '.slug')
-            COMPARISON=$(echo "$diff" | jq -r '.comparison')
-            CHANGE_PERCENT=$(echo "$diff" | jq -r '.changePercent // "N/A"')
-            IS_NEW_PAGE=$(echo "$diff" | jq -r '.isNewPage')
-            
-            echo "#### \`${FILE}\`" >> comment.md
-            echo "" >> comment.md
-            echo "**Page:** [${SLUG}](${BASE_URL}/${SLUG}) | **Change:** ${CHANGE_PERCENT}%" >> comment.md
-            if [ "$IS_NEW_PAGE" = "true" ]; then
-              echo " | *New page*" >> comment.md
-            fi
-            echo "" >> comment.md
-            
-            # Upload image using cml and get URL
-            if [ -f "$COMPARISON" ]; then
-              IMAGE_URL=$(cml publish "$COMPARISON" 2>/dev/null || echo "")
-              if [ -n "$IMAGE_URL" ]; then
-                echo "![${FILE} comparison](${IMAGE_URL})" >> comment.md
-              else
-                echo "*Comparison image available in [workflow artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})*" >> comment.md
-              fi
-            fi
-            echo "" >> comment.md
-          done
+          while IFS= read -r file; do
+            echo "- \`${file}\`" >> comment.md
+          done < changed_files.txt
           
           cat comment.md
 
-      - name: Create comment without diffs
-        if: steps.docs-diff.outputs.has_diffs != 'true'
+      - name: Create comment without changes
+        if: steps.changed-files.outputs.has_changes != 'true'
         run: |
           echo ":herb: **Preview your docs:** <${{ steps.generate-docs.outputs.preview_url }}>" > comment.md
 
