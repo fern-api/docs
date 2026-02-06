@@ -99,7 +99,45 @@ The JWT should have a structure similar to:
 - [ ] Send Fern the URL of your authentication page. This is where users will be redirected to after clicking the "Login" button in the API Explorer.
 - [ ] Add logic to your service to set the `fern_token` cookie when a user logs in
 
-<Tip>For an example of how to set up the `fern_token` cookie, see this demo implementation [here](https://github.com/fern-api/fern-platform/blob/app/packages/fern-docs/bundle/src/app/%5Bhost%5D/%5Bdomain%5D/api/fern-docs/auth/fern-token-demo/route.ts).</Tip>
+<Tip>
+Here's an example of how to mint and set the `fern_token` cookie using the [jose](https://github.com/panva/jose) library:
+
+```typescript Example: Minting and setting the fern_token cookie
+import { SignJWT } from "jose";
+
+const encoder = new TextEncoder();
+
+async function mintFernToken(secret: string, apiKey: string): Promise<string> {
+  const jwtPayload = {
+    fern: {
+      playground: {
+        initial_state: {
+          auth: {
+            bearer_token: apiKey,
+          },
+        },
+      },
+    },
+  };
+
+  return await new SignJWT(jwtPayload)
+    .setProtectedHeader({ alg: "HS256", typ: "JWT" })
+    .setIssuedAt()
+    .setExpirationTime("1d")
+    .setIssuer("https://buildwithfern.com")
+    .sign(encoder.encode(secret));
+}
+
+const fernToken = await mintFernToken(SECRET, API_KEY);
+
+cookies().set("fern_token", fernToken, {
+  httpOnly: true,
+  secure: true,
+  sameSite: "lax",
+  domain: "your-docs-domain.com",
+});
+```
+</Tip>
 
 </Accordion>
 <Accordion title="OAuth" toc={true}>
