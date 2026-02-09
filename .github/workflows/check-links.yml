@@ -155,7 +155,9 @@ jobs:
           # Verify each URL by checking if the path exists in the cloned repo
           verified_count=0
           missing_count=0
+          unverifiable_count=0
           > github-missing.txt
+          > github-unverifiable.txt
           > github-verified.txt
           
           while IFS= read -r url; do
@@ -172,8 +174,8 @@ jobs:
             # Check if we have the repo cloned
             if [ ! -d ".github-repos/$org/$repo_name" ]; then
               echo "Repo not cloned, cannot verify: $url"
-              echo "- [UNVERIFIABLE] $url (repo clone failed)" >> github-missing.txt
-              missing_count=$((missing_count + 1))
+              echo "- [UNVERIFIABLE] $url (repo clone failed)" >> github-unverifiable.txt
+              unverifiable_count=$((unverifiable_count + 1))
               continue
             fi
             
@@ -242,10 +244,12 @@ jobs:
           echo "=== GitHub URL Verification Summary ==="
           echo "Total URLs checked: $total_urls"
           echo "Verified locally: $verified_count"
-          echo "Missing/unverifiable: $missing_count"
+          echo "Missing: $missing_count"
+          echo "Unverifiable (private repos): $unverifiable_count"
           
           echo "verified_count=$verified_count" >> $GITHUB_OUTPUT
           echo "missing_count=$missing_count" >> $GITHUB_OUTPUT
+          echo "unverifiable_count=$unverifiable_count" >> $GITHUB_OUTPUT
           
           if [ "$missing_count" -gt 0 ]; then
             echo "has_missing=true" >> $GITHUB_OUTPUT
@@ -254,6 +258,12 @@ jobs:
             cat github-missing.txt
           else
             echo "has_missing=false" >> $GITHUB_OUTPUT
+          fi
+          
+          if [ "$unverifiable_count" -gt 0 ]; then
+            echo ""
+            echo "Unverifiable URLs (private repos, not treated as errors):"
+            cat github-unverifiable.txt
           fi
           
           # Cleanup cloned repos
@@ -630,6 +640,7 @@ jobs:
           echo "  Rate-limited (429) - still failing: $still_failing_429"
           echo "  GitHub URLs verified locally: $github_verified"
           echo "  GitHub URLs missing locally: $github_missing"
+          echo "  GitHub URLs unverifiable (private repos): ${{ steps.verify_github.outputs.unverifiable_count }}"
           echo "  External GitHub URLs with 5xx (likely rate limiting): $external_5xx_count"
           
           if [ "$broken_count" -gt 0 ]; then
@@ -668,6 +679,7 @@ jobs:
             echo "| Rate-limited (429) still failing | $still_failing_429 |"
             echo "| GitHub URLs verified locally | $github_verified |"
             echo "| GitHub URLs missing locally | $github_missing |"
+            echo "| GitHub URLs unverifiable (private repos) | ${{ steps.verify_github.outputs.unverifiable_count }} |"
             echo "| External GitHub URLs with 5xx (likely rate limiting) | $external_5xx_count |"
             echo ""
             
