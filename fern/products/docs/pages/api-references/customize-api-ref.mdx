@@ -1,19 +1,20 @@
 ---
 title: Customize API Reference layout
-description: Customize your API reference layout with Fern. Order sections and endpoints, flatten navigation, hide endpoints, and add custom content.
+description: Customize your API Reference layout with Fern. Configure options, order sections and endpoints, flatten navigation, hide endpoints, display errors, and add custom content.
 ---
 
 When you [include an API in your `docs.yml` file](/learn/docs/api-references/generate-api-ref), you can customize how the endpoints and sections are displayed in the sidebar navigation. By default, the reference will generate a navigation hierarchy based on the structure of the API spec, but several customizations can be configured.
 
 <Note title="API Sections">
-If you are using an OpenAPI Specification, sections are created based on the `tags` property, converted to `lowerCamelCase` convention (e.g., createUser). If you are using a Fern Definition, sections are created based on the [`service`](/learn/api-definition/fern/endpoints#service-definition) file names.
+If you are using an OpenAPI specification, sections are created based on the `tags` property, converted to `lowerCamelCase` convention (e.g., createUser). If you are using a Fern Definition, sections are created based on the [`service`](/learn/api-definition/fern/endpoints#service-definition) file names.
 </Note>
 
-If you would like to only display a subset of endpoints, read more about the Audiences property for [OpenAPI Specifications](/learn/api-definitions/openapi/extensions/audiences) or [Fern Definitions](/learn/api-definition/fern/audiences).
+If you would like to only display a subset of endpoints, read more about the Audiences property for [OpenAPI specifications](/learn/api-definitions/openapi/extensions/audiences) or [Fern Definitions](/learn/api-definition/fern/audiences).
 
 ## Ordering the API Reference
 
 ### Alphabetizing endpoints and sections
+
 To sort all sections and endpoints alphabetically, unless explicitly ordered in `layout`, set `alphabetized` to `true`.
 
 ```yaml title="docs.yml"
@@ -23,6 +24,7 @@ navigation:
 ```
 
 ### Ordering top-level sections
+
 The `layout` option allows you to specify the order of sub-packages, sections, endpoints, and pages at the top level of your API Reference.
 
 <Tabs>
@@ -55,7 +57,6 @@ The `layout` option allows you to specify the order of sub-packages, sections, e
 </Frame>
 
 ### Ordering section contents
-Adding a `:` after the section name allows you to specify the order of its nested sub-packages and endpoints. 
 
 <Note title="Referencing Endpoints">
 To reference an endpoint, you can use:
@@ -88,6 +89,18 @@ To reference an endpoint, you can use:
             - user.create
             - user.update
             - user.delete        
+  ```
+  </Tab>
+  <Tab title="WebSocket">
+  You can reference a WebSocket endpoint using the format `WSS /path/name`.
+  ```yaml title="docs.yml"
+  navigation: 
+    - api: API Reference
+      layout: 
+        - plants: 
+            - GET /plants
+            - WSS /plants/live-updates
+            - WSS /plants/growth-monitor
   ```
   </Tab>
 </Tabs>
@@ -123,6 +136,7 @@ navigation:
 </Note>
 
 ### Flattening sections
+
 To remove the API Reference title and display the section contents, set `flattened` to `true`.
 
 ```yaml title="docs.yml"
@@ -136,10 +150,11 @@ navigation:
 </Frame>
 
 ### Styling endpoints
+
 To customize the display of an endpoint, you can add a `title`. You can also use `slug` to customize the endpoint URL.
 
 <Tabs>
-  <Tab title="OpenAPI Specification">
+  <Tab title="OpenAPI">
   ```yaml title="docs.yml" {6-7}
   navigation: 
     - api: API Reference
@@ -161,8 +176,17 @@ To customize the display of an endpoint, you can add a `title`. You can also use
               title: Create a User
               slug: user-creation
             - user.delete
-            - endpoint: WSS /v1/realtime
-              title: Realtime
+  ```
+  </Tab>
+  <Tab title="WebSocket">
+  ```yaml title="docs.yml" {5-7}
+  navigation:
+    - api: API Reference
+      layout:
+        - plants:
+            - endpoint: WSS /plants/live-updates
+              title: Live plant updates
+              slug: live-updates
   ```
   </Tab>
 </Tabs>
@@ -172,10 +196,11 @@ To customize the display of an endpoint, you can add a `title`. You can also use
 </Frame>
 
 ### Hiding endpoints
+
 You can hide an endpoint from the API Reference by setting `hidden` to `true`. The endpoint will still be accessible at its URL.
 
 <Tabs>
-  <Tab title="OpenAPI Specification">
+  <Tab title="OpenAPI">
   ```yaml title="docs.yml" {10}
   navigation: 
     - api: API Reference
@@ -201,13 +226,24 @@ You can hide an endpoint from the API Reference by setting `hidden` to `true`. T
               hidden: true
   ```
   </Tab>
+  <Tab title="WebSocket">
+  ```yaml title="docs.yml" {6}
+  navigation:
+    - api: API Reference
+      layout:
+        - plants:
+            - endpoint: WSS /plants/live-updates
+              hidden: true
+  ```
+  </Tab>
 </Tabs>
 
 ### Adding custom sections
+
 You can add arbitrary folders in the sidebar by adding a `section` to your API Reference layout. A section can comprise entire groups of endpoints, individual endpoints, or even just Markdown pages. Sections can be customized by adding properties like a `icon`, `summary`, `slug` (or `skip-slug`), `availability`, and `contents`. 
 
 <Tabs>
-  <Tab title="OpenAPI Specification">
+  <Tab title="OpenAPI">
   ```yaml title="docs.yml"
   navigation: 
     - api: API Reference
@@ -275,6 +311,7 @@ You can add overview pages to your API Reference or individual sections in two w
 </Frame>
 
 ### Adding pages and links
+
 You can add regular pages and external links within your API Reference. 
 
 ```yaml title="docs.yml"
@@ -308,3 +345,97 @@ navigation:
 When you set availability for a section, all endpoints in that section will inherit the section-level availability unless explicitly overridden in your API definition.
   
 <Warning>You can't set availability for individual endpoints in `docs.yml`. Endpoint availability must be configured directly in your API definition. Learn more about availability for [OpenAPI](/learn/api-definitions/openapi/extensions/availability) or [Fern Definition](/learn/api-definitions/ferndef/availability).</Warning>
+
+### Displaying endpoint errors
+
+Set `display-errors` to `true` to show error schemas on endpoint pages. The error names, status codes, and response objects are pulled from your API definition.
+
+```yaml title="docs.yml"
+navigation:
+  - api: API Reference
+    display-errors: true
+```
+
+<Frame>
+![Endpoint errors](https://fern-image-hosting.s3.amazonaws.com/fern/errors.png)
+</Frame>
+
+Clicking on an error expands it to show the error name, code, and object returned. The response also updates to show the error object.
+
+<Frame>
+![Endpoint errors when expanded](https://fern-image-hosting.s3.amazonaws.com/fern/errors-expanded.png)
+</Frame>
+
+## Configuration options reference
+
+The following properties can be set on the `- api` entry in your `docs.yml` navigation.
+
+<ParamField path="alphabetized" toc={true} type="boolean">
+  When `true`, organizes all sections and endpoints in alphabetical order.
+
+</ParamField>
+
+<ParamField path="api" toc={true} type="string" required={true}>
+  Title of the API Reference section.
+
+</ParamField>
+
+<ParamField path="audiences" toc={true} type="list<string>">
+  List of [audiences](/learn/docs/api-references/audiences) that determines which endpoints, schemas, and properties are displayed in your API Reference.
+
+</ParamField>
+
+<ParamField path="availability" toc={true} type="string">
+  Set the [availability status](#adding-availability) for the entire API Reference or specific sections.
+
+</ParamField>
+
+<ParamField path="display-errors" toc={true} type="boolean">
+  Displays [error schemas](#displaying-endpoint-errors) on endpoint pages of your API Reference.
+
+</ParamField>
+
+<ParamField path="flattened" toc={true} type="boolean">
+  Displays all endpoints at the top level and hides the API Reference section title.
+
+</ParamField>
+
+<ParamField path="icon" toc={true} type="string">
+  Icon to display next to the API section in the navigation.
+
+</ParamField>
+
+<ParamField path="layout" toc={true} type="list">
+  Customize the order that your API endpoints are displayed in the docs site. See [Ordering the API Reference](#ordering-the-api-reference) for details.
+
+</ParamField>
+
+<ParamField path="paginated" toc={true} type="boolean">
+  Displays all endpoints on separate pages. By default, endpoints are displayed on one single, long page.
+
+</ParamField>
+
+<ParamField path="skip-slug" toc={true} type="boolean">
+  When `true`, skips slug generation for the API section.
+
+</ParamField>
+
+<ParamField path="slug" toc={true} type="string">
+  Customize the slug for the API section. By default, the slug is generated from the API title.
+
+</ParamField>
+
+<ParamField path="summary" toc={true} type="string">
+  Relative path to a Markdown file displayed at the top of the API section.
+
+</ParamField>
+
+<ParamField path="tag-description-pages" toc={true} type="boolean">
+  When `true`, uses OpenAPI tag descriptions as summary pages for each section.
+
+</ParamField>
+
+<ParamField path="api-name" toc={true} type="string">
+  Only used when your project has [multiple APIs](/learn/docs/api-references/generate-api-ref#include-more-than-one-api-reference). The value must match the folder name containing the API definition. Do not set this property if you only have a single API, as it will cause errors.
+
+</ParamField>
