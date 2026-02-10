@@ -1,9 +1,12 @@
 ---
 title: Customize API Reference layout
 description: Reference for all configuration options available when customizing your API Reference layout in docs.yml.
+max-toc-depth: 2
 ---
 
-The `- api:` entry in `docs.yml` supports several properties to customize how your API Reference is displayed. For type-specific examples, see the individual reference pages:
+When you [include an API in your `docs.yml` file](/learn/docs/api-references/generate-api-ref), you can customize how the endpoints and sections are displayed in the sidebar navigation. By default, the reference generates a navigation hierarchy based on the structure of the API spec, but several customizations can be configured.
+
+For type-specific layout examples (endpoint referencing syntax, grouping into sections), see the individual reference pages:
 
 - [REST API](/learn/docs/api-references/generate-api-ref#customize-the-layout)
 - [GraphQL](/learn/docs/api-references/generate-graphql-ref#customize-the-layout)
@@ -11,13 +14,163 @@ The `- api:` entry in `docs.yml` supports several properties to customize how yo
 - [OpenRPC](/learn/docs/api-references/generate-openrpc-ref#customize-the-layout)
 - [Webhook](/learn/docs/api-references/generate-webhook-reference#customize-the-layout)
 
+To display only a subset of endpoints, see the Audiences property for [OpenAPI specifications](/learn/api-definitions/openapi/extensions/audiences) or [Fern Definitions](/learn/api-definition/fern/audiences).
+
+## Alphabetizing endpoints and sections
+
+To sort all sections and endpoints alphabetically, unless explicitly ordered in `layout`, set `alphabetized` to `true`.
+
+```yaml title="docs.yml"
+navigation:
+  - api: API Reference
+    alphabetized: true
+```
+
+## Paginating endpoints
+
+By default, all endpoints are displayed on a single long page. To display each endpoint on its own page, set `paginated` to `true`.
+
+```yaml title="docs.yml"
+navigation:
+  - api: API Reference
+    paginated: true
+```
+
+## Renaming sections
+
+By default, section display names come from [service file names](/api-definitions/ferndef/endpoints/overview#service-definition) (Fern Definition) or tag names (OpenAPI) in your spec.
+
 <Note title="API sections">
 If you are using an OpenAPI specification, sections are created based on the `tags` property, converted to `lowerCamelCase` convention (e.g., createUser). If you are using a Fern Definition, sections are created based on the [`service`](/learn/api-definition/fern/endpoints#service-definition) file names.
 </Note>
 
-To display only a subset of endpoints, see the Audiences property for [OpenAPI specifications](/learn/api-definitions/openapi/extensions/audiences) or [Fern Definitions](/learn/api-definition/fern/audiences).
+To override the display name, use the `section` property with `referenced-packages` to map to the original tag or service file name in `lowerCamelCase`:
 
-## API-level properties
+```yaml title="docs.yml" {4-6}
+navigation:
+  - api: API Reference
+    layout:
+      - section: "Billing" # New section display name
+        referenced-packages:
+          - billing # lowerCamelCase version of original tag/service file name from your spec
+        contents: []
+      - section: "Bank Accounts"
+        referenced-packages:
+          - bankAccounts
+        contents: []
+```
+
+<Note>
+  For OpenAPI, you can alternatively customize tag display names directly in your spec (or `overrides.yml` file) using the [`x-displayName` extension](/api-definitions/openapi/extensions/tag-display-names).
+</Note>
+
+## Flattening sections
+
+To remove the API Reference title and display the section contents at the top level, set `flattened` to `true`.
+
+```yaml title="docs.yml"
+navigation:
+  - api: API Reference
+    flattened: true
+```
+
+<Frame>
+<img src="flattened.png" alt="Flattened API Reference" />
+</Frame>
+
+## Adding a section overview
+
+You can add overview pages to your API Reference or individual sections in two ways:
+
+<AccordionGroup>
+  <Accordion title="Manual summary pages">
+    The `summary` property allows you to add an `.md` or `.mdx` page as an overview.
+
+    ```yaml title="docs.yml"
+    navigation:
+      - api: API Reference
+        summary: pages/api-overview.mdx
+        layout:
+          - user:
+              summary: pages/user-overview.mdx
+    ```
+  </Accordion>
+  <Accordion title="Automatic summaries from OpenAPI tags">
+    If you're using an OpenAPI spec, set `tag-description-pages: true` to use tag descriptions as summary pages for each section.
+
+    ```yaml title="docs.yml"
+    navigation:
+      - api: API Reference
+        tag-description-pages: true
+    ```
+
+    <Note>
+      If you enable `tag-description-pages: true` and manually specify a `summary` for a section, the manual summary will take precedence.
+    </Note>
+  </Accordion>
+</AccordionGroup>
+
+<Frame>
+<img src="summary.png" alt="API Reference with a summary page" />
+</Frame>
+
+## Adding pages and links
+
+You can add regular pages and external links within your API Reference.
+
+```yaml title="docs.yml"
+navigation:
+  - api: API Reference
+    layout:
+      - user:
+          contents:
+            - page: User Guide
+              path: ./docs/pages/user-guide.mdx
+            - link: Link Title
+              href: http://google.com
+```
+
+## Adding availability
+
+You can set the availability for the entire API Reference or for specific sections. Options are: `stable`, `generally-available`, `in-development`, `pre-release`, `deprecated`, or `beta`.
+
+```yaml title="docs.yml" {3, 6}
+navigation:
+  - api: API Reference
+    availability: generally-available
+    layout:
+      - section: My Section
+        availability: beta
+        icon: flower
+        contents:
+        # endpoints here
+```
+
+When you set availability for a section, all endpoints in that section will inherit the section-level availability unless explicitly overridden in your API definition.
+
+<Warning>You can't set availability for individual endpoints in `docs.yml`. Endpoint availability must be configured directly in your API definition. Learn more about availability for [OpenAPI](/learn/api-definitions/openapi/extensions/availability) or [Fern Definition](/learn/api-definitions/ferndef/availability).</Warning>
+
+## Displaying endpoint errors
+
+Set `display-errors` to `true` to show error schemas on endpoint pages. The error names, status codes, and response objects are pulled from your API definition.
+
+```yaml title="docs.yml"
+navigation:
+  - api: API Reference
+    display-errors: true
+```
+
+<Frame>
+![Endpoint errors](https://fern-image-hosting.s3.amazonaws.com/fern/errors.png)
+</Frame>
+
+Clicking on an error expands it to show the error name, code, and object returned. The response also updates to show the error object.
+
+<Frame>
+![Endpoint errors when expanded](https://fern-image-hosting.s3.amazonaws.com/fern/errors-expanded.png)
+</Frame>
+
+## API-level property reference
 
 The following properties can be set on the `- api:` entry in your `docs.yml` navigation.
 
@@ -77,7 +230,7 @@ The following properties can be set on the `- api:` entry in your `docs.yml` nav
   Uses OpenAPI tag descriptions as summary pages for each section. OpenAPI only.
 </ParamField>
 
-## Endpoint properties
+## Endpoint property reference
 
 Properties available when referencing an endpoint or operation in `layout`.
 
@@ -105,7 +258,7 @@ Properties available when referencing an endpoint or operation in `layout`.
   Set the availability status for an individual endpoint or operation.
 </ParamField>
 
-## Section properties
+## Section property reference
 
 Properties available when defining a custom section in `layout`.
 
@@ -141,7 +294,7 @@ Properties available when defining a custom section in `layout`.
   Skip slug generation for the section.
 </ParamField>
 
-## Page and link properties
+## Page and link property reference
 
 Include Markdown pages and external links in `layout`.
 
