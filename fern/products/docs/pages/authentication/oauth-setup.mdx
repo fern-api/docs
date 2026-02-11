@@ -1,9 +1,22 @@
 ---
-title: Set up OAuth for RBAC
-subtitle: Integrate your OAuth provider with Fern Docs to authenticate users and assign roles
+title: OAuth setup
+subtitle: Fern-managed authentication for RBAC and API key injection
 ---
 
-This guide walks you through connecting your OAuth provider to Fern so that users are authenticated and assigned roles for [role-based access control (RBAC)](/learn/docs/authentication/rbac). If you haven't already, start by [defining your roles](/learn/docs/authentication/rbac#define-all-the-roles-in-your-docsyml) in `docs.yml`.
+OAuth setup is used by both [RBAC](/learn/docs/authentication/rbac) and [API key injection](/learn/docs/authentication/api-key-injection). You give Fern access to your OAuth provider, and Fern initiates the OAuth handshake process directly — handling the [`fern_token`](/learn/docs/authentication/overview#how-authentication-works) cookie for you.
+
+## How it works
+
+1. When a user clicks the **Login** button, Fern initiates an OAuth flow by making a request to your authorization endpoint.
+1. The user is redirected to your OAuth provider's login page where they authenticate using your existing auth system.
+1. After successful authentication, your OAuth provider redirects back to Fern with an authorization code, which Fern exchanges for an access token at your token endpoint.
+1. Fern sets a `fern_token` cookie containing the user's roles and credentials, enabling RBAC and automatically populating API keys in the API Explorer.
+
+<Accordion title="Architecture diagram">
+<Markdown src="/snippets/oauth-diagram.mdx"/>
+</Accordion>
+
+## Set up
 
 <Steps>
 <Step title="Create an OAuth client">
@@ -28,7 +41,7 @@ Fern will need the following details to configure OAuth authentication:
 - [ ] Issuer URL (e.g. `https://<your-domain>`)
 
 <Note title="Specifying an audience">
-If your client is connected to an API, you may need to specify an audience in the authentication request. 
+If your client is connected to an API, you may need to specify an audience in the authentication request.
 
 The updated authorization URL may look like this: `https://<your-oauth-tenant>/oauth2/authorize?audience=<your-api-identifier>`
 </Note>
@@ -40,8 +53,12 @@ Send these details to support@buildwithfern.com or in your dedicated Slack chann
 Wait for Fern to configure OAuth. You will receive a notification when the site is ready to use authentication.
 </Step>
 
-<Step title="Add a custom claim to set user roles">
-Add a custom claim to your OAuth provider's token response. This claim will be used to set the user's roles in Fern Docs. The resulting token response should look something like this:
+<Step title="Configure the token response">
+The final step depends on which features you're using.
+
+<Tabs>
+<Tab title="RBAC">
+Add a custom claim to your OAuth provider's token response so that Fern can determine each user's roles. The resulting token response should look something like this:
 
 ```json {12-15}
 {
@@ -91,6 +108,11 @@ To add a custom claim to Auth0, you need to create a **custom action**. This act
 If you are using a different OAuth provider, reach out to Fern with any questions on setting up a custom claim.
 </Accordion>
 </AccordionGroup>
+</Tab>
+<Tab title="API key injection">
+Configure your OAuth application to return user API keys when Fern requests tokens. Set up an authenticated account for Fern so Fern can authorize users on your behalf, and configure your OAuth application to return user API keys when Fern requests them.
+</Tab>
+</Tabs>
 </Step>
 
 </Steps>

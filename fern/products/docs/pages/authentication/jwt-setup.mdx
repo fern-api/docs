@@ -1,0 +1,234 @@
+---
+title: JWT setup
+subtitle: Self-managed authentication for RBAC and API key injection
+---
+
+JWT setup is used by both [RBAC](/learn/docs/authentication/rbac) and [API key injection](/learn/docs/authentication/api-key-injection). You handle the entire auth flow and set the [`fern_token`](/learn/docs/authentication/overview#how-authentication-works) cookie yourself, giving you full control over how users authenticate to your site, what roles they're assigned, and what API keys are injected into the API Explorer.
+
+## How it works
+
+1. When a user clicks the **Login** button, they're redirected to your authentication page.
+2. After successful authentication, your system sets a cookie called `fern_token` in the user's browser.
+3. This token is a [JWT](https://jwt.io) signed with a secret key from Fern. The JWT payload contains a `fern` claim with the user's roles, API keys, or both.
+
+<Accordion title="Architecture diagram">
+<Markdown src="/snippets/jwt-auth-diagram.mdx"/>
+</Accordion>
+
+## Set up
+
+<Steps>
+<Step title="Get your secret key">
+Reach out to Fern to get your secret key and send them the URL of your authentication page. This is where users are redirected after clicking the **Login** button in the API Explorer.
+</Step>
+
+<Step title="Build the fern claim">
+The JWT payload must include a `fern` claim. What you put inside depends on which features you're using:
+
+<CodeBlocks>
+```json RBAC only
+{
+  "fern": {
+    "roles": ["partners"]
+  }
+}
+```
+
+```json API key injection only
+{
+  "fern": {
+    "playground": {
+      "initial_state": {
+        "auth": { "bearer_token": "eyJhbGciOiJIUzI1c" }
+      }
+    }
+  }
+}
+```
+
+```json Both combined
+{
+  "fern": {
+    "roles": ["partners"],
+    "playground": {
+      "initial_state": {
+        "auth": { "bearer_token": "eyJhbGciOiJIUzI1c" }
+      }
+    }
+  }
+}
+```
+</CodeBlocks>
+
+For [API key injection](/learn/docs/authentication/api-key-injection), the `playground` object supports bearer tokens, basic auth, custom headers, and query parameters:
+
+```json API key injection
+{
+  "fern": {
+    "playground": {
+      "initial_state": {
+        "auth": {
+          "bearer_token": "eyJhbGciOiJIUzI1c"
+        },
+        "headers": {
+          "API-Version": "2024-02-02"
+        },
+        "path_parameters": {
+          "plantId": "plant_1234"
+        },
+        "query_parameters": {
+          "sort": "DESCENDING"
+        }
+      }
+    }
+  }
+}
+```
+
+You can also provide multiple API keys or per-environment keys:
+
+<AccordionGroup>
+<Accordion title="Multiple API keys">
+To provide multiple API keys (for example, one per application), set `bearer_token` to a JSON-encoded array of key-value objects. Each object maps an application name to its key.
+
+```json API key injection
+{
+  "fern": {
+    "playground": {
+      "initial_state": {
+        "auth": {
+          "bearer_token": "[{\"Greenhouse app\": \"sk-greenhouse-abc123\"}, {\"Garden app\": \"sk-garden-def456\"}]"
+        }
+      }
+    }
+  }
+}
+```
+
+The API Explorer displays a dropdown so the user can choose which application key to use for requests.
+</Accordion>
+
+<Accordion title="Per-environment keys">
+Use `env_state` to provide different credentials for each environment (for example, production vs. staging). Each key in `env_state` is matched against the selected environment URL using substring matching.
+
+```json title="API key injection"
+{
+  "fern": {
+    "playground": {
+      "initial_state": {
+        "auth": {
+          "bearer_token": "default-token"
+        }
+      },
+      "env_state": {
+        "prod": {
+          "auth": {
+            "bearer_token": "prod-token-abc123"
+          }
+        },
+        "staging": {
+          "auth": {
+            "bearer_token": "staging-token-def456"
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+When the user selects an environment containing `prod` (such as `https://api.prod.example.com`), the API Explorer uses `prod-token-abc123`. The `env_state` values are merged on top of `initial_state`: auth is replaced entirely, while headers, path parameters, and query parameters are shallow-merged.
+</Accordion>
+</AccordionGroup>
+</Step>
+
+<Step title="Set the fern_token cookie">
+Add logic to your service to sign the JWT and set it as a `fern_token` cookie when a user logs in.
+
+<Accordion title="Example: Complete callback endpoint">
+This Next.js endpoint handles the callback from your authentication page. It reads the `state` parameter to determine where to redirect the user, mints a `fern_token` JWT using [jose](https://github.com/panva/jose), sets it as a cookie, and redirects the user back to the docs.
+
+```typescript title="app/api/fern-token/route.ts"
+import { SignJWT } from "jose";
+import { cookies } from "next/headers";
+import { type NextRequest, NextResponse } from "next/server";
+
+export async function GET(req: NextRequest): Promise<NextResponse> {
+  const domain = getDomain(req); // your logic to determine the docs domain
+
+  // use the state param to determine redirect location
+  const returnTo = req.nextUrl.searchParams.get("state");
+  const redirectLocation = returnTo ?? `https://${domain}`;
+
+  // fetch the user's API key, roles, and secret (from your config or database)
+  const apiKey = await getApiKeyForUser();
+  const roles = await getRolesForUser();
+  const secret = await getSecretForDomain(domain);
+
+  if (!secret) {
+    // redirect with an error if credentials are missing
+    const url = new URL(redirectLocation);
+    url.searchParams.set("error", "missing_credentials");
+    return NextResponse.redirect(url);
+  }
+
+  // mint the JWT using the secret key
+  const fernToken = await mintFernToken({ secret, apiKey, roles });
+
+  if (!fernToken) {
+    const url = new URL(redirectLocation);
+    url.searchParams.set("error", "token_creation_failed");
+    return NextResponse.redirect(url);
+  }
+
+  // set the fern_token as a cookie on the docs domain
+  const cookieJar = await cookies();
+  cookieJar.set("fern_token", fernToken, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "lax",
+    domain,
+  });
+
+  // redirect the user back to the docs
+  return NextResponse.redirect(redirectLocation);
+}
+
+const encoder = new TextEncoder();
+
+async function mintFernToken({
+  secret,
+  apiKey,
+  roles,
+}: {
+  secret: string;
+  apiKey?: string;
+  roles?: string[];
+}): Promise<string> {
+  const fern: Record<string, unknown> = {};
+
+  if (roles) {
+    fern.roles = roles;
+  }
+
+  if (apiKey) {
+    fern.playground = {
+      initial_state: {
+        auth: {
+          bearer_token: apiKey,
+        },
+      },
+    };
+  }
+
+  return await new SignJWT({ fern })
+    .setProtectedHeader({ alg: "HS256", typ: "JWT" })
+    .setIssuedAt()
+    .setExpirationTime("1d") // set to any value
+    .setIssuer("https://buildwithfern.com")
+    .sign(encoder.encode(secret)); // sign using the secret provided by Fern
+}
+```
+</Accordion>
+</Step>
+</Steps>

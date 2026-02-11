@@ -6,15 +6,11 @@ description: Learn how to restrict access to your documentation using role-based
 
 <Markdown src="/snippets/pro-plan.mdx"/>
 
-## Introduction
-
-Fern allows you to restrict parts of your navigation to individuals with specific roles. RBAC enables you to create different levels of access for different user types within your documentation.
+Fern allows you to restrict parts of your navigation to individuals with specific roles. RBAC enables you to create different levels of access for different user types within your documentation. You can combine RBAC with [API key injection](/learn/docs/authentication/api-key-injection) in a single token.
 
 When RBAC is configured, [Ask Fern](/learn/docs/ai-features/ask-fern/overview) automatically respects these permissions so users only receive answers from content they're authorized to view.
 
 ### Use cases
-
-Role-based access control is helpful for scenarios such as:
 
 - **Partner documentation**: Provide exclusive API documentation to integration partners while keeping internal docs private
 - **Beta features**: Share new features with beta users before general release
@@ -26,15 +22,11 @@ Role-based access control is helpful for scenarios such as:
 
 Every user automatically has the `everyone` role, including unauthenticated visitors. Pages marked with the `everyone` role are publicly accessible without needing to log in.
 
-If a user visits content that requires authentication (i.e., content not marked as visible to `everyone`), Fern checks for an authentication cookie to determine the user's roles. If the user lacks the required role or isn't authenticated, Fern redirects them to the login URL you provided during setup.
+If a user visits content that requires authentication (i.e., content not marked as visible to `everyone`), Fern checks the [`fern_token`](/learn/docs/authentication/overview#how-authentication-works) cookie to determine the user's roles. If the user lacks the required role or isn't authenticated, Fern redirects them to the login URL you provided during setup.
 
-## Set up RBAC
+## Set up
 
-<Steps>
-
-### Define all the `roles` in your docs.yml
-
-Start by using a `roles` key to define all the different roles:
+To enable RBAC, define your roles in `docs.yml` and configure authentication:
 
 ```yml docs.yml
 roles:
@@ -44,99 +36,44 @@ roles:
  - admins
 ```
 
-### Configure authentication via a `fern_token`
+Then set up the [`fern_token`](/learn/docs/authentication/overview#how-authentication-works) using either method:
 
-Fern uses a [browser cookie](/learn/docs/security/overview) called `fern_token` to identify authenticated users and their roles. If this cookie isn't present when a user tries to access restricted content, Fern redirects them to your login page.
+- **[JWT setup](/learn/docs/authentication/jwt-setup)** — You handle the entire auth flow and set the cookie yourself, including a `fern.roles` array in the JWT payload.
+- **[OAuth setup](/learn/docs/authentication/oauth-setup)** — Fern initiates an OAuth flow with your provider. Configure your token response to include user roles.
 
-RBAC uses the same `fern_token` cookie as [API key injection](/learn/docs/authentication/api-key-injection). You can combine both features in a single token. Set up authentication using either JWT or OAuth:
+<Note>If you'd like restricted pages to be visible but locked to unauthenticated users (rather than completely hidden), let Fern know during setup.</Note>
 
-<AccordionGroup>
-<Accordion title="JWT">
-Set a `fern_token` cookie containing a JWT signed with a secret key from Fern. The JWT must include a `fern` claim with a `roles` array:
+## Restricting content
 
-```json
-{
-  "fern": {
-    "roles": ["partners"]
-  }
-}
-```
+### In navigation
 
-To also inject API keys, add a `playground` object to the same `fern` claim:
-
-```json
-{
-  "fern": {
-    "roles": ["partners"],
-    "playground": {
-      "initial_state": {
-        "auth": { "bearer_token": "eyJhbGciOiJIUzI1c" }
-      }
-    }
-  }
-}
-```
-
-See [API key injection](/learn/docs/authentication/api-key-injection) for the full `fern` payload reference and a complete callback endpoint example.
-
-</Accordion>
-<Accordion title="OAuth">
-
-Fern initiates an OAuth flow and redirects users to your authentication endpoint. Configure your OAuth endpoints to return user role information.
-
-See [Set up OAuth for RBAC](/learn/docs/authentication/set-up-oauth) for a step-by-step guide.
-
-</Accordion>
-</AccordionGroup>
-
-### Contact Fern for setup
-
-When you're ready to implement RBAC, contact support@buildwithfern.com.
-
-<Note title="Optional">If you'd like restricted pages to be visible but locked to unauthenticated users (rather than completely hidden), notify Fern during this step.</Note>
-
-</Steps>
-
-### Access control within navigation
-
-You can designate viewers on the following navigation items:
-- `products`
-- `versions`
-- `tabs`
-- `sections`
-- `pages`
-- `api references`
-- `changelogs`
+You can assign `viewers` to the following navigation items: `products`, `versions`, `tabs`, `sections`, `pages`, `api references`, and `changelogs`.
 
 If you don't specify viewers, the content will be visible to any _authenticated_ user. To make content publicly accessible, explicitly set viewers to `everyone`.
 
 ```yml docs.yml {6-7, 13-15}
 navigation:
   - tab: Home
-    layout: 
+    layout:
       - page: Welcome # this page is public
         path: pages/welcome.mdx
-        viewers: 
-          - everyone 
+        viewers:
+          - everyone
   - tab: Documentation
     layout:
       - page: Overview # this page is visible to all logged-in users
-        path: pages/overview.mdx 
+        path: pages/overview.mdx
       - section: Beta Release # this section is visible to beta-users and admins
         viewers:
           - beta-users
           - admins
-        contents: 
+        contents:
           ...
 ```
 
 Viewership is inherited. For example, if a section can only be viewed by `admins`, then all its pages and nested sections can also only be viewed by admins.
 
-### Access control within MDX pages
-
-You can restrict specific content within your MDX pages to users with certain roles. This allows you to show different content to different user types on the same page.
-
-#### Basic usage
+### In MDX pages
 
 Use the `<If />` component to conditionally render content based on user roles:
 
@@ -147,8 +84,6 @@ Use the `<If />` component to conditionally render content based on user roles:
   </Callout>
 </If>
 ```
-
-#### Multiple roles
 
 You can specify multiple roles. Content will be visible to users who have **any** of the specified roles:
 
