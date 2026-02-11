@@ -48,13 +48,11 @@ roles:
 
 Fern uses a [browser cookie](/learn/docs/security/overview) called `fern_token` to identify authenticated users and their roles. If this cookie isn't present when a user tries to access restricted content, Fern redirects them to your login page.
 
-You can set up this authentication using either JWT or OAuth:
+RBAC uses the same `fern_token` cookie as [API key injection](/learn/docs/authentication/api-key-injection). You can combine both features in a single token. Set up authentication using either JWT or OAuth:
 
 <AccordionGroup>
 <Accordion title="JWT">
-**You are responsible for creating and setting the `fern_token` cookie in your authentication system.** 
-
-Upon login, set a JWT for the user using a secret key that Fern provides. The JWT must include a `fern` claim with a `roles` array:
+Set a `fern_token` cookie containing a JWT signed with a secret key from Fern. The JWT must include a `fern` claim with a `roles` array:
 
 ```json
 {
@@ -64,16 +62,29 @@ Upon login, set a JWT for the user using a secret key that Fern provides. The JW
 }
 ```
 
-<Markdown src="/snippets/jwt-auth-diagram.mdx"/>
+To also inject API keys, add a `playground` object to the same `fern` claim:
+
+```json
+{
+  "fern": {
+    "roles": ["partners"],
+    "playground": {
+      "initial_state": {
+        "auth": { "bearer_token": "eyJhbGciOiJIUzI1c" }
+      }
+    }
+  }
+}
+```
+
+See [API key injection](/learn/docs/authentication/api-key-injection) for the full `fern` payload reference and a complete callback endpoint example.
 
 </Accordion>
 <Accordion title="OAuth">
 
-When a user needs authentication, Fern initiates an OAuth flow and redirects them to your authentication endpoint. You configure your OAuth endpoints to return user role information.
+Fern initiates an OAuth flow and redirects users to your authentication endpoint. Configure your OAuth endpoints to return user role information.
 
 See [Set up OAuth for RBAC](/learn/docs/authentication/set-up-oauth) for a step-by-step guide.
-
-<Markdown src="/snippets/oauth-diagram.mdx"/>
 
 </Accordion>
 </AccordionGroup>
