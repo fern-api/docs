@@ -1,37 +1,43 @@
 ---
 title: Autopopulate API keys
-subtitle: Set up API key injection with JWT or OAuth authentication. Allow users to login and automatically populate their API keys in your API Explorer.
+subtitle: Allow users to log in and automatically populate their API keys in the API Explorer.
 ---
 
 <Markdown src="/snippets/pro-plan.mdx"/>
 
-Fern can integrate with your authentication flow, allowing users to login and have their API key automatically populated with the click of a button.
+Fern can integrate with your authentication flow, allowing users to log in and have their API key automatically populated with the click of a button.
 
 <div style="position: relative; padding-bottom: 66.38846737481032%; height: 0;"><iframe src="https://www.loom.com/embed/790eb5849f1c4622aae09527908fdc7a?sid=d77062f8-35c3-41ab-8669-4c28b62e233b?hide_owner=true&hide_share=true&hide_title=true&hideEmbedTopBar=true" frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></iframe></div>
 
-With this feature, you can **create new users of your API** directly from within your documentation.
-
 <Note>
 User credentials are stored only in browser cookies and never transmitted to Fern's servers. Learn more in the [Security overview](/learn/docs/security/overview).
-</Note> 
+</Note>
 
-## Integrating with your auth flow
+## The `fern` payload
 
-API key injection can work in two different ways depending on your company's authentication setup:
+API key injection works by reading a `fern` claim from a JWT stored in the user's browser. The `fern` claim contains a `playground` object that tells the API Explorer what values to pre-fill.
 
-* **JWT:** You handle the entire auth flow and just give Fern a JWT cookie
-* **OAuth:** You give Fern access, and Fern directly initiates the OAuth handshake process
+The top-level structure is:
 
-<Tabs>
-<Tab title="JWT">
+```json
+{
+  "fern": {
+    "playground": {
+      "initial_state": { ... },
+      "env_state": { ... }
+    }
+  }
+}
+```
 
-Configure JWT authentication so that Fern can securely retrieve API keys for your users. The process works as follows:
+| Field | Description |
+|---|---|
+| `initial_state` | Default values applied to all API Explorer requests. |
+| `env_state` | Per-environment overrides that are merged on top of `initial_state` when the user selects a matching environment. |
 
-1. When a user clicks the "Login" button in the API Explorer, they're redirected to your authentication page.
-2. After successful authentication, your system must set a cookie called `fern_token` in the user's browser.
-3. This token should be a [JWT](https://jwt.io) encrypted with a secret key from Fern. The JWT should contain the user's API key.
+### Auth types
 
-The JWT should have a structure similar to:
+The `initial_state.auth` object supports bearer token and basic authentication.
 
 <CodeBlocks>
 ```json Bearer
@@ -54,27 +60,35 @@ The JWT should have a structure similar to:
     "playground": {
       "initial_state": {
         "auth": {
-            "basic": {
-              "username": "your_username",
-              "password": "your_password"
-            }
+          "basic": {
+            "username": "your_username",
+            "password": "your_password"
+          }
         }
       }
     }
   }
 }
 ```
+</CodeBlocks>
 
-```json Custom
+### Custom headers and parameters
+
+You can pre-fill headers, path parameters, and query parameters in addition to (or instead of) auth credentials. Values are applied to any matching fields in the API Explorer.
+
+```json
 {
   "fern": {
     "playground": {
       "initial_state": {
+        "auth": {
+          "bearer_token": "eyJhbGciOiJIUzI1c"
+        },
         "headers": {
           "API-Version": "2024-02-02"
         },
         "path_parameters": {
-          "id": "1234f"
+          "plantId": "plant_1234"
         },
         "query_parameters": {
           "sort": "DESCENDING"
@@ -85,18 +99,105 @@ The JWT should have a structure similar to:
 }
 ```
 
-</CodeBlocks>
+### Multiple API keys
+
+To provide multiple API keys (for example, one per application), set `bearer_token` to a JSON-encoded array of key-value objects. Each object maps an application name to its key.
+
+```json
+{
+  "fern": {
+    "playground": {
+      "initial_state": {
+        "auth": {
+          "bearer_token": "[{\"Greenhouse app\": \"sk-greenhouse-abc123\"}, {\"Garden app\": \"sk-garden-def456\"}]"
+        }
+      }
+    }
+  }
+}
+```
+
+The API Explorer displays a dropdown so the user can choose which application key to use for requests.
+
+### Per-environment keys
+
+Use `env_state` to provide different credentials for each environment (for example, production vs. staging). Each key in `env_state` is matched against the currently selected environment URL using substring matching.
+
+```json
+{
+  "fern": {
+    "playground": {
+      "initial_state": {
+        "auth": {
+          "bearer_token": "default-token"
+        }
+      },
+      "env_state": {
+        "prod": {
+          "auth": {
+            "bearer_token": "prod-token-abc123"
+          }
+        },
+        "staging": {
+          "auth": {
+            "bearer_token": "staging-token-def456"
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+When the user selects an environment containing `prod` (such as `https://api.prod.example.com`), the API Explorer uses `prod-token-abc123`. The `env_state` values are merged on top of `initial_state`: auth is replaced entirely, while headers, path parameters, and query parameters are shallow-merged.
+
+You can combine multiple API keys with per-environment keys:
+
+```json
+{
+  "fern": {
+    "playground": {
+      "env_state": {
+        "prod": {
+          "auth": {
+            "bearer_token": "[{\"Greenhouse app\": \"sk-prod-abc\"}, {\"Garden app\": \"sk-prod-def\"}]"
+          }
+        },
+        "dev": {
+          "auth": {
+            "bearer_token": "[{\"Greenhouse app\": \"sk-dev-abc\"}, {\"Garden app\": \"sk-dev-def\"}]"
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+## Integrating with your auth flow
+
+API key injection requires a JWT containing the `fern` payload described above to be stored in the user's browser as a cookie called `fern_token`. There are two ways to set this up:
+
+* **JWT:** You handle the entire auth flow and set the `fern_token` cookie yourself.
+* **OAuth:** You give Fern access, and Fern initiates the OAuth handshake process directly.
+
+<Tabs>
+<Tab title="JWT">
+
+1. When a user clicks the **Login** button in the API Explorer, they are redirected to your authentication page.
+2. After successful authentication, your system sets a cookie called `fern_token` in the user's browser.
+3. This token is a [JWT](https://jwt.io) signed with a secret key from Fern. The JWT payload contains the `fern` claim with the user's API key.
 
 <Accordion title="Architecture diagram">
 <Markdown src="/snippets/jwt-auth-diagram.mdx"/>
 </Accordion>
 
-#### Set up autopopulated API keys
+#### Set up
 
-To enable API key injection:
-1. Reach out to Fern to get your secret key
-1. Send Fern the URL of your authentication page. This is where users will be redirected to after clicking the "Login" button in the API Explorer.
-1. Add logic to your service to set the `fern_token` cookie when a user logs in
+To enable API key injection with JWT:
+1. Reach out to Fern to get your secret key.
+1. Send Fern the URL of your authentication page. This is where users are redirected after clicking the **Login** button in the API Explorer.
+1. Add logic to your service to set the `fern_token` cookie when a user logs in.
 
 <Accordion title="Example: Complete callback endpoint">
 This Next.js endpoint handles the callback from your authentication page. It reads the `state` parameter to determine where to redirect the user, mints a `fern_token` JWT using [jose](https://github.com/panva/jose), sets it as a cookie, and redirects the user back to the docs.
@@ -182,9 +283,7 @@ async function mintFernToken({
 </Tab>
 <Tab title="OAuth">
 
-Configure OAuth authentication so that Fern can securely retrieve API keys for your users through your OAuth provider. Here's how the process works:
-
-1. When a user clicks the "Login" button in the API Explorer, Fern initiates an OAuth flow by making a request to your authorization endpoint.
+1. When a user clicks the **Login** button in the API Explorer, Fern initiates an OAuth flow by making a request to your authorization endpoint.
 1. The user is redirected to your OAuth provider's login page where they authenticate using your existing auth system.
 1. After successful authentication, your OAuth provider redirects back to Fern with an authorization code, which Fern exchanges for an access token at your token endpoint.
 1. Fern sets a `fern_token` cookie containing the user's authentication credentials and automatically populates their API key in the API Explorer.
@@ -193,15 +292,15 @@ Configure OAuth authentication so that Fern can securely retrieve API keys for y
 <Markdown src="/snippets/oauth-diagram.mdx"/>
 </Accordion>
 
-#### Set up autopopulated API keys
+#### Set up
 
-To enable API key injection:
+To enable API key injection with OAuth:
 1. Set up an authenticated account for Fern so Fern can authorize users on your behalf.
-1. Configure your OAuth application to return user API keys when Fern requests them
+1. Configure your OAuth application to return user API keys when Fern requests them.
 
 Then, send Fern the following items:
 - The client ID and client secret for Fern's authenticated account
-- The URL of your authentication endpoint. This is where users will be redirected to after clicking the "Login" button in the API Explorer.
+- The URL of your authentication endpoint. This is where users are redirected after clicking the **Login** button in the API Explorer.
 - The URL of your token endpoint. This is where Fern exchanges codes for tokens.
 
 </Tab>
