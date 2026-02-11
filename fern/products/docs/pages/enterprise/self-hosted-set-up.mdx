@@ -103,6 +103,67 @@ You can now deploy the image to your own infrastructure, allowing you to host th
 </Step>
 </Steps>
 
+## Environment variables
+
+Configure the self-hosted container's behavior by setting environment variables in your Dockerfile or Kubernetes deployment.
+
+### General
+
+| Variable | Description | Default |
+|---|---|---|
+| `FERN_LOG_LEVEL` | Log level for the Fern CLI during docs generation. Options: `debug`, `info`, `warn`, `error`. | `debug` |
+| `NODE_MEMORY_LIMIT` | Node.js heap size in MB for the Next.js server. Increase for large documentation sites with many API versions. | `4096` |
+| `NEXT_PUBLIC_BASE_PATH` | Base path for serving docs under a subpath (e.g., `/docs`). | none |
+| `TMPDIR` | Temporary directory for the container. | `/tmp` |
+
+### Cache warmup
+
+The container can pre-fetch all pages on startup to ensure the first real user request is fast.
+
+| Variable | Description | Default |
+|---|---|---|
+| `WARMUP` | Set to `true` to enable cache warmup on startup. Runs in the background and doesn't block container readiness. | `false` |
+| `WARMUP_TIMEOUT` | Timeout in seconds for each page request during warmup. | `5` |
+
+### Cache proxy
+
+The container includes a caching proxy that sits in front of the Next.js server. The cache proxy is automatically disabled when [authentication](/learn/docs/self-hosted/authentication) is configured.
+
+| Variable | Description | Default |
+|---|---|---|
+| `CACHE_MAX_ENTRIES` | Maximum number of pages to cache. | `1000` |
+| `CACHE_MAX_ENTRY_SIZE` | Maximum size per cached entry in bytes. | `5242880` (5 MB) |
+| `CACHE_DEFAULT_TTL` | Default cache time to live (TTL) in seconds. | `2592000` (30 days) |
+| `CACHE_CDN_TTL` | Cache TTL in seconds for downstream CDN caches (e.g., CloudFront). | `3600` (1 hour) |
+| `CACHE_DISABLED` | Set to `true` or `1` to disable caching entirely. | `false` |
+| `CACHE_PROXY_DEBUG` | Set to `1` for verbose cache proxy logging. | `0` |
+
+### Cross-origin resource sharing (CORS) proxy
+
+The container includes a CORS proxy that allows the documentation frontend to make cross-origin requests (e.g., to your API for the API Explorer's **Try it** feature). By default, only the docs domain itself is allowed. Use `CORS_PROXY_ALLOWED_DOMAINS` to allowlist additional domains.
+
+| Variable | Description | Default |
+|---|---|---|
+| `CORS_PROXY_ALLOWED_DOMAINS` | Comma-separated list of root domains to allow through the CORS proxy. Subdomains are matched automatically. | none |
+
+For example, to allow requests to `api.plantstore.dev` and `auth.plantstore.dev`:
+
+```dockerfile
+ENV CORS_PROXY_ALLOWED_DOMAINS="plantstore.dev"
+```
+
+To allow multiple domains:
+
+```dockerfile
+ENV CORS_PROXY_ALLOWED_DOMAINS="plantstore.dev,partner-api.example.com"
+```
+
+### Debugging
+
+| Variable | Description | Default |
+|---|---|---|
+| `ENABLE_JAEGER` | Set to `true` to start [Jaeger](https://www.jaegertracing.io/) for distributed tracing. The Jaeger UI is available on port 16686. | `false` |
+
 ## Additional configuration
 
 The following sections cover optional configurations for specific deployment scenarios.
