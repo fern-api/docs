@@ -42,7 +42,7 @@ Basic token verification uses JWTs (JSON Web Tokens) to authenticate users. This
 1. An unauthenticated user visits the docs and is redirected to your login page (`FERN_AUTH_REDIRECT`).
 2. Your login page authenticates the user (e.g., checking credentials against your database).
 3. After successful authentication, your server creates a signed JWT using the shared secret.
-4. Your server redirects the user to the Fern callback endpoint (`/api/fern-docs/auth/jwt/callback`) with the JWT as a query parameter.
+4. Your server sends the user to the Fern callback endpoint (`/api/fern-docs/auth/jwt/callback`) with the JWT. This can be done via a **GET** redirect with the token as a query parameter, or via a **POST** request with the token in a `application/x-www-form-urlencoded` body.
 5. The Fern docs container verifies the JWT signature and issuer, sets a session cookie, and redirects the user to the docs.
 
 ### Configuration
@@ -82,7 +82,9 @@ Your server must:
 
 1. Authenticate the user.
 2. Create a JWT signed with the same `FERN_AUTH_SECRET` using the HS256 algorithm.
-3. Redirect the user to the `redirect_uri` with the JWT as the `fern_token` query parameter and the original `state` as the return-to URL.
+3. Send the user to the `redirect_uri` with the JWT as `fern_token` and the original `state` as the return-to path. You can use either method:
+   - **GET redirect**: Append `fern_token` and `state` as query parameters.
+   - **POST form submission**: Submit `fern_token` and `state` as `application/x-www-form-urlencoded` fields. POST avoids exposing the token in URLs and server logs.
 
 The JWT payload must include the following claims:
 
@@ -95,6 +97,8 @@ The JWT payload must include the following claims:
 
 Here is an example Node.js (Express) server that signs a JWT and redirects to the callback:
 
+<Tabs>
+<Tab title="GET (query parameters)">
 ```javascript
 const express = require("express");
 const crypto = require("crypto");
@@ -149,6 +153,70 @@ app.listen(3001, () => {
   console.log("Login server running on http://localhost:3001");
 });
 ```
+</Tab>
+<Tab title="POST (form body)">
+```javascript
+const express = require("express");
+const crypto = require("crypto");
+
+const app = express();
+
+const SECRET = "my-test-secret-at-least-32-chars-long";
+const ISSUER = "https://my-test-issuer";
+
+function base64url(input) {
+  const buf = Buffer.isBuffer(input) ? input : Buffer.from(input, "utf8");
+  return buf.toString("base64").replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+}
+
+function createFernJWT(secret, issuer) {
+  const header = { alg: "HS256", typ: "JWT" };
+  const now = Math.floor(Date.now() / 1000);
+  const payload = {
+    fern: {},
+    iat: now,
+    exp: now + 30 * 24 * 60 * 60, // 30 days
+    iss: issuer,
+  };
+
+  const headerB64 = base64url(JSON.stringify(header));
+  const payloadB64 = base64url(JSON.stringify(payload));
+  const signature = crypto
+    .createHmac("sha256", secret)
+    .update(`${headerB64}.${payloadB64}`)
+    .digest();
+
+  return `${headerB64}.${payloadB64}.${base64url(signature)}`;
+}
+
+app.get("/login", (req, res) => {
+  const redirectUri = req.query.redirect_uri;
+  const state = req.query.state || "/";
+
+  // TODO: Add your own authentication logic here
+  // (e.g., check session, verify credentials, show a login form, etc.)
+
+  const token = createFernJWT(SECRET, ISSUER);
+
+  res.send(`
+    <html>
+      <body>
+        <form method="POST" action="${redirectUri}">
+          <input type="hidden" name="fern_token" value="${token}" />
+          <input type="hidden" name="state" value="${state}" />
+        </form>
+        <script>document.forms[0].submit();</script>
+      </body>
+    </html>
+  `);
+});
+
+app.listen(3001, () => {
+  console.log("Login server running on http://localhost:3001");
+});
+```
+</Tab>
+</Tabs>
 
 <Warning>
 The `FERN_AUTH_SECRET` in your login server must exactly match the secret set in the Dockerfile. If they differ, JWT verification will fail and users will not be able to log in.
