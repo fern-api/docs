@@ -6,25 +6,15 @@ description: Learn how to restrict access to your documentation using role-based
 
 <Markdown src="/snippets/pro-plan.mdx"/>
 
-Fern allows you to restrict parts of your navigation to individuals with specific roles. RBAC enables you to create different levels of access for different user types within your documentation. You can combine RBAC with [API key injection](/learn/docs/authentication/api-key-injection) in a single token.
+RBAC lets you restrict pages, sections, and other navigation items to users with specific roles — useful for partner docs, beta features, tiered access, and internal content. You can combine RBAC with [API key injection](/learn/docs/authentication/api-key-injection) in a single token.
 
-When RBAC is configured, [Ask Fern](/learn/docs/ai-features/ask-fern/overview) automatically respects these permissions so users only receive answers from content they're authorized to view.
+## How it works
 
-### Use cases
+Every user automatically has the `everyone` role, including unauthenticated visitors. When a user visits content that requires a different role, Fern checks the [`fern_token`](/learn/docs/authentication/overview#how-authentication-works) cookie to determine their roles. If the user lacks the required role or isn't authenticated, Fern redirects them to your login page. 
 
-- **Partner documentation**: Provide exclusive API documentation to integration partners while keeping internal docs private
-- **Beta features**: Share new features with beta users before general release
-- **Internal documentation**: Restrict sensitive documentation to employees only
-- **Tiered access**: Offer different documentation levels based on subscription tiers
-- **Customer-specific content**: Show different documentation based on customer type or plan
+When RBAC is configured, [Ask Fern](/learn/docs/ai-features/ask-fern/overview) automatically respects these permissions.
 
-### How it works
-
-Every user automatically has the `everyone` role, including unauthenticated visitors. Pages marked with the `everyone` role are publicly accessible without needing to log in.
-
-If a user visits content that requires authentication (i.e., content not marked as visible to `everyone`), Fern checks the [`fern_token`](/learn/docs/authentication/overview#how-authentication-works) cookie to determine the user's roles. If the user lacks the required role or isn't authenticated, Fern redirects them to the login URL you provided during setup.
-
-## Set up
+## Setup
 
 To enable RBAC, define your roles in `docs.yml` and configure authentication:
 
@@ -38,12 +28,14 @@ roles:
 
 Then set up the [`fern_token`](/learn/docs/authentication/overview#how-authentication-works) using either method:
 
-- **[JWT setup](/learn/docs/authentication/jwt-setup)** — You handle the entire auth flow and set the cookie yourself, including a `fern.roles` array in the JWT payload.
-- **[OAuth setup](/learn/docs/authentication/oauth-setup)** — Fern initiates an OAuth flow with your provider. Configure your token response to include user roles.
+- **[JWT setup](/learn/docs/authentication/auth-setup/jwt-setup)** — You handle the entire auth flow and set the cookie yourself, including a `fern.roles` array in the JWT payload.
+- **[OAuth setup](/learn/docs/authentication/auth-setup/oauth-setup)** — Fern initiates an OAuth flow with your provider. Configure your token response to include user roles.
 
 <Note>If you'd like restricted pages to be visible but locked to unauthenticated users (rather than completely hidden), let Fern know during setup.</Note>
 
 ## Restricting content
+
+Once RBAC is configured, use `viewers` in your navigation and the `<If />` component in your pages to control what each role can see.
 
 ### In navigation
 

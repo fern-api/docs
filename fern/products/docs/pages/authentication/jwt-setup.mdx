@@ -3,11 +3,11 @@ title: JWT setup
 subtitle: Self-managed authentication for RBAC and API key injection
 ---
 
-JWT setup is used by both [RBAC](/learn/docs/authentication/rbac) and [API key injection](/learn/docs/authentication/api-key-injection). You handle the entire auth flow and set the [`fern_token`](/learn/docs/authentication/overview#how-authentication-works) cookie yourself, giving you full control over how users authenticate to your site, what roles they're assigned, and what API keys are injected into the API Explorer.
+JWT setup is used by both [RBAC](/learn/docs/authentication/rbac) and [API key injection](/learn/docs/authentication/api-key-injection). The [`fern_token`](/learn/docs/authentication/overview#how-authentication-works) is a browser cookie that Fern reads to identify a user's roles and API keys. With JWT setup, you handle the entire auth flow and set this cookie yourself, giving you full control over how users authenticate to your site.
 
 ## How it works
 
-1. When a user clicks the **Login** button, they're redirected to your authentication page.
+1. When a user clicks the **Login** button on your docs site (RBAC) or the API Explorer (API key injection), they're redirected to your authentication page.
 2. After successful authentication, your system sets a cookie called `fern_token` in the user's browser.
 3. This token is a [JWT](https://jwt.io) signed with a secret key from Fern. The JWT payload contains a `fern` claim with the user's roles, API keys, or both.
 
@@ -15,14 +15,14 @@ JWT setup is used by both [RBAC](/learn/docs/authentication/rbac) and [API key i
 <Markdown src="/snippets/jwt-auth-diagram.mdx"/>
 </Accordion>
 
-## Set up
+## Configuration
 
 <Steps>
 <Step title="Get your secret key">
-Reach out to Fern to get your secret key and send them the URL of your authentication page. This is where users are redirected after clicking the **Login** button in the API Explorer.
+Reach out to Fern to get your secret key and send them the URL of your authentication page. This is where users are redirected after clicking the **Login** button on your docs site or in the API Explorer.
 </Step>
 
-<Step title="Build the fern claim">
+<Step title="Build the `fern` claim">
 The JWT payload must include a `fern` claim. What you put inside depends on which features you're using:
 
 <CodeBlocks>
@@ -62,7 +62,7 @@ The JWT payload must include a `fern` claim. What you put inside depends on whic
 
 For [API key injection](/learn/docs/authentication/api-key-injection), the `playground` object supports bearer tokens, basic auth, custom headers, and query parameters:
 
-```json API key injection
+```json API key injection maxLines=10 startLine=5
 {
   "fern": {
     "playground": {
@@ -91,7 +91,7 @@ You can also provide multiple API keys or per-environment keys:
 <Accordion title="Multiple API keys">
 To provide multiple API keys (for example, one per application), set `bearer_token` to a JSON-encoded array of key-value objects. Each object maps an application name to its key.
 
-```json API key injection
+```json API key injection maxLines=5 startLine=2
 {
   "fern": {
     "playground": {
@@ -111,7 +111,7 @@ The API Explorer displays a dropdown so the user can choose which application ke
 <Accordion title="Per-environment keys">
 Use `env_state` to provide different credentials for each environment (for example, production vs. staging). Each key in `env_state` is matched against the selected environment URL using substring matching.
 
-```json title="API key injection"
+```json title="API key injection" maxLines=10 startLine=2
 {
   "fern": {
     "playground": {
@@ -142,7 +142,7 @@ When the user selects an environment containing `prod` (such as `https://api.pro
 </AccordionGroup>
 </Step>
 
-<Step title="Set the fern_token cookie">
+<Step title="Set the `fern_token` cookie">
 Add logic to your service to sign the JWT and set it as a `fern_token` cookie when a user logs in.
 
 <Accordion title="Example: Complete callback endpoint">

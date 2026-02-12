@@ -3,11 +3,11 @@ title: OAuth setup
 subtitle: Fern-managed authentication for RBAC and API key injection
 ---
 
-OAuth setup is used by both [RBAC](/learn/docs/authentication/rbac) and [API key injection](/learn/docs/authentication/api-key-injection). You give Fern access to your OAuth provider, and Fern initiates the OAuth handshake process directly — handling the [`fern_token`](/learn/docs/authentication/overview#how-authentication-works) cookie for you.
+OAuth setup is used by both [RBAC](/learn/docs/authentication/rbac) and [API key injection](/learn/docs/authentication/api-key-injection). The [`fern_token`](/learn/docs/authentication/overview#how-authentication-works) is a browser cookie that Fern reads to identify a user's roles and API keys. With OAuth setup, Fern handles this cookie for you — you give Fern access to your OAuth provider, and Fern initiates the handshake process directly.
 
 ## How it works
 
-1. When a user clicks the **Login** button, Fern initiates an OAuth flow by making a request to your authorization endpoint.
+1. When a user clicks the **Login** button on your docs site (RBAC) or the API Explorer (API key injection), Fern initiates an OAuth flow by making a request to your authorization endpoint.
 1. The user is redirected to your OAuth provider's login page where they authenticate using your existing auth system.
 1. After successful authentication, your OAuth provider redirects back to Fern with an authorization code, which Fern exchanges for an access token at your token endpoint.
 1. Fern sets a `fern_token` cookie containing the user's roles and credentials, enabling RBAC and automatically populating API keys in the API Explorer.
@@ -16,7 +16,7 @@ OAuth setup is used by both [RBAC](/learn/docs/authentication/rbac) and [API key
 <Markdown src="/snippets/oauth-diagram.mdx"/>
 </Accordion>
 
-## Set up
+## Configuration
 
 <Steps>
 <Step title="Create an OAuth client">
@@ -24,14 +24,14 @@ Go to your OAuth provider's dashboard. Create a new **web application** client. 
 </Step>
 
 <Step title="Allowlist Fern callbacks">
-You will need to allowlist the following callback in your OAuth provider:
+Allowlist the following callback in your OAuth provider:
 `https://<your-domain>/api/fern-docs/oauth2/callback`.
 
-Replace `<your-domain>` with whatever domain you are using for your Fern Docs site. If you want to authenticate both your `.docs.buildwithfern.com` and custom domain, you will need to allowlist both.
+Replace `<your-domain>` with whatever domain you are using for your Fern Docs site. If you want to authenticate both your `.docs.buildwithfern.com` and custom domain, you must allowlist both.
 </Step>
 
 <Step title="Send OAuth client details to Fern">
-Fern will need the following details to configure OAuth authentication:
+Fern needs the following details to configure OAuth authentication:
 - [ ] Docs domain
 - [ ] Client ID
 - [ ] Client secret
@@ -50,7 +50,7 @@ Send these details to support@buildwithfern.com or in your dedicated Slack chann
 </Step>
 
 <Step title="Wait for Fern to configure OAuth">
-Wait for Fern to configure OAuth. You will receive a notification when the site is ready to use authentication.
+Wait for Fern to configure OAuth. You'll receive a notification when the site is ready to use authentication.
 </Step>
 
 <Step title="Configure the token response">
@@ -60,7 +60,7 @@ The final step depends on which features you're using.
 <Tab title="RBAC">
 Add a custom claim to your OAuth provider's token response so that Fern can determine each user's roles. The resulting token response should look something like this:
 
-```json {12-15}
+```json {12-15} maxLines=7 startLine=10
 {
   "iss": "https://your-tenant.us.auth0.com/",
   "sub": "auth0|507f1f77bcf86cd799439011",
@@ -83,7 +83,6 @@ Add a custom claim to your OAuth provider's token response so that Fern can dete
 Some OAuth providers have strict requirements for custom claims. If you need to use a claim other than `roles`, reach out to Fern and specify which claim should be parsed for the user's roles.
 </Warning>
 
-<AccordionGroup>
 <Accordion title="Using Auth0">
 To add a custom claim to Auth0, you need to create a **custom action**. This action will be used to add the custom claim to the token response.
 
@@ -104,13 +103,9 @@ To add a custom claim to Auth0, you need to create a **custom action**. This act
 5. Click **Create**.
 6. Add the action to your **Post Login Flow**.
 </Accordion>
-<Accordion title="Using another provider">
-If you are using a different OAuth provider, reach out to Fern with any questions on setting up a custom claim.
-</Accordion>
-</AccordionGroup>
 </Tab>
 <Tab title="API key injection">
-Configure your OAuth application to return user API keys when Fern requests tokens. Set up an authenticated account for Fern so Fern can authorize users on your behalf, and configure your OAuth application to return user API keys when Fern requests them.
+Set up an authenticated account for Fern so Fern can authorize users on your behalf, and configure your OAuth application to return user API keys when Fern requests tokens. Contact support@buildwithfern.com to coordinate this setup.
 </Tab>
 </Tabs>
 </Step>
