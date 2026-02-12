@@ -4,7 +4,14 @@ description: Use Fern Docs to generate library reference documentation from your
 availability: beta
 ---
 
-Fern generates library reference documentation directly from your library's source code. Point Fern at a GitHub repository and it parses the source to produce a browsable reference with classes, functions, attributes, and module hierarchy. Python is supported.
+Fern generates library reference documentation directly from your library's source code. Point Fern at a GitHub repository and it produces a browsable reference for your docs site that includes:
+
+- **MDX pages** for each module, with summary tables and detailed definitions for classes, functions, and attributes
+- **`_navigation.yml`** describing the module hierarchy for sidebar navigation
+
+<Note>
+  Supported languages: Python (beta) and C++ (in development).
+</Note>
 
 ## Configuration
 
@@ -39,14 +46,12 @@ To generate docs for a single library, pass the `--library` flag:
 fern docs md generate --library my-python-sdk
 ```
 
-Fern authenticates with FDR, parses the library source on the server, and writes MDX files and a `_navigation.yml` file to the configured output directory.
-
 </Step>
 <Step title="Add the library to your navigation">
 
 Reference the library in your `docs.yml` navigation using the `library` key. The value must match a key in your `libraries` section.
 
-```yaml docs.yml
+```yaml docs.yml {6}
 navigation:
   - section: Getting started
     contents:
@@ -59,6 +64,10 @@ navigation:
 
 Fern injects the generated navigation at this point in the sidebar, with the root module page as the section overview.
 
+<Tip>
+  During local development with `fern docs dev`, the generated pages are resolved as first-class navigation sections with cross-reference links between types.
+</Tip>
+
 </Step>
 </Steps>
 
@@ -66,19 +75,21 @@ Fern injects the generated navigation at this point in the sidebar, with the roo
 
 ### Library definition
 
-<ParamField path="libraries.<name>.input.git" type="string" required>
+Each entry under `libraries` in `docs.yml` accepts the following fields:
+
+<ParamField path="input.git" type="string" required>
   GitHub URL to the repository containing the library source code.
 </ParamField>
 
-<ParamField path="libraries.<name>.input.subpath" type="string">
+<ParamField path="input.subpath" type="string">
   Path within the repository to the library source. Use this when the library code is in a subdirectory.
 </ParamField>
 
-<ParamField path="libraries.<name>.output.path" type="string" required>
+<ParamField path="output.path" type="string" required>
   Directory where Fern writes the generated MDX files and `_navigation.yml`.
 </ParamField>
 
-<ParamField path="libraries.<name>.lang" type="string" required>
+<ParamField path="lang" type="string" required>
   Programming language of the library source code. Supported values: `python`.
 </ParamField>
 
@@ -95,19 +106,3 @@ Fern injects the generated navigation at this point in the sidebar, with the roo
 <ParamField path="slug" type="string">
   Override the URL slug for this library reference.
 </ParamField>
-
-## Generated output
-
-The `fern docs md generate` command produces:
-
-- **MDX pages** for each module, with summary tables and detailed API definitions for classes, functions, and attributes
-- **`_navigation.yml`** describing the module hierarchy for sidebar navigation
-
-During local development with `fern docs dev`, the generated pages are resolved as first-class navigation sections with cross-reference links between types.
-
-## Supported languages
-
-| Language | Status         |
-|----------|----------------|
-| Python   | Beta           |
-| C++      | In development |
