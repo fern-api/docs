@@ -1,17 +1,13 @@
 ---
 title: API key injection
-subtitle: Allow users to log in and automatically populate their API keys in the API Explorer.
+subtitle: Automatically populate API keys in the API Explorer for logged-in users.
 ---
 
 <Markdown src="/snippets/pro-plan.mdx"/>
 
-API key injection lets users log in and have their API keys automatically populated in the [API Explorer](/learn/docs/api-references/api-explorer). You can combine API key injection with [RBAC](/learn/docs/authentication/rbac) with a single token.
+API key injection is a feature of [JWT](/learn/docs/authentication/setup/jwt) and [OAuth](/learn/docs/authentication/setup/oauth) authentication. When a user logs in, a [`fern_token`](/learn/docs/authentication/overview#how-authentication-works) cookie is set in their browser with a `fern.playground` claim that tells the [API Explorer](/learn/docs/api-references/api-explorer) what values to pre-fill — API keys, headers, or other credentials. You can combine it with [RBAC](/learn/docs/authentication/features/rbac) in a single token.
 
 <div style="position: relative; padding-bottom: 66.38846737481032%; height: 0;"><iframe src="https://www.loom.com/embed/790eb5849f1c4622aae09527908fdc7a?sid=d77062f8-35c3-41ab-8669-4c28b62e233b?hide_owner=true&hide_share=true&hide_title=true&hideEmbedTopBar=true" frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></iframe></div>
-
-## How it works
-
-When a user logs in, a [`fern_token`](/learn/docs/authentication/overview#how-authentication-works) cookie is set in their browser containing a `fern.playground` claim that tells the API Explorer what values to pre-fill — API keys, headers, or other credentials.
 
 <Note>
 User credentials are stored only in browser cookies and never transmitted to Fern's servers. Learn more in the [Security overview](/learn/docs/security/overview).
@@ -19,7 +15,89 @@ User credentials are stored only in browser cookies and never transmitted to Fer
 
 ## Setup
 
-Set up the `fern_token` using either method:
+To enable API key injection, follow the [JWT](/learn/docs/authentication/setup/jwt) or [OAuth](/learn/docs/authentication/setup/oauth) setup guide.
 
-- **[JWT setup](/learn/docs/authentication/setup/jwt)** — You handle the entire auth flow and set the `fern_token` cookie yourself. Supports advanced configuration like custom headers, per-environment keys, and multiple API keys.
-- **[OAuth setup](/learn/docs/authentication/setup/oauth)** — You give Fern access, and Fern initiates the OAuth handshake process directly.
+### Advanced payload configuration
+
+With [JWT setup](/learn/docs/authentication/setup/jwt), you have full control over the `fern.playground` payload. These options let you go beyond a single bearer token — pre-filling custom headers, supporting multiple API keys, or varying credentials by environment. These options are not available with OAuth, where Fern manages the token.
+
+<AccordionGroup>
+<Accordion title="Custom headers, path parameters, and query parameters">
+You can pre-fill headers, path parameters, and query parameters alongside auth credentials:
+
+```json maxLines=10 startLine=5
+{
+  "fern": {
+    "playground": {
+      "initial_state": {
+        "auth": {
+          "bearer_token": "eyJhbGciOiJIUzI1c"
+        },
+        "headers": {
+          "API-Version": "2024-02-02"
+        },
+        "path_parameters": {
+          "plantId": "plant_1234"
+        },
+        "query_parameters": {
+          "sort": "DESCENDING"
+        }
+      }
+    }
+  }
+}
+```
+</Accordion>
+
+<Accordion title="Multiple API keys">
+To provide multiple API keys (for example, one per application), set `bearer_token` to a JSON-encoded array of key-value objects. Each object maps an application name to its key.
+
+```json maxLines=5 startLine=2
+{
+  "fern": {
+    "playground": {
+      "initial_state": {
+        "auth": {
+          "bearer_token": "[{\"Greenhouse app\": \"sk-greenhouse-abc123\"}, {\"Garden app\": \"sk-garden-def456\"}]"
+        }
+      }
+    }
+  }
+}
+```
+
+The API Explorer displays a dropdown so the user can choose which application key to use for requests.
+</Accordion>
+
+<Accordion title="Per-environment keys">
+Use `env_state` to provide different credentials for each environment (for example, production vs. staging). Each key in `env_state` is matched against the selected environment URL using substring matching.
+
+```json maxLines=10 startLine=2
+{
+  "fern": {
+    "playground": {
+      "initial_state": {
+        "auth": {
+          "bearer_token": "default-token"
+        }
+      },
+      "env_state": {
+        "prod": {
+          "auth": {
+            "bearer_token": "prod-token-abc123"
+          }
+        },
+        "staging": {
+          "auth": {
+            "bearer_token": "staging-token-def456"
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+When the user selects an environment containing `prod` (such as `https://api.prod.example.com`), the API Explorer uses `prod-token-abc123`. The `env_state` values are merged on top of `initial_state`: auth is replaced entirely, while headers, path parameters, and query parameters are shallow-merged.
+</Accordion>
+</AccordionGroup>

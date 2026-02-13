@@ -1,15 +1,19 @@
 ---
 title: Set up JWT
-subtitle: Self-managed authentication for RBAC and API key injection
+subtitle: Self-managed authentication integrated with your login system
 ---
 
-JWT setup is used by both [RBAC](/learn/docs/authentication/rbac) and [API key injection](/learn/docs/authentication/api-key-injection). The [`fern_token`](/learn/docs/authentication/overview#how-authentication-works) is a browser cookie that contains a signed [JWT](https://jwt.io). Fern reads the token to identify a user's roles and API keys. With JWT setup, you build and sign this token yourself, giving you full control over the auth flow and what goes in the payload.
+With JWT, you manage the entire auth flow. This involves building and signing a [`fern_token`](/learn/docs/authentication/overview#how-authentication-works) cookie that integrates your docs with your existing login system. Like [OAuth](/learn/docs/authentication/setup/oauth), JWT enables:
+
+- **Login only** — gate docs behind authentication
+- **[RBAC](/learn/docs/authentication/features/rbac)** — restrict content by user role
+- **[API key injection](/learn/docs/authentication/features/api-key-injection)** — pre-fill API keys in the [API Explorer](/learn/docs/api-references/api-explorer)
 
 ## How it works
 
-1. When a user clicks the **Login** button on your docs site (RBAC) or the API Explorer (API key injection), they're redirected to your authentication page.
-2. After successful authentication, your system sets a cookie called `fern_token` in the user's browser.
-3. This token is a [JWT](https://jwt.io) signed with a secret key from Fern. The JWT payload contains a `fern` claim with the user's roles, API keys, or both.
+1. A user clicks **Login** on your docs site and is redirected to your authentication page.
+2. After authentication, your system signs a [JWT](https://jwt.io) with a secret key from Fern and sets it as a `fern_token` cookie.
+3. Fern reads the token to determine the user's access and credentials.
 
 <Accordion title="Architecture diagram">
 <Markdown src="/snippets/jwt-auth-diagram.mdx"/>
@@ -19,14 +23,20 @@ JWT setup is used by both [RBAC](/learn/docs/authentication/rbac) and [API key i
 
 <Steps>
 <Step title="Get your secret key">
-Reach out to Fern to get your secret key and send them the URL of your authentication page. This is where users are redirected after clicking the **Login** button on your docs site or in the API Explorer.
+Reach out to Fern to get your secret key and send them the URL of your authentication page. This is where users are redirected after clicking **Login**.
 </Step>
 
 <Step title="Build the `fern` claim">
-The JWT payload must include a `fern` claim. What you put inside depends on which features you're using:
+The JWT payload must include a `fern` claim. What you include in the token's `fern` claim controls which features are enabled: login only, RBAC, or API key injection.
 
 <CodeBlocks>
-```json RBAC only
+```json Login only
+{
+  "fern": {}
+}
+```
+
+```json RBAC
 {
   "fern": {
     "roles": ["partners"]
@@ -34,7 +44,7 @@ The JWT payload must include a `fern` claim. What you put inside depends on whic
 }
 ```
 
-```json API key injection only
+```json API key injection
 {
   "fern": {
     "playground": {
@@ -46,7 +56,7 @@ The JWT payload must include a `fern` claim. What you put inside depends on whic
 }
 ```
 
-```json Both combined
+```json API key injection + RBAC
 {
   "fern": {
     "roles": ["partners"],
@@ -59,87 +69,6 @@ The JWT payload must include a `fern` claim. What you put inside depends on whic
 }
 ```
 </CodeBlocks>
-
-For [API key injection](/learn/docs/authentication/api-key-injection), the `playground` object supports bearer tokens, basic auth, custom headers, and query parameters:
-
-```json API key injection maxLines=10 startLine=5
-{
-  "fern": {
-    "playground": {
-      "initial_state": {
-        "auth": {
-          "bearer_token": "eyJhbGciOiJIUzI1c"
-        },
-        "headers": {
-          "API-Version": "2024-02-02"
-        },
-        "path_parameters": {
-          "plantId": "plant_1234"
-        },
-        "query_parameters": {
-          "sort": "DESCENDING"
-        }
-      }
-    }
-  }
-}
-```
-
-You can also provide multiple API keys or per-environment keys:
-
-<AccordionGroup>
-<Accordion title="Multiple API keys">
-To provide multiple API keys (for example, one per application), set `bearer_token` to a JSON-encoded array of key-value objects. Each object maps an application name to its key.
-
-```json API key injection maxLines=5 startLine=2
-{
-  "fern": {
-    "playground": {
-      "initial_state": {
-        "auth": {
-          "bearer_token": "[{\"Greenhouse app\": \"sk-greenhouse-abc123\"}, {\"Garden app\": \"sk-garden-def456\"}]"
-        }
-      }
-    }
-  }
-}
-```
-
-The API Explorer displays a dropdown so the user can choose which application key to use for requests.
-</Accordion>
-
-<Accordion title="Per-environment keys">
-Use `env_state` to provide different credentials for each environment (for example, production vs. staging). Each key in `env_state` is matched against the selected environment URL using substring matching.
-
-```json title="API key injection" maxLines=10 startLine=2
-{
-  "fern": {
-    "playground": {
-      "initial_state": {
-        "auth": {
-          "bearer_token": "default-token"
-        }
-      },
-      "env_state": {
-        "prod": {
-          "auth": {
-            "bearer_token": "prod-token-abc123"
-          }
-        },
-        "staging": {
-          "auth": {
-            "bearer_token": "staging-token-def456"
-          }
-        }
-      }
-    }
-  }
-}
-```
-
-When the user selects an environment containing `prod` (such as `https://api.prod.example.com`), the API Explorer uses `prod-token-abc123`. The `env_state` values are merged on top of `initial_state`: auth is replaced entirely, while headers, path parameters, and query parameters are shallow-merged.
-</Accordion>
-</AccordionGroup>
 </Step>
 
 <Step title="Set the `fern_token` cookie">
@@ -230,5 +159,12 @@ async function mintFernToken({
 }
 ```
 </Accordion>
+</Step>
+
+<Step title="Enable RBAC or API key injection (optional)">
+Once your `fern_token` is working, configure the features you need:
+
+- **[Role-based access control](/learn/docs/authentication/features/rbac)** — define roles in `docs.yml` and restrict navigation items or page content by role.
+- **[API key injection](/learn/docs/authentication/features/api-key-injection)** — configure the `playground` payload, including custom headers, multiple API keys, and per-environment credentials.
 </Step>
 </Steps>
