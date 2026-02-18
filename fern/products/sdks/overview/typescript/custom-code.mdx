@@ -30,50 +30,42 @@ To get started adding custom code:
     src/helper.ts
     ```
 
+    ### Export your custom code
+
+    The TypeScript generator auto-generates the `exports` field in `package.json` based on your API definition. Custom files aren't included in this map, and since Node.js [enforces the `exports` map](https://nodejs.org/api/packages.html#package-entry-points), your custom functions won't be importable without this step.
+
+    Use the [`packageJson.exports`](/sdks/generators/typescript/configuration#packageJson) config in `generators.yml` to add your custom export entry:
+
+    ```yaml {5-14} title="generators.yml"
+    - name: fernapi/fern-typescript-sdk
+      version: <Markdown src="/snippets/version-number-ts.mdx"/>
+      config:
+        packageJson:
+          exports:
+            "./helper":
+              types: "./dist/cjs/helper.d.ts"
+              import:
+                types: "./dist/esm/helper.d.mts"
+                default: "./dist/esm/helper.mjs"
+              require:
+                types: "./dist/cjs/helper.d.ts"
+                default: "./dist/cjs/helper.js"
+    ```
+
+    These entries are merged into the generated `exports` (not overwritten), so they persist across regenerations.
+
+    <Tip>Use a clean export path like `"./helper"` rather than `"./src/helper.ts"`. This gives your users a cleaner import path and avoids exposing internal source structure.</Tip>
+
     ### Consume the helper
 
     <Markdown src="/products/sdks/snippets/consume-method.mdx"/>
 
     ```typescript
-    import { myHelper } from "sdk/helper";
+    import { myHelper } from "@acme/sdk/helper";
 
     myHelper();
     ```
 </Steps>
-
-## Exporting custom code
-
-The TypeScript generator auto-generates the `exports` field in `package.json` based on your API definition. Custom files aren't included in this map, and since Node.js [enforces the `exports` map](https://nodejs.org/api/packages.html#package-entry-points), your custom functions won't be importable by default.
-
-To fix this, use the `packageJson` config in `generators.yml` to add your custom export entries. These entries are merged into the generated `exports` (not overwritten), so they persist across regenerations.
-
-For example, if you have a custom helper at `src/helpers/hem.ts`:
-
-```yaml {5-14} title="generators.yml"
-- name: fernapi/fern-typescript-sdk
-  version: <Markdown src="/snippets/version-number-ts.mdx"/>
-  config:
-    packageJson:
-      exports:
-        "./helpers/hem":
-          types: "./dist/cjs/helpers/hem.d.ts"
-          import:
-            types: "./dist/esm/helpers/hem.d.mts"
-            default: "./dist/esm/helpers/hem.mjs"
-          require:
-            types: "./dist/cjs/helpers/hem.d.ts"
-            default: "./dist/cjs/helpers/hem.js"
-```
-
-Your users can then import the custom function with a clean path:
-
-```typescript
-import { hashEmail } from "@acme/sdk/helpers/hem";
-```
-
-<Tip>Use a clean export path like `"./helpers/hem"` rather than `"./src/helpers/hem.ts"`. This gives your users a cleaner import path and avoids exposing internal source structure.</Tip>
-
-<Warning>Make sure the custom source files are also listed in `.fernignore` so they're not deleted on regeneration.</Warning>
 
     ## Custom SDK methods
 
@@ -145,7 +137,7 @@ import { hashEmail } from "@acme/sdk/helpers/hem";
 
 <Markdown src="/snippets/pro-plan.mdx"/>
 
-To add packages that your custom code requires, update your `generators.yml`.
+To add packages that your custom code requires, use the [`extraDependencies`](/sdks/generators/typescript/configuration#extraDependencies) and [`extraDevDependencies`](/sdks/generators/typescript/configuration#extraDevDependencies) options in your `generators.yml`.
 
       ```yaml {4-7} title="generators.yml"
       - name: fernapi/fern-typescript-sdk
