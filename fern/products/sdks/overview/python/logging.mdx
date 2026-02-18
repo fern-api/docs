@@ -1,0 +1,96 @@
+---
+title: Logging
+description: Configure logging in your generated Python SDK to debug HTTP requests and responses.
+---
+
+Generated Python SDKs include a built-in configurable logging system. Logging is **silent by default** and can be enabled by passing a `logging` parameter to the client constructor.
+
+## Basic usage
+
+```python
+from my_sdk import MyClient
+from my_sdk.core import LogConfig
+
+client = MyClient(
+    token="YOUR_TOKEN",
+    logging=LogConfig(
+        level="debug",   # "debug" | "info" | "warn" | "error"
+        silent=False,     # must be False to enable output
+    ),
+)
+```
+
+## Using a pre-configured Logger instance
+
+You can create a `Logger` instance and reuse it across multiple clients:
+
+```python
+from my_sdk import MyClient
+from my_sdk.core import Logger, ConsoleLogger
+
+logger = Logger(level="debug", logger=ConsoleLogger(), silent=False)
+
+client = MyClient(
+    token="YOUR_TOKEN",
+    logging=logger,
+)
+```
+
+## Custom logger implementation
+
+Supply your own logger by implementing the `ILogger` protocol. Any class that defines `debug`, `info`, `warn`, and `error` methods is compatible:
+
+```python
+from my_sdk import MyClient
+from my_sdk.core import LogConfig
+
+class MyCustomLogger:
+    def debug(self, message: str, **kwargs) -> None:
+        print(f"[DEBUG] {message}", kwargs)
+
+    def info(self, message: str, **kwargs) -> None:
+        print(f"[INFO] {message}", kwargs)
+
+    def warn(self, message: str, **kwargs) -> None:
+        print(f"[WARN] {message}", kwargs)
+
+    def error(self, message: str, **kwargs) -> None:
+        print(f"[ERROR] {message}", kwargs)
+
+client = MyClient(
+    token="YOUR_TOKEN",
+    logging=LogConfig(
+        logger=MyCustomLogger(),
+        silent=False,
+    ),
+)
+```
+
+## What gets logged
+
+The SDK logs HTTP request and response metadata at appropriate levels:
+
+| Event | Level | Details |
+|---|---|---|
+| Outgoing HTTP request | `debug` | Method, URL, redacted headers |
+| Outgoing streaming request | `debug` | Method, URL, redacted headers |
+| Successful response (2xx/3xx) | `debug` | Method, URL, status code, redacted response headers |
+| Error response (4xx/5xx) | `error` | Method, URL, status code, redacted response headers |
+
+<Note>
+Sensitive headers such as `Authorization`, `Cookie`, `X-API-Key`, and `X-CSRF-Token` are automatically replaced with `[REDACTED]` in all log output. This prevents accidental leakage of credentials in logs.
+</Note>
+
+## Configuration reference
+
+<ParamField path="level" type="'debug' | 'info' | 'warn' | 'error'" default="info">
+  The minimum log level. Messages below this level are suppressed.
+</ParamField>
+
+<ParamField path="logger" type="ILogger" default="ConsoleLogger()">
+  The logger implementation to use. The default `ConsoleLogger` uses Python's built-in `logging` module with a `"fern"` logger name.
+</ParamField>
+
+<ParamField path="silent" type="bool" default="true">
+  When `True`, suppresses all log output regardless of the configured level. Set to `False` to enable logging.
+</ParamField>
