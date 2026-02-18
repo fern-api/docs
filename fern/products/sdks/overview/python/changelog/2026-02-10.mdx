@@ -1,7 +1,24 @@
 ## 4.58.0
 **`(feat):`** Add configurable logging support to generated Python SDKs. The SDK client constructor now
-accepts a `logging` parameter with `LogConfig` (level, logger, silent) or a pre-configured
-`Logger` instance. HTTP request/response metadata is logged at debug level with automatic
-redaction of sensitive headers. Logging is silent by default.
+accepts a `logging` parameter that can be configured in two ways:
+
+1. **LogConfig dict**: Pass `{"level": "debug", "logger": custom_logger, "silent": False}` where:
+   - `level`: Log level threshold (`"debug"`, `"info"`, `"warn"`, or `"error"`)
+   - `logger`: Optional custom logger implementing the `ILogger` protocol (debug/info/warn/error methods)
+   - `silent`: Boolean to disable all logging (defaults to `True` for backward compatibility)
+
+2. **Logger instance**: Pass a pre-configured `Logger` object for reuse across clients
+
+**What gets logged:**
+- HTTP request metadata at debug level: method, URL, redacted headers, and body presence indicator
+- HTTP response success at debug level: method, URL, and status code
+- HTTP errors at error level: method, URL, and status code for 4xx/5xx responses
+- Streaming request metadata at debug level
+
+**Security:** Sensitive headers are automatically redacted including: `authorization`, `x-api-key`,
+`cookie`, `x-csrf-token`, `x-session-token`, and other auth-related headers.
+
+**Default behavior:** Logging is silent by default (`silent=True`) to maintain backward compatibility.
+Set `silent=False` to enable logging output.
 
 
