@@ -41,6 +41,40 @@ To get started adding custom code:
     ```
 </Steps>
 
+## Exporting custom code
+
+The TypeScript generator auto-generates the `exports` field in `package.json` based on your API definition. Custom files are not included in this map, and since Node.js [enforces the `exports` map strictly](https://nodejs.org/api/packages.html#package-entry-points), your custom functions will not be importable by default.
+
+To fix this, use the `packageJson` config in `generators.yml` to add your custom export entries. These entries are merged into the generated `exports` (not overwritten), so they persist across regenerations.
+
+For example, if you have a custom helper at `src/helpers/hem.ts`:
+
+```yaml {5-14} title="generators.yml"
+- name: fernapi/fern-typescript-sdk
+  version: <Markdown src="/snippets/version-number-ts.mdx"/>
+  config:
+    packageJson:
+      exports:
+        "./helpers/hem":
+          types: "./dist/cjs/helpers/hem.d.ts"
+          import:
+            types: "./dist/esm/helpers/hem.d.mts"
+            default: "./dist/esm/helpers/hem.mjs"
+          require:
+            types: "./dist/cjs/helpers/hem.d.ts"
+            default: "./dist/cjs/helpers/hem.js"
+```
+
+Your users can then import the custom function with a clean path:
+
+```typescript
+import { hashEmail } from "@acme/sdk/helpers/hem";
+```
+
+<Tip>Use a clean export path like `"./helpers/hem"` rather than `"./src/helpers/hem.ts"`. This gives your users a cleaner import path and avoids exposing internal source structure.</Tip>
+
+<Warning>Make sure the custom source files are also listed in `.fernignore` so they are not deleted on regeneration.</Warning>
+
     ## Custom SDK methods
 
     <Markdown src="/products/sdks/snippets/custom-sdk-methods-intro.mdx"/>
