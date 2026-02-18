@@ -30,11 +30,9 @@ To get started adding custom code:
     src/helper.ts
     ```
 
-    ### Export your custom code
+    ### Add a package export entry
 
-    The TypeScript generator auto-generates the `exports` field in `package.json` based on your API definition. Custom files aren't included in this map, and since Node.js [enforces the `exports` map](https://nodejs.org/api/packages.html#package-entry-points), your custom functions won't be importable without this step.
-
-    Use the [`packageJson.exports`](/sdks/generators/typescript/configuration#packageJson) config in `generators.yml` to add your custom export entry:
+    Use the [`packageJson.exports`](/learn/sdks/generators/typescript/configuration#packagejson) config in `generators.yml` to add your custom export entry:
 
     ```yaml {5-14} title="generators.yml"
     - name: fernapi/fern-typescript-sdk
@@ -42,7 +40,7 @@ To get started adding custom code:
       config:
         packageJson:
           exports:
-            "./helper":
+            "./helper": # consumer import path — not the source file path
               types: "./dist/cjs/helper.d.ts"
               import:
                 types: "./dist/esm/helper.d.mts"
@@ -52,7 +50,11 @@ To get started adding custom code:
                 default: "./dist/cjs/helper.js"
     ```
 
-    These entries are merged into the generated `exports` (not overwritten), so they persist across regenerations. The export key (e.g., `"./helper"`) determines the import path your users will use, while the dist paths point to the compiled output.
+    The export key (e.g., `"./helper"`) determines the import path your users will use and doesn't need to match the source file path. The dist paths point to the compiled output.
+    
+    <Note>
+      The TypeScript generator auto-generates the `exports` field in `package.json` based on your API definition. Since Node.js [enforces the `exports` map](https://nodejs.org/api/packages.html#package-entry-points), custom files aren't importable until you add them to `packageJson.exports`. Custom files in `packageJson.exports` are merged into the generated `exports` (not overwritten), so they persist across regenerations. 
+    </Note>
 
     ### Consume the helper
 
