@@ -96,9 +96,7 @@ The `layout` option allows you to specify the order of sub-packages, sections, e
   ```
   </Tab>
   <Tab title="GraphQL">
-  Reference individual GraphQL operations using the `operation` keyword with the format `OPERATION_TYPE operationName`, where `OPERATION_TYPE` is `QUERY`, `MUTATION`, or `SUBSCRIPTION`.
-
-  If your schema includes operations that share the same name across different namespaces, use dot notation to disambiguate (e.g., `QUERY admin.getPlant`).
+  Reference individual GraphQL operations using the `operation` keyword with the format `OPERATION_TYPE operationName`, where `OPERATION_TYPE` is `QUERY`, `MUTATION`, or `SUBSCRIPTION`. If your schema includes operations that share the same name across different namespaces, use dot notation to disambiguate.
   ```yaml title="docs.yml"
   navigation:
     - api: API Reference
@@ -107,6 +105,8 @@ The `layout` option allows you to specify the order of sub-packages, sections, e
             - operation: QUERY getUser
             - operation: MUTATION createUser
             - operation: MUTATION deleteUser
+        - operation: QUERY admin.getPlant
+        - operation: QUERY public.getPlant
   ```
   </Tab>
 </Tabs>
@@ -253,6 +253,15 @@ You can hide an endpoint from the API Reference by setting `hidden` to `true`. T
               hidden: true
   ```
   </Tab>
+  <Tab title="GraphQL">
+  ```yaml title="docs.yml" {5}
+  navigation:
+    - api: API Reference
+      layout:
+        - operation: MUTATION deletePlant
+          hidden: true
+  ```
+  </Tab>
 </Tabs>
 
 ### Adding custom sections
@@ -275,14 +284,28 @@ You can add arbitrary folders in the sidebar by adding a `section` to your API R
   </Tab>
   <Tab title="Fern Definition">
   ```yaml title="docs.yml"
-  navigation: 
+  navigation:
     - api: API Reference
-      layout: 
+      layout:
         - section: My Section
           icon: flower
-          contents: 
+          contents:
             - user.update
             - plant
+  ```
+  </Tab>
+  <Tab title="GraphQL">
+  ```yaml title="docs.yml"
+  navigation:
+    - api: API Reference
+      layout:
+        - section: Plants
+          contents:
+            - operation: QUERY getPlant
+            - operation: MUTATION createPlant
+        - section: Real-time
+          contents:
+            - operation: SUBSCRIPTION plantUpdates
   ```
   </Tab>
 </Tabs>
@@ -361,7 +384,17 @@ navigation:
 
 When you set availability for a section, all endpoints in that section will inherit the section-level availability unless explicitly overridden in your API definition.
   
-<Warning>You can't set availability for individual endpoints in `docs.yml`. Endpoint availability must be configured directly in your API definition. Learn more about availability for [OpenAPI](/learn/api-definitions/openapi/extensions/availability) or [Fern Definition](/learn/api-definitions/ferndef/availability).</Warning>
+<Warning>
+  You can't set availability for individual endpoints in `docs.yml` — except for GraphQL, where `availability` can be set per operation. For OpenAPI and Fern Definition, endpoint availability must be configured directly in your API definition. Learn more about availability for [OpenAPI](/learn/api-definitions/openapi/extensions/availability) or [Fern Definition](/learn/api-definitions/ferndef/availability).
+
+  ```yaml title="docs.yml"
+  navigation:
+    - api: API Reference
+      layout:
+        - operation: SUBSCRIPTION plantUpdates
+          availability: beta
+  ```
+</Warning>
 
 ### Displaying endpoint errors
 
