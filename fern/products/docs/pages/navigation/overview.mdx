@@ -1,6 +1,7 @@
 ---
 title: Configure your site navigation
 description: Set up the navigation for your documentation site built with Fern Docs using the docs.yml file, including tabs, sections, pages, and more.
+max-toc-depth: 3
 ---
 
 Every Fern Docs website has a special configuration file called `docs.yml`. Use this file to configure the navigation for your documentation site. 
@@ -29,21 +30,14 @@ navbar-links:
 ```
 </CodeBlock>
 
-## Sections, contents, pages, and folders
+## Sections, pages, and folders
 
-Sections organize your documentation in the left-side nav bar. Each `section` has a name and a list of `contents`. Sections appear in the order listed in `docs.yml`.
-
-In `contents`, you can add individual pages, folders, or both:
-
-- `page` Manually list your pages with names and corresponding file paths.
-- `folder` Auto-discover pages from a directory and add them to your navigation.
-
-You can combine folder-based navigation with manually defined pages.
+Build your navigation by combining sections, pages, and folders.
 
 <Info title="API Reference section">
-Use the special `api` key to create an automatically generated API Reference section. You don't need to add any pages to it manually. For more information, see the [Generate API Reference](/learn/docs/api-references/generate-api-ref) page.
+Use the special `api` key to create an automatically generated API Reference section. For more information, see [Generate API Reference](/learn/docs/api-references/generate-api-ref).
 
-```yaml docs.yml {6}
+```yaml docs.yml
 navigation:
   - section: Introduction
     contents:
@@ -53,10 +47,9 @@ navigation:
 ```
 </Info>
 
-<AccordionGroup>
-<Accordion title="Add a page">
+### Add a section
 
-Create an `.md` or `.mdx` file. Then in `docs.yml`, add a new `page` to the `contents` list, providing the path to the file you created.
+Sections organize your documentation in the left-side nav bar. Each section has a name and a list of `contents`, which can include pages, folders, or nested sections.
 
 ```yaml docs.yml
 navigation:
@@ -67,32 +60,129 @@ navigation:
       - page: Another page
         path: ./pages/another-page.mdx
 ```
-</Accordion>
-<Accordion title="Add a folder">
 
-Create a directory with one or more `.md` or `.mdx` files. Add a `folder` key to your navigation configuration with the relative path to the directory you just created. Fern discovers all files in the directory and adds them to the navigation.
+Sections can be nested to create multi-level navigation hierarchies.
 
-```yaml docs.yml {4-5}
+```yaml docs.yml
+navigation:
+  - section: Learn
+    contents:
+      - section: Key concepts
+        contents:
+          - page: Embeddings
+            path: ./docs/pages/embeddings.mdx
+          - page: Prompt engineering
+            path: ./docs/pages/prompts.mdx
+      - section: Generation
+        contents:
+          - page: Command nightly
+            path: ./docs/pages/command.mdx
+          - page: Likelihood
+            path: ./docs/pages/likelihood.mdx
+```
+
+<Frame>
+![Result of above docs.yml example](https://fern-image-hosting.s3.amazonaws.com/fern/nested-sections.png)
+</Frame>
+
+To add an overview page to a section, add a `path` property pointing to an `.mdx` file.
+
+{/* <!-- vale off --> */}
+```yaml Section with an overview page {3}
+navigation:
+  - section: Guides
+    path: ./pages/guide-overview.mdx
+    contents:
+      - page: Simple guide
+        path: ./pages/guides/simple.mdx
+      - page: Complex guide
+        path: ./pages/guides/complex.mdx
+```
+{/* <!-- vale on --> */}
+
+### Add a page
+
+Create an `.md` or `.mdx` file, then add a `page` entry to a section's `contents` with the file path.
+
+```yaml docs.yml
 navigation:
   - section: Introduction
     contents:
-      - folder: ./pages/getting-started
-        title: Getting started # Optional, defaults to folder name
+      - page: My page
+        path: ./pages/my-page.mdx
+      - page: Another page
+        path: ./pages/another-page.mdx
 ```
 
-For the pages in a folder, Fern automatically converts filenames to titles and URL slugs, creates nested sections from subdirectories, and sorts pages alphabetically.
+### Add a folder
 
-<Note title="Control page order">
-  Use frontmatter `position` to control page order. Pages with a `position` field are sorted numerically before alphabetically sorted pages.
-  ```jsx /pages/getting-started/quickstart.mdx
-    ---
-    title: Quickstart
-    position: 1
-    ---
+Add a `folder` entry pointing to a directory. Fern auto-discovers all `.md` and `.mdx` files and adds them to the navigation.
+
+<Files>
+  <Folder name="pages" defaultOpen>
+    <Folder name="guides" defaultOpen>
+      <File name="index.mdx" comment="Becomes the section overview page" />
+      <File name="quickstart.mdx" />
+      <Folder name="advanced" defaultOpen>
+        <File name="index.mdx" comment="Becomes the nested section overview" />
+        <File name="auth.mdx" />
+      </Folder>
+    </Folder>
+  </Folder>
+</Files>
+
+```yaml docs.yml
+navigation:
+  - section: Introduction
+    contents:
+      - folder: ./pages/guides
+        title: Guides # Optional, defaults to folder name
+```
+
+For the pages in a folder, Fern automatically:
+- Converts filenames to titles and URL slugs
+- Creates nested sections from subdirectories
+- Sorts pages alphabetically
+- Uses `index.mdx` or `index.md` files as section overview pages (case-insensitive)
+
+<Accordion title="Folder configuration options">
+
+Customize folder behavior with these options:
+
+```yaml docs.yml
+navigation:
+  - folder: ./pages/guides
+    title: Guides                  # Display name in sidebar
+    slug: user-guides              # Custom URL path
+    title-source: frontmatter      # Use frontmatter titles
+```
+
+<ParamField path="title" type="string" required={false} toc={true}>
+  The title to display for this folder section. If not provided, the folder name is used.
+</ParamField>
+
+<ParamField path="title-source" type="'filename' | 'frontmatter'" required={false} default="filename" toc={true}>
+  Determines how page and section titles within the folder are derived. By default (`filename`), titles are derived from file names. Set to `frontmatter` to use the `title` field from each file's frontmatter instead (falls back to filename if not set). This per-folder setting overrides the global [`settings.folder-title-source`](/learn/docs/configuration/site-level-settings#settingsfolder-title-source) value.
+</ParamField>
+
+<ParamField path="slug" type="string" required={false} toc={true}>
+  Overrides the auto-generated URL slug for the folder.
+</ParamField>
+
+<ParamField path="skip-slug" type="boolean" required={false} default="false" toc={true}>
+  Omits the folder from the URL path, so pages appear at the parent level.
+</ParamField>
+
+<ParamField path="position" type="number" required={false} toc={true}>
+  Set in page frontmatter to control ordering within the folder. Pages with `position` appear first (sorted numerically), followed by the rest alphabetically.
+  ```yaml page frontmatter
+  ---
+  title: Quickstart
+  position: 1
+  ---
   ```
-</Note>
+</ParamField>
 </Accordion>
-</AccordionGroup>
 
 ## Hiding content
 
@@ -121,11 +211,14 @@ navigation:
 
 ## Availability
 
-Set availability for individual pages, sections, or folders. Pages inherit availability from their parent section or folder unless explicitly overridden.
+Set availability badges on pages, sections, or folders. Options are: `stable`, `generally-available`, `in-development`, `pre-release`, `deprecated`, or `beta`.
 
-Options are: `stable`, `generally-available`, `in-development`, `pre-release`, `deprecated`, or `beta`. 
+Pages inherit availability from their parent section or folder unless overridden by:
+- A per-page `availability` setting in `docs.yml` (shown below)
+- [Page frontmatter availability](/learn/docs/configuration/page-level-settings#availability), which takes precedence over all `docs.yml` availability
 
-```yaml Availability {3, 11, 14}
+
+```yaml docs.yml {3, 11, 14}
 navigation:
   - section: Developer resources
     availability: generally-available
@@ -144,75 +237,6 @@ navigation:
 <Note>
   If you have different versions of your docs, section, folder, and page availability should be set in [the `.yml` files that define the navigational structure for each version](/learn/docs/configuration/versions#define-your-versions).
 </Note>
-
-## Folder slugs
-
-Specify a custom URL slug for the folder section. If not provided, a slug will be generated from the folder name.
-
-```yaml docs.yml {4}
-navigation:
-  - folder: ./pages/guides
-    title: Guides
-    slug: user-guides
-```
-
-Skip adding the folder's slug to the URL path. This is useful when you want the pages to appear at the parent level in the URL structure.
-
-```yaml docs.yml {4}
-navigation:
-  - folder: ./pages/guides
-    title: Guides
-    skip-slug: true
-```
-
-## Section overviews
-
-To add an overview page to a section, add a `path` property to the section.
-
-{/* <!-- vale off --> */}
-```yaml Example section with an overview {7}
-navigation:
-  - section: Introduction
-    contents:
-      - page: My page
-        path: ./pages/my-page.mdx
-      - section: Guides
-        path: ./pages/guide-overview.mdx
-        contents:
-          - page: Simple guide
-            path: ./pages/guides/simple.mdx
-          - page: Complex guide
-            path: ./pages/guides/complex.mdx
-```
-{/* <!-- vale on --> */}
-
-## Nested sections
-
-If you'd like a section to toggle into more sections and pages, you can nest sections within sections. Here's an example:
-
-```yaml Example navigation config with nested sections
-navigation:
-  - tab: guides
-    layout:
-      - section: Learn
-        contents:
-          - section: Key concepts
-            contents:
-              - page: Embeddings
-                path: ./docs/pages/embeddings.mdx
-              - page: Prompt engineering
-                path: ./docs/pages/prompts.mdx
-          - section: Generation
-            contents:
-              - page: Command nightly
-                path: ./docs/pages/command.mdx
-              - page: Likelihood
-                path: ./docs/pages/likelihood.mdx
-```
-
-<Frame>
-![Result of above docs.yml example](https://fern-image-hosting.s3.amazonaws.com/fern/nested-sections.png)
-</Frame>
 
 ## Collapsed sections or folders
 
@@ -295,20 +319,4 @@ If you have multiple versions of your documentation, you can introduce a dropdow
 
 ## Product switching
 
-If you have multiple products in your documentation, you can introduce a [dropdown product selector](/learn/docs/configuration/products) by creating separate product configuration files. Each product can contain its own distinct versions, tabs, sections, pages, and API References, though products can also share content.
-
-<CodeBlock title="docs.yml">
-```yaml {2-3, 7-8}
-products:
-  - display-name: Product A
-    path: ./products/product-a.yml
-    icon: fa-solid fa-leaf # optional
-    slug: product-a # optional
-    subtitle: Product A subtitle # optional
-  - display-name: Product B
-    path: ./products/product-b/latest.yml # <-- default showing latest
-    image: ./images/product-b.png # optional
-    slug: product-b # optional
-    subtitle: Product B subtitle # optional
-```
-</CodeBlock>
+If you have multiple products in your documentation, you can introduce a dropdown product selector by creating separate product configuration files. Each product can contain its own distinct versions, tabs, sections, pages, and API References, though products can also share content. For more information, see [Product switching](/learn/docs/configuration/products).

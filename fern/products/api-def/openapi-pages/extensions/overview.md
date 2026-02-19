@@ -1,10 +1,12 @@
 ---
-title: Overview of OpenAPI extensions
-description: Learn about Fern's OpenAPI extensions
+title: Extensions overview
+headline: Extensions overview (OpenAPI)
+description: Learn about OpenAPI extensions in Fern. Customize authentication, SDK methods, versioning, and more for better API specs.
 ---
+
 Fern supports a variety of OpenAPI extensions that enhance your API specification and generate higher-quality SDKs. 
 
-You can apply these extensions in two ways: by overlaying them in separate override files or by embedding them directly in your OpenAPI specification. See [Overrides](/api-definitions/overview/overrides) for more information. 
+You can apply these extensions in two ways: by overlaying them in a separate file or by embedding them directly in your OpenAPI specification. See [Overlays](/learn/api-definitions/openapi/overlays) for more information.
 
 ## Available extensions
 
@@ -24,15 +26,20 @@ The table below shows all available extensions and links to detailed documentati
 | [`x-fern-explorer`](./api-explorer-control) | Control API Explorer (playground) availability globally or per endpoint |
 | [`x-fern-global-headers`](./global-headers) | Configure headers used across all endpoints |
 | [`x-fern-header`](/api-definitions/openapi/authentication#apikey-security-scheme) | Customize API key header authentication parameter names and environment variables |
+| [`x-fern-idempotent`](./idempotency) | Mark an endpoint as idempotent |
+| [`x-fern-idempotency-headers`](./idempotency) | Configure idempotency headers for safe request retries |
 | [`x-fern-ignore`](./ignoring-elements) | Skip reading specific endpoints or schemas |
+| [`x-fern-pagination`](./pagination) | Configure auto-pagination for list endpoints |
 | [`x-fern-sdk-method-name`](./method-names) | Customize SDK method names |
 | [`x-fern-sdk-group-name`](./method-names) | Organize methods into SDK groups |
 | [`x-fern-sdk-variables`](./sdk-variables) | Set common path parameters across all requests |
 | [`x-fern-parameter-name`](./parameter-names) | Customize parameter variable names |
 | [`x-fern-property-name`](./property-names) | Customize object property variable names |
 | [`x-fern-retries`](./retry-behavior) | Configure retry behavior for endpoints |
+| [`x-fern-streaming`](/api-definitions/openapi/endpoints/sse) | Configure streaming endpoints (JSON or SSE) |
 | [`x-fern-type-name`](./schema-names) | Override auto-generated names for inline schemas |
 | [`x-fern-server-name`](./server-names) | Name your servers |
+| [`x-fern-webhook`](/api-definitions/openapi/endpoints/webhooks) | Define webhooks in OpenAPI 3.0 specifications |
 
 <Note title="Request a new extension">
     If there's an extension you want that doesn't already exist, file an [issue](https://github.com/fern-api/fern/issues/new) to start a discussion about it.

@@ -1,0 +1,61 @@
+## 3.27.0
+**`(feat):`** Add `gradle-central-dependency-management` configuration option (boolean, default false).
+When enabled, this skips generating the `repositories` block in `build.gradle` files,
+allowing `dependencyResolutionManagement` in `settings.gradle` with
+`RepositoriesMode.FAIL_ON_PROJECT_REPOS` to work correctly.
+
+This should be used in conjunction with `gradle-plugin-management` when configuring
+central repository management on enterprise networks.
+
+Configuration example:
+```yaml
+config:
+  gradle-central-dependency-management: true
+  gradle-plugin-management: |
+    pluginManagement {
+        repositories {
+            maven { url 'https://internal-artifactory.example.com/gradle-plugins/' }
+        }
+    }
+    dependencyResolutionManagement {
+        repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+        repositories {
+            maven { url 'https://internal-artifactory.example.com/maven-releases/' }
+        }
+    }
+```
+
+
+## 3.26.0
+**`(feat):`** Add `gradle-plugin-management` configuration option to inject custom plugin management
+and dependency resolution configuration into `settings.gradle`. This enables SDK generation
+on enterprise networks that cannot access the Gradle Plugin Portal (`plugins.gradle.org`)
+by configuring internal Artifactory/Nexus repositories for plugin resolution.
+
+Configuration example:
+```yaml
+config:
+  gradle-plugin-management: |
+    pluginManagement {
+        repositories {
+            maven { url 'https://internal-artifactory.example.com/gradle-plugins/' }
+        }
+    }
+    dependencyResolutionManagement {
+        repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+        repositories {
+            maven { url 'https://internal-artifactory.example.com/maven-releases/' }
+        }
+    }
+```
+
+
+**`(fix):`** Fix `gradle-distribution-url` override in Java V2 generator to properly create the
+`gradle/wrapper` directory before writing `gradle-wrapper.properties`.
+
+
+## 3.25.1
+**`(fix):`** Fix form-urlencoded request body handling to properly serialize request objects using
+Jackson's convertValue, preserving wire names from @JsonProperty annotations.
+
+

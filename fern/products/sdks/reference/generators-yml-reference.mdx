@@ -1,12 +1,17 @@
 ---
 title: generators.yml configuration schema
-description: Reference for the generators.yml configuration
+description: Complete generators.yml configuration reference for Fern SDK generation. Configure authentication, publishing, GitHub integration, and language-specific settings.
 max-toc-depth: 3
 ---
 
 The `generators.yml` file serves two purposes: it declares your API definition (required for OpenAPI/AsyncAPI), and configures SDK generation, including which languages to generate, where to publish them, and how to customize each SDK.
 
+<Tip>
+  To enable intelligent YAML validation and autocompletion in your editor, add a schema directive to the top of your `generators.yml` file.
+</Tip>
+
 ```yaml title="generators.yml" maxLines=10
+# yaml-language-server: $schema=https://schema.buildwithfern.dev/generators-yml.json
 api:
   specs:
     - openapi: "./openapi.yml"
@@ -55,13 +60,9 @@ groups:
 
 ## `auth-schemes`
 
-Define authentication methods for your API that your endpoints can reference. Authentication schemes defined in `generators.yml` take precedence over authentication schemes defined in your spec. 
+Define authentication methods for your SDKs and the [API Explorer](/learn/docs/api-references/api-explorer) that your endpoints can reference. Authentication schemes defined in `generators.yml` take precedence over authentication schemes [defined in your spec](/learn/api-definitions/openapi/authentication).
 
-Choose from custom headers (API keys), HTTP Basic, Bearer token, or OAuth 2.0 authentication.
-
-<Info>
-  Alternatively, you can [define authentication for individual SDKs](#override-api-authentication-settings). 
-</Info>
+After defining an authentication scheme, you must use [`api.auth`](#auth) to apply it as the default across all endpoints. Alternatively, you can [define authentication for individual SDKs](#override-api-authentication-settings) if you need different auth behavior per language.
 
 ```yaml title="generators.yml" maxLines=10
 auth-schemes:
@@ -87,6 +88,9 @@ auth-schemes:
   jwt-bearer:
     scheme: bearer
 ```
+
+Choose from custom headers (API keys), HTTP Basic, Bearer token, or OAuth 2.0 authentication:
+
 <AccordionGroup>
 <Accordion title="Header">
 <Markdown src="/products/sdks/snippets/header-auth-params.mdx" />
@@ -132,8 +136,31 @@ api:
     staging: "https://api.staging.com"
 ```
 
-<ParamField path="auth" type="object" toc={true}>
-  Authentication configuration for the API.
+<ParamField path="auth" type="string" toc={true}>
+  Sets the default authentication scheme for all endpoints. The value must reference a scheme name defined in [`auth-schemes`](#auth-schemes). This overrides any security schemes [defined in your OpenAPI spec](/learn/api-definitions/openapi/authentication).
+
+  ```yaml title="generators.yml"
+  # Apply it as the default for all endpoints
+  api:
+    auth: BearerAuth # Defined in auth-schemes
+    specs:
+      - openapi: ./openapi.yml
+  ```
+
+  With this configuration, all generated SDKs will require authentication using the `BearerAuth` scheme:
+
+  ```ts index.ts
+  // Uses process.env.PLANTSTORE_API_KEY
+  const client = new PlantStoreClient();
+
+  // Or provide the API key explicitly
+  const client = new PlantStoreClient({
+    apiKey: "your-api-key"
+  });
+  ```
+  <Tip>
+    You can also override authentication for individual generators using the [generator-level `api.auth`](#override-api-authentication-settings) setting.
+  </Tip>
 </ParamField>
 
 <ParamField path="headers" type="string or list of objects" toc={true}>
@@ -346,6 +373,33 @@ default-group: "production"
 <ParamField path="default-group" type="string" required={false} toc={true}>
 </ParamField>
 
+## `autorelease`
+
+Enable or disable [Fern Autorelease](/learn/sdks/overview/autorelease) globally for automated SDK releases. Alternatively, you can [configure autorelease for individual SDKs](#autorelease-2).
+
+```yaml title="generators.yml"
+autorelease: true
+```
+
+<ParamField path="autorelease" type="boolean | object" default={false} required={false} toc={true}>
+  Set to `true` to enable Autorelease, `false` to disable it. Explicit configuration in `generators.yml` takes precedence over other enablement methods. [Per-generator settings](#autorelease-2) override this global configuration.
+</ParamField>
+
+<Accordion title="Enable with pull-based detection">
+
+Configure a cron schedule to periodically fetch and check for spec changes:
+
+```yaml title="generators.yml"
+autorelease:
+  cron:
+    schedule: "0 0 * * 0"  # Weekly on Sunday at midnight
+```
+
+<ParamField path="cron.schedule" type="string" required={true} toc={true}>
+  A cron expression defining how often to check for spec changes. Uses standard cron syntax.
+</ParamField>
+</Accordion>
+
 ## `aliases`
 
 Define shortcuts that map to multiple generator groups, allowing you to run several groups with a single command. When you run `fern generate --group <alias>`, all groups in the alias run in parallel. You can also set an alias as your `default-group`.
@@ -403,8 +457,12 @@ groups:
         - name: "sdk-team"
 ```
 
-<ParamField path="audiences" type="list of strings" required={false}>
-Target audiences for this generator group (e.g., "external", "internal")
+<ParamField path="audiences" type="list of strings" required={false} toc={true}>
+  Filter which API elements are included in generated SDKs on audience tags. Only endpoints, schemas, and properties tagged with the specified audiences in your API spec will be included. Without this filter, all endpoints are included regardless of their audience tags.
+
+  To use audiences, first tag your API elements with [`x-fern-audiences` in OpenAPI](/learn/api-definitions/openapi/extensions/audiences) or [`audiences` in Fern Definition](/learn/api-definitions/ferndef/audiences), then specify which audiences to include here. 
+
+  For OpenAPI, you can also configure path-based filtering at the spec level using [`settings.filter`](#settingsfilter).
 </ParamField>
 
 ### `reviewers`
@@ -737,11 +795,9 @@ Local directory path where generated files will be saved
 #### `github`
 
 Specify how your SDKs are generated in GitHub using the `github` configuration.
-Designate the `mode` to specifiy how Fern handles your code changes. For all of the
-modes, you must specify the GitHub repository in which you want to store your
-SDK code. You can also configure a branch name, license, and reviewers. 
+Designate the `mode` to specify how Fern handles your code changes. For cloud generation, specify the GitHub repository using `repository`. For [self-hosted generation](/learn/sdks/deep-dives/self-hosted), use `uri` and `token` instead.
 
-<Note>Make sure the [Fern GitHub app](https://github.com/apps/fern-api) is installed on your destination repository</Note>
+<Note>Make sure the [Fern GitHub app](https://github.com/apps/fern-api) is installed on your destination repository (not required for self-hosted generation)</Note>
 
 <AccordionGroup>
 <Accordion title="Release (recommended)">
@@ -846,6 +902,39 @@ Software license for the generated SDK.
 Specify which teams and users should review generated code. See [reviewers configuration](#reviewers-1).
 </ParamField>
 </Accordion>
+<Accordion title="Self-hosted">
+
+For [self-hosted SDK generation](/learn/sdks/deep-dives/self-hosted), configure the `github` property with `uri` and `token` instead of `repository`.
+
+```yml {6-10}
+groups: 
+  ts-sdk:
+    generators:
+      - name: fernapi/fern-typescript-sdk
+      ...
+        github: 
+          uri: "https://github.com/your-org/your-repo-name"
+          token: "${GITHUB_TOKEN}"
+          mode: "push"
+          branch: "main"
+```
+
+<ParamField path="uri" type="string" required={true} toc={true}>
+Full URL to your GitHub repository (e.g., `https://github.com/your-org/your-repo`).
+</ParamField>
+
+<ParamField path="token" type="string" required={true} toc={true}>
+GitHub Personal Access Token with repository write permissions. Use an environment variable reference (e.g., `${GITHUB_TOKEN}`).
+</ParamField>
+
+<ParamField path="mode" type="'push' | 'pull-request'" required={false} toc={true}>
+How to publish changes: `push` commits directly to the branch, `pull-request` opens a PR for review.
+</ParamField>
+
+<ParamField path="branch" type="string" required={false} toc={true}>
+Target branch for commits or pull requests.
+</ParamField>
+</Accordion>
 </AccordionGroup>
 
 #### `metadata`
@@ -885,6 +974,43 @@ Name of the individual developer, team, or organization that created and maintai
 Software license for the generated SDK.
 </ParamField>
 
+#### `autorelease`
+
+Enable or disable [Fern Autorelease](/learn/sdks/overview/autorelease) for an individual SDK. Alternatively, you can [configure autorelease globally for all SDKs](#autorelease-1).
+
+```yml title="generators.yml" {6}
+groups:
+  ts-sdk:
+    generators:
+      - name: fernapi/fern-typescript-sdk
+      ...
+        autorelease: true
+```
+
+<ParamField path="autorelease" type="boolean | object" default={false} required={false} toc={true}>
+  Set to `true` to enable Autorelease for this generator, `false` to disable it. Per-generator settings override the global [`autorelease`](#autorelease-1) configuration.
+</ParamField>
+
+<Accordion title="Enable with pull-based detection">
+
+Configure a cron schedule to periodically fetch and check for spec changes for this generator:
+
+```yml title="generators.yml" {6-8}
+groups:
+  ts-sdk:
+    generators:
+      - name: fernapi/fern-typescript-sdk
+      ...
+        autorelease:
+          cron:
+            schedule: "0 */6 * * *"  # Every 6 hours
+```
+
+<ParamField path="cron.schedule" type="string" required={true} toc={true}>
+  A cron expression defining how often to check for spec changes. Uses standard cron syntax.
+</ParamField>
+</Accordion>
+
 #### `snippets`
 
 Configures snippets for a particular generator.
@@ -903,14 +1029,14 @@ groups:
 The path to the generated snippets file.
 </ParamField>
 
-#### Override API authentication settings 
+#### Override API authentication settings
 
-Override authentication settings in your API spec for a specific SDK using the `api` configuration.
+Override authentication settings for a specific SDK using the `api` configuration.
 
 <AccordionGroup>
 <Accordion title="Single authentication scheme">
 
-Reference a pre-defined authentication scheme by name.
+Reference a [pre-defined authentication scheme](#auth-schemes) by name.
 
 ```yml title="generators.yml" {6-7}
 groups: 

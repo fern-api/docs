@@ -1,0 +1,109 @@
+## 3.69.1
+**`(internal):`** Regenerate older IR types with new TypeScript SDK generator.
+
+## 3.69.0
+**`(feat):`** [Beta] Add `fern docs md generate` command for generating MDX documentation from library
+source code. This feature requires a `libraries` configuration in docs.yml. The command
+is in beta and may change in future releases.
+
+
+## 3.68.1
+**`(fix):`** Fix grouped multi-API environment server handling to preserve `defaultUrl`, `urlTemplate`,
+and `variables` metadata when merging multiple OpenAPI specs with
+`group-multi-api-environments: true`. Previously, server URL templating metadata was silently
+dropped during the merge, causing generated SDKs to use malformed template-substituted URLs
+as defaults. Also fixes API name extraction for grouped base URL keys to use the clean
+`x-fern-default-url` value instead of the variable-substituted URL.
+
+
+## 3.68.0
+**`(feat):`** Add `folder-title-source` global setting in `docs.yml` under `settings`. When set,
+this value is used as the default `title-source` for all folder navigations that do not
+explicitly specify their own `title-source`. This allows configuring `frontmatter` or
+`filename` as the default title derivation strategy for all folders in one place.
+
+
+## 3.67.1
+**`(fix):`** Fix `title-source: frontmatter` in folder navigation to correctly pass the setting through
+to `buildNavigationForDirectory`. Previously, the `title-source` option was ignored when
+expanding folder configurations, so page titles and sidebar titles always derived from file
+names. Now, when `title-source: frontmatter` is set, page titles and the folder section title
+use the frontmatter `title` field.
+
+
+## 3.67.0
+**`(feat):`** Adds schema name and title collision detection for OpenAPI/AsyncAPI specs. When
+`title-as-schema-name` is enabled and multiple schemas share the same title, `fern check`
+now reports an error identifying the conflicting schemas. To opt in to automatic resolution,
+set `resolve-schema-collisions: true` in your generators.yml settings under api/specs:
+
+```yaml
+api:
+  specs:
+    - asyncapi: asyncapi.yml
+      settings:
+        title-as-schema-name: true
+        resolve-schema-collisions: true
+```
+
+When enabled, colliding titles are disambiguated with a numeric suffix (e.g. `OpenAI2`)
+and a warning is emitted instead of an error.
+
+
+**`(fix):`** Run OSS validation rules (e.g. schema title collision detection) during `fern generate`,
+not just during `fern check`. This ensures validation errors are surfaced before generation
+proceeds.
+
+
+## 3.66.0
+**`(feat):`** Add support for server URL templating in multi-URL environments. This extends the IR
+to support OpenAPI server variables for APIs with multiple base URLs.
+
+**New Fern definition schema fields for `MultipleBaseUrlsEnvironmentSchema`:**
+
+- `url-templates`: URL templates with variable placeholders for each base URL
+  ```yaml
+  url-templates:
+    base: "https://api.{region}.example.com/v1"
+    auth: "https://auth.{region}.example.com"
+  ```
+
+- `default-urls`: Default URLs when no variables are provided (from `x-fern-default-url`)
+  ```yaml
+  default-urls:
+    base: "https://api.us-east-1.example.com/v1"
+    auth: "https://auth.us-east-1.example.com"
+  ```
+
+- `variables`: Server variables for URL templating, keyed by base URL ID
+  ```yaml
+  variables:
+    base:
+      - id: region
+        default: us-east-1
+        values: [us-east-1, us-west-2, eu-west-1]
+  ```
+
+**ServerVariableSchema structure:**
+- `id`: Variable name as it appears in the URL template (e.g., `region`)
+- `default`: Default value for the variable
+- `values`: Optional enum of allowed values
+
+**OpenAPI to IR conversion:**
+Server variables from OpenAPI specs are now preserved in the IR rather than being
+exploded into multiple environment variants. This enables SDKs to expose server
+variables as constructor parameters with runtime URL interpolation.
+
+**`x-fern-default-url` extension:**
+When present on an OpenAPI server, specifies a separate default URL to use when
+no variables are provided, allowing the template URL and default URL to differ.
+
+
+## 3.65.1
+**`(fix):`** Fix `fern check --strict-broken-links` was not validating markdown files referenced by sections with paths.
+
+
+## 3.65.0
+**`(feat):`** Add `--generator` option to `fern generate` to run a specific generator by name. Filters within the resolved group (from `--group` or `default-group`) to only run the specified generator.
+
+

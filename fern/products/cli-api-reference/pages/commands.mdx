@@ -20,7 +20,10 @@ hideOnThisPage: true
 | Command | Description |
 |---------|-------------|
 | [`fern docs dev`](#fern-docs-dev) | Run local documentation preview server |
+| [`fern docs diff`](#fern-docs-diff) <Badge intent="warning" minimal>Beta</Badge> | Generate visual diffs between preview and production docs |
 | [`fern generate --docs`](#fern-generate---docs) | Build & publish documentation updates |
+| [`fern docs preview list`](#fern-docs-preview-list) | List all preview deployments |
+| [`fern docs preview delete`](#fern-docs-preview-delete) | Delete a preview deployment |
 
 ## SDK generation commands  
 
@@ -180,7 +183,7 @@ hideOnThisPage: true
 
     <CodeBlock title="terminal">
     ```bash
-    fern generate [--group <group>] [--api <api>] [--version <version>] [--preview] [--fernignore <path>]
+    fern generate [--group <group>] [--api <api>] [--version <version>] [--preview] [--fernignore <path>] [--local] [--force]
     ```
     </CodeBlock>
 
@@ -197,9 +200,14 @@ hideOnThisPage: true
 
     # Run all groups defined in the "frontend" alias
     fern generate --group frontend
+
+    # Run a specific group locally (self-hosted)
+    fern generate --group python-sdk --local
     ```
 
     You can also set an alias as your `default-group` in `generators.yml`, so running `fern generate` without any arguments will run all groups in that alias.
+
+    The `--group` flag can be combined with other flags like `--local` for [self-hosted SDK generation](/learn/sdks/deep-dives/self-hosted), `--preview` for local testing, or `--version` to specify the SDK version.
 
     ### preview
 
@@ -246,6 +254,31 @@ hideOnThisPage: true
     fern generate --fernignore ./custom-fernignore
     ```
 
+    ### local
+
+    Use `--local` to run SDK generation on your own machine instead of using Fern's cloud infrastructure. This is useful for organizations with strict security or compliance requirements. See [self-hosted SDKs](/learn/sdks/deep-dives/self-hosted) for setup instructions.
+
+    ```bash
+    # Generate all SDKs locally
+    fern generate --local
+
+    # Generate specific SDK group locally
+    fern generate --group python-sdk --local
+    ```
+
+    <Note>
+    A Docker daemon must be running on your machine, as SDK generation runs inside a Docker container.
+    </Note>
+
+    ### force
+
+    Use `--force` to skip confirmation prompts during generation. This is useful in CI/CD environments where interactive prompts would block the pipeline.
+
+    ```bash
+    # Generate without confirmation prompts
+    fern generate --group python-sdk --force
+    ```
+
   </Accordion>
 
   <Accordion title="fern check">
@@ -283,6 +316,10 @@ hideOnThisPage: true
     ```bash
     fern check --strict-broken-links
     ```
+
+    <Note>
+    For comprehensive link checking, use the [Fern Dashboard](https://dashboard.buildwithfern.com/), which validates both internal and external links on your live published site. This is recommended over `--strict-broken-links` because the Dashboard checks your actual published site and can verify external links that the CLI cannot.
+    </Note>
 
     ## Usage in a GitHub Action
 
@@ -343,6 +380,46 @@ hideOnThisPage: true
 
   </Accordion>
 
+  <Accordion title="fern docs preview list">
+
+    Use `fern docs preview list` to list all preview deployments for your organization.
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern docs preview list [--limit <number>] [--page <number>]
+    ```
+    </CodeBlock>
+
+    ### limit
+
+    Use `--limit` to specify the number of preview deployments to display per page.
+
+    ```bash
+    fern docs preview list --limit 20
+    ```
+
+    ### page
+
+    Use `--page` to specify which page of results to display.
+
+    ```bash
+    fern docs preview list --page 2
+    ```
+
+  </Accordion>
+
+  <Accordion title="fern docs preview delete">
+
+    Use `fern docs preview delete` to delete a preview deployment generated with `fern generate --docs --preview`. The `<url>` argument is the full preview URL to delete.
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern docs preview delete <url>
+    ```
+    </CodeBlock>
+
+  </Accordion>
+
   <Accordion title="fern docs dev">
 
     Use `fern docs dev` to run a local development server to preview your docs.
@@ -359,6 +436,33 @@ hideOnThisPage: true
 
     ```bash
     fern docs dev --port 57908
+    ```
+
+  </Accordion>
+
+  <Accordion title="fern docs diff">
+  <Badge intent="warning" minimal>Beta</Badge>
+
+    Use `fern docs diff` to generate visual diffs between your preview deployment and production docs. This command is intended for use in [GitHub Actions](https://github.com/fern-api/docs/blob/main/.github/workflows/preview-docs.yml). It captures screenshots of both versions and creates side-by-side comparison images.
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern docs diff <preview-url> <files..> [--output <output-dir>]
+    ```
+    </CodeBlock>
+
+    Pass the preview URL from `fern generate --docs --preview` and one or more MDX file paths. Diff images are saved to `.fern/diff` by default.
+
+    ```bash
+    fern docs diff acme-preview-abc123.docs.buildwithfern.com fern/pages/intro.mdx fern/pages/quickstart.mdx
+    ```
+
+    ### output
+
+    Use `--output` to specify a custom directory for diff images.
+
+    ```bash
+    fern docs diff acme-preview-abc123.docs.buildwithfern.com fern/pages/intro.mdx --output ./my-diffs
     ```
 
   </Accordion>

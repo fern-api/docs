@@ -1,0 +1,48 @@
+## 3.77.0
+**`(feat):`** Add support for bytes request and response body types in the `fern export` command.
+Previously, exporting APIs with bytes endpoints would fail with "bytes is not supported".
+Now bytes request bodies are exported as `application/octet-stream` with `format: binary`,
+and bytes/fileDownload/text/streaming response bodies are properly converted to their
+corresponding OpenAPI content types.
+
+
+## 3.76.0
+**`(feat):`** Add support for SSE discriminator context with `discriminatorContext` field in IR.
+Supports "data" (default) for discriminators within union data and "protocol" for
+SSE protocol-level discriminators, such as `event`.
+
+"data"-context discrimination :
+```
+event: message
+data: { "type": "completion", "content": "Hello!" }
+
+event: message
+data: { "type": "error", message: "Something went wrong!" }
+```
+
+"protocol"-context discrimination (use `x-fern-discriminator-context: protocol`):
+```
+event: completion
+data: { "content": "Hello!" }
+
+event: error
+data: { "message": "Something went wrong!" }
+```
+
+Example OpenAPI usage:
+```yaml
+SseEvent:
+  oneOf:
+    - $ref: '#/components/schemas/CompletionEvent'
+    - $ref: '#/components/schemas/ErrorEvent'
+  discriminator:
+    propertyName: event
+    x-fern-discriminator-context: protocol
+```
+
+
+## 3.75.0
+**`(chore):`** Remove deprecated V1 `python-docs` navigation item. Use the `library` navigation item
+with `libraries` config instead. See the library docs migration guide for details.
+
+

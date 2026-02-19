@@ -1,13 +1,15 @@
 ---
 title: Sync your gRPC specification
-subtitle: Automatically sync your Protocol Buffer changes to keep SDKs and docs up to date
+description: Automate gRPC specification syncing with Fern. Set up GitHub Actions, CI/CD pipelines, and scheduled updates for Protocol Buffer files.
 ---
 
 Keeping your gRPC specifications in sync with your codebase is crucial for maintaining accurate SDKs and documentation. Fern provides several automation options to streamline this process.
 
 ## GitHub Actions
 
-Use Fern's GitHub Action to automatically update SDKs and docs when your Protocol Buffer files change:
+Use Fern's GitHub Action to automatically update SDKs and documentation when your Protocol Buffer files change.
+
+<Markdown src="/snippets/buf-local-generation.mdx" />
 
 ```yaml title=".github/workflows/fern.yml"
 name: Fern
@@ -46,7 +48,13 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
-        
+
+      # Required if using local-generation: true
+      - name: Setup buf
+        uses: bufbuild/buf-setup-action@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Generate SDKs and docs
         uses: fern-api/action@v0
         with:
@@ -57,7 +65,7 @@ jobs:
 
 ## Protocol buffer validation
 
-Add validation steps for your Protocol Buffer files:
+Validate, lint, and check for breaking changes in your Protocol Buffer files before generating SDKs.
 
 ```yaml title=".github/workflows/proto-validation.yml"
 name: Protocol Buffer Validation
@@ -66,6 +74,7 @@ on:
   push:
     paths:
       - 'proto/**/*.proto'
+      - 'buf.yaml'
   pull_request:
     paths:
       - 'proto/**/*.proto'
@@ -76,21 +85,27 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
-        
+
       - name: Setup Protocol Buffer Compiler
         uses: arduino/setup-protoc@v2
         with:
           version: '23.4'
-          
+
+      - name: Setup buf
+        uses: bufbuild/buf-setup-action@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Lint Protocol Buffers
+        run: buf lint
+
       - name: Validate Protocol Buffer files
         run: |
           find proto -name "*.proto" -exec protoc --proto_path=proto --descriptor_set_out=/dev/null {} \;
-          
+
       - name: Check for breaking changes
-        run: |
-          # Use buf for breaking change detection
-          buf breaking --against '.git#branch=main'
-          
+        run: buf breaking --against '.git#branch=main'
+
       - name: Generate and validate with Fern
         uses: fern-api/action@v0
         with:
@@ -98,6 +113,73 @@ jobs:
         env:
           FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
 ```
+<AccordionGroup>
+<Accordion title="Optional: Push to Buf Schema Registry">
+
+If you're using [Buf Schema Registry](https://buf.build/product/bsr), add a step to publish your schemas:
+
+```yaml title=".github/workflows/buf-sync.yml"
+name: Buf Sync
+
+on:
+  push:
+    paths:
+      - 'proto/**/*.proto'
+      - 'buf.yaml'
+
+jobs:
+  buf-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup buf
+        uses: bufbuild/buf-setup-action@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Lint Protocol Buffers
+        run: buf lint
+
+      - name: Check for breaking changes
+        run: buf breaking --against '.git#branch=main'
+
+      - name: Generate and push to Buf Registry
+        run: |
+          buf generate
+          buf push
+        env:
+          BUF_TOKEN: ${{ secrets.BUF_TOKEN }}
+
+      - name: Generate SDKs with Fern
+        uses: fern-api/action@v0
+        with:
+          command: generate
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+```
+</Accordion>
+<Accordion title="Optional: Customize buf configuration">
+
+Optionally create a `buf.yaml` file to customize buf's linting rules, breaking change detection, and dependencies:
+
+```yaml title="buf.yaml"
+version: v1
+deps:
+  - buf.build/googleapis/googleapis
+  - buf.build/envoyproxy/protoc-gen-validate
+lint:
+  use:
+    - DEFAULT
+  except:
+    - UNARY_RPC
+breaking:
+  use:
+    - FILE
+```
+</Accordion>
+</AccordionGroup>
 
 ## Auto-sync from source
 
@@ -130,7 +212,12 @@ api:
 
 ## CI/CD integration
 
+Integrate Fern into your existing CI/CD pipelines to automatically generate SDKs and documentation.
+
 ### CircleCI
+
+<Markdown src="/snippets/buf-local-generation.mdx" />
+
 ```yaml title=".circleci/config.yml" {15-26}
 version: 2.1
 
@@ -164,6 +251,12 @@ jobs:
       - image: namely/protoc-all:1.51_1
     steps:
       - checkout
+      # Required if using local-generation: true
+      - run:
+          name: Install buf
+          command: |
+            curl -sSL "https://github.com/bufbuild/buf/releases/latest/download/buf-Linux-x86_64" -o /usr/local/bin/buf
+            chmod +x /usr/local/bin/buf
       - run:
           name: Validate Protocol Buffers
           command: |
@@ -171,6 +264,9 @@ jobs:
 ```
 
 ### GitLab CI
+
+<Markdown src="/snippets/buf-local-generation.mdx" />
+
 ```yaml title=".gitlab-ci.yml" {13-25}
 stages:
   - build
@@ -198,6 +294,10 @@ validate-proto:
 generate-sdks:
   stage: generate
   image: fernapi/fern:latest
+  # Required if using local-generation: true
+  before_script:
+    - curl -sSL "https://github.com/bufbuild/buf/releases/latest/download/buf-Linux-x86_64" -o /usr/local/bin/buf
+    - chmod +x /usr/local/bin/buf
   script:
     - fern generate
   only:
@@ -353,70 +453,9 @@ environments:
           package-name: "@yourcompany/payment-service-sdk"
 ```
 
-## Buf integration
-
-Use Buf for Protocol Buffer management and sync:
-
-```yaml title="buf.yaml"
-version: v1
-deps:
-  - buf.build/googleapis/googleapis
-  - buf.build/envoyproxy/protoc-gen-validate
-lint:
-  use:
-    - DEFAULT
-  except:
-    - UNARY_RPC
-breaking:
-  use:
-    - FILE
-```
-
-```yaml title=".github/workflows/buf-sync.yml"
-name: Buf Sync
-
-on:
-  push:
-    paths:
-      - 'proto/**/*.proto'
-      - 'buf.yaml'
-
-jobs:
-  buf-sync:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-        
-      - name: Setup Buf
-        uses: bufbuild/buf-setup-action@v1
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          
-      - name: Lint Protocol Buffers
-        run: buf lint
-        
-      - name: Check for breaking changes
-        run: buf breaking --against '.git#branch=main'
-        
-      - name: Generate and push to Buf Registry
-        run: |
-          buf generate
-          buf push
-        env:
-          BUF_TOKEN: ${{ secrets.BUF_TOKEN }}
-          
-      - name: Generate SDKs with Fern
-        uses: fern-api/action@v0
-        with:
-          command: generate
-        env:
-          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
-```
-
 ## gRPC reflection sync
 
-For services with gRPC reflection enabled:
+Automatically sync Protocol Buffer definitions from running gRPC services that have server reflection enabled:
 
 ```python title="scripts/sync_from_reflection.py"
 import grpc
@@ -469,4 +508,4 @@ if __name__ == "__main__":
     sync_from_grpc_reflection("localhost:50051", "proto/")
 ```
 
-This ensures that any changes to your gRPC services are automatically reflected in your SDKs and documentation, maintaining consistency across your entire API ecosystem.                
+This ensures that any changes to your gRPC services are automatically reflected in your SDKs and documentation, maintaining consistency across your entire API ecosystem.                                

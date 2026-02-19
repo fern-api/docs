@@ -1,0 +1,51 @@
+## 4.57.1
+**`(fix):`** Only copy `custom_pagination.py` into generated SDKs when custom pagination endpoints
+are present, and only copy `pagination.py` when standard pagination endpoints are present.
+
+
+## 4.57.0
+**`(feat):`** Add `custom_transport: true` generator config option that exposes an `http_client` parameter
+on generated client constructors for custom httpx transport injection.
+
+**Primary use case:** Enables PKCE (Proof Key for Code Exchange) OAuth flows and other
+authentication schemes that require request interception at the transport layer.
+
+**Configuration:**
+```yaml
+generators:
+  - name: fernapi/fern-python-sdk
+    config:
+      custom_transport: true
+```
+
+**Generated parameter types:**
+- Sync client: `http_client: typing.Optional[httpx.BaseTransport]`
+- Async client: `http_client: typing.Optional[httpx.AsyncBaseTransport]`
+
+**Use cases:**
+- PKCE OAuth authentication flows requiring code challenge/verifier injection
+- Custom request signing or authentication header manipulation
+- Request/response interception and modification
+- Mock transports for testing without network calls
+- Custom retry logic beyond the built-in exponential backoff
+
+**Example pattern (Twilio SDK style):**
+```python
+# SDK developer provides a factory method in custom code
+class ValidationClient:
+    @classmethod
+    def create(cls, account_sid: str, auth_token: str) -> httpx.BaseTransport:
+        # Custom transport with PKCE or validation logic
+        return CustomValidationTransport(account_sid, auth_token)
+
+# End-user usage
+from myapi import MyClient, ValidationClient
+
+validation_transport = ValidationClient.create("account_sid", "auth_token")
+client = MyClient(http_client=validation_transport, base_url="https://api.example.com")
+```
+
+This feature allows SDK developers to defer transport-specific logic to custom code while
+the generator simply threads the transport through to `httpx.Client`/`httpx.AsyncClient`.
+
+

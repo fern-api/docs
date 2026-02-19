@@ -111,6 +111,14 @@ navbar-links:
   [`metadata` configuration](/learn/docs/getting-started/global-configuration#seo-metadata-configuration).
 </ParamField>
 
+<ParamField path="header" type="string" required={false} toc={true}>
+  Path to a custom React component file (TSX or JSX) to replace Fern's default header. The component must have a default export. Learn more about [custom header and footer components](/learn/docs/customization/header-and-footer).
+</ParamField>
+
+<ParamField path="footer" type="string" required={false} toc={true}>
+  Path to a custom React component file (TSX or JSX) to replace Fern's default footer. The component must have a default export. Learn more about [custom header and footer components](/learn/docs/customization/header-and-footer).
+</ParamField>
+
 ## Instances configuration
 
 An `instance` is the backend of a distinct docs website. Each instance is published to a unique domain using the `--instance` flag. It is most common to use instances to configure staging and production docs which publish to separate URLs.
@@ -212,6 +220,7 @@ logo:
   dark: assets/images/logo-dark.svg
   light: assets/images/logo-light.svg
   right-text: Docs
+  height: 28
 ```
 
 <ParamField path="logo.href" type="string" required={false} toc={true}>
@@ -228,6 +237,10 @@ logo:
 
 <ParamField path="logo.right-text" type="string" required={false} toc={true}>
   Text to display to the right of the logo image. This is useful for adding a label like "Docs" or "API" next to your logo.
+</ParamField>
+
+<ParamField path="logo.height" type="number" required={false} toc={true}>
+  Custom height for the logo in pixels. Use this to adjust the logo size if the default height doesn't fit your design.
 </ParamField>
 
 ## Redirects configuration
@@ -535,6 +548,7 @@ layout:
   sidebar-width: 336px
   searchbar-placement: header
   tabs-placement: header
+  switcher-placement: sidebar
   content-alignment: left
   hide-nav-links: true
   hide-feedback: true
@@ -566,6 +580,12 @@ layout:
 
 <ParamField path="layout.tabs-placement" type="string" required={false} default="sidebar" toc={true}>
   Set the placement of the tabs. Can be one of `header` or `sidebar`. 
+
+  <Note>This setting is ignored when `disable-header` is set to true.</Note>
+</ParamField>
+
+<ParamField path="layout.switcher-placement" type="string" required={false} default="header" toc={true}>
+  Set the placement of the product and version switchers. Can be one of `header` or `sidebar`. 
 
   <Note>This setting is ignored when `disable-header` is set to true.</Note>
 </ParamField>
@@ -634,6 +654,8 @@ settings:
   http-snippets: false
   hide-404-page: true
   use-javascript-as-typescript: false
+  folder-title-source: frontmatter
+  substitute-env-vars: true
 ```
 
 <ParamField path="settings.search-text" type="string" required={false} default="Search" toc={true}>
@@ -691,6 +713,28 @@ settings:
   If set to true, all analytics integrations configured in the [`analytics` configuration](#analytics-configuration) will be disabled. This includes Google Analytics 4, Google Tag Manager, PostHog, and any other analytics providers you have configured.
 </ParamField>
 
+<ParamField path="settings.folder-title-source" type="'filename' | 'frontmatter'" required={false} default="filename" toc={true}>
+  Sets the default method for deriving page and section titles across all [folder navigations](/learn/docs/configuration/navigation#add-a-folder). By default (`filename`), titles are derived from file names. Set to `frontmatter` to use the `title` field from each file's frontmatter instead (falls back to filename if not set). Individual folders can override this global default using the per-folder [`title-source`](/learn/docs/configuration/navigation#title-source) setting.
+</ParamField>
+
+<ParamField path="settings.substitute-env-vars" type="boolean" required={false} default="false" toc={true}>
+  If set to true, replaces `${ENV_VAR}` expressions with environment variable values at build time. Useful for injecting API keys, base URLs, or version numbers into your docs.
+
+  ```mdx title="example.mdx"
+  Connect to our API at ${API_BASE_URL}/v1
+
+  Your API key: ${API_KEY}
+  ```
+
+  Substitution works in Markdown/MDX files and API specifications (OpenAPI, Fern definitions). JavaScript files are excluded to avoid conflicts with template literals.
+
+  To output a literal `${VAR}`, escape it as `\$\{VAR\}`.
+
+  <Note>
+  During local preview (`fern docs dev`), undefined variables resolve to empty strings. During publishing, undefined variables cause the build to fail.
+  </Note>
+</ParamField>
+
 ## Page actions configuration
 
 Configure the page action buttons that appear throughout your documentation. By default, **Copy Page** (`copy-page`), **View as Markdown** (`view-as-markdown`), **Ask AI** (`ask-ai`), **ChatGPT** (`chatgpt`), **Claude** (`claude`), and **Cursor** (`cursor`) are enabled.
@@ -709,11 +753,11 @@ page-actions:
 </ParamField>
 
 <ParamField path="page-actions.options.copy-page" type="boolean" required={false} default="true" toc={true}>
-  When enabled, displays a button that allows users to copy the entire page content to their clipboard for easy sharing or reference.
+  When enabled, displays a button that allows users to copy the entire page content to their clipboard for easy sharing or reference. To control what content appears in the copied output, use [`<llms-ignore>`](/learn/docs/ai-features/llms-txt#content-for-humans-only) tags.
 </ParamField>
 
 <ParamField path="page-actions.options.view-as-markdown" type="boolean" required={false} default="true" toc={true}>
-  When enabled, displays a button that allows users to view the raw Markdown source of the current page.
+  When enabled, displays a button that allows users to view the raw Markdown source of the current page. To control what content appears in the Markdown output, use [`<llms-ignore>`](/learn/docs/ai-features/llms-txt#content-for-humans-only) tags.
 </ParamField>
 
 <ParamField path="page-actions.options.ask-ai" type="boolean" required={false} default="true" toc={true}>
@@ -729,11 +773,11 @@ page-actions:
 </ParamField>
 
 <ParamField path="page-actions.options.cursor" type="boolean" required={false} default="true" toc={true}>
-  When enabled, displays an "Open in Cursor" button that allows users to open the page content in Cursor IDE with AI-powered code assistance. 
+  When enabled, displays an "Open in Cursor" button that allows users to open the page content in Cursor IDE with AI-powered code assistance. Requires [Ask AI](/learn/docs/ai-features/ask-fern/overview) to be enabled.
 </ParamField>
 
 <ParamField path="page-actions.options.vscode" type="boolean" required={false} default="false" toc={true}>
-  When enabled, displays an "Open in VS Code" button that allows users to open the page content in Visual Studio Code for editing and development.
+  When enabled, displays an "Open in VS Code" button that allows users to open the page content in Visual Studio Code for editing and development. Requires [Ask AI](/learn/docs/ai-features/ask-fern/overview) to be enabled.
 </ParamField>
 
 ### Custom page actions
@@ -861,8 +905,6 @@ landing-page:
   The slug can also be overridden in the frontmatter of the landing page Markdown file.
 </ParamField>
 
-See [Vapi's landing page live](https://docs.vapi.ai/) and the associated [Markdown file](https://github.com/VapiAI/docs/blob/main/fern/quickstart/introduction.mdx?plain=1).
-
 ## SEO metadata configuration
 
 <Note title="Looking to set metadata for a single page?">
@@ -905,30 +947,35 @@ Specify [Ask Fern](/learn/ask-fern/getting-started/what-is-ask-fern) to control 
 
 <Markdown src="/snippets/ask-fern-config.mdx" />
 
+## AI examples configuration
+
+Configure [AI-generated examples](/learn/docs/ai-features/ai-examples) for your API Reference pages.
+
+```yaml docs.yml
+ai-examples:
+  enabled: true  # Enabled by default
+  style: "Use names and emails that are inspired by plants."
+```
+
+<ParamField path="ai-examples.enabled" type="boolean" required={false} default="true" toc={true}>
+  Controls AI-generated examples for API Reference pages. When enabled, realistic example values are generated instead of placeholder values like `"string"`. Manual examples in `x-fern-examples` or OpenAPI `example` properties always take priority. Set to `false` to disable AI examples entirely.
+</ParamField>
+
+<ParamField path="ai-examples.style" type="string" required={false} toc={true}>
+  Instructions to guide the content and style of AI-generated examples in your API Reference. Use this to align examples with your brand or domain. Limited to 500 characters.
+</ParamField>
+
 ## Experimental configuration
 
-Configure experimental and AI features in the `experimental` section of your `docs.yml`.
+Configure experimental features in the `experimental` section of your `docs.yml`.
 
 ```yaml docs.yml
 experimental:
-  # AI-generated examples (enabled by default)
-  ai-example-style-instructions: "Use names and emails that are inspired by plants."
-  ai-examples: false  # Set to false to disable
-
-  # Dynamic SDK snippets (disabled by default)
-  dynamic-snippets: true
+  # Dynamic SDK snippets (enabled by default)
+  dynamic-snippets: false  # Set to false to disable
 ```
 
-<ParamField path="experimental.ai-example-style-instructions" type="string" required={false} toc={true}>
-  Instructions to guide the content and style of [AI-generated examples](/learn/docs/ai-features/ai-examples) in your API Reference. Use this to align examples with your brand or domain. Example: "Use names and emails that are inspired by plants."
+<ParamField path="experimental.dynamic-snippets" type="boolean" required={false} default="true" toc={true}>
+  Controls dynamic SDK snippets that allow users to modify parameters and see code examples update in real time. Dynamic snippets are enabled by default and supported across all languages. Follow the [SDK snippets setup instructions](/docs/api-references/sdk-snippets) to configure. Set to false to use static SDK snippets instead.
 </ParamField>
-
-<ParamField path="experimental.ai-examples" type="boolean" required={false} default="true" toc={true}>
-  Controls [AI-generated examples](/learn/docs/ai-features/ai-examples) for API Reference pages. AI examples are enabled by default and show realistic data instead of placeholder values like `"string"`. Manual examples in `x-fern-examples` or OpenAPI `example` properties always take priority. Set to false to disable AI examples entirely.
-</ParamField>
-
-<ParamField path="experimental.dynamic-snippets" type="boolean" required={false} default="false" toc={true}>
-  Enables dynamic SDK snippets that allow users to modify parameters and see code examples update in real time. When enabled, follow the [SDK snippets setup instructions](/docs/api-references/sdk-snippets) to configure.
-</ParamField>
-
 

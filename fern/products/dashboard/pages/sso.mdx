@@ -1,0 +1,168 @@
+---
+title: Set up Single Sign-On (SSO)
+description: Let teammates sign in to Fern with your IdP (SAML or OIDC)
+---
+
+<Markdown src="/snippets/enterprise-plan.mdx" />
+
+Set up Single Sign-On (SSO) to sign in to Fern using your existing identity provider.
+
+SSO setup requires working with Fern to exchange configuration values (like callback URLs and entity IDs). To get started, select your identity provider below (Okta, Google Workspace, or Microsoft Entra), then choose SAML or OIDC.
+
+<Note title="Using another provider?">
+  If you use another IdP, Fern will help you configure it. Reach out via Slack or support@buildwithfern.com to get started.
+</Note >
+
+<AccordionGroup>
+<Accordion title="Okta">
+
+<Tabs>
+  <Tab title="SAML">
+    <Steps>
+      <Step title="Receive configuration values from Fern">
+        Fern will send you the SSO URL and Audience URI through a secure channel.
+      </Step>
+
+      <Step title="Create and configure application in Okta">
+        In **Applications**, create a new app integration using **SAML 2.0**. Configure with these values:
+
+        | Field | Value |
+        | ----- | ----- |
+        | Single sign-on URL | [value from Fern] |
+        | Audience URI | [value from Fern] |
+        | Name ID format | `EmailAddress` |
+
+        Then, add attribute statements:
+        | Name   | Value                                  |
+        | ------ | -------------------------------------- |
+        | `name` | `user.firstName + " " + user.lastName` |
+        | `email`| `user.email`                           |
+      </Step>
+
+      <Step title="Send Fern your IdP metadata">
+        From the **Sign-On** tab, copy the Metadata URL and X.509 certificate. Send them back to Fern. Fern will enable the connection and run a test login with you.
+      </Step>
+
+      <Step title="Disable IdP-initiated login">
+        In the **General** tab under **App visibility**, enable **Do not display application icon to users**. This prevents IdP-initiated login flows, which carry security risks.
+      </Step>
+
+      <Step title="Assign users">
+        Assign the people who should access Fern.
+      </Step>
+    </Steps>
+  </Tab>
+
+  <Tab title="OIDC">
+    <Steps>
+      <Step title="Receive configuration values from Fern">
+        Fern will send you the Redirect URI through a secure channel.
+      </Step>
+
+      <Step title="Create and configure application in Okta">
+        In **Applications**, create a new **Web Application** using OIDC. Use Authorization Code grant and set the Redirect URI to the value Fern provided.
+      </Step>
+
+      <Step title="Send Fern your IdP credentials">
+        Share the Client ID, Client Secret, and your Okta domain (e.g., `<your-tenant>.okta.com`) back to Fern. Fern will enable the connection and run a test login with you.
+      </Step>
+
+      <Step title="Disable IdP-initiated login">
+        In the **General** tab under **App visibility**, enable **Do not display application icon to users**. This prevents IdP-initiated login flows, which carry security risks.
+      </Step>
+
+      <Step title="Assign users">
+        Assign the people who should access Fern.
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
+
+</Accordion>
+<Accordion title="Google Workspace">
+
+<Tabs>
+  <Tab title="SAML">
+    <Steps>
+      <Step title="Receive configuration values from Fern">
+        Fern will send you the ACS URL and Entity ID through a secure channel.
+      </Step>
+
+      <Step title="Create and configure application in Google">
+        In **Web and mobile apps**, choose **Add app → Add custom SAML app**. On **Service provider details**, enter these values:
+
+        | Field | Value |
+        | ----- | ----- |
+        | ACS URL | [value from Fern] |
+        | Entity ID | [value from Fern] |
+        | Name ID format | `EMAIL` |
+        | Name ID | `Primary email` |
+
+        Then, add attribute statements:
+        | Google Directory Attribute | App Attribute |
+        | -------------------------- | ------------- |
+        | `First name`               | `firstName`   |
+        | `Last name`                | `lastName`    |
+      </Step>
+
+      <Step title="Send Fern your IdP metadata">
+        Copy the SSO URL, Entity ID, and X.509 certificate from Google. Send them to Fern. Fern will enable the connection and run a test login with you.
+      </Step>
+
+      <Step title="Assign users">
+        Assign the people who should access Fern.
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
+
+</Accordion>
+<Accordion title="Microsoft Entra">
+
+<Tabs>
+  <Tab title="SAML">
+    <Steps>
+      <Step title="Create an application">
+        Under **Enterprise applications**, select **New application → Create your own application → Non-gallery**.
+      </Step>
+
+      <Step title="Receive configuration values from Fern">
+        Fern will send you the Identifier (Entity ID) and Reply URL (ACS) through a secure channel.
+      </Step>
+
+      <Step title="Configure SAML">
+        In **Single Sign-On**, choose **SAML** and enter these values:
+
+        | Field | Value |
+        | ----- | ----- |
+        | Identifier (Entity ID) | [value from Fern] |
+        | Reply URL (ACS) | [value from Fern] |
+        | Name ID | `user.primaryauthoritativeemail` (email) |
+
+        Then, add attribute statements:
+
+        | Name    | Value              |
+        | ------- | ------------------ |
+        | `name`  | `user.displayname` |
+        | `email` | `user.mail`        |
+      </Step>
+
+      <Step title="Send Fern your IdP metadata">
+        From **SAML Certificates**, copy the **App Federation Metadata URL**. Send it to Fern. Fern will enable the connection and run a test login with you.
+      </Step>
+
+      <Step title="Disable IdP-initiated login">
+        To prevent IdP-initiated login flows (which carry security risks), do not distribute the User access URL.
+
+        Optionally, create a Conditional Access policy to block sign-ins that don't originate from your service provider.
+      </Step>
+
+      <Step title="Assign users">
+        In **Users and groups**, add the people who should access Fern.
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
+
+</Accordion>
+</AccordionGroup>

@@ -1,13 +1,15 @@
 ---
 title: Tabs and tab variants
-description: Organize your documentation with tabs and show different content variations using tab variants.
+description: Learn how to configure tabs and tab variants in Fern documentation. Group content sections with custom icons and display multiple perspectives.
 ---
 
 Tabs let you group sections of your documentation together, while tab variants allow you to display different content perspectives within a single tab.
 
 ## Tabs
 
-Add `tabs` to group sections together. The example below shows tabs for `Help Center`, `API Reference`, and an external link to `Github`. Each tab has a `title` and `icon`. 
+Add `tabs` to group sections together. The example below shows tabs for `Help Center`, `API Reference`, and an external link to `Github`. Each tab has a `display-name` and `icon`.
+
+In the `navigation` section, each tab reference must include either a `layout` (for content) or `variants` (for [tab variants](#tab-variants)). Tabs with an `href` property are external links and must not include `layout` or `variants`.
 
 <CodeBlock>
 {/* <!-- vale off --> */}
@@ -26,20 +28,20 @@ tabs:
     href: https://github.com/fern-api/fern
     target: _blank # Link opens in a new tab
     
- navigation: 
+navigation: 
   - tab: api
     layout: 
       - section: Introduction
-          contents: 
-            - page: My page
-                path: my-page.mdx
-        - api: API Reference   
+        contents: 
+          - page: My page
+            path: my-page.mdx
+      - api: API Reference   
   - tab: help
     layout: 
       - section: Help center
         contents: 
           - page: Contact us
-              path: contact-us.mdx
+            path: contact-us.mdx
   - tab: github
 ```
 {/* <!-- vale on --> */}
@@ -55,9 +57,9 @@ Here's an example of how a tabs implementation renders:
   <img src="./images/tabs-sidebar.png" alt="Tabs displayed in the sidebar (default)" />
 </Frame>
 
-### Tabs placement
+### Tabs placement and styling
 
-Tabs display in the left sidebar by default. To display them horizontally, set `tabs-placement` to `header` in your [layout configuration](/docs/configuration/site-level-settings#layout-configuration).
+Tabs display in the left sidebar by default. To display them horizontally, [set `tabs-placement` to `header`](/learn/docs/configuration/site-level-settings#layouttabs-placement).
 
 <CodeBlock title="docs.yml">
 ```yaml
@@ -66,10 +68,72 @@ layout:
 ```
 </CodeBlock>
 
+You can also change the visual style of tabs using the [`theme.tabs`](/learn/docs/configuration/site-level-settings#themetabs) setting.
+
+<CodeBlock title="docs.yml">
+```yaml
+theme:
+  tabs: bubble
+```
+</CodeBlock>
+
+### Tab properties
+
+<ParamField path="display-name" type="string" required={true}>
+  The name shown in the tab header
+</ParamField>
+
+<ParamField path="icon" type="string">
+  <Markdown src="/snippets/icons.mdx" />
+</ParamField>
+
+<ParamField path="slug" type="string">
+  Custom URL slug for the tab
+</ParamField>
+
+<ParamField path="skip-slug" type="boolean">
+  Exclude the tab slug from URLs
+</ParamField>
+
+<ParamField path="hidden" type="boolean">
+  Hide the tab from navigation
+</ParamField>
+
+<ParamField path="layout" type="list">
+  Navigation structure for the tab's content. Required unless the tab uses `variants` or `href`.
+</ParamField>
+
+<ParamField path="variants" type="list">
+  List of [tab variants](#tab-variants) for displaying different content perspectives. Use instead of `layout`.
+</ParamField>
+
+<ParamField path="href" type="string">
+  External URL. When set, clicking the tab redirects to this URL. Tabs with `href` must not include `layout` or `variants`.
+</ParamField>
+
+<ParamField path="target" type="string">
+  Where the link opens. One of `_blank`, `_self`, `_parent`, or `_top`.
+</ParamField>
+
+<ParamField path="changelog" type="string">
+  Path to a [changelog](/learn/docs/content/changelogs) folder relative to the `fern` directory
+</ParamField>
+
+<ParamField path="viewers" type="string | list">
+  Role-based access control for the tab
+</ParamField>
+
+<ParamField path="orphaned" type="boolean">
+  When true, roles don't inherit from parent elements
+</ParamField>
+
+<ParamField path="feature-flag" type="string | object">
+  Conditional display configuration
+</ParamField>
 
 ## Tab variants
 
-Tab variants let you display different content variations within a single tab, and [support RBAC](/learn/docs/authentication/rbac). This is useful for showing different user types, implementation approaches, or experience levels without creating separate tabs.
+Tab variants let you display different content variations within a single tab, and [support RBAC](/learn/docs/authentication/features/rbac). This is useful for showing different user types, implementation approaches, or experience levels without creating separate tabs.
 
 <Tip title="When to use variants vs. tabs">
   Use **variants** for different perspectives on the same content area (REST vs. GraphQL, beginner vs. advanced). Use **tabs** for completely different documentation sections (guides vs. API Reference).
@@ -155,7 +219,10 @@ navigation:
   Role-based access control for the variant
 </ParamField>
 
+<ParamField path="orphaned" type="boolean">
+  When true, roles don't inherit from parent elements
+</ParamField>
+
 <ParamField path="feature-flag" type="string | object">
   Conditional display configuration
 </ParamField>
-
