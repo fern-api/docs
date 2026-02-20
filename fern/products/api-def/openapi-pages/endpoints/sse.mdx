@@ -72,6 +72,36 @@ components:
           type: string
 ```
 
+## Custom terminator
+
+Some SSE APIs send a standalone terminator message to signal that the stream is complete. For example, 
+OpenAI's API sends `[DONE]` as a final message. This terminator is not parsed as JSON — it is a raw 
+string that indicates the end of the stream.
+
+You can specify a custom terminator using the `terminator` field:
+
+```yaml title="openapi.yml" {4-6}
+paths:
+  /logs:
+    post:
+      x-fern-streaming: 
+        format: sse
+        terminator: "[DONE]"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Chat"
+components:
+  schemas:
+    Chat:
+      type: object
+      properties:
+        text:
+          type: string
+```
+
 ## `Stream` parameter
 
 It has become common practice for endpoints to have a `stream` parameter that 
@@ -80,12 +110,13 @@ class way.
 
 Simply specify the `stream-condition` as well as the ordinary response and the streaming response: 
 
-```yaml title="openapi.yml" {4-10}
+```yaml title="openapi.yml" {4-11}
 paths:
   /logs:
     post:
       x-fern-streaming: 
         format: sse
+        terminator: "[DONE]"
         stream-condition: $request.stream
         response: 
           $ref: '#/components/schemas/Chat'
