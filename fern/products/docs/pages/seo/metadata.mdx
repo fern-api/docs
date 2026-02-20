@@ -1,10 +1,10 @@
 ---
 title: Configure SEO metadata
 description: Configure SEO metadata in Fern docs with page-level frontmatter and site-wide settings. Control titles, descriptions, and social media previews.
-max-toc-depth: 2
+max-toc-depth: 3
 ---
 
-When you want to customize how your pages appear in search results or social previews, you can set defaults [at the site level](#website-metadata) or override them on [individual pages](#page-level-configuration). Keep titles between 50–60 characters and descriptions between 150–160 characters for optimal display.
+When you want to customize how your pages appear in search results or social previews, you can set defaults [at the site level](#site-wide-defaults) or override them on [individual pages](#page-level-overrides).
 
 <Note>
     The metadata configurations on this page are for SEO and social tags that aren't visible to users. For visible footer links, see [footer links configuration](/learn/docs/configuration/site-level-settings#footer-links-configuration).
@@ -14,50 +14,243 @@ When you want to customize how your pages appear in search results or social pre
 
 Fern looks for metadata values in this order:
 
-1. **Page frontmatter** - Custom SEO values for a specific page
-2. **Site-level `docs.yml`** - Default SEO values for all pages
-3. **Automatic defaults** - Generated from your page's existing title, description, etc.
+1. **Page frontmatter** — Custom SEO values for a specific page
+2. **Site-level `docs.yml`** — Default SEO values for all pages
+3. **Automatic defaults** — Generated from your page's existing `title`, `description`, `subtitle`, or `excerpt` fields
 
-<Info title="Example"> 
+<Info title="Example">
     `og:image` is the image that appears in social media previews. If you don't set `og:image` in a page's frontmatter, Fern uses the site-wide `og:image` from `docs.yml`. If neither is configured, the tag is omitted entirely.
 </Info>
 
+## Site-wide defaults
 
-## What Fern automatically generates
+Set default SEO metadata for your entire site in `docs.yml`. These apply to all pages unless overridden by page-specific metadata.
 
-For every page, Fern creates these SEO tags in your HTML:
+```yaml docs.yml
+metadata:
+  # Core metadata
+  og:site_name: "Square Developer Documentation"
+  og:title: "Square Developer Platform | Payments, Commerce & Banking APIs"
+  og:description: "Build with Square's suite of APIs and SDKs. Accept payments, manage inventory, create loyalty programs, and access financial services."
+  og:url: "https://developer.squareup.com/docs"
+  og:locale: "en_US"
+  canonical-host: "developer.squareup.com"
 
-<AccordionGroup>
-<Accordion title="HTML meta tags">
-- `<title>` tag with site-wide suffix (e.g., "Page Title | Your Site Name")
-- Meta description (pulled from your `description`, `subtitle`, or `excerpt` fields)
-- Meta keywords (when you provide them)
-- Canonical URL (from your page slug or `canonical-url` override)
-- Robots meta tags (`noindex`/`nofollow` when configured)
-- Favicon link tag
-</Accordion>
-<Accordion title="Open Graph tags (for LinkedIn, Slack, Discord, etc.)">
-- `og:title`, `og:description`, `og:image` - What appears in social previews
-- `og:url` - Canonical URL of the page
-- `og:site_name` - Your website name
-- `og:locale` - Content language (e.g., "en_US")
-- `og:image:width`, `og:image:height` - Image dimensions
-</Accordion>
-<Accordion title="Twitter Card tags">
-- `twitter:title`, `twitter:description`, `twitter:image` - What appears in Twitter/X previews
-- `twitter:site`, `twitter:creator` - Your Twitter handles
-- `twitter:card` - Card type (e.g., "summary_large_image")
-</Accordion>
-</AccordionGroup>
+  # Social image
+  og:image: "https://developer.squareup.com/images/docs-social-card.png"
+  og:image:width: 1200
+  og:image:height: 630
+  og:logo: "https://developer.squareup.com/images/square-logo.png"
 
-## Website metadata
+  # Twitter / X
+  twitter:title: "Square Developer Platform Documentation"
+  twitter:description: "Integrate payments, point-of-sale, inventory, and financial services into your applications with Square's developer platform."
+  twitter:handle: "@SquareDev"
+  twitter:image: "https://developer.squareup.com/images/twitter-card.png"
+  twitter:site: "@Square"
+  twitter:card: "summary_large_image"
+```
 
-Set default SEO metadata for your entire documentation site in [`docs.yml`](/docs/configuration/site-level-settings). These settings apply to all pages unless overridden by page-specific metadata.
+### Core metadata
 
-<Markdown src="/snippets/seo-metadata-site.mdx" />
+Identity and descriptive fields used by search engines and shared across social platforms. Keep titles between 50–60 characters and descriptions between 150–160 characters for optimal display. Set `canonical-host` if your docs are accessible at multiple URLs (e.g., a custom domain and a `buildwithfern.com` subdomain) to tell search engines which URL is authoritative.
 
-## Page-level configuration
+<ParamField path="metadata.og:site_name" type="string" required={false} toc={true}>
+  The name of your website for Open Graph tags.
+</ParamField>
 
-Configure SEO metadata in your page's [frontmatter](/docs/configuration/page-level-settings) to control how individual pages appear in search results and social media shares. These settings override site-wide settings.
+<ParamField path="metadata.og:title" type="string" required={false} toc={true}>
+  The title shown in social media previews.
+</ParamField>
 
-<Markdown src="/snippets/seo-metadata-page.mdx" />
+<ParamField path="metadata.og:description" type="string" required={false} toc={true}>
+  The description shown in social media previews.
+</ParamField>
+
+<ParamField path="metadata.og:url" type="string" required={false} toc={true}>
+  The canonical URL of your documentation.
+</ParamField>
+
+<ParamField path="metadata.og:locale" type="string" required={false} toc={true}>
+  The locale of your content (e.g., `en_US`).
+</ParamField>
+
+<ParamField path="metadata.canonical-host" type="string" required={false} toc={true}>
+  The host of your documentation website. Used to set the canonical URL for metadata tags and documents like the sitemap. Defaults to the URL defined in `instances`.
+</ParamField>
+
+### Social image
+
+The image displayed when your docs are shared on LinkedIn, Slack, Discord, and other platforms. Use a 1200x630px image for the best display across platforms — this is the standard Open Graph size and will render correctly in most previews. Avoid embedding text in the image since it may be cropped on some platforms.
+
+<ParamField path="metadata.og:image" type="string" required={false} toc={true}>
+  The image shown in social media previews. Recommended size is 1200x630 pixels.
+</ParamField>
+
+<ParamField path="metadata.og:image:width" type="number" required={false} toc={true}>
+  The width of your Open Graph image in pixels.
+</ParamField>
+
+<ParamField path="metadata.og:image:height" type="number" required={false} toc={true}>
+  The height of your Open Graph image in pixels.
+</ParamField>
+
+<ParamField path="metadata.og:logo" type="string" required={false} toc={true}>
+  URL to your company logo.
+</ParamField>
+
+### Twitter / X
+
+Controls how your docs appear in Twitter Card previews when shared on X.
+
+<ParamField path="metadata.twitter:title" type="string" required={false} toc={true}>
+  The title shown in Twitter Card previews.
+</ParamField>
+
+<ParamField path="metadata.twitter:description" type="string" required={false} toc={true}>
+  The description shown in Twitter Card previews.
+</ParamField>
+
+<ParamField path="metadata.twitter:handle" type="string" required={false} toc={true}>
+  Your company's Twitter handle.
+</ParamField>
+
+<ParamField path="metadata.twitter:image" type="string" required={false} toc={true}>
+  The image shown in Twitter Card previews.
+</ParamField>
+
+<ParamField path="metadata.twitter:site" type="string" required={false} toc={true}>
+  The Twitter handle for your website.
+</ParamField>
+
+<ParamField path="metadata.twitter:card" type="string" required={false} toc={true}>
+  The Twitter Card type. Options are `summary`, `summary_large_image`, `app`, or `player`.
+</ParamField>
+
+## Page-level overrides
+
+Configure SEO metadata in your page's frontmatter to control how individual pages appear in search results and social shares. These settings override site-wide defaults.
+
+<Info>
+  Only the documented SEO fields are added to the HTML `<head>` as meta tags. Custom frontmatter fields won't automatically appear in your page metadata. To add custom metadata, use [custom JavaScript](/learn/docs/customization/custom-css-js#custom-javascript).
+</Info>
+
+<CodeBlock title="plantstore-quickstart.mdx">
+```mdx
+---
+title: PlantStore API Quick Start
+headline: "Get Started with PlantStore API | Developer Documentation"
+keywords: plants, garden, nursery
+canonical-url: https://docs.plantstore.dev/welcome
+og:image: https://plantstore.dev/images/api-docs-banner.png
+og:image:width: 1200
+og:image:height: 630
+twitter:card: summary_large_image
+twitter:site: "@PlantStoreAPI"
+noindex: false
+nofollow: false
+---
+```
+</CodeBlock>
+
+### Basic metadata
+
+Page title, URL, and keyword fields used by search engines. Use `headline` when you need a different title for search engines than what appears as the visible page heading.
+
+<ParamField path="headline" type="string" required={false} toc={true}>
+  When set, the `<title />` tag in the document head will use this value rather than the `title` property. For example, your `title` might be "Quickstart" (shown in the sidebar and as the H1), while `headline` could be "Quickstart | PlantStore API Docs" to give search engines more context. If not set, Fern uses `title` with your site name appended.
+</ParamField>
+
+<ParamField path="canonical-url" type="string" required={false} toc={true}>
+  Overrides the canonical URL for this page. Must be a full URL including the protocol (e.g., `https://buildwithfern.com/learn/docs/content/frontmatter`).
+</ParamField>
+
+<ParamField path="keywords" type="string" required={false} toc={true}>
+  Comma-separated keywords relevant to the page (e.g., `plants, garden, nursery`). Accepts only comma-separated strings, not arrays.
+</ParamField>
+
+### Open Graph
+
+Controls how this page appears when shared on LinkedIn, Slack, Discord, and other platforms that support Open Graph. Keep titles between 50–60 characters and descriptions between 150–160 characters for optimal display.
+
+<ParamField path="og:site_name" type="string" required={false} toc={true}>
+  The name of your website as it should appear when your content is shared.
+</ParamField>
+
+<ParamField path="og:title" type="string" required={false} toc={true}>
+  The title of your page as it should appear when your content is shared.
+</ParamField>
+
+<ParamField path="og:description" type="string" required={false} toc={true}>
+  The description of your page as it should appear when your content is shared.
+</ParamField>
+
+<ParamField path="og:url" type="string" required={false} toc={true}>
+  The URL of your page.
+</ParamField>
+
+<ParamField path="og:image" type="string" required={false} toc={true}>
+  The URL of the image displayed when your content is shared.
+</ParamField>
+
+<ParamField path="og:image:width" type="number" required={false} toc={true}>
+  The width of the image in pixels.
+</ParamField>
+
+<ParamField path="og:image:height" type="number" required={false} toc={true}>
+  The height of the image in pixels.
+</ParamField>
+
+<ParamField path="og:locale" type="string" required={false} toc={true}>
+  The locale of the page, typically in the format `language_TERRITORY` (e.g., `en_US`).
+</ParamField>
+
+<ParamField path="og:logo" type="string" required={false} toc={true}>
+  The URL of your logo image displayed when your content is shared.
+</ParamField>
+
+### Twitter / X
+
+Controls how this page appears in Twitter Card previews when shared on X.
+
+<ParamField path="twitter:title" type="string" required={false} toc={true}>
+  The title of your page as it should appear in a tweet.
+</ParamField>
+
+<ParamField path="twitter:description" type="string" required={false} toc={true}>
+  The description of your page as it should appear in a tweet.
+</ParamField>
+
+<ParamField path="twitter:handle" type="string" required={false} toc={true}>
+  The Twitter handle of the page creator or site.
+</ParamField>
+
+<ParamField path="twitter:image" type="string" required={false} toc={true}>
+  The URL of the image displayed in a tweet.
+</ParamField>
+
+<ParamField path="twitter:site" type="string" required={false} toc={true}>
+  The Twitter handle for your website.
+</ParamField>
+
+<ParamField path="twitter:url" type="string" required={false} toc={true}>
+  The URL of your page.
+</ParamField>
+
+<ParamField path="twitter:card" type="string" required={false} toc={true}>
+  The type of card used for sharing on Twitter. Options: `summary`, `summary_large_image`, `app`, `player`.
+</ParamField>
+
+### Indexing
+
+Control whether search engines index this page or follow its links. These are distinct: `noindex` removes the page from search results entirely, while `nofollow` keeps the page in results but tells search engines not to pass ranking credit through its links.
+
+Use `noindex` for internal-only pages, staging content, or pages you don't want surfaced in search. Use `nofollow` sparingly — it's rarely needed for documentation.
+
+<ParamField path="noindex" type="boolean" required={false} default={false} toc={true}>
+  If `true`, the page won't be indexed by search engines and will be excluded from [`llms.txt`](/learn/docs/ai-features/llms-txt) endpoints.
+</ParamField>
+
+<ParamField path="nofollow" type="boolean" required={false} default={false} toc={true}>
+  If `true`, search engines won't follow any links on the page.
+</ParamField>
