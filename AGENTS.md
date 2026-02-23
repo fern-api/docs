@@ -44,3 +44,14 @@ The file `fern/products/docs/pages/getting-started/overview.mdx` has the URL:
 - Look up the product's `slug` in `fern/docs.yml`.
 - Look up the section and page slugs in the product's YML file (check for explicit `slug:` overrides).
 - Example: `fern/products/docs/pages/ai/llms-txt.mdx` with section slug `ai-features` becomes `/learn/docs/ai-features/llms-txt`, not `/learn/docs/ai/llms-txt`.
+
+## New pages
+
+Every new `.mdx` page created under `fern/pages/` or `fern/products/` must include the agent directive snippet. Add the following line:
+
+- After the closing `---` of the front matter (if the page has front matter), or
+- At the very top of the file (if there is no front matter).
+
+```mdx
+<Markdown src="/snippets/agent-directive.mdx"/>
+```
