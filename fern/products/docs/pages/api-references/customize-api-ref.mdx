@@ -102,12 +102,9 @@ The `layout` option allows you to specify the order of sub-packages, sections, e
     - api: API Reference
       layout:
         - user:
-            - operation: QUERY getUser
-            - operation: MUTATION createUser
-            - operation: MUTATION deleteUser
-        - operation: QUERY admin.getPlant
-        - operation: QUERY public.getPlant
-  ```
+            - operation: QUERY admin.getUser
+            - operation: MUTATION createPlant
+            - operation: SUBSCRIPTION plantUpdates
   </Tab>
 </Tabs>
 
@@ -122,24 +119,57 @@ The `layout` option allows you to specify the order of sub-packages, sections, e
 By default, section display names come from [service file names](/api-definitions/ferndef/endpoints/overview#service-definition) (Fern
 Definition) or tag names (OpenAPI) in your spec.
 
-To override the display name of a section, use the `section` property in your `docs.yml` and reference the `lowerCamelCase` version of the original service file name (Fern Definition) or tag name (OpenAPI) in `referenced-packages`.
+To override the display name of a section, use the `section` property in your `docs.yml`.
 
-```yaml title="docs.yml" {4-6}
-navigation: 
-  - api: API Reference
-    layout:
-      - section: "Billing" # New section display name
-        referenced-packages: 
-          - billing # lowerCamelCase version of original tag/service file name from your spec
-        contents: []
-      - section: "Bank Accounts"
-        referenced-packages: 
-          - bankAccounts
-        contents: []
-```
-<Note>
-  For OpenAPI, you can alternatively customize tag display names directly in your spec (or `overrides.yml` file) using the [`x-displayName` extension](/api-definitions/openapi/extensions/tag-display-names). 
-</Note>
+<Tabs>
+  <Tab title="OpenAPI">
+  ```yaml title="docs.yml" {4-6}
+  navigation:
+    - api: API Reference
+      layout:
+        - section: "Billing" # New section display name
+          referenced-packages:
+            - billing # lowerCamelCase version of original tag name from your spec
+          contents: []
+        - section: "Bank Accounts"
+          referenced-packages:
+            - bankAccounts
+          contents: []
+  ```
+  <Note>
+    You can alternatively customize tag display names directly in your spec (or overlays file) using the [`x-displayName` extension](/api-definitions/openapi/extensions/tag-display-names).
+  </Note>
+  </Tab>
+  <Tab title="Fern Definition">
+  ```yaml title="docs.yml" {4-6}
+  navigation:
+    - api: API Reference
+      layout:
+        - section: "Billing" # New section display name
+          referenced-packages:
+            - billing # lowerCamelCase version of original service file name from your spec
+          contents: []
+        - section: "Bank Accounts"
+          referenced-packages:
+            - bankAccounts
+          contents: []
+  ```
+  </Tab>
+  <Tab title="GraphQL">
+  ```yaml title="docs.yml"
+  navigation:
+    - api: GraphQL API Reference
+      layout:
+        - section: Plants
+          contents:
+            - operation: QUERY getPlant
+            - operation: MUTATION createPlant
+        - section: Real-time
+          contents:
+            - operation: SUBSCRIPTION plantUpdates
+  ```
+  </Tab>
+</Tabs>
 
 ### Flattening sections
 
