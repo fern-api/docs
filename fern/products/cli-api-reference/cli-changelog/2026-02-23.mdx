@@ -1,0 +1,46 @@
+## 3.83.0
+**`(feat):`** Add webhook signature verification support. Webhooks can now declare a `signature`
+configuration with `type: hmac` or `type: asymmetric`, including algorithm, encoding,
+signature prefix parsing, payload format composition, and timestamp-based replay protection.
+Supported via Fern Definition `signature` field, OpenAPI `x-fern-webhook-signature` extension,
+and the IR `WebhookSignatureVerification` union.
+
+**OpenAPI example** — set `x-fern-webhook-signature` at the document level so
+all webhooks inherit the same signature configuration:
+
+```yaml
+openapi: 3.1.0
+info:
+  title: My API
+  version: 1.0.0
+x-fern-webhook-signature:
+  type: hmac
+  header: x-webhook-signature
+  algorithm: sha256
+  encoding: hex
+  signature-prefix: "sha256="
+  payload-format:
+    components:
+      - timestamp
+      - body
+    delimiter: "."
+  timestamp:
+    header: x-webhook-timestamp
+    format: unix-seconds
+    tolerance: 300
+webhooks:
+  orderCreated:
+    post:
+      operationId: orderCreated
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderEvent'
+```
+
+Individual webhook operations can also override the document-level default by
+specifying their own `x-fern-webhook-signature` configuration inline.
+
+

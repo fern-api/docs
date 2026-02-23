@@ -5,84 +5,72 @@ description: Use Fern Docs to generate your Webhook Reference documentation from
 
 <Markdown src="/snippets/agent-directive.mdx"/>
 
-Fern generates Webhook Reference documentation from an [OpenAPI specification](../../openapi-definition/endpoints/webhooks) or [Fern Definition](../../fern-definition/webhooks).
+Fern generates Webhook Reference documentation from an [OpenAPI specification](/learn/api-definitions/openapi/endpoints/webhooks) or [Fern Definition](/learn/api-definitions/ferndef/webhooks).
 
 Fern supports webhooks through:
 - **OpenAPI 3.1+**: Use the native `webhooks` field with an `operationId` (recommended)
 - **OpenAPI 3.0**: Use the `x-fern-webhook: true` extension
 - **Fern Definition**: Define `webhooks` in your specification
 
-## Configure your webhook reference
+## Configuration
 
-Add a page title (`api`) and reference the name of the directory where your where your webhook definition is located (`api-name`). 
+<Steps>
+<Step title="Set up your project structure">
 
-```yml docs.yml {11-12}
-navigation:
-  - section: Introduction
-    contents:
-      - page: Getting Started
-        path: ../introduction/getting-started.md
-      - page: Authentication
-        path: ../introduction/authentication.md
-  - api: API Reference
-    api-name: api-v1
-    display-errors: true
-  - api: Webhook Reference
-    api-name: webhooks-v1
-```
+For **OpenAPI**: Add your specification file to your `/fern` directory and create a `generators.yml` that references it:
 
-For a real-world example of webhook documentation generated from an API definition, check out [Webflow's webhooks](https://developers.webflow.com/data/reference/webhooks/events/form-submission).
-
-### Directory structure
-Your webhooks should be defined in a dedicated folder within your Fern project:
-
-<Tabs>
-<Tab title="OpenAPI">
-<Files>
-  <Folder name="fern" defaultOpen>
-    <Folder name="apis" defaultOpen>
-      <Folder name="webhooks-v1" defaultOpen highlighted comment="Webhook definition">
-        <Folder name="openapi" defaultOpen>
-          <File name="openapi.yml" />
-        </Folder>
-        <File name="generators.yml" />
-      </Folder>
-      <Folder name="api-v1" comment="Regular API endpoints" />
-    </Folder>
-  </Folder>
-</Files>
-
-If you're using OpenAPI, your `generators.yml` file should point to your OpenAPI specification:
-
-```yml generators.yml
+```yaml generators.yml
 api:
   path: openapi/openapi.yml
 ```
 
-You can read more about how to define webhooks in your OpenAPI specification [here](/learn/api-definitions/openapi/endpoints/webhooks).
-</Tab>
-<Tab title="Fern Definition">
+For **Fern Definition**: Add a `definition/` directory with your webhook definition files (Fern auto-detects this).
+
+</Step>
+<Step title="Add the Webhook Reference to your navigation">
+
+Add `- api: Webhook Reference` to your navigation in `docs.yml`:
+
+```yml docs.yml
+navigation:
+  - api: Webhook Reference
+    api-name: webhooks-v1
+```
+
+Use the `api-name` property to reference the folder containing your webhook definition.
+
+</Step>
+<Step title="Customize the layout">
+
+For a full list of configuration options and layout customizations, see [Customize API Reference layout](/learn/docs/api-references/customize-api-reference-layout).
+
+</Step>
+</Steps>
+
+For a real-world example of webhook documentation generated from an API definition, check out [Webflow's webhooks](https://developers.webflow.com/data/reference/webhooks/events/form-submission).
+
+### Include more than one Webhook Reference
+
+To include multiple webhook definitions in your documentation, use the `api-name` property. The `api-name` corresponds to the folder name containing your webhook definition.
+
 <Files>
   <Folder name="fern" defaultOpen>
-    <Folder name="apis" defaultOpen>
-      <Folder name="webhooks-v1" defaultOpen highlighted comment="Webhook definition">
-        <Folder name="definition" defaultOpen>
-          <File name="api.yml" />
-          <File name="webhooks.yml" />
-        </Folder>
-        <File name="generators.yml" />
+    <File name="fern.config.json" />
+    <File name="docs.yml" />
+    <Folder name="payment-webhooks" defaultOpen>
+      <Folder name="openapi" defaultOpen>
+        <File name="openapi.yml" comment="Payment webhook OpenAPI spec" />
       </Folder>
-      <Folder name="api-v1" comment="Regular API endpoints" />
+      <File name="generators.yml" />
+    </Folder>
+    <Folder name="order-webhooks" defaultOpen>
+      <Folder name="openapi" defaultOpen>
+        <File name="openapi.yml" comment="Order webhook OpenAPI spec" />
+      </Folder>
+      <File name="generators.yml" />
     </Folder>
   </Folder>
 </Files>
-
-You can read more about how to define webhooks in your Fern Definition [here](/learn/api-definition/fern/webhooks).
-</Tab>
-</Tabs>
-
-### Include more than one webhook reference
-To include multiple webhook definitions in your documentation, use the `api-name` property:
 
 ```yaml title="docs.yml"
 navigation:
@@ -92,55 +80,36 @@ navigation:
     api-name: order-webhooks
 ```
 
-When using multiple webhook definitions, organize them in separate directories within your Fern project:
+### Reference individual webhook events
 
-<Files>
-  <Folder name="fern" defaultOpen>
-    <Folder name="apis" defaultOpen>
-      <Folder name="payment-webhooks" defaultOpen highlighted comment="Payment webhook definitions">
-        <Folder name="openapi">
-          <File name="openapi.yml" comment="Payment webhook OpenAPI spec" />
-        </Folder>
-        <File name="generators.yml" />
-      </Folder>
-      <Folder name="order-webhooks" defaultOpen highlighted comment="Order webhook definitions">
-        <Folder name="openapi">
-          <File name="openapi.yml" comment="Order webhook OpenAPI spec" />
-        </Folder>
-        <File name="generators.yml" />
-      </Folder>
-    </Folder>
-  </Folder>
-</Files>
-
-### Create individual documentation pages for each webhook event
-
-To display each webhook event as an individual page with rich examples:
+To display each webhook event as an individual page, reference it in the `layout` using the `subpackage_{tag}.{webhook-event-name}` format:
 
 <Tabs>
 <Tab title="OpenAPI">
-Reference individual webhook pages using the `subpackage_{tag}.{webhook-event-name}` format, where:
-- `{tag}` is the first tag (lowercase) from your webhook definition
-- `{webhook-event-name}` is the `operationId` from your webhook definition
-
 ```yaml title="docs.yml"
 navigation:
-  - subpackage_plants.newPlantWebhook
+  - api: Webhook Reference
+    api-name: webhooks-v1
+    layout:
+      - subpackage_plants.newPlantWebhook
 ```
 
+Where `{tag}` is the first tag (lowercase) and `{webhook-event-name}` is the `operationId` from your webhook definition.
+
 <Note>
-  For OpenAPI, you must have the `tags` and `example` properties defined [in your webhook specification](/api-definitions/openapi/endpoints/webhooks).
+  For OpenAPI, you must have the `tags` and `example` properties defined [in your webhook specification](/learn/api-definitions/openapi/endpoints/webhooks).
 </Note>
 
 </Tab>
 <Tab title="Fern Definition">
-Reference the individual webhook event using the `subpackage_{name}.{webhook-event-name}` format, where:
-- `{name}` is the name of your API as defined in the `api.yml` file for your webhook definition.
-- `{webhook-event-name}` is the identifier from your webhook definition
-
 ```yaml title="docs.yml"
 navigation:
-  - subpackage_api.newPlantWebhook
+  - api: Webhook Reference
+    api-name: webhooks-v1
+    layout:
+      - subpackage_api.newPlantWebhook
 ```
+
+Where `{name}` is the name of your API as defined in `api.yml` and `{webhook-event-name}` is the identifier from your webhook definition.
 </Tab>
 </Tabs>
