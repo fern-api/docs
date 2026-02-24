@@ -115,6 +115,7 @@ Configure the self-hosted container's behavior by setting environment variables 
 |---|---|---|
 | `FERN_LOG_LEVEL` | Log level for the Fern CLI during docs generation. Options: `debug`, `info`, `warn`, `error`. | `debug` |
 | `NODE_MEMORY_LIMIT` | Node.js heap size in MB for the Next.js server. Increase for large documentation sites with many API versions. | `4096` |
+| `NEXT_PUBLIC_BASE_PATH` | Serve the documentation from a sub-path instead of root. The value must start with `/` and have no trailing slash (e.g., `/docs`). See [Base path](#base-path) for details. | none (serves from `/`) |
 
 
 ### Cache warmup
@@ -168,6 +169,49 @@ ENV CORS_PROXY_ALLOWED_DOMAINS="plantstore.dev,partner-api.example.com"
 ## Additional configuration
 
 The following sections cover optional configurations for specific deployment scenarios.
+
+### Base path
+
+By default, the self-hosted container serves documentation from root (`/`). Set `NEXT_PUBLIC_BASE_PATH` to serve from a sub-path instead, such as `/docs`. This is useful when your documentation shares a domain with other applications behind a reverse proxy.
+
+The value must start with `/` and must not end with a trailing slash.
+
+<Tabs>
+<Tab title="Build-time (recommended)">
+
+Set `NEXT_PUBLIC_BASE_PATH` in your Dockerfile before running `fern-generate`. This patches the base path into the bundle at build time, so the container can run with a read-only filesystem.
+
+```dockerfile
+FROM fernapi/fern-self-hosted:<latest-tag>
+
+COPY fern/ /fern/
+
+ENV NEXT_PUBLIC_BASE_PATH=/docs
+
+RUN fern-generate
+```
+
+</Tab>
+<Tab title="Runtime">
+
+Pass `NEXT_PUBLIC_BASE_PATH` when starting the container. The base path is patched into the bundle at container startup.
+
+```bash
+docker run -p 3000:3000 -e NEXT_PUBLIC_BASE_PATH=/docs <your-image-name>
+```
+
+<Warning>
+Runtime patching modifies files inside the container on startup, so it is not compatible with `readOnlyRootFilesystem: true` in Kubernetes. Use build-time patching if your security context requires a read-only root filesystem.
+</Warning>
+
+</Tab>
+</Tabs>
+
+With `NEXT_PUBLIC_BASE_PATH=/docs`, the documentation is accessible at `http://localhost:3000/docs` instead of `http://localhost:3000/`.
+
+<Info>
+A single Docker image built **without** `NEXT_PUBLIC_BASE_PATH` can be configured at runtime to serve from any path. This lets you reuse one image across environments that may need different base paths.
+</Info>
 
 ### Runtime generation
 
