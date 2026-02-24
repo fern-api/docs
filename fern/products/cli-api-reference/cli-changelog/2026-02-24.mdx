@@ -1,3 +1,35 @@
+## 3.86.0
+**`(feat):`** Add Python library docs generation. You can now generate reference documentation
+for Python libraries directly from source code. Configure a `libraries` section in `docs.yml`
+pointing to a GitHub repository, and run `fern generate --docs` to produce MDX pages with
+full module, class, and function documentation.
+
+The CLI sends the repository URL to the Fern registry (FDR), which clones the repo, parses
+the Python source into a library IR, and uploads the result to S3. The CLI then downloads
+the IR and runs a local MDX generator that produces per-module pages with summary tables,
+detailed API signatures, cross-linked types, and a `_navigation.yml` file for automatic
+navigation integration.
+
+Configuration example in `docs.yml`:
+```yaml
+libraries:
+  my-sdk:
+    input:
+      git: https://github.com/acme/sdk-python
+    output:
+      path: ./static/sdk-docs
+    lang: python
+```
+
+Reference the generated docs in your navigation with:
+```yaml
+- library: my-sdk
+  title: Python SDK Reference
+```
+
+Use `--library <name>` to generate docs for a single library, or omit it to generate all configured libraries.
+
+
 ## 3.85.6
 **`(chore):`** Complete document-level `webhook-signature` configuration parsing. Adds validation for webhook
 signature configs (algorithms, encodings, timestamp settings, JWKS consistency).
