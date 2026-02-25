@@ -9,10 +9,22 @@ Server URL templating lets you define base URLs with variable placeholders (e.g.
 
 ## Generated SDK behavior
 
-Fern generates an environments module that exposes the default URLs for each named server. Each server variable becomes a named parameter on the SDK client constructor, so users can customize the URL without manually constructing it.
+Fern generates an environments module that exposes the default URLs for each named server. SDK users can select a pre-defined environment or pass custom URL strings.
 
 <Tabs>
 <Tab title="Python">
+
+The generated SDK exposes an `Environment` class:
+
+```python title="environment.py"
+class MyApiEnvironment:
+    REGIONAL_API_SERVER = {
+        "base": "https://api.example.com/v1",
+        "auth": "https://auth.example.com",
+    }
+```
+
+SDK users can override the base URL when constructing the client:
 
 ```python
 from my_api import MyApiClient
@@ -20,26 +32,16 @@ from my_api import MyApiClient
 # Use the default environment
 client = MyApiClient()
 
-# Target a specific region and environment via URL variables
+# Or provide a custom base URL
 client = MyApiClient(
-    region="eu-west-1",
-    server_url_environment="staging",
+    base_url="https://api.us-west-2.staging.example.com/v1",
 )
 ```
 </Tab>
 
 <Tab title="Java">
 
-```java title="Environment.java"
-public final class Environment {
-    public static final Environment REGIONAL_API_SERVER =
-        new Environment(
-            "https://api.example.com/v1",
-            "https://auth.example.com"
-        );
-    public static Builder custom() { return new Builder(); }
-}
-```
+The generated SDK exposes an environment enum and a builder method:
 
 ```java
 import com.example.api.MyApiClient;
@@ -47,10 +49,9 @@ import com.example.api.MyApiClient;
 // Use the default environment
 MyApiClient client = MyApiClient.builder().build();
 
-// Target a specific region and environment via URL variables
+// Or provide a custom base URL
 MyApiClient client = MyApiClient.builder()
-    .region("eu-west-1")
-    .serverUrlEnvironment("staging")
+    .url("https://api.us-west-2.staging.example.com/v1")
     .build();
 ```
 </Tab>
