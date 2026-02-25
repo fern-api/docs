@@ -5,72 +5,7 @@ description: Configure server URL templating in Fern SDKs to support dynamic bas
 
 Server URL templating lets you define base URLs with variable placeholders (e.g., `{region}`, `{environment}`) that SDK users can customize at runtime. This is useful for APIs deployed across multiple regions, environments, or custom domains.
 
-Fern reads the standard OpenAPI `servers` block and generates SDK clients that accept these variables, falling back to sensible defaults when they're not provided.
-
-## Configuring in OpenAPI
-
-Define server variables inside the top-level `servers` block of your OpenAPI spec. Each variable can include a `default` value and an optional `enum` of allowed values.
-
-Use the `x-fern-default-url` extension to provide a static fallback URL that the SDK uses when no variables are supplied.
-
-```yaml {7-8, 10} title="openapi.yml"
-openapi: 3.0.3
-info:
-  title: My API
-  version: 1.0.0
-servers:
-  - url: https://api.{region}.{environment}.example.com/v1
-    description: Regional API server
-    x-server-name: Default
-    x-fern-default-url: https://api.example.com/v1
-    variables:
-      region:
-        default: us-east-1
-        enum:
-          - us-east-1
-          - us-west-2
-          - eu-west-1
-      environment:
-        default: prod
-        enum:
-          - prod
-          - staging
-          - dev
-```
-
-### Key fields
-
-| Field | Description |
-|-------|-------------|
-| `url` | The URL template with `{variable}` placeholders. |
-| `variables` | A map of variable names to their `default` value and optional `enum` of allowed values. |
-| `x-fern-default-url` | A static URL the SDK falls back to when no variables are provided. |
-| `x-server-name` | A human-readable name for the server entry used in the generated environments enum. |
-
-## Multiple base URLs
-
-Different endpoints can target different servers. For example, your main API and auth service may live at separate domains. Add a `servers` block directly on an endpoint to override the top-level server for that path.
-
-Use `x-fern-server-name` to give each endpoint-level server a distinct name so Fern can group them correctly.
-
-```yaml {5-6, 8} title="openapi.yml"
-paths:
-  /auth/token:
-    post:
-      servers:
-        - url: https://auth.{region}.example.com
-          x-fern-server-name: Auth
-          x-fern-default-url: https://auth.example.com
-          variables:
-            region:
-              default: us-east-1
-              enum:
-                - us-east-1
-                - us-west-2
-                - eu-west-1
-```
-
-When Fern detects multiple named servers, the generated SDK client resolves each endpoint to the correct base URL automatically.
+<Note>URL templating is currently supported for Python and Java SDK generation only.</Note>
 
 ## Generated SDK behavior
 
@@ -122,51 +57,56 @@ MyApiClient client = MyApiClient.builder()
 </Tab>
 </Tabs>
 
-## Fern Definition
+## Setting up server URL templating
 
-If you use the Fern Definition format instead of OpenAPI, configure server URL templating in your `api.yml`:
+Define URL template variables in your API definition and provide a static fallback URL for SDK users who don't customize variables:
 
+<Tabs>
+<Tab title="OpenAPI">
+```yaml title="openapi.yml"
+servers:
+  - url: https://api.{region}.{environment}.example.com/v1
+    x-fern-server-name: Default
+    x-fern-default-url: https://api.example.com/v1
+    variables:
+      region:
+        default: us-east-1
+        enum: [us-east-1, us-west-2, eu-west-1]
+      environment:
+        default: prod
+        enum: [prod, staging, dev]
+```
+</Tab>
+<Tab title="Fern Definition">
 ```yaml title="api.yml"
 environments:
-  RegionalApiServer:
+  Default:
     urls:
       Base: https://api.example.com/v1
-      Auth: https://auth.example.com
     url-templates:
       Base: https://api.{region}.{environment}.example.com/v1
-      Auth: https://auth.{region}.example.com
     default-urls:
       Base: https://api.example.com/v1
-      Auth: https://auth.example.com
     variables:
       Base:
         - id: region
           default: us-east-1
-          values:
-            - us-east-1
-            - us-west-2
-            - eu-west-1
+          values: [us-east-1, us-west-2, eu-west-1]
         - id: environment
           default: prod
-          values:
-            - prod
-            - staging
-            - dev
-      Auth:
-        - id: region
-          default: us-east-1
-          values:
-            - us-east-1
-            - us-west-2
-            - eu-west-1
-default-environment: RegionalApiServer
+          values: [prod, staging, dev]
+default-environment: Default
 ```
+</Tab>
+</Tabs>
 
-## Language support
+For full configuration details, see the docs for your API definition format:
 
-Server URL templating is currently supported in the following generators:
-
-| Language | Supported |
-|----------|-----------|
-| Python | <Icon icon="check" color="var(--accent-a11)" /> |
-| Java | <Icon icon="check" color="var(--accent-a11)" /> |
+<CardGroup cols={2}>
+  <Card title="OpenAPI" href="/learn/api-definitions/openapi/extensions/server-names-and-url-templating">
+    Server names and URL templating extensions
+  </Card>
+  <Card title="Fern Definition" href="/learn/api-definitions/ferndef/api-yml/environments#url-templating">
+    URL templating in environments
+  </Card>
+</CardGroup>
