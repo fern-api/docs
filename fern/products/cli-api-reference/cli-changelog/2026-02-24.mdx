@@ -1,0 +1,90 @@
+## 3.88.2
+**`(fix):`** Fix `fern check` validation for SSE streaming endpoints with protocol-level discrimination.
+Examples for SSE endpoints using `context: protocol` discriminated unions were rejected with
+"Missing discriminant property" because the validator looked for the discriminant inside the
+`data` payload instead of recognizing it at the SSE envelope level (`event:` field).
+
+
+## 3.88.0
+**`(feat):`** Add Replay support for preserving SDK customizations across regenerations.
+Replay detects user edits via `.fern/replay.lock`, applies them with 3-way
+merge, and creates PRs with conflict resolution guidance when needed.
+
+New CLI commands: `fern replay init`, `fern replay status`, `fern replay forget`,
+`fern replay reset`. New `--no-replay` flag on `fern generate` to skip patch
+application. Gated behind `replay: { enabled: true }` in `generators.yml`.
+
+
+## 3.87.0
+**`(feat):`** Added `collapsible` and `collapsed-by-default` options for `docs.yml` navigation sections/folders, preserving the legacy `collapsed` behavior while adding validation to prevent invalid configurations.
+
+
+## 3.86.1
+**`(fix):`** Fall back to initial version 0.0.1 when AUTO versioning cannot extract
+the previous version instead of failing the entire generation. This
+handles new SDK repositories where all files are additions and no
+previous version lines exist in the diff.
+
+
+## 3.86.0
+**`(feat):`** Add support for `x-fern-sdk-method-name` extension on AsyncAPI WebSocket channels
+to customize the connection method name in generated SDKs. This field is now
+available in both AsyncAPI v2 and v3 specifications.
+
+**AsyncAPI example** — use `x-fern-sdk-method-name` to customize the WebSocket
+connection method instead of the default "connect":
+
+```yaml
+asyncapi: 3.0.0
+info:
+  title: Chat API
+  version: 1.0.0
+channels:
+  /chat:
+    x-fern-sdk-method-name: createChatConnection
+    messages:
+      userMessage:
+        payload:
+          type: object
+          properties:
+            content:
+              type: string
+```
+
+This generates `client.createChatConnection()` instead of `client.connect()`,
+avoiding confusing APIs where both wrapper creation and actual connection use "connect".
+
+
+## 3.85.6
+**`(chore):`** Complete document-level `webhook-signature` configuration parsing. Adds validation for webhook
+signature configs (algorithms, encodings, timestamp settings, JWKS consistency).
+
+
+## 3.85.5
+**`(fix):`** Report broken AsyncAPI V3 message references as visible warnings instead
+of silently dropping entire specs. When an operation references a
+non-existent channel or message (e.g. `$ref: "#/channels/auth/messages/authenticate"`
+when no `auth` channel exists), the parser now logs a warning with the
+specific broken `$ref` and continues processing the remaining valid
+messages and channels.
+
+
+## 3.85.4
+**`(fix):`** Skip compatible IR version validation when running in local development
+mode (CLI version 0.0.0). This prevents noisy 404 errors from the FDR
+registry when the CLI version is not a real published release.
+
+
+## 3.85.3
+**`(fix):`** Remove unhelpful "Unable to analyze changes with AI" fallback message from
+changelog entries when AI analysis fails during AUTO versioning. The changelog
+now shows just the version header with no body instead.
+
+
+## 3.85.1
+**`(fix):`** Fix AUTO versioning failing for new SDK repositories. When generating an SDK
+into an empty or newly initialized repository, the version extraction would fail
+because all files are new additions with no previous version lines in the diff.
+Now returns 0.0.1 as the initial version instead of throwing an error.
+
+

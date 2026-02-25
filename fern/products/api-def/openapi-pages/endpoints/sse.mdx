@@ -3,6 +3,8 @@ title: Server-sent events and streaming APIs
 subtitle: Use the `x-fern-streaming` extension to model streaming endpoints
 ---
 
+<Markdown src="/snippets/agent-directive.mdx"/>
+
 The `x-fern-streaming` extension allows you to represent endpoints that are streaming. 
 
 ## JSON streaming
@@ -39,9 +41,9 @@ components:
 
 ## Server-sent events 
 
-<Markdown src="/snippets/pro-plan.mdx"/>
+<Markdown src="/snippets/team-or-pro-plan.mdx"/>
 
-If your API returns server-sent-events, with the `data` and `event` keys as seen below
+If your API returns server-sent-events (SSE), with the `data` and `event` keys as seen below
 
 ```json
 data: { "text": "Hi, I am a" }
@@ -72,6 +74,21 @@ components:
           type: string
 ```
 
+### Terminator message
+
+Some SSE APIs send a standalone terminator message to signal that the stream is complete. For example, 
+OpenAI's API sends `[DONE]` as a final message. You can specify this with the `terminator` field:
+
+```yaml title="openapi.yml" {4-6}
+paths:
+  /logs:
+    post:
+      x-fern-streaming:
+        format: sse
+        terminator: "[DONE]"
+# ... responses and schemas
+```
+
 ## `Stream` parameter
 
 It has become common practice for endpoints to have a `stream` parameter that 
@@ -80,12 +97,13 @@ class way.
 
 Simply specify the `stream-condition` as well as the ordinary response and the streaming response: 
 
-```yaml title="openapi.yml" {4-10}
+```yaml title="openapi.yml" {4-11}
 paths:
   /logs:
     post:
       x-fern-streaming: 
         format: sse
+        terminator: "[DONE]"
         stream-condition: $request.stream
         response: 
           $ref: '#/components/schemas/Chat'
