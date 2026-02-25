@@ -1,33 +1,70 @@
 ---
-title: Generate GraphQL reference
-description: Learn how to generate and customize GraphQL API Reference documentation
+title: Generate GraphQL Reference
+description: Use Fern Docs to generate GraphQL API Reference documentation from a GraphQL schema.
 ---
+
+<Markdown src="/snippets/agent-directive.mdx"/>
 
 Fern generates API Reference documentation from a [GraphQL schema](https://graphql.org/learn/schema/). Add your schema file to your Fern project and Fern renders queries, mutations, subscriptions, and types as an interactive reference.
 
-## How to add a GraphQL endpoint
+## Configuration
 
-1. Add your GraphQL schema files to your `/fern` directory.
-2. Configure your `generators.yml` to point to your GraphQL schemas:
+<Steps>
+<Step title="Set up your project structure">
 
-<CodeBlock title='generators.yml'>
-  ```yaml
-  api:
-    specs:
-      - graphql: plants.schema.graphql
-        name: Plants
-        origin: https://api.example.com/plants/graphql
-      - graphql: storefront.schema.graphql
-        name: Storefront
-        origin: https://api.example.com/storefront/graphql
-  ```
-</CodeBlock>
+Add your GraphQL schema file to your `/fern` directory and create a `generators.yml` that references it:
 
-3. Reference the API in your `docs.yml` navigation:
+```yaml generators.yml
+api:
+  specs:
+    - graphql: plants.schema.graphql
+      name: Plants
+      origin: https://api.example.com/plants/graphql
+```
 
-```yaml docs.yml
+</Step>
+<Step title="Add the GraphQL Reference to your navigation">
+
+Add `- api: API Reference` to your navigation in `docs.yml`:
+
+```yml docs.yml
 navigation:
   - api: API Reference
+```
+
+</Step>
+<Step title="Customize the layout">
+
+For a full list of configuration options and layout customizations, see [Customize API Reference layout](/learn/docs/api-references/customize-api-reference-layout).
+
+</Step>
+</Steps>
+
+### Include more than one GraphQL Reference
+
+To include multiple GraphQL definitions in your documentation, use the `api-name` property. The `api-name` corresponds to the folder name containing your GraphQL schema.
+
+<Files>
+  <Folder name="fern" defaultOpen>
+    <File name="fern.config.json" />
+    <File name="docs.yml" />
+    <Folder name="plant-graphql" defaultOpen>
+      <File name="schema.graphql" comment="Plant GraphQL schema" />
+      <File name="generators.yml" />
+    </Folder>
+    <Folder name="garden-graphql" defaultOpen>
+      <File name="schema.graphql" comment="Garden GraphQL schema" />
+      <File name="generators.yml" />
+    </Folder>
+  </Folder>
+</Files>
+
+```yaml title="docs.yml"
+navigation:
+  - api: Plant GraphQL API
+    api-name: plant-graphql
+  - api: Garden GraphQL API
+    api-name: garden-graphql
 ```
 
 ### Configuration properties
@@ -43,86 +80,3 @@ navigation:
 <ParamField path="api.specs[].origin">
   URL of your GraphQL API endpoint. Fern performs [introspection](https://graphql.org/learn/introspection/) against this endpoint to fetch the schema. When set, [running `fern api update`](/learn/cli-api-reference/cli-reference/commands#fern-api-update) updates the local schema from this endpoint.
 </ParamField>
-
-### Include more than one GraphQL reference
-
-To include multiple GraphQL definitions in your documentation, use the `api-name` property:
-
-```yaml title="docs.yml"
-navigation:
-  - api: Plant GraphQL API
-    api-name: plant-graphql
-  - api: Garden GraphQL API
-    api-name: garden-graphql
-```
-
-Organize each schema in a separate directory within your Fern project:
-
-<Files>
-  <Folder name="fern" defaultOpen>
-    <Folder name="apis" defaultOpen>
-      <Folder name="plant-graphql" defaultOpen highlighted comment="Plant GraphQL schema">
-        <File name="schema.graphql" />
-        <File name="generators.yml" />
-      </Folder>
-      <Folder name="garden-graphql" defaultOpen highlighted comment="Garden GraphQL schema">
-        <File name="schema.graphql" />
-        <File name="generators.yml" />
-      </Folder>
-    </Folder>
-  </Folder>
-</Files>
-
-## Customize the layout
-
-Use the `layout` property in `docs.yml` to control how GraphQL operations appear in the sidebar. Reference individual operations with the `operation` keyword using the format `OPERATION_TYPE operationName`, where `OPERATION_TYPE` is `QUERY`, `MUTATION`, or `SUBSCRIPTION`.
-
-You can also set a custom `title`, `slug`, `hidden`, or `availability` on each operation:
-
-```yaml title="docs.yml"
-navigation:
-  - api: GraphQL API Reference
-    layout:
-      - operation: QUERY getPlant
-        title: Get plant details
-        slug: get-plant
-      - operation: MUTATION createPlant
-        title: Create a plant
-      - operation: MUTATION deletePlant
-        hidden: true
-      - operation: SUBSCRIPTION plantUpdates
-        availability: beta
-```
-
-### Group operations into sections
-
-Organize operations under custom sections:
-
-```yaml title="docs.yml"
-navigation:
-  - api: GraphQL API Reference
-    layout:
-      - section: Plants
-        contents:
-          - operation: QUERY getPlant
-          - operation: MUTATION createPlant
-      - section: Real-time
-        contents:
-          - operation: SUBSCRIPTION plantUpdates
-```
-
-### Namespaced operations
-
-If your schema includes operations that share the same name across different namespaces, use dot notation to disambiguate:
-
-```yaml title="docs.yml"
-navigation:
-  - api: GraphQL API Reference
-    layout:
-      - operation: QUERY admin.getPlant
-      - operation: QUERY public.getPlant
-```
-
-<Note>
-For the full set of layout options that apply to all API types (alphabetizing, flattening, adding pages and links, and more), see [Customize API Reference layout](/learn/docs/api-references/customize-api-reference-layout).
-</Note>

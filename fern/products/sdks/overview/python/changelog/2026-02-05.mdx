@@ -1,9 +1,47 @@
 ## 4.55.0
-**`(feat):`** Add support for server URL templating. Server variables defined in OpenAPI specs are
-now exposed as optional constructor parameters (e.g., `region`, `city`) with runtime
-URL template interpolation. When `x-fern-default-url` is present, the generated SDK
-uses that as the environment default. Works for both single and multiple base URL
-environments.
+**`(feat):`** Add support for server URL templating with OpenAPI server variables. This enables
+dynamic base URL construction at runtime based on user-provided configuration.
+
+**OpenAPI definition example:**
+```yaml
+servers:
+  - url: https://api.{region}.{environment}.example.com/v1
+    variables:
+      region:
+        default: us-east-1
+        enum: [us-east-1, us-west-2, eu-west-1]
+      environment:
+        default: prod
+        enum: [prod, staging, dev]
+```
+
+**Generated constructor parameters:**
+Server variables are exposed as optional constructor parameters with their default values:
+- `region: typing.Optional[str]` - defaults to `"us-east-1"`
+- `server_url_environment: typing.Optional[str]` - defaults to `"prod"` (prefixed to avoid shadowing)
+
+**Runtime URL interpolation:**
+When server variables are provided, the SDK performs runtime URL template interpolation:
+```python
+from seed import SeedApi
+
+# Uses default: https://api.us-east-1.prod.example.com/v1
+client = SeedApi()
+
+# Custom region: https://api.eu-west-1.prod.example.com/v1
+client = SeedApi(region="eu-west-1")
+
+# Custom region and environment: https://api.us-west-2.staging.example.com/v1
+client = SeedApi(region="us-west-2", server_url_environment="staging")
+```
+
+**Multiple base URL environments:**
+For APIs with multiple base URLs (e.g., separate `base` and `auth` URLs), each URL
+template is interpolated independently with the same server variables.
+
+**`x-fern-default-url` extension:**
+When present in the OpenAPI spec, this extension specifies which server URL should
+be used as the default environment, overriding the first server in the list.
 
 
 ## 4.54.4

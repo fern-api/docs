@@ -38,7 +38,8 @@ The table below shows all available extensions and links to detailed documentati
 | [`x-fern-retries`](./retry-behavior) | Configure retry behavior for endpoints |
 | [`x-fern-streaming`](/api-definitions/openapi/endpoints/sse) | Configure streaming endpoints (JSON or SSE) |
 | [`x-fern-type-name`](./schema-names) | Override auto-generated names for inline schemas |
-| [`x-fern-server-name`](./server-names) | Name your servers |
+| [`x-fern-default-url`](./server-names-and-url-templating) | Provide a static fallback URL for templated server URLs |
+| [`x-fern-server-name`](./server-names-and-url-templating) | Name your servers and configure URL templating |
 | [`x-fern-webhook`](/api-definitions/openapi/endpoints/webhooks) | Define webhooks in OpenAPI 3.0 specifications |
 
 <Note title="Request a new extension">

@@ -1,7 +1,36 @@
 ## 4.58.0
-**`(feat):`** Add configurable logging support to generated Python SDKs. The SDK client constructor now
-accepts a `logging` parameter with `LogConfig` (level, logger, silent) or a pre-configured
-`Logger` instance. HTTP request/response metadata is logged at debug level with automatic
-redaction of sensitive headers. Logging is silent by default.
+**`(feat):`** Add support for logging to the generated SDK.
+Users can configure the logger by passing in a `logging` parameter to the client constructor.
+
+```python
+from acme import AcmeClient
+from acme.core import ConsoleLogger
+
+client = AcmeClient(
+    token="YOUR_TOKEN",
+    logging={
+        "level": "debug",  # "info" is the default
+        "logger": ConsoleLogger(),  # ConsoleLogger is the default
+        "silent": False,  # True is the default, set to False to enable logging
+    }
+)
+```
+
+The `logging` parameter accepts a `LogConfig` dict with the following properties:
+- `level`: The log level to use. Defaults to `"info"`.
+- `logger`: The logger to use. Defaults to `ConsoleLogger`.
+- `silent`: Whether to silence the logger. Defaults to `True`.
+
+The `level` property can be one of the following values:
+- `"debug"`
+- `"info"`
+- `"warn"`
+- `"error"`
+
+To provide a custom logger, pass an object implementing the `ILogger` protocol
+with `debug`, `info`, `warn`, and `error` methods.
+
+Sensitive headers (`authorization`, `x-api-key`, `cookie`, etc.) are automatically
+redacted in logs.
 
 
