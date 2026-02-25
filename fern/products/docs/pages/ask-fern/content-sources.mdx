@@ -7,15 +7,13 @@ description: Extend Ask Fern's knowledge with content from FAQs, support tickets
 
 Extend Ask Fern's knowledge beyond your core documentation by adding additional content sources like internal FAQs, support tickets, blog posts, and knowledge base articles.
 
-There are three ways to add content sources:
+## Publicly available content
 
-- **docs.yml configuration** - Add website URLs directly in your `docs.yml` config for simple, declarative setup
-- **Documents API** - Upload markdown documents with precise control over what gets indexed
-- **Websites API** - Provide URLs to websites that Ask Fern will automatically crawl and index
+For content that is publicly accessible on the web — like marketing sites, blog posts, or external knowledge bases — Ask Fern can automatically crawl and index it. There are two ways to set this up:
 
-## docs.yml Configuration
+### docs.yml configuration
 
-The simplest way to add content sources is through your `docs.yml` configuration. Add URLs under `ai-search.datasources` and Ask Fern will automatically crawl and index them:
+The simplest approach is to add URLs directly in your `docs.yml` configuration under `ai-search.datasources`:
 
 ```yaml docs.yml
 ai-search:
@@ -28,25 +26,9 @@ ai-search:
 
 Each datasource requires a `url` and accepts an optional `title` that helps users understand where cited content comes from.
 
-## Documents API
+### Websites API
 
-Make a request to the [Documents API](/learn/docs/ai-features/ask-fern/api-reference/document/create-document) to index markdown documents with precise control over what gets indexed. This is ideal for content that isn't publicly accessible, like internal documentation, support ticket summaries, or proprietary knowledge base articles. Upload the full markdown content directly along with an optional title and URL.
-
-```json Example wordWrap
-{
-    "document": "Ferns are plants native to the tropical and subtropical regions of the world. They are characterized by their fronds, which are large, leaf-like structures that are often found in the understory of forests.",
-    "title": "What are ferns?",
-    "url": "https://en.wikipedia.org/wiki/Fern"
-}
-```
-
-The URL is used solely for citations—Ask Fern doesn't crawl it. You provide the full content in the `document` field.
-
-## Websites API
-
-Make a request to the [Websites API](/learn/docs/ai-features/ask-fern/api-reference/website/index-website) to crawl and index publicly accessible web content like marketing sites and blog posts. Provide a base URL, and Ask Fern will automatically crawl and index the website.
-
-You can use optional filters to control what gets crawled:
+For more control over what gets crawled, use the [Websites API](/learn/docs/ai-features/ask-fern/api-reference/website/index-website). This lets you apply filters to target specific subdomains or URL paths:
 
 - **domain_filter** - Restrict crawling to a specific subdomain. For example, `help.example.com` will only crawl pages on that subdomain, not www.example.com or docs.example.com
 - **path_filter** - Restrict crawling to a specific section of the site. For example, `/getting-started` will only crawl URLs containing `/getting-started` in the path, like `docs.example.com/getting-started` or `docs.example.com/getting-started/sdks`, but not `docs.example.com/api-reference`
@@ -59,3 +41,17 @@ You can use optional filters to control what gets crawled:
 ```
 
 The API returns a `job_id` to track the crawling progress. When referenced, Ask Fern cites the original URL where the content was found.
+
+## Not publicly available content
+
+For content that isn't publicly accessible — like internal documentation, support ticket summaries, or proprietary knowledge base articles — use the [Documents API](/learn/docs/ai-features/ask-fern/api-reference/document/create-document) to upload markdown content directly. This gives you precise control over what gets indexed.
+
+```json Example wordWrap
+{
+    "document": "Ferns are plants native to the tropical and subtropical regions of the world. They are characterized by their fronds, which are large, leaf-like structures that are often found in the understory of forests.",
+    "title": "What are ferns?",
+    "url": "https://en.wikipedia.org/wiki/Fern"
+}
+```
+
+The URL is used solely for citations — Ask Fern doesn't crawl it. You provide the full content in the `document` field.
