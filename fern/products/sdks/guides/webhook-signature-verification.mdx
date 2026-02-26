@@ -1,0 +1,253 @@
+---
+title: Webhook signature verification
+description: Configure webhook signature verification in your Fern-generated SDKs to validate HMAC or asymmetric signatures, protect against replay attacks, and ensure webhook authenticity.
+---
+
+<Markdown src="/snippets/agent-directive.mdx"/>
+
+When you define webhooks in your API spec, Fern automatically generates utilities that allow your SDK users to verify webhook signatures and ensure events originate from your API. For an example, see [Square's Node.js SDK](https://github.com/square/square-nodejs-sdk?tab=readme-ov-file#webhook-signature-verification).
+
+Fern supports two signature verification methods:
+- **HMAC** — Symmetric key verification using shared secrets
+- **Asymmetric** — Public key verification using RSA, ECDSA, or Ed25519 keys
+
+Configuration can be applied at the **document level** (inherited by all webhooks) or **per-webhook** (overrides document-level settings).
+
+## Configuration options
+
+```yaml title="generators.yml" maxLines=10
+webhook-signature:
+  type: hmac
+  header: x-webhook-signature
+  algorithm: sha256
+  encoding: hex
+  signature-prefix: "sha256="
+  payload-format:
+    components: [timestamp, body]
+    delimiter: "."
+  timestamp:
+    header: x-webhook-timestamp
+    format: unix-seconds
+    tolerance: 300
+```
+
+<ParamField path="type" type="'hmac' | 'asymmetric'" required={true} toc={true}>
+  The signature verification method. Use `hmac` for symmetric key verification with shared secrets, or `asymmetric` for public key verification.
+</ParamField>
+
+<ParamField path="header" type="string" required={true} toc={true}>
+  The HTTP header containing the signature. For example, `x-webhook-signature` or `x-hub-signature-256`.
+</ParamField>
+
+<ParamField path="encoding" type="'base64' | 'hex'" required={true} toc={true}>
+  The encoding format of the signature value in the header.
+</ParamField>
+
+<ParamField path="signature-prefix" type="string" required={false} toc={true}>
+  A prefix to strip from the signature header value before verification. For example, `"sha256="` or `"rsa="`.
+</ParamField>
+
+<AccordionGroup>
+<Accordion title="HMAC configuration">
+
+These fields apply when `type` is set to `hmac`.
+
+<ParamField path="algorithm" type="'sha256' | 'sha1' | 'sha384' | 'sha512'" required={true} toc={true}>
+  The HMAC hash algorithm for signature computation. `sha256` is recommended. `sha1` is deprecated and should only be used for legacy compatibility.
+</ParamField>
+
+<ParamField path="payload-format" type="object" required={true} toc={true}>
+  Defines how the signed payload is constructed before hashing. See the Payload format section below.
+</ParamField>
+
+<ParamField path="timestamp" type="object" required={false} toc={true}>
+  Timestamp-based replay protection configuration. See the Timestamp configuration section below.
+</ParamField>
+
+</Accordion>
+<Accordion title="Asymmetric configuration">
+
+These fields apply when `type` is set to `asymmetric`.
+
+<ParamField path="asymmetric-algorithm" type="'rsa-sha256' | 'rsa-sha384' | 'rsa-sha512' | 'ecdsa-sha256' | 'ecdsa-sha384' | 'ecdsa-sha512' | 'ed25519'" required={true} toc={true}>
+  The asymmetric signing algorithm. `rsa-sha256` and `ecdsa-sha256` are widely supported defaults. `ed25519` is a modern, efficient option.
+</ParamField>
+
+<ParamField path="jwks-url" type="string" required={false} toc={true}>
+  JWKS endpoint URL for key retrieval. Required when using JWKS-based key rotation; omit for static key verification.
+</ParamField>
+
+<ParamField path="key-id-header" type="string" required={false} toc={true}>
+  HTTP header containing the key ID used to select the correct key from the JWKS endpoint.
+</ParamField>
+
+<ParamField path="timestamp" type="object" required={false} toc={true}>
+  Timestamp-based replay protection configuration. See the Timestamp configuration section below.
+</ParamField>
+
+</Accordion>
+<Accordion title="Payload format">
+
+Configures how the signed payload is constructed before hashing. Applies to HMAC verification.
+
+<ParamField path="payload-format.components" type="list of strings" required={true} toc={true}>
+  Ordered list of payload components to concatenate. Available components:
+
+  | Component | Description |
+  |-----------|-------------|
+  | `body` | Raw request body |
+  | `timestamp` | Timestamp value from timestamp header |
+  | `notification-url` | The webhook/callback URL |
+  | `message-id` | Provider-assigned message identifier |
+</ParamField>
+
+<ParamField path="payload-format.delimiter" type="string" required={true} toc={true}>
+  String used to join the components. Use `"."` for timestamp-prefixed payloads or `""` for direct concatenation.
+</ParamField>
+
+</Accordion>
+<Accordion title="Timestamp configuration (replay protection)">
+
+Optional timestamp validation to protect against replay attacks. Applies to both HMAC and asymmetric verification.
+
+<ParamField path="timestamp.header" type="string" required={true} toc={true}>
+  HTTP header containing the delivery timestamp.
+</ParamField>
+
+<ParamField path="timestamp.format" type="'unix-seconds' | 'unix-millis' | 'iso8601'" required={true} toc={true}>
+  Format of the timestamp value in the header.
+</ParamField>
+
+<ParamField path="timestamp.tolerance" type="integer" required={false} default="300" toc={true}>
+  Allowed clock skew in seconds. Requests with timestamps outside this window are rejected.
+</ParamField>
+
+</Accordion>
+</AccordionGroup>
+
+## Configuration inheritance
+
+Set `webhook-signature` at the document root to apply to all webhooks by default:
+
+```yaml title="generators.yml"
+webhook-signature:
+  type: hmac
+  header: x-webhook-signature
+  algorithm: sha256
+  encoding: hex
+
+webhooks:
+  userCreated:
+    method: POST
+    payload: UserCreatedPayload
+    # Inherits document-level config
+
+  orderCompleted:
+    method: POST
+    payload: OrderCompletedPayload
+    # Inherits document-level config
+```
+
+Override document-level settings for specific webhooks with a per-webhook `signature` block:
+
+```yaml title="generators.yml"
+webhook-signature:
+  type: hmac
+  header: x-webhook-signature
+  algorithm: sha256
+  encoding: hex
+
+webhooks:
+  paymentNotification:
+    method: POST
+    payload: PaymentNotificationPayload
+    signature:
+      # Override: use asymmetric instead of HMAC
+      type: asymmetric
+      header: x-payment-signature
+      asymmetric-algorithm: rsa-sha256
+      encoding: base64
+      jwks-url: https://api.example.com/.well-known/jwks.json
+```
+
+## OpenAPI integration
+
+When using OpenAPI specifications, use the `x-fern-webhook-signature` extension:
+
+```yaml title="openapi.yml"
+x-fern-webhook-signature:
+  type: hmac
+  header: x-webhook-signature
+  algorithm: sha256
+  encoding: hex
+
+paths:
+  /webhooks/payment:
+    post:
+      x-fern-webhook: true
+      # Inherits document-level config
+
+  /webhooks/refund:
+    post:
+      x-fern-webhook: true
+      x-fern-webhook-signature:
+        # Override with asymmetric
+        type: asymmetric
+        asymmetric-algorithm: rsa-sha256
+        encoding: base64
+```
+
+## Common patterns
+
+<AccordionGroup>
+<Accordion title="GitHub-style HMAC">
+
+```yaml title="generators.yml"
+webhook-signature:
+  type: hmac
+  header: x-hub-signature-256
+  algorithm: sha256
+  encoding: hex
+  signature-prefix: "sha256="
+  payload-format:
+    components: [body]
+    delimiter: ""
+```
+
+</Accordion>
+<Accordion title="Stripe-style HMAC with timestamp">
+
+```yaml title="generators.yml"
+webhook-signature:
+  type: hmac
+  header: stripe-signature
+  algorithm: sha256
+  encoding: hex
+  payload-format:
+    components: [timestamp, body]
+    delimiter: "."
+  timestamp:
+    header: stripe-signature
+    format: unix-seconds
+    tolerance: 300
+```
+
+</Accordion>
+<Accordion title="Asymmetric with JWKS">
+
+```yaml title="generators.yml"
+webhook-signature:
+  type: asymmetric
+  header: x-signature
+  asymmetric-algorithm: rsa-sha256
+  encoding: base64
+  jwks-url: https://api.example.com/.well-known/jwks.json
+  key-id-header: x-key-id
+  timestamp:
+    header: x-timestamp
+    format: iso8601
+    tolerance: 600
+```
+
+</Accordion>
+</AccordionGroup>
