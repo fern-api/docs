@@ -1,0 +1,164 @@
+---
+title: Library Docs
+subtitle: Generate reference documentation for your client libraries directly from source code.
+---
+
+<Markdown src="/snippets/agent-directive.mdx"/>
+
+Fern can generate reference documentation for your client libraries (e.g., Python SDKs) directly from source code. Library docs are auto-generated MDX pages that document modules, classes, methods, and parameters — rendered as first-class sections in your docs site.
+
+<Note>
+Library docs is currently in **beta**. Python and C++ are supported today.
+</Note>
+
+## How it works
+
+1. You define a `libraries` configuration in your `docs.yml` pointing to a Git repository containing your library source code.
+2. Running `fern docs md generate` parses the source code and generates MDX files with full navigation.
+3. You reference the library in your navigation using the `library` navigation item, and Fern renders the generated pages as a section in your docs.
+
+## Configuration
+
+<Steps>
+<Step title="Define your library in docs.yml">
+
+Add a `libraries` entry to your `docs.yml` file. Each library needs an `input` source, an `output` directory, and a `lang` (language).
+
+```yaml title="docs.yml" {1-7}
+libraries:
+  my-python-sdk:
+    input:
+      git: https://github.com/acme/sdk-python
+      subpath: src/sdk  # optional: path within the repo
+    output:
+      path: ./static/sdk-docs
+    lang: python
+```
+
+The `input` can be a Git repository:
+
+| Property  | Description                                              | Required |
+|-----------|----------------------------------------------------------|----------|
+| `git`     | GitHub URL to the repository containing the library source code. | Yes      |
+| `subpath` | Path within the repository to the library source.        | No       |
+
+The `output` specifies where generated MDX files are written:
+
+| Property | Description                                    | Required |
+|----------|------------------------------------------------|----------|
+| `path`   | The output directory for generated MDX files.  | Yes      |
+
+</Step>
+<Step title="Generate library documentation">
+
+Run the generation command to parse your library source code and produce MDX files:
+
+```bash
+fern docs md generate
+```
+
+This generates MDX files and a `_navigation.yml` file in the configured output directory. The generated files document all public modules, classes, methods, and their parameters.
+
+</Step>
+<Step title="Add the library to your navigation">
+
+Reference the library in your `docs.yml` navigation using the `library` key. The value must match a key defined in your `libraries` section.
+
+```yaml title="docs.yml" {10-11}
+libraries:
+  my-python-sdk:
+    input:
+      git: https://github.com/acme/sdk-python
+    output:
+      path: ./static/sdk-docs
+    lang: python
+
+navigation:
+  - library: my-python-sdk
+    title: Python SDK Reference  # optional: override display title
+    slug: python-sdk             # optional: override URL slug
+```
+
+Fern reads the generated `_navigation.yml` and MDX files from the output directory and renders them as a full navigation section in your docs.
+
+</Step>
+<Step title="Preview and publish">
+
+Preview your docs locally with:
+
+```bash
+fern docs dev
+```
+
+When ready, publish with:
+
+```bash
+fern generate --docs
+```
+
+</Step>
+</Steps>
+
+## Supported languages
+
+| Language | Status |
+|----------|--------|
+| Python   | Beta   |
+| C++      | Beta   |
+
+## Configuration reference
+
+### `libraries` (top-level)
+
+The `libraries` key is a map where each entry defines a library to generate docs for.
+
+```yaml title="docs.yml"
+libraries:
+  <library-name>:
+    input:
+      git: <github-url>
+      subpath: <optional-path>    # path within the repo
+    output:
+      path: <output-directory>    # where MDX files are written
+    lang: <language>              # python or cpp
+```
+
+### `library` (navigation item)
+
+The `library` navigation item references a library defined in the `libraries` section.
+
+```yaml title="docs.yml"
+navigation:
+  - library: <library-name>     # must match a key in `libraries`
+    title: <optional-title>     # override display title
+    slug: <optional-slug>       # override URL slug
+```
+
+## Multiple libraries
+
+You can define multiple libraries and include them in your navigation:
+
+```yaml title="docs.yml"
+libraries:
+  python-sdk:
+    input:
+      git: https://github.com/acme/sdk-python
+    output:
+      path: ./static/python-sdk-docs
+    lang: python
+  cpp-sdk:
+    input:
+      git: https://github.com/acme/sdk-cpp
+    output:
+      path: ./static/cpp-sdk-docs
+    lang: cpp
+
+navigation:
+  - section: SDK References
+    contents:
+      - library: python-sdk
+        title: Python SDK
+      - library: cpp-sdk
+        title: C++ SDK
+  - api: API Reference
+```
