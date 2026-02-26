@@ -41,6 +41,7 @@ The table below shows all available extensions and links to detailed documentati
 | [`x-fern-default-url`](./server-names-and-url-templating) | Provide a static fallback URL for templated server URLs |
 | [`x-fern-server-name`](./server-names-and-url-templating) | Name your servers and configure URL templating |
 | [`x-fern-webhook`](/api-definitions/openapi/endpoints/webhooks) | Define webhooks in OpenAPI 3.0 specifications |
+| [`x-fern-webhook-signature`](/api-definitions/openapi/endpoints/webhooks#signature-verification) | Configure webhook signature verification for HMAC or asymmetric validation |
 
 <Note title="Request a new extension">
     If there's an extension you want that doesn't already exist, file an [issue](https://github.com/fern-api/fern/issues/new) to start a discussion about it.

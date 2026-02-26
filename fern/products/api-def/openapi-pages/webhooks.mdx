@@ -1,6 +1,7 @@
 ---
 title: Webhooks
 description: Learn how to define webhooks using OpenAPI 3.1 native support or Fern's extensions. Generate webhook docs and SDK verification utilities.
+max-toc-depth: 3
 ---
 
 <Markdown src="/snippets/agent-directive.mdx"/>
@@ -126,6 +127,66 @@ navigation:
 
 For more information on how to configure your webhook reference in `docs.yml`, see [Generate your webhook reference](/docs/api-references/generate-webhook-ref).
 
-## SDK verification utilities
+## SDK signature verification
 
-<Markdown src="/snippets/sdk-verification-utilities.mdx"/>
+Use the `x-fern-webhook-signature` extension to configure webhook signature verification. When configured, Fern generates SDK utilities that allow users to verify webhook signatures and ensure events originate from your API.
+
+Configuration can be set at the **document level** (applies to all webhook endpoints) or **per-endpoint** (overrides the document-level default). Both levels accept the same configuration options.
+
+Fern supports two verification methods: **HMAC** (symmetric key verification using shared secrets) and **Asymmetric** (public key verification using RSA, ECDSA, or Ed25519 keys).
+
+<Tabs>
+<Tab title="Document-level">
+```yaml title="openapi.yml"
+x-fern-webhook-signature:
+  type: hmac
+  header: x-webhook-signature
+  algorithm: sha256
+  encoding: hex
+
+paths:
+  /webhooks/payment:
+    post:
+      x-fern-webhook: true
+      # Inherits document-level signature config
+
+  /webhooks/order:
+    post:
+      x-fern-webhook: true
+      # Inherits document-level signature config
+```
+</Tab>
+<Tab title="Per-endpoint override">
+```yaml title="openapi.yml"
+x-fern-webhook-signature:
+  type: hmac
+  header: x-webhook-signature
+  algorithm: sha256
+  encoding: hex
+
+paths:
+  /webhooks/payment:
+    post:
+      x-fern-webhook: true
+      # Inherits document-level config
+
+  /webhooks/refund:
+    post:
+      x-fern-webhook: true
+      x-fern-webhook-signature:
+        # Override with asymmetric
+        type: asymmetric
+        header: x-refund-signature
+        asymmetric-algorithm: rsa-sha256
+        encoding: base64
+        jwks-url: https://api.example.com/.well-known/jwks.json
+```
+</Tab>
+</Tabs>
+
+### Configuration options
+
+<Markdown src="/snippets/webhook-signature-config-options.mdx"/>
+
+
+
