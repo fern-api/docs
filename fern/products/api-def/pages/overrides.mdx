@@ -58,6 +58,17 @@ api:
     - openapi: spec-file.yml 
       overrides: ./overrides.yml
 ```
+
+You can also specify multiple override files. When multiple paths are provided, overrides are applied sequentially in the order listed:
+
+```yaml title="generators.yml"
+api:
+  specs:
+    - openapi: spec-file.yml 
+      overrides:
+        - ./base-overrides.yml
+        - ./sdk-overrides.yml
+```
 </Step>
 <Step title="Fern combines your spec and overrides">
 Now when you run `fern generate`, Fern combines your original API specification with the overrides file:
@@ -99,6 +110,25 @@ paths:
 </CodeGroup>
 </Step>
 </Steps>
+
+## Multiple override files
+
+The `overrides` field accepts a single path or a list of paths. When multiple paths are provided, overrides are applied sequentially in order, with later files taking precedence over earlier ones for conflicting keys. This is useful for:
+
+* Separating vendor-specific SDK customizations from shared API overrides
+* Layering team-specific overrides on top of base configurations
+* Keeping override files small and focused on specific concerns
+
+```yaml title="generators.yml"
+api:
+  specs:
+    - openapi: openapi.yml
+      overrides:
+        - ./base-overrides.yml     # Shared overrides (e.g., SDK method names)
+        - ./team-overrides.yml     # Team-specific customizations
+```
+
+Multiple override files are supported for all spec types: OpenAPI, AsyncAPI, OpenRPC, and Protobuf.
 
 ## Separate overrides for SDKs and docs
 
