@@ -28,29 +28,31 @@ tags: ["tag1", "tag2"]
 
 ### Available tags
 
-Prefer existing tags when possible. New tags are fine if none of the existing ones fit.
+Use the same tagging conventions across both docs and dashboard changelogs. Tags should describe the **category or area** of the change, not the specific feature name. This keeps tags useful as filters across many entries.
+
+Prefer existing tags when possible. New tags are fine if none of the existing ones fit, but keep them categorical (e.g., `security` not `password-protection`).
 
 | Tag | Use for |
 |-----|---------|
-| `api-reference` or `api-references` | API reference features |
+| `api-reference` | API reference features |
 | `components` | UI component additions/changes |
 | `navigation` | Navigation and sidebar changes |
-| `customization` | Styling, theming, CSS customization |
-| `configuration` | Config file changes |
+| `customization` | Styling, theming, custom domains |
+| `configuration` | Config file changes, settings |
 | `docs.yml` | Changes involving `docs.yml` config |
 | `generators.yml` | Changes involving `generators.yml` config |
 | `writing-content` | Markdown/content authoring features |
-| `content-authoring` | Content creation tools |
 | `search` | Search functionality |
 | `ai` | AI-related features |
-| `seo` | SEO improvements |
+| `seo` | SEO, broken link checking, site health |
 | `local-development` | Local dev server features |
 | `performance` | Performance improvements |
 | `accessibility` | Accessibility improvements |
-| `security` | Security features |
+| `security` | Security, access control, permissions, authentication |
 | `bug-fix` | Bug fixes |
+| `pdf-export` | PDF export features |
 
-Pick 1–4 tags that best describe the change. Prefer fewer, more specific tags.
+Pick 1–4 tags that best describe the change. Prefer fewer, more specific tags. Tags should be **categorical** — describing the area of the change, not the specific feature name. The same tags apply to both docs and dashboard changelogs.
 
 ## Writing style
 
