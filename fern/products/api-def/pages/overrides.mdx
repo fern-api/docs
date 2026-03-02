@@ -113,20 +113,45 @@ paths:
 
 ## Multiple override files
 
-The `overrides` field accepts a single path or a list of paths. When multiple paths are provided, overrides are applied sequentially in order, with later files taking precedence over earlier ones for conflicting keys. This is useful for:
+The `overrides` field accepts a single path or a list of paths. When multiple paths are provided, overrides are applied sequentially in order, with later files taking precedence over earlier ones for conflicting keys.
 
-* Separating vendor-specific SDK customizations from shared API overrides
-* Layering team-specific overrides on top of base configurations
-* Keeping override files small and focused on specific concerns
+This is useful when:
+
+* **Multiple specs share a common base set of overrides.** For example, if you have separate specs for different API versions, each spec can reference a shared overrides file plus its own spec-specific overrides.
+* **A specific SDK language needs additional overrides.** You can specify the base overrides that apply to all SDKs, and then add language-specific overrides on top for a particular generator group.
+
+<AccordionGroup>
+<Accordion title="Shared base overrides across multiple specs">
+
+When your project has multiple specs that need the same foundational overrides (e.g., shared SDK method names or authentication extensions), use a common base file and layer spec-specific overrides on top:
 
 ```yaml title="generators.yml"
 api:
   specs:
-    - openapi: openapi.yml
+    - openapi: ./payments-api.yml
       overrides:
-        - ./base-overrides.yml     # Shared overrides (e.g., SDK method names)
-        - ./team-overrides.yml     # Team-specific customizations
+        - ./shared-overrides.yml       # Common overrides for all specs
+        - ./payments-overrides.yml     # Payments-specific overrides
+    - openapi: ./users-api.yml
+      overrides:
+        - ./shared-overrides.yml       # Same common overrides
+        - ./users-overrides.yml        # Users-specific overrides
 ```
+</Accordion>
+<Accordion title="Language-specific SDK overrides">
+
+When a particular SDK language needs additional customizations beyond the base overrides, use the [generator-level `api.specs`](#) to layer language-specific overrides:
+
+```yaml title="generators.yml"
+api:
+  specs:
+    - openapi: ./openapi.yml
+      overrides:
+        - ./base-overrides.yml         # Base overrides for all SDKs
+        - ./typescript-overrides.yml   # Additional overrides for TypeScript
+```
+</Accordion>
+</AccordionGroup>
 
 Multiple override files are supported for all spec types: OpenAPI, AsyncAPI, OpenRPC, and Protobuf.
 
