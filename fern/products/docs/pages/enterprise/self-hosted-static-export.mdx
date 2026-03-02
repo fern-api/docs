@@ -1,6 +1,6 @@
 ---
-title: Previews / static export
-description: Export your self-hosted documentation as static files and deploy them to an S3 bucket using a CI/CD pipeline.
+title: Previews
+description: Set up preview environments for your self-hosted documentation using containers or static exports.
 availability: beta
 ---
 
@@ -8,16 +8,25 @@ availability: beta
 
 <Markdown src="/snippets/enterprise-plan.mdx" />
 
-You can use a CI/CD pipeline to build your docs container, export the static files, and push them to an S3 bucket (or any static file host).
+There are two ways to set up preview environments for your self-hosted docs: deploy a full container per preview, or export static files to an object store.
 
-<Note>
-Static exports do not include search or the API Explorer (Try it) functionality. This feature is in beta and may change in the future.
-</Note>
+## Container-based previews
 
-## GitHub Actions workflow
+Build and deploy the self-hosted container for each preview. This gives you an identical environment to production.
 
-```yaml title=".github/workflows/deploy-docs-s3.yml"
-name: deploy-docs-to-s3
+**Pros:**
+- All features work, including search, API Explorer (Try it), and authentication
+- No differences from the final production container
+
+**Cons:**
+- Requires hosting infrastructure (container runtime, load balancer, DNS)
+- Must clean up containers and resources after previews are no longer needed
+- Higher cost at scale
+
+### GitHub Actions workflow
+
+```yaml title=".github/workflows/preview-docs-container.yml"
+name: preview-docs-container
 
 on:
   pull_request:
@@ -26,7 +35,62 @@ on:
       - main
 
 jobs:
-  deploy-docs:
+  preview-docs:
+    runs-on: ubuntu-latest
+    permissions: write-all
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build docs container
+        run: docker build -t self-hosted-docs:${{ github.sha }} .
+
+      - name: Push container to registry
+        run: |
+          docker tag self-hosted-docs:${{ github.sha }} ${{ secrets.REGISTRY }}/self-hosted-docs:${{ github.sha }}
+          docker push ${{ secrets.REGISTRY }}/self-hosted-docs:${{ github.sha }}
+
+      - name: Deploy preview
+        run: |
+          # Deploy the container to your hosting platform
+          # (e.g. ECS, Cloud Run, Kubernetes, etc.)
+          # and retrieve the preview URL
+          echo "Deploy self-hosted-docs:${{ github.sha }} to your platform"
+```
+
+## Static export previews <Badge intent="warning" minimal>Beta</Badge>
+
+Export the docs as static HTML and assets and upload them to an object store such as S3, GCS, or R2.
+
+**Pros:**
+- Static files can be served from any object store (S3, GCS, R2, etc.) with no running servers
+- Scale to thousands of previews without spinning up containers or load balancers
+- Low cost and simple cleanup
+
+**Cons:**
+- No search functionality
+- No API Explorer (Try it)
+- No authentication
+
+### GitHub Actions workflow
+
+```yaml title=".github/workflows/preview-docs-static.yml"
+name: preview-docs-static
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  preview-docs:
     runs-on: ubuntu-latest
     permissions: write-all
     steps:
