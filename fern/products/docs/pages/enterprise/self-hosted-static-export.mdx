@@ -1,0 +1,147 @@
+---
+title: Static export to S3
+description: Export your self-hosted documentation as static files and deploy them to an S3 bucket using a CI/CD pipeline.
+---
+
+<Markdown src="/snippets/agent-directive.mdx"/>
+
+<Markdown src="/snippets/enterprise-plan.mdx" />
+
+The self-hosted container includes a static export feature that crawls all pages, caches them, and produces a `.tar.gz` archive of static HTML and assets. You can use this in a CI/CD pipeline to build your docs container, export the static files, and push them to an S3 bucket (or any static file host).
+
+## How it works
+
+The export process runs inside a self-hosted container:
+
+1. The container starts and all internal services initialize (PostgreSQL, MinIO, FDR, Next.js).
+2. A warmup phase crawls every page to populate the cache.
+3. The export collects all cached HTML pages and Next.js static assets into a `tar.gz` archive.
+4. The archive is copied out of the container and uploaded to S3.
+
+## GitHub Actions workflow
+
+The following GitHub Actions workflow builds the self-hosted container with your docs, runs the static export, and syncs the output to an S3 bucket.
+
+### Prerequisites
+
+Add these secrets to your GitHub repository settings:
+
+| Secret | Description |
+|---|---|
+| `DOCKERHUB_USERNAME` | Docker Hub username with access to the private `fernapi/fern-self-hosted` image |
+| `DOCKERHUB_TOKEN` | Docker Hub access token |
+| `AWS_ACCESS_KEY_ID` | AWS access key with S3 write permissions |
+| `AWS_SECRET_ACCESS_KEY` | AWS secret key |
+| `AWS_S3_BUCKET` | Target S3 bucket name (e.g., `my-docs-bucket`) |
+| `AWS_REGION` | AWS region for the S3 bucket (e.g., `us-east-1`) |
+
+### Workflow file
+
+Create `.github/workflows/deploy-docs-s3.yml` in your repository:
+
+```yaml title=".github/workflows/deploy-docs-s3.yml"
+name: deploy-docs-to-s3
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy-docs:
+    runs-on: ubuntu-latest
+    permissions: write-all
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build docs container
+        run: docker build -t self-hosted-docs .
+
+      - name: Start container
+        run: |
+          docker run -d \
+            --name docs-container \
+            -e WARMUP=true \
+            self-hosted-docs
+
+      - name: Wait for container to be healthy
+        run: |
+          echo "Waiting for container to be healthy..."
+          MAX_ATTEMPTS=60
+          ATTEMPT=0
+          while [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; do
+            ATTEMPT=$((ATTEMPT + 1))
+            if docker exec docs-container sh -c \
+              'TOKEN=$(cat /tmp/.cache-admin-token 2>/dev/null); \
+               curl -f -s --max-time 5 \
+               -H "Authorization: Bearer $TOKEN" \
+               http://localhost:3000/__cache/stats' > /dev/null 2>&1; then
+              echo "Container is healthy."
+              break
+            fi
+            echo "  Not ready yet... ($ATTEMPT/$MAX_ATTEMPTS)"
+            sleep 5
+          done
+          if [ "$ATTEMPT" -ge "$MAX_ATTEMPTS" ]; then
+            echo "Error: container did not become healthy."
+            exit 1
+          fi
+
+      - name: Export static site
+        run: |
+          docker exec docs-container /scripts/export.sh
+          docker cp docs-container:/tmp/fern-static-export.tar.gz ./export.tar.gz
+
+      - name: Extract static files
+        run: |
+          mkdir -p ./site
+          tar -xzf export.tar.gz -C ./site
+
+      - name: Upload to S3
+        if: github.ref == 'refs/heads/main'
+        uses: jakejarvis/s3-sync-action@v0.5.1
+        with:
+          args: --delete
+        env:
+          SOURCE_DIR: ./site
+          AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+
+      - name: Stop container
+        if: always()
+        run: docker rm -f docs-container
+```
+
+This workflow requires a `Dockerfile` in your repository root. See [Set up self-hosted documentation](/learn/docs/self-hosted/set-up) for Dockerfile setup instructions.
+
+### Pull request previews
+
+On pull requests, the workflow builds the container and runs the export without uploading to S3. The upload step only runs on pushes to the `main` branch, controlled by the `if: github.ref == 'refs/heads/main'` condition. To enable PR preview uploads, remove that condition or change it to also match `pull_request` events.
+
+## Using the AWS CLI directly
+
+If you prefer the AWS CLI over the GitHub Action, replace the upload step:
+
+```yaml
+      - name: Upload to S3
+        if: github.ref == 'refs/heads/main'
+        run: aws s3 sync ./site s3://${{ secrets.AWS_S3_BUCKET }} --delete
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+```
+
+## Base path configuration
+
+If your docs are served from a sub-path (e.g., `/docs`), set `NEXT_PUBLIC_BASE_PATH` in your Dockerfile before running `fern-generate`. The static export preserves the base path in all generated files. See [Base path](/learn/docs/self-hosted/set-up#base-path) for details.
