@@ -113,9 +113,13 @@ paths:
 
 ## Multiple override files
 
-The `overrides` field accepts a single path or a list of paths. When multiple paths are provided, overrides are applied sequentially in order, with later files taking precedence over earlier ones for conflicting keys.
+The `overrides` field accepts a single path or a list of paths. When multiple paths are provided, overrides are applied sequentially in order, with later files taking precedence over earlier ones for conflicting keys. This is supported for all spec types: OpenAPI, AsyncAPI, OpenRPC, and Protobuf.
 
-This is useful when multiple specs need the same base set of overrides. For example, if you have separate specs for different API versions or services, each spec can reference a shared overrides file plus its own spec-specific overrides:
+Below are common scenarios where multiple override files help keep your configuration organized.
+
+### Shared overrides across multiple specs
+
+When your project has multiple specs that need the same foundational overrides, use a shared base file and layer spec-specific overrides on top. This avoids duplicating common overrides (e.g., SDK method names or authentication extensions) across each spec:
 
 ```yaml title="generators.yml"
 api:
@@ -130,15 +134,46 @@ api:
         - ./users-overrides.yml        # Users-specific overrides
 ```
 
-Multiple override files are supported for all spec types: OpenAPI, AsyncAPI, OpenRPC, and Protobuf.
+### Separate overrides for SDKs and docs
 
-## Separate overrides for SDKs and docs
+When you need entirely different overrides for SDK generation versus documentation, use separate folders with their own `generators.yml`. Each folder references only the overrides relevant to its concern:
 
-<Markdown src="/snippets/separate-sdks-docs.mdx" type="overrides" />
+<Files>
+  <Folder name="fern" defaultOpen>
+    <File name="fern.config.json" />
+    <File name="openapi.yml" />
+    <Folder name="docs" defaultOpen>
+      <File name="generators.yml" />
+      <File name="docs-overrides.yml" />
+    </Folder>
+    <Folder name="sdks" defaultOpen>
+      <File name="generators.yml" />
+      <File name="sdk-overrides.yml" />
+    </Folder>
+  </Folder>
+</Files>
 
-## Overrides for different environments
+```yaml title="sdks/generators.yml"
+api:
+  specs:
+    - openapi: ../openapi.yml
+      overrides: sdk-overrides.yml
+```
 
-Configure different overrides for public versus internal APIs. If your internal API is a superset of the public API, use multiple override files to share the public overrides as a base and layer internal-specific additions on top:
+If the SDK and docs overrides share a common base, you can use multiple override files within each folder to avoid duplication:
+
+```yaml title="sdks/generators.yml"
+api:
+  specs:
+    - openapi: ../openapi.yml
+      overrides:
+        - ../shared-overrides.yml      # Common overrides for both SDKs and docs
+        - sdk-overrides.yml            # SDK-specific overrides
+```
+
+### Overrides for different environments
+
+When your public and internal APIs share the same spec but need different overrides, use multiple override files to layer internal-specific additions on top of the public base. This is especially useful when the internal API is a superset of the public API:
 
 ```yaml title="generators.yml" {5, 12-13}
 groups:
