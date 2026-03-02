@@ -138,4 +138,24 @@ Multiple override files are supported for all spec types: OpenAPI, AsyncAPI, Ope
 
 ## Overrides for different environments
 
-<Markdown src="/snippets/different-environments.mdx" type="overrides" />
+Configure different overrides for public versus internal APIs. If your internal API is a superset of the public API, use multiple override files to share the public overrides as a base and layer internal-specific additions on top:
+
+```yaml title="generators.yml" {5, 12-13}
+groups:
+  public:
+    specs:
+      - openapi: openapi.yml
+        overrides: public-overrides.yml
+    generators:
+      ...
+  internal:
+    specs:
+      - openapi: openapi.yml
+        overrides:
+          - public-overrides.yml           # Base: all public overrides
+          - internal-overrides.yml         # Additional: internal-only overrides
+    generators:
+      ...
+```
+
+This avoids duplicating the public overrides in the internal configuration. The `internal-overrides.yml` file only needs to contain the additions specific to the internal API.
