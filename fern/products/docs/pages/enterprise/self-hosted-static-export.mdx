@@ -8,19 +8,27 @@ availability: beta
 
 <Markdown src="/snippets/enterprise-plan.mdx" />
 
-There are two ways to set up preview environments for your self-hosted docs: deploy a full container per preview, or export static files to an object store. Both approaches render content exactly as it would appear in production.
+There are two ways to set up preview environments for your self-hosted docs. Both approaches render content exactly as it would appear in production.
+
+## Comparison
+
+| | Container-based | Static export <Badge intent="warning" minimal>Beta</Badge> |
+|---|---|---|
+| **Content rendering** | Identical to production | Identical to production |
+| **Search** | Yes | No |
+| **API Explorer (Try it)** | Yes | No |
+| **Authentication** | Yes | No |
+| **Infrastructure** | Requires container hosting, load balancer, DNS | Serves from any object store (S3, GCS, R2) |
+| **Scaling** | One container per preview | Thousands of previews with no servers |
+| **Cost** | Higher | Low |
+| **Cleanup** | Must tear down containers and resources | Simple — delete static files |
+
+## GitHub Actions workflows
 
 <AccordionGroup>
-<Accordion title="Container-based previews">
+<Accordion title="Container-based preview workflow">
 
-Build and deploy the self-hosted container for each preview. This gives you an identical environment to production.
-
-| | |
-|---|---|
-| **Pros** | Content renders like production, all features work (search, API Explorer, authentication) |
-| **Cons** | Requires hosting infrastructure (container runtime, load balancer, DNS), must clean up resources, higher cost at scale |
-
-#### GitHub Actions workflow
+Build and deploy the self-hosted container for each preview. This gives you an identical environment to production, including search, API Explorer, and authentication.
 
 ```yaml title=".github/workflows/preview-docs-container.yml"
 name: preview-docs-container
@@ -62,18 +70,9 @@ jobs:
 ```
 
 </Accordion>
-<Accordion title="Static export previews">
-
-<Badge intent="warning" minimal>Beta</Badge>
+<Accordion title="Static export preview workflow">
 
 Export the docs as static HTML and assets and upload them to an object store such as S3, Google Cloud Storage (GCS), or R2.
-
-| | |
-|---|---|
-| **Pros** | Content renders like production, serves from any object store (S3, GCS, R2) with no running servers, scales to thousands of previews, low cost and simple cleanup |
-| **Cons** | No search, no API Explorer (Try it), no authentication |
-
-#### GitHub Actions workflow
 
 ```yaml title=".github/workflows/preview-docs-static.yml"
 name: preview-docs-static
