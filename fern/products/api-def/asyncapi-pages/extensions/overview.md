@@ -6,7 +6,7 @@ description: Learn about Fern's AsyncAPI extensions for generating higher-qualit
 
 Fern supports a variety of AsyncAPI extensions that enhance your API specification and generate higher-quality SDKs. 
 
-You can apply these extensions in two ways: by overlaying them in separate override files or by embedding them directly in your AsyncAPI specification. See [Overrides](/api-definitions/overview/overrides) for more information. 
+You can apply these extensions in two ways: by overlaying them in separate override files or by embedding them directly in your AsyncAPI specification. See [Overrides](/learn/api-definitions/asyncapi/overrides) for more information. 
 
 ## Available extensions
 

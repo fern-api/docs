@@ -17,7 +17,7 @@ Overlays follow the [OpenAPI Overlay Specification](https://spec.openapis.org/ov
 <Note>
   Fern recommends using overlays instead of overrides for OpenAPI specs. 
 
-  [Overrides](/api-definitions/overview/overrides) are also fully supported. If overrides are working for your team, there's no need to switch. You can also use both together (overrides are applied first, then overlays).
+  [Overrides](/learn/api-definitions/openapi/overrides) are also fully supported. If overrides are working for your team, there's no need to switch. You can also use both together (overrides are applied first, then overlays).
 </Note>
 
 ## Configure overlays
@@ -115,10 +115,82 @@ actions:
 </Accordion>
 </AccordionGroup>
 
-## Separate overlays for SDKs and docs
+## Managing overlays across APIs
 
-<Markdown src="/snippets/separate-sdks-docs.mdx" type="overlays" />
+Each spec in `generators.yml` accepts one overlay file. You can reference the same file across specs or use separate files for different configurations.
 
-## Overlays for different environments
+<AccordionGroup>
+<Accordion title="Shared overlays across multiple specs">
 
-<Markdown src="/snippets/different-environments.mdx" type="overlays" />
+When multiple specs need the same customizations, point them to the same overlay file to avoid duplication:
+
+```yaml title="generators.yml"
+api:
+  specs:
+    - openapi: ./payments-api.yml
+      overlays: shared-overlays.yml       # Same overlay for both specs
+    - openapi: ./users-api.yml
+      overlays: shared-overlays.yml
+```
+
+If each spec needs unique customizations, create separate overlay files per spec:
+
+```yaml title="generators.yml"
+api:
+  specs:
+    - openapi: ./payments-api.yml
+      overlays: payments-overlays.yml
+    - openapi: ./users-api.yml
+      overlays: users-overlays.yml
+```
+
+</Accordion>
+<Accordion title="Separate overlays for SDKs and docs">
+
+Use different overlay files for SDK generation versus documentation by creating separate folders with their own `generators.yml`:
+
+<Files>
+  <Folder name="fern" defaultOpen>
+    <File name="fern.config.json" />
+    <File name="openapi.yml" />
+    <Folder name="docs" defaultOpen>
+      <File name="generators.yml" />
+      <File name="docs-overlays.yml" />
+    </Folder>
+    <Folder name="sdks" defaultOpen>
+      <File name="generators.yml" />
+      <File name="sdk-overlays.yml" />
+    </Folder>
+  </Folder>
+</Files>
+
+```yaml title="sdks/generators.yml"
+api:
+  specs:
+    - openapi: ../openapi.yml
+      overlays: sdk-overlays.yml
+```
+
+</Accordion>
+<Accordion title="Overlays for different environments">
+
+Configure different overlays for production versus internal APIs:
+
+```yaml title="generators.yml" {5, 11}
+groups:
+  production:
+    specs:
+      - openapi: openapi.yml
+        overlays: production-overlays.yml
+    generators:
+      ...
+  internal:
+    specs:
+      - openapi: openapi.yml
+        overlays: internal-overlays.yml
+    generators:
+      ...
+```
+
+</Accordion>
+</AccordionGroup>
