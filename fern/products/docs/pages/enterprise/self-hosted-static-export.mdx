@@ -35,9 +35,6 @@ name: preview-docs-container
 
 on:
   pull_request:
-  push:
-    branches:
-      - main
 
 jobs:
   preview-docs:
@@ -79,9 +76,6 @@ name: preview-docs-static
 
 on:
   pull_request:
-  push:
-    branches:
-      - main
 
 jobs:
   preview-docs:
@@ -141,7 +135,6 @@ jobs:
           tar -xzf export.tar.gz -C ./site
 
       - name: Upload to S3
-        if: github.ref == 'refs/heads/main'
         uses: jakejarvis/s3-sync-action@v0.5.1
         with:
           args: --delete
@@ -151,6 +144,15 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: ${{ secrets.AWS_REGION }}
+          DEST_DIR: pr-${{ github.event.pull_request.number }}
+
+      - name: Comment preview URL on PR
+        if: github.event_name == 'pull_request'
+        uses: thollander/actions-comment-pull-request@v3
+        with:
+          message: |
+            Preview: http://${{ secrets.AWS_S3_BUCKET }}.s3-website.${{ secrets.AWS_REGION }}.amazonaws.com/pr-${{ github.event.pull_request.number }}
+          pr-number: ${{ github.event.pull_request.number }}
 
       - name: Stop container
         if: always()
