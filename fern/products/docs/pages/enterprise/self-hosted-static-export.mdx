@@ -8,22 +8,19 @@ availability: beta
 
 <Markdown src="/snippets/enterprise-plan.mdx" />
 
-There are two ways to set up preview environments for your self-hosted docs: deploy a full container per preview, or export static files to an object store.
+There are two ways to set up preview environments for your self-hosted docs: deploy a full container per preview, or export static files to an object store. Both approaches render content exactly as it would appear in production.
 
-## Container-based previews
+<AccordionGroup>
+<Accordion title="Container-based previews">
 
 Build and deploy the self-hosted container for each preview. This gives you an identical environment to production.
 
-**Pros:**
-- All features work, including search, API Explorer (Try it), and authentication
-- No differences from the final production container
+| | |
+|---|---|
+| **Pros** | Content renders like production, all features work (search, API Explorer, authentication) |
+| **Cons** | Requires hosting infrastructure (container runtime, load balancer, DNS), must clean up resources, higher cost at scale |
 
-**Cons:**
-- Requires hosting infrastructure (container runtime, load balancer, DNS)
-- Must clean up containers and resources after previews are no longer needed
-- Higher cost at scale
-
-### GitHub Actions workflow
+#### GitHub Actions workflow
 
 ```yaml title=".github/workflows/preview-docs-container.yml"
 name: preview-docs-container
@@ -64,21 +61,19 @@ jobs:
           echo "Deploy self-hosted-docs:${{ github.sha }} to your platform"
 ```
 
-## Static export previews <Badge intent="warning" minimal>Beta</Badge>
+</Accordion>
+<Accordion title="Static export previews">
+
+<Badge intent="warning" minimal>Beta</Badge>
 
 Export the docs as static HTML and assets and upload them to an object store such as S3, Google Cloud Storage (GCS), or R2.
 
-**Pros:**
-- Static files can be served from any object store (S3, GCS, R2, etc.) with no running servers
-- Scale to thousands of previews without spinning up containers or load balancers
-- Low cost and simple cleanup
+| | |
+|---|---|
+| **Pros** | Content renders like production, serves from any object store (S3, GCS, R2) with no running servers, scales to thousands of previews, low cost and simple cleanup |
+| **Cons** | No search, no API Explorer (Try it), no authentication |
 
-**Cons:**
-- No search functionality
-- No API Explorer (Try it)
-- No authentication
-
-### GitHub Actions workflow
+#### GitHub Actions workflow
 
 ```yaml title=".github/workflows/preview-docs-static.yml"
 name: preview-docs-static
@@ -162,3 +157,6 @@ jobs:
         if: always()
         run: docker rm -f docs-container
 ```
+
+</Accordion>
+</AccordionGroup>
