@@ -17,6 +17,7 @@ class Client:
 ```
 
 To configure global headers, Fern will automatically pull out headers that are used in every request, or the majority of requests, and mark them as global.
+
 In order to label additional headers as global, or to alias the names of global headers, you can leverage the `x-fern-global-headers` extension:
 
 ```yaml title="openapi.yml"
@@ -26,8 +27,25 @@ x-fern-global-headers:
   - header: userpool_id
     optional: true
 ```
+<Note>
+  When you define global headers using `x-fern-global-headers`, you must [include them in your `x-fern-examples`](/api-definitions/openapi/extensions/request-response-examples).
+</Note>
 
-yields the following client:
+Alternatively, you can add headers to the [`api` block in your `generators.yml` file](/learn/sdks/reference/generators-yml#headers):
+
+```yaml title="generators.yml"
+api:
+  - openapi: ./path/to/openapi
+    headers:
+      custom_api_key:
+        name: api_key
+        type: string
+      userpool_id:
+        name: userpool_id
+        type: optional<string>
+```
+
+Both configurations yield the following client code:
 
 ```python
 import os
@@ -36,5 +54,3 @@ class Client:
 
   def __init__(self, *, apiKey: str, userpoolId: typing.Optional[str])
 ```
-
-When you define global headers using `x-fern-global-headers`, you must [include them in your `x-fern-examples`](/api-definitions/openapi/extensions/request-response-examples).
