@@ -1,108 +1,98 @@
 ---
 title: Customize method names
-description: Learn how to customize SDK method names in Fern to create intuitive, user-friendly code. Configure group names and method structures for better API client design.
+description: Configure SDK method and group names to create intuitive, user-friendly API clients with Fern.
 ---
 
 <Markdown src="/snippets/agent-directive.mdx"/>
 
-You can fine-tune your SDK method and group names to create intuitive, user-friendly
-code that matches your API's purpose. 
-
-For example, instead of `client.postUsers`
-you can configure your SDK to read `client.users.create()`.
-
-
-## How it works for SDK users
-
-Here's how developers using your generated SDK would call the customized method
-name `client.users.create()` in their applications:
-
-<CodeBlocks>
-  <CodeBlock title="TypeScript">
-    ```ts
-    const response = await client.users.create();
-    ```
-  </CodeBlock>
-  <CodeBlock title="Python">
-    ```python
-    response = client.users.create()
-    # or async
-    response = await async_client.users.create()
-    ```
-  </CodeBlock>
-  <CodeBlock title="Java">
-    ```java
-    const response = client.users().create();
-    ```
-  </CodeBlock>
-  <CodeBlock title="Go">
-    ```go
-    const response = client.Users.Create();
-    ```
-  </CodeBlock>
-</CodeBlocks>
-
-Here's how users would call nested groups:
-
-<CodeBlocks>
-  <CodeBlock title="TypeScript">
-    ```ts
-    const response = await client.admin.users.create();
-    ```
-  </CodeBlock>
-  <CodeBlock title="Python">
-    ```python
-    response = client.admin.users.create()
-    # or async
-    response = await async_client.admin.users.create()
-    ```
-  </CodeBlock>
-  <CodeBlock title="Java">
-    ```java
-    const response = client.admin().users().create();
-    ```
-  </CodeBlock>
-  <CodeBlock title="Go">
-    ```go
-    const response = client.Admin.Users.Create();
-    ```
-  </CodeBlock>
-</CodeBlocks>
+Fern lets you customize SDK method and group names so that generated clients are intuitive. For example, instead of `client.postUsers` you can configure your SDK to produce `client.users.create()`.
 
 <Note title="Casing is automatically configured">
-  Fern automatically handles choosing the appropriate casing for each SDK
-  language: `snake_case` in python, `camelCase` in TypeScript and `PascalCase` in
-  Go, etc. Because of this, you define the endpoint structure once and get
-  properly formatted methods across all generated SDKs.
+  Fern automatically applies the appropriate casing for each SDK
+  language: `snake_case` in Python, `camelCase` in TypeScript, `PascalCase` in
+  Go, etc. Define the endpoint structure once and get
+  correctly formatted methods across all generated SDKs.
 </Note>
 
-## Configure method names
+## Generated SDK behavior
 
-<AccordionGroup>
-<Accordion title="OpenAPI">
+<Tabs>
+<Tab title="TypeScript">
+```ts
+const response = await client.users.create();
 
-<Markdown src="/snippets/open-api-method-names.mdx" />
+// Nested groups
+const response = await client.admin.users.create();
+```
+</Tab>
+<Tab title="Python">
+```python
+response = client.users.create()
 
-</Accordion>
-<Accordion title="Fern Definition">
+# Nested groups
+response = client.admin.users.create()
+```
+</Tab>
+<Tab title="Java">
+```java
+var response = client.users().create();
 
-For the Fern Definition, method names are directly mapped from your endpoint and service `base-path`.
+// Nested groups
+var response = client.admin().users().create();
+```
+</Tab>
+<Tab title="Go">
+```go
+response := client.Users.Create()
 
-In the example below, Fern will generate a method called `client.users.create()`:
+// Nested groups
+response := client.Admin.Users.Create()
+```
+</Tab>
+</Tabs>
+
+## Setting up custom method names
+
+<Tabs>
+<Tab title="OpenAPI">
+
+Use the `x-fern-sdk-group-name` and `x-fern-sdk-method-name` extensions to control how endpoints map to SDK methods:
+
+```yaml title="openapi.yml" {4-5}
+paths:
+  /users:
+    post:
+      x-fern-sdk-group-name: users
+      x-fern-sdk-method-name: create
+```
+</Tab>
+<Tab title="Fern Definition">
+
+Method names map directly from your endpoint names and service `base-path`:
 
 ```yaml title="users.yml" {4, 6}
 services:
   http:
-    UsersService: 
-      base-path: /users # This defines the group/namespace for the methods
+    UsersService:
+      base-path: /users
       endpoints:
-        create: # This defines the specific method name within the group
+        create:
           method: POST
           path: ""
 ```
+</Tab>
+</Tabs>
 
-</Accordion>
-</AccordionGroup>
+For full configuration details, see the docs for your API definition format:
+
+<CardGroup cols={2}>
+  <Card title="OpenAPI" href="/learn/api-definitions/openapi/extensions/method-names">
+    Configure `x-fern-sdk-group-name` and `x-fern-sdk-method-name` extensions
+  </Card>
+  <Card title="Fern Definition" href="/learn/api-definitions/ferndef/endpoints/overview">
+    Map endpoint names and service base paths to SDK methods
+  </Card>
+</CardGroup>
 
 
 

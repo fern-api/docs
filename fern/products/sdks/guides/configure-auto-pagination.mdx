@@ -1,202 +1,80 @@
 ---
-title: Configure auto pagination
-description: Paginate through API responses with offset, cursor, URI, and path-based pagination.
+title: Configure auto-pagination
+description: Configure auto-pagination in Fern SDKs for offset, cursor, URI, and path-based pagination schemes.
 ---
 
 <Markdown src="/snippets/agent-directive.mdx"/>
 
 <Markdown src="/snippets/pro-plan.mdx"/>
 
-Fern's auto pagination supports offset, cursor, URI, and path-based
-pagination schemes, providing SDK users with simple iterators to loop through all
-results instead of managing pagination complexity manually.
+Fern's auto-pagination supports offset, cursor, URI, and path-based pagination schemes, providing SDK users with simple iterators to loop through all results instead of managing pagination complexity manually.
 
-This page describes how to configure auto pagination for your API endpoints.
-
-## How it works for SDK users
+## Generated SDK behavior
 
 <Tabs>
-<Tab title="TypeScript" language="typescript">
+<Tab title="TypeScript">
 
-  Once you've configured pagination for an endpoint, Fern generates a TypeScript
-  SDK method that returns a `Page<T>` where `T` is the underlying data type. The
-  `Page<T>` will implement the `AsyncIterable` interface, allowing your users to
-  use it in a `for await` loop.
+Fern generates a method that returns a `Page<T>` implementing the `AsyncIterable` interface:
 
-  Example generated method signature:
-  ```typescript UsersClient.ts {10-13}
-  import core from "../core";
-
-  export interface UsersClient {
-
-    /**
-     * List all users
-     * @param props 
-     * @returns A page of users
-     */
-    list(
-      request: ListUsersRequest = {}, 
-      requestOptions: core.RequestOptions = {}
-    ): core.Page<User>;
-  }
-  ```
-
-    Example of how users would call the `list` method:
-  ```typescript
-  const response = await client.users.list();
-  for await (const user of response) {
-    console.log(user);
-  }
-  ```
-  
+```typescript
+const response = await client.plants.list();
+for await (const plant of response) {
+  console.log(plant);
+}
+```
 </Tab>
-<Tab title="Python" language="python">
+<Tab title="Python">
 
-  Once you've configured pagination for an endpoint, Fern generates a Python SDK
-  method that returns a `Pager[T]` where `T` is the underlying data type. The
-  `Pager[T]` will implement the `Generator` interface, allowing your users to
-  use it in a `for ... in` loop.
+Fern generates a method that returns a `Pager[T]` implementing the `Generator` interface:
 
-  Example generated method signature:
-  ```python client.py {3-9}
-  class UsersClient:
+```python
+for plant in client.plants.list(page=1, page_size=10):
+    print(plant)
 
-    def list_with_cursor_pagination(
-        self,
-        *,
-        page: typing.Optional[int] = None,
-        page_size: typing.Optional[int] = None,
-        request_options: typing.Optional[RequestOptions] = None,
-    ) -> SyncPager[User]:
-      ...
-  ```
-
-  Example of how users would call the `list` method:
-  ```python
-  for user in client.users.list(page=1, page_size=10):
-    print(user)
-  ```
-
-  or if the user is leveraging the asynchronous client:
-  ```python
-  async for user in await client.users.list(page=1, page_size=10):
-    print(user)
-  ```
+# Async client
+async for plant in await client.plants.list(page=1, page_size=10):
+    print(plant)
+```
 </Tab>
 </Tabs>
 
+## Setting up auto-pagination
 
-## Setting up auto pagination
-
-Setting up auto pagination involves defining your pagination scheme and where
-your results are located.
+Annotate the desired endpoint with the pagination configuration, specify the pagination scheme (`offset`, `cursor`, `next_uri`, or `next_path`), and indicate where your results are located using dot-access notation.
 
 <Tabs>
 <Tab title="OpenAPI">
-
-To set up auto pagination for OpenAPI:
-
-1. Annotate the desired paginated endpoint with the [`x-fern-pagination` extension](/learn/api-definitions/openapi/extensions/pagination)
-2. Specify the pagination scheme (`offset`, `cursor`, `next_uri`, or `next_path`)
-3. Specify where your `results` are located using dot-access notation
-
-
-<CodeBlocks>
-```yaml Offset {4-6}
-...
-paths:
-  /plants:
-    x-fern-pagination: # Add pagination extension
-      offset: $request.page_number # Specify offset pagination scheme
-      results: $response.results # Specify result location
-...
-```
-
-```yaml Cursor {5-8}
-...
+```yaml title="openapi.yml" {5-7}
 paths:
   /plants:
     get:
-      x-fern-pagination: # Add pagination extension
-        cursor: $request.cursor # Specify cursor pagination scheme
+      operationId: list_plants
+      x-fern-pagination:
+        cursor: $request.cursor
         next_cursor: $response.next
-        results: $response.results # Specify result location
-...
+        results: $response.results
 ```
-
-```yaml URI {5-7}
-...
-paths:
-  /plants:
-    get:
-      x-fern-pagination: # Add pagination extension
-        next_uri: $response.next_page_url # Full URL for the next page
-        results: $response.results # Specify result location
-...
-```
-
-```yaml Path {5-7}
-...
-paths:
-  /plants:
-    get:
-      x-fern-pagination: # Add pagination extension
-        next_path: $response.next_page_path # Relative path for the next page
-        results: $response.results # Specify result location
-...
-```
-</CodeBlocks>
 </Tab>
-
 <Tab title="Fern Definition">
-
-To set up auto pagination for the Fern Definition:
-
-1. Annotate the desired paginated endpoint with the [`pagination` field](/learn/api-definitions/ferndef/endpoints/overview#pagination)
-1. Specify the pagination scheme (`offset`, `cursor`, `next_uri`, or `next_path`)
-1. Specify where your `results` are located using dot-access notation.
-
-<Tip title="Offset pagination options">
-Include `step` in most offset pagination configurations to ensure the offset increments by the page size. Use `has-next-page` when your API returns a boolean indicator for additional pages.
-</Tip>
-
-<CodeBlocks>
-
-```yaml Offset {6-8}
+```yaml title="service.yml" {5-8}
 service:
   endpoints:
-    listWithOffsetPagination:
-      pagination: # Add pagination field
-        offset: $request.page # Specify offset pagination scheme
-        results: $response.data # Specify result location
-        step: $request.page_size # Recommended: ensures offset increments correctly
-        has-next-page: $response.has_more # Optional: path to next page indicator
-```
-```yaml Cursor {7}
-service:
-  endpoints:
-    listWithCursorPagination:
-      pagination: # Add pagination field
-        cursor: $request.starting_after # Specify cursor pagination scheme
+    list:
+      pagination:
+        cursor: $request.starting_after
         next_cursor: $response.page.next.starting_after
-        results: $response.data # Specify result location
+        results: $response.data
 ```
-```yaml URI {5-6}
-service:
-  endpoints:
-    listWithUriPagination:
-      pagination: # Add pagination field
-        next_uri: $response.next_page_url # Full URL for the next page
-        results: $response.data # Specify result location
-```
-```yaml Path {5-6}
-service:
-  endpoints:
-    listWithPathPagination:
-      pagination: # Add pagination field
-        next_path: $response.next_page_path # Relative path for the next page
-        results: $response.data # Specify result location
-```
-</CodeBlocks>
 </Tab>
 </Tabs>
+
+For full configuration details, see the docs for your API definition format:
+
+<CardGroup cols={2}>
+  <Card title="OpenAPI" href="/learn/api-definitions/openapi/extensions/pagination">
+    Configure the `x-fern-pagination` extension with offset, cursor, URI, and path examples
+  </Card>
+  <Card title="Fern Definition" href="/learn/api-definitions/ferndef/endpoints/overview#pagination">
+    Configure pagination in endpoint definitions
+  </Card>
+</CardGroup>
