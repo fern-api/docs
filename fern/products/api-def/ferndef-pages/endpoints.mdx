@@ -314,7 +314,7 @@ types:
 
 ### Pagination
 
-Endpoints can specify pagination configuration to enable auto-pagination in [generated SDKs](/learn/sdks/deep-dives/auto-pagination). Fern supports both offset-based and cursor-based pagination schemes.
+Endpoints can specify pagination configuration to enable auto-pagination in [generated SDKs](/learn/sdks/deep-dives/auto-pagination). Fern supports offset-based, cursor-based, URI-based, and path-based pagination schemes.
 
 <CodeBlocks>
 ```yaml title="Offset pagination" {8-12}
@@ -371,6 +371,46 @@ types:
           next:
             properties:
               starting_after: optional<string>
+```
+
+```yaml title="URI pagination" {8-10}
+service:
+  base-path: /plants
+  auth: false
+  endpoints:
+    list:
+      path: ""
+      method: GET
+      pagination:
+        next_uri: $response.next_page_url
+        results: $response.data
+      response: ListPlantsResponse
+
+types:
+  ListPlantsResponse:
+    properties:
+      data: list<Plant>
+      next_page_url: optional<string>
+```
+
+```yaml title="Path pagination" {8-10}
+service:
+  base-path: /plants
+  auth: false
+  endpoints:
+    list:
+      path: ""
+      method: GET
+      pagination:
+        next_path: $response.next_page_path
+        results: $response.data
+      response: ListPlantsResponse
+
+types:
+  ListPlantsResponse:
+    properties:
+      data: list<Plant>
+      next_page_path: optional<string>
 ```
 </CodeBlocks>
 

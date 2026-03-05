@@ -1,15 +1,15 @@
 ---
 title: Configure auto pagination
-description: Paginate through API responses easily with offset, cursor, and link-based pagination.
+description: Paginate through API responses easily with offset, cursor, URI, and path-based pagination.
 ---
 
 <Markdown src="/snippets/agent-directive.mdx"/>
 
 <Markdown src="/snippets/pro-plan.mdx"/>
 
-Fern's auto pagination supports offset-based and cursor-based pagination schemes,
-providing SDK users with simple iterators to loop through all results instead of
-managing pagination complexity manually.
+Fern's auto pagination supports offset-based, cursor-based, URI-based, and path-based
+pagination schemes, providing SDK users with simple iterators to loop through all
+results instead of managing pagination complexity manually.
 
 This page describes how to configure auto pagination for your API endpoints.
 
@@ -96,8 +96,8 @@ your results are located.
 
 To set up auto pagination for OpenAPI:
 
-1. Annotate the desired paginated endpoint with the [`x-fern-pagination` extension](/api-definitions/openapi/extensions/pagination)
-2. Specify the pagination scheme (`offset` or `cursor`)
+1. Annotate the desired paginated endpoint with the [`x-fern-pagination` extension](/learn/api-definitions/openapi/extensions/pagination)
+2. Specify the pagination scheme (`offset`, `cursor`, `next_uri`, or `next_path`)
 3. Specify where your `results` are located using dot-access notation
 
 
@@ -105,7 +105,7 @@ To set up auto pagination for OpenAPI:
 ```yaml Offset {4-6}
 ...
 paths:
-  /path/to/my/endpoint:
+  /plants:
     x-fern-pagination: # Add pagination extension
       offset: $request.page_number # Specify offset pagination scheme
       results: $response.results # Specify result location
@@ -115,11 +115,33 @@ paths:
 ```yaml Cursor {5-8}
 ...
 paths:
-  /path/to/my/endpoint:
+  /plants:
     get:
       x-fern-pagination: # Add pagination extension
         cursor: $request.cursor # Specify cursor pagination scheme
         next_cursor: $response.next
+        results: $response.results # Specify result location
+...
+```
+
+```yaml URI {5-7}
+...
+paths:
+  /plants:
+    get:
+      x-fern-pagination: # Add pagination extension
+        next_uri: $response.next_page_url # Full URL for the next page
+        results: $response.results # Specify result location
+...
+```
+
+```yaml Path {5-7}
+...
+paths:
+  /plants:
+    get:
+      x-fern-pagination: # Add pagination extension
+        next_path: $response.next_page_path # Relative path for the next page
         results: $response.results # Specify result location
 ...
 ```
@@ -131,7 +153,7 @@ paths:
 To set up auto pagination for the Fern Definition:
 
 1. Annotate the desired paginated endpoint with the [`pagination` field](/learn/api-definitions/ferndef/endpoints/overview#pagination)
-1. Specify the pagination scheme (`offset` or `cursor`)
+1. Specify the pagination scheme (`offset`, `cursor`, `next_uri`, or `next_path`)
 1. Specify where your `results` are located using dot-access notation.
 
 <Tip title="Offset pagination options">
@@ -157,6 +179,22 @@ service:
       pagination: # Add pagination field
         cursor: $request.starting_after # Specify cursor pagination scheme
         next_cursor: $response.page.next.starting_after
+        results: $response.data # Specify result location
+```
+```yaml URI {5-6}
+service:
+  endpoints:
+    listWithUriPagination:
+      pagination: # Add pagination field
+        next_uri: $response.next_page_url # Full URL for the next page
+        results: $response.data # Specify result location
+```
+```yaml Path {5-6}
+service:
+  endpoints:
+    listWithPathPagination:
+      pagination: # Add pagination field
+        next_path: $response.next_page_path # Relative path for the next page
         results: $response.data # Specify result location
 ```
 </CodeBlocks>
