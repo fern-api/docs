@@ -1,0 +1,122 @@
+---
+title: Set up a billing customer
+description: Add a customer to the Fern billing flow through self-serve upgrade or manual Stripe setup.
+---
+
+<Markdown src="/snippets/agent-directive.mdx"/>
+
+Customers can be added to the billing flow in two ways: self-serve (the customer upgrades themselves) or manual setup (for enterprise or custom deals).
+
+## Self-serve setup
+
+No manual setup is needed. The self-serve flow works as follows:
+
+1. The customer clicks **Upgrade** in the Dashboard.
+2. Stripe Checkout creates the Customer (with `orgId` metadata) and Subscription.
+3. Webhooks fire and Supabase tables are populated.
+4. Entitlements resolve on the next page load.
+
+## Manual setup
+
+For enterprise or custom deals where the subscription is created directly in Stripe:
+
+<Steps>
+<Step title="Create a Stripe Customer">
+
+In the [Stripe Dashboard](https://dashboard.stripe.com/), create a new Customer with the following:
+
+| Field    | Value                         |
+| -------- | ----------------------------- |
+| Email    | The org admin's email address |
+| Metadata | `orgId` = the Fern org ID    |
+
+</Step>
+
+<Step title="Create a Stripe Subscription">
+
+Create a Subscription attached to the Customer from the previous step. Add the appropriate product/price as a line item. Ensure the Stripe Product has a stock keeping unit (`sku`) in its metadata.
+
+</Step>
+
+<Step title="Verify billing product rows">
+
+Check that Supabase has a `billing_product` row with a matching `sku`. If using a new SKU, insert a row with the correct `kind` and `tier`.
+
+</Step>
+
+<Step title="Wait for webhooks">
+
+The following webhooks populate the billing tables:
+
+| Webhook                          | Effect                                      |
+| -------------------------------- | ------------------------------------------- |
+| `customer.created`               | Creates the `org_billing_account` link       |
+| `customer.subscription.created`  | Creates the subscription and line items      |
+
+If webhooks were missed, resend them from the Stripe Dashboard under **Developers > Webhooks**.
+
+</Step>
+
+<Step title="Verify in Supabase">
+
+Confirm the following rows exist:
+
+| Table                    | Expected state                              |
+| ------------------------ | ------------------------------------------- |
+| `org_billing_account`    | Row exists for the org                      |
+| `org_subscription`       | Status is `active` or `trialing`            |
+| `org_subscription_item`  | Correct products and quantities             |
+| `org_active_products`    | View returns the expected rows              |
+
+</Step>
+</Steps>
+
+## Manual testing
+
+Use these steps to verify that a new customer is set up correctly.
+
+<Steps>
+<Step title="Create a test Stripe Customer">
+
+In the [Stripe test environment](https://dashboard.stripe.com/test/), create a Customer with `orgId` metadata set to a test org ID and a valid email address.
+
+</Step>
+
+<Step title="Create a test Subscription">
+
+Attach a Subscription to the test Customer with a test product/price that has `sku` metadata. Verify the Subscription status shows as `active` in Stripe.
+
+</Step>
+
+<Step title="Confirm webhook delivery">
+
+In **Developers > Webhooks**, verify that `customer.created` and `customer.subscription.created` events were sent and received a `200` response.
+
+</Step>
+
+<Step title="Validate Supabase records">
+
+Query each table to confirm the data was written:
+
+```sql
+-- Check the billing account link
+select * from org_billing_account where org_id = '<test-org-id>';
+
+-- Check the subscription
+select * from org_subscription where org_id = '<test-org-id>';
+
+-- Check subscription items
+select * from org_subscription_item where subscription_id = '<subscription-id>';
+
+-- Check active products
+select * from org_active_products where org_id = '<test-org-id>';
+```
+
+</Step>
+
+<Step title="Verify entitlements in the Dashboard">
+
+Log in to the Dashboard as the test org admin and confirm that the expected plan and features are visible.
+
+</Step>
+</Steps>
