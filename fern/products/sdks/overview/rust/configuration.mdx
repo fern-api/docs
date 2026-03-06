@@ -47,6 +47,10 @@ Both options accept any datetime format and assume UTC if no timezone is provide
 The name of the generated environment enum. This allows you to customize the enum name that defines your API environments (such as production, staging, development).
 </ParamField>
 
+<ParamField path="enableWebsockets" type="boolean" default="false" required={false} toc={true}>
+When enabled, generates WebSocket client code for APIs with WebSocket channels. WebSocket channels are accessible through the root client via connector structs (e.g., `client.realtime.connect(...)`).
+</ParamField>
+
 <ParamField path="enableWireTests" type="boolean" default="false" required={false} toc={true}>
 When enabled, generates [mock server (wire) tests](/learn/sdks/deep-dives/testing#mock-server-tests) to verify that the SDK sends the correct HTTP requests and correctly handles responses per the API spec.
 </ParamField>
@@ -73,6 +77,10 @@ A description of the crate for crates.io. This appears in the crate's metadata a
 
 <ParamField path="packageLicense" type="string" required={false} toc={true}>
 The license identifier for the crate (e.g., "MIT", "Apache-2.0").
+</ParamField>
+
+<ParamField path="packageLicenseFile" type="string" required={false} toc={true}>
+Path to a custom license file (e.g., `LICENSE.md`). When set, uses `license-file` instead of `license` in `Cargo.toml`. This is useful when your license isn't a standard SPDX identifier.
 </ParamField>
 
 <ParamField path="packageRepository" type="string" required={false} toc={true}>
@@ -118,4 +126,53 @@ config:
 
 <ParamField path="extraDevDependencies" type="object" required={false} toc={true}>
 Additional dev dependencies to include in the generated `Cargo.toml`. These are only used during development and testing.
+</ParamField>
+
+### Cargo features
+
+Configure custom [Cargo features](https://doc.rust-lang.org/cargo/reference/features.html) for the generated crate:
+
+```yaml title="generators.yml"
+config:
+  features:
+    experimental: ["dep-a", "dep-b"]
+    advanced: ["sse"]
+  defaultFeatures: ["sse"]
+```
+
+<ParamField path="features" type="object" required={false} toc={true}>
+Custom Cargo features to include in the generated `Cargo.toml`. Specify as a map of feature names to lists of dependencies or features each one enables. The generator also auto-detects features for file uploads (`multipart`), WebSocket channels (`websocket`), and streaming endpoints (`sse`).
+
+```yaml title="generators.yml"
+config:
+  features:
+    experimental: ["dep-a", "dep-b"]
+    advanced: ["sse"]
+```
+</ParamField>
+
+<ParamField path="defaultFeatures" type="array of strings" required={false} toc={true}>
+Override which features are enabled by default. If not set, the generator automatically includes auto-detected features (such as `multipart`, `websocket`, and `sse`) in the default set.
+
+```yaml title="generators.yml"
+config:
+  defaultFeatures: ["sse", "multipart"]
+```
+</ParamField>
+
+### README customization
+
+Add custom sections to the generated README:
+
+```yaml title="generators.yml"
+config:
+  customReadmeSections:
+    - title: "Custom integration"
+      content: "Instructions for integrating with your plant database..."
+    - title: "Advanced usage"
+      content: "Advanced usage examples for {{ packageName }}"
+```
+
+<ParamField path="customReadmeSections" type="array of objects" required={false} toc={true}>
+Add custom sections to the generated README file. Each section requires a `title` and `content`. The `content` field supports the `{{ packageName }}` template variable, which is replaced with the crate name during generation.
 </ParamField>
