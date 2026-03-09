@@ -9,33 +9,39 @@ description: Add descriptions, custom names, and deprecation status to OpenAPI e
 OpenAPI doesn't natively support adding descriptions to enum values. To do this in Fern you can use the `x-fern-enum`
 extension.
 
-## Descriptions
+## Descriptions and availability
 
-Use the `description` field to add documentation to individual enum values. These descriptions propagate into the generated SDK and docs website.
+Use `description` to add documentation to individual enum values and `deprecated` to mark values as deprecated without deprecating the entire enum. These propagate into the generated SDKs and docs website.
 
-```yaml title="openapi.yml" {9-13}
+```yaml title="openapi.yml" {12-13, 15, 17, 19-20}
 components:
   schemas:
-    CardSuit:
+    PlantSoilType:
       enum:
-        - clubs
-        - diamonds
-        - hearts
-        - spades
+        - peat_moss
+        - vermiculite
+        - coco_coir
+        - perlite
+        - clay_pellets
       x-fern-enum:
-        clubs:
-          description: Some docs about clubs
-        spades:
-          description: Some docs about spades
+        peat_moss:
+          description: "Use coco_coir instead."
+          deprecated: true
+        vermiculite:
+          description: Some docs about vermiculite
+        coco_coir:
+          description: Some docs about coco coir
+        clay_pellets:
+          description: "Use perlite instead."
+          deprecated: true
 ```
 
 ## Custom names
 
 Use the `name` field to customize the name of an enum value in generated code.
-This is particularly useful when enum values rely on symbolic characters that would otherwise cause
-generated code not to compile.
+This is particularly useful when enum values rely on symbolic characters that would otherwise cause generated code not to compile.
 
-For example, the following OpenAPI
+For example, the following OpenAPI:
 
 ```yaml title="openapi.yml" {9,12}
 components:
@@ -53,36 +59,11 @@ components:
           description: Checks if value is less than
 ```
 
-would generate
+would generate:
 
 ```typescript title="operand.ts"
 export enum Operand {
   GreaterThan = ">",
   LessThan = "<"
 }
-```
-
-## Deprecation
-
-Use the `deprecated` field to mark individual enum values as deprecated without deprecating the entire enum.
-
-```yaml title="openapi.yml" {13,18}
-components:
-  schemas:
-    PlantSoilType:
-      enum:
-        - peat_moss
-        - vermiculite
-        - coco_coir
-        - perlite
-        - clay_pellets
-      x-fern-enum:
-        peat_moss:
-          description: "Use coco_coir instead."
-          deprecated: true
-        vermiculite:
-          description: Some docs about vermiculite
-        clay_pellets:
-          description: "Use perlite instead."
-          deprecated: true
 ```
