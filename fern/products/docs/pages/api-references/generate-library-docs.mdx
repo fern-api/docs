@@ -1,0 +1,199 @@
+---
+title: Generate library documentation
+description: Use Fern Docs to generate documentation for Python and C++ libraries. This beta feature renders classes, methods, and types as an interactive reference.
+availability: beta
+---
+
+<Markdown src="/snippets/agent-directive.mdx"/>
+
+<Warning>
+  Library documentation generation is in beta. The feature and its configuration are subject to change.
+</Warning>
+
+Fern generates library documentation from Python and C++ source code. Add your library source files to your Fern project and Fern renders classes, methods, types, and modules as an interactive reference.
+
+## Supported languages
+
+| Language | Source format | Status |
+|----------|--------------|--------|
+| Python   | `.py` files with docstrings | Beta |
+| C++      | Header files (`.h`, `.hpp`) with Doxygen-style comments | Beta |
+
+## Configuration
+
+<Steps>
+<Step title="Set up your project structure">
+
+Add your library source files to your `/fern` directory and create a `generators.yml` that references them.
+
+<Tabs>
+<Tab title="Python">
+
+```yaml generators.yml
+api:
+  specs:
+    - library:
+        language: python
+        root: ./src
+```
+
+The `root` field points to the directory containing your Python source files. Fern reads classes, functions, and docstrings to generate the reference.
+
+</Tab>
+<Tab title="C++">
+
+```yaml generators.yml
+api:
+  specs:
+    - library:
+        language: cpp
+        root: ./include
+```
+
+The `root` field points to the directory containing your C++ header files. Fern reads classes, functions, and Doxygen-style comments to generate the reference.
+
+</Tab>
+</Tabs>
+
+</Step>
+<Step title="Add the library reference to your navigation">
+
+Add `- api: Library Reference` to your navigation in `docs.yml`:
+
+```yml docs.yml
+navigation:
+  - api: Library Reference
+```
+
+Fern automatically populates your classes, methods, and types from your library source files.
+
+</Step>
+<Step title="Preview your docs">
+
+Run the following command to preview your documentation locally:
+
+```bash
+fern docs dev
+```
+
+</Step>
+</Steps>
+
+## Project structure examples
+
+<Tabs>
+<Tab title="Python">
+
+<Files>
+  <Folder name="fern" defaultOpen>
+    <File name="fern.config.json" />
+    <File name="docs.yml" />
+    <Folder name="plant-sdk" defaultOpen>
+      <Folder name="src" defaultOpen>
+        <File name="client.py" comment="PlantClient class" />
+        <File name="models.py" comment="Plant, Garden types" />
+      </Folder>
+      <File name="generators.yml" />
+    </Folder>
+  </Folder>
+</Files>
+
+```yaml title="generators.yml"
+api:
+  specs:
+    - library:
+        language: python
+        root: ./src
+```
+
+</Tab>
+<Tab title="C++">
+
+<Files>
+  <Folder name="fern" defaultOpen>
+    <File name="fern.config.json" />
+    <File name="docs.yml" />
+    <Folder name="plant-sdk" defaultOpen>
+      <Folder name="include" defaultOpen>
+        <File name="plant_client.hpp" comment="PlantClient class" />
+        <File name="models.hpp" comment="Plant, Garden types" />
+      </Folder>
+      <File name="generators.yml" />
+    </Folder>
+  </Folder>
+</Files>
+
+```yaml title="generators.yml"
+api:
+  specs:
+    - library:
+        language: cpp
+        root: ./include
+```
+
+</Tab>
+</Tabs>
+
+### Include more than one library reference
+
+To include multiple library references in your documentation, use the `api-name` property. The `api-name` corresponds to the folder name containing your library source.
+
+```yaml title="docs.yml"
+navigation:
+  - api: Plant SDK
+    api-name: plant-sdk
+  - api: Garden SDK
+    api-name: garden-sdk
+```
+
+## Writing effective source comments
+
+Fern uses comments in your source code to generate descriptions for classes, methods, and types.
+
+<Tabs>
+<Tab title="Python">
+
+Use [Google-style docstrings](https://google.github.io/styleguide/pyguide.html#38-comments-and-docstrings) for the best results:
+
+```python
+class PlantClient:
+    """Client for interacting with the Plant API.
+
+    Args:
+        api_key: Your API key for authentication.
+        base_url: The base URL of the Plant API.
+    """
+
+    def get_plant(self, plant_id: str) -> Plant:
+        """Retrieve a plant by its ID.
+
+        Args:
+            plant_id: The unique identifier of the plant.
+
+        Returns:
+            The requested Plant object.
+        """
+```
+
+</Tab>
+<Tab title="C++">
+
+Use [Doxygen-style comments](https://www.doxygen.nl/manual/docblocks.html) for the best results:
+
+```cpp
+/**
+ * @brief Client for interacting with the Plant API.
+ */
+class PlantClient {
+public:
+    /**
+     * @brief Retrieve a plant by its ID.
+     * @param plantId The unique identifier of the plant.
+     * @return The requested Plant object.
+     */
+    Plant getPlant(const std::string& plantId);
+};
+```
+
+</Tab>
+</Tabs>
