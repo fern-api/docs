@@ -10,7 +10,7 @@ availability: beta
   Library documentation generation is in beta. The feature and its configuration are subject to change.
 </Warning>
 
-Fern generates library documentation from Python and C++ source code. Add your library source files to your Fern project and Fern renders classes, methods, types, and modules as an interactive reference.
+Fern generates library documentation from Python and C++ source code. Point Fern at a Git repository containing your library, and Fern renders classes, methods, types, and modules as an interactive reference.
 
 ## Supported languages
 
@@ -21,129 +21,97 @@ Fern generates library documentation from Python and C++ source code. Add your l
 
 ## Configuration
 
-<Steps>
-<Step title="Set up your project structure">
-
-Add your library source files to your `/fern` directory and create a `generators.yml` that references them.
-
-<Tabs>
-<Tab title="Python">
-
-```yaml generators.yml
-api:
-  specs:
-    - library:
-        language: python
-        root: ./src
-```
-
-The `root` field points to the directory containing your Python source files. Fern reads classes, functions, and docstrings to generate the reference.
-
-</Tab>
-<Tab title="C++">
-
-```yaml generators.yml
-api:
-  specs:
-    - library:
-        language: cpp
-        root: ./include
-```
-
-The `root` field points to the directory containing your C++ header files. Fern reads classes, functions, and Doxygen-style comments to generate the reference.
-
-</Tab>
-</Tabs>
-
-</Step>
-<Step title="Add the library reference to your navigation">
-
-Add `- api: Library Reference` to your navigation in `docs.yml`:
-
-```yml docs.yml
-navigation:
-  - api: Library Reference
-```
-
-Fern automatically populates your classes, methods, and types from your library source files.
-
-</Step>
-<Step title="Preview your docs">
-
-Run the following command to preview your documentation locally:
-
-```bash
-fern docs dev
-```
-
-</Step>
-</Steps>
-
-## Project structure examples
-
-<Tabs>
-<Tab title="Python">
-
-<Files>
-  <Folder name="fern" defaultOpen>
-    <File name="fern.config.json" />
-    <File name="docs.yml" />
-    <Folder name="plant-sdk" defaultOpen>
-      <Folder name="src" defaultOpen>
-        <File name="client.py" comment="PlantClient class" />
-        <File name="models.py" comment="Plant, Garden types" />
-      </Folder>
-      <File name="generators.yml" />
-    </Folder>
-  </Folder>
-</Files>
-
-```yaml title="generators.yml"
-api:
-  specs:
-    - library:
-        language: python
-        root: ./src
-```
-
-</Tab>
-<Tab title="C++">
-
-<Files>
-  <Folder name="fern" defaultOpen>
-    <File name="fern.config.json" />
-    <File name="docs.yml" />
-    <Folder name="plant-sdk" defaultOpen>
-      <Folder name="include" defaultOpen>
-        <File name="plant_client.hpp" comment="PlantClient class" />
-        <File name="models.hpp" comment="Plant, Garden types" />
-      </Folder>
-      <File name="generators.yml" />
-    </Folder>
-  </Folder>
-</Files>
-
-```yaml title="generators.yml"
-api:
-  specs:
-    - library:
-        language: cpp
-        root: ./include
-```
-
-</Tab>
-</Tabs>
-
-### Include more than one library reference
-
-To include multiple library references in your documentation, use the `api-name` property. The `api-name` corresponds to the folder name containing your library source.
+Configure library documentation in your `docs.yml` file using the `libraries` key.
 
 ```yaml title="docs.yml"
-navigation:
-  - api: Plant SDK
-    api-name: plant-sdk
-  - api: Garden SDK
-    api-name: garden-sdk
+libraries:
+  my-lib:
+    input:
+      git: "https://github.com/org/repo"
+      subpath: "src/sdk"               # optional
+    output:
+      path: "./pages/reference"
+    lang: python
+```
+
+### Configuration properties
+
+<ParamField path="libraries.<name>.lang" type="string" required>
+  The language of the library. Supported values: `python`, `cpp`. Routes to the appropriate documentation generator.
+</ParamField>
+
+<ParamField path="libraries.<name>.input.git" type="string" required>
+  The Git repository URL containing the library source code. Only `git` input is supported.
+</ParamField>
+
+<ParamField path="libraries.<name>.input.subpath" type="string">
+  A subdirectory within the repository to use as the root of the library. For example, `"src/sdk"` if the library code lives in a subdirectory.
+</ParamField>
+
+<ParamField path="libraries.<name>.output.path" type="string" required>
+  The local path where Fern outputs the generated reference pages.
+</ParamField>
+
+<ParamField path="libraries.<name>.config.doxyfile" type="string">
+  Path to a Doxyfile configuration file. C++ only. The file is read from disk and sent as raw content to the backend.
+</ParamField>
+
+## Examples
+
+<Tabs>
+<Tab title="Python">
+
+```yaml title="docs.yml"
+libraries:
+  plant-sdk:
+    input:
+      git: "https://github.com/my-org/plant-sdk"
+      subpath: "src/plant"
+    output:
+      path: "./pages/plant-reference"
+    lang: python
+```
+
+</Tab>
+<Tab title="C++">
+
+```yaml title="docs.yml"
+libraries:
+  plant-sdk:
+    input:
+      git: "https://github.com/my-org/plant-sdk"
+      subpath: "include"
+    output:
+      path: "./pages/plant-reference"
+    lang: cpp
+    config:
+      doxyfile: "./Doxyfile.txt"
+```
+
+</Tab>
+</Tabs>
+
+### Multiple libraries
+
+To generate documentation for more than one library, add multiple entries under the `libraries` key:
+
+```yaml title="docs.yml"
+libraries:
+  plant-sdk:
+    input:
+      git: "https://github.com/my-org/plant-sdk"
+    output:
+      path: "./pages/plant-reference"
+    lang: python
+  garden-sdk:
+    input:
+      git: "https://github.com/my-org/garden-sdk"
+      subpath: "include"
+    output:
+      path: "./pages/garden-reference"
+    lang: cpp
+    config:
+      doxyfile: "./Doxyfile.txt"
 ```
 
 ## Writing effective source comments
