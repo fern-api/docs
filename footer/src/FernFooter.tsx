@@ -280,7 +280,7 @@ export const FernFooter: React.FC = () => {
 
         {/* Footer Links */}
         <div className="footer-links">
-          <div className="footer-bottom-text"> © 2026 Fern • Birch Solutions, Inc., a Postman company. </div>
+          <div className="footer-bottom-text"> © 2026 Fern • Birch Solutions, Inc., a Postman company</div>
           {/* Newsletter Signup */}
           {/* <div className="newsletter-container">
             <div className="newsletter-label">Subscribe to our updates</div>
