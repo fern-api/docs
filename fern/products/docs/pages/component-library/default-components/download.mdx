@@ -1,17 +1,19 @@
 ---
 title: Download
-description: The Download component enables users to download PDFs and files from your documentation. Simple setup with custom filenames.
+description: The Download component enables users to download PDFs, files, and multi-file ZIP bundles from your documentation.
 ---
 
 <Markdown src="/snippets/agent-directive.mdx"/>
 
-The `<Download>` component lets users download assets like PDFs directly from your documentation.
+The `<Download>` component lets users download assets like PDFs directly from your documentation. You can use it for single files or bundle multiple files into a ZIP download.
 
 <Info>
 For information on how to embed images, PDFs, and other assets, check out the documentation on [Rich media in Markdown](/learn/docs/writing-content/markdown-media).
 </Info>
 
 ## Usage
+
+### Single file
 
 <div className="highlight-frame">
 <Download src="./all-about-ferns.pdf">
@@ -25,10 +27,31 @@ For information on how to embed images, PDFs, and other assets, check out the do
 </Download>
 ```
 
+### Multiple files as ZIP
+
+Use the `sources` prop to bundle multiple files into a single ZIP download. The component fetches each file and packages them client-side.
+
+```jsx Markdown
+<Download
+  sources={[
+    "https://example.com/assets/fern-leaf.svg",
+    "https://example.com/assets/fern-logo.svg",
+    "https://example.com/assets/fern-icon.svg"
+  ]}
+  filename="fern-assets.zip"
+>
+  <Button intent="primary">Download all SVGs</Button>
+</Download>
+```
+
 ## Properties
 
-<ParamField path="src" type="string" required={true}>
-  Path to your local asset (relative to current MDX file). The asset must be located within the `fern` folder.
+<ParamField path="src" type="string">
+  Path to your local asset (relative to current MDX file). The asset must be located within the `fern` folder. Required when `sources` isn't provided.
+</ParamField>
+
+<ParamField path="sources" type="string[]">
+  An array of file URLs to bundle into a ZIP download. When provided, the component fetches each file and packages them into a ZIP archive client-side. Required when `src` isn't provided.
 </ParamField>
 
 <ParamField path="children" type="React.ReactNode" required={true}>
@@ -36,5 +59,5 @@ For information on how to embed images, PDFs, and other assets, check out the do
 </ParamField>
 
 <ParamField path="filename" type="string">
-  The filename to use for the downloaded asset. If not provided, the filename will be the same as the asset's name.
+  The filename for the downloaded file. When used with `sources`, this sets the name of the ZIP file (defaults to `download.zip`). When used with `src`, it overrides the original asset filename.
 </ParamField>
