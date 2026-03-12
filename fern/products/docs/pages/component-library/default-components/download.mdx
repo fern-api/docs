@@ -16,9 +16,11 @@ For information on how to embed images, PDFs, and other assets, check out the do
 ### Single file
 
 <div className="highlight-frame">
-<Download src="./all-about-ferns.pdf">
-  <Button intent="primary">Download PDF</Button>
-</Download>
+  <div className="highlight-frame-content">
+  <Download src="./all-about-ferns.pdf">
+    <Button intent="primary">Download PDF</Button>
+  </Download>
+  </div>
 </div>
 
 ```jsx Markdown
@@ -29,33 +31,35 @@ For information on how to embed images, PDFs, and other assets, check out the do
 
 ### Multiple files as ZIP
 
-Use the `sources` prop to bundle multiple files into a single ZIP download. The component fetches each file and packages them client-side.
+Use the `sources` prop to bundle multiple files into a single ZIP download. The component fetches each file client-side and packages them into a ZIP archive using [fflate](https://github.com/101arrowz/fflate).
+
+This is useful when you want users to download a collection of related assets — such as brand logos, SDK files, or configuration templates — without needing to host a pre-built ZIP file.
 
 ```jsx Markdown
 <Download
   sources={[
-    "https://example.com/assets/fern-leaf.svg",
-    "https://example.com/assets/fern-logo.svg",
-    "https://example.com/assets/fern-icon.svg"
+    "https://example.com/assets/logo-dark.svg",
+    "https://example.com/assets/logo-light.svg",
+    "https://example.com/assets/icon.svg"
   ]}
-  filename="fern-assets.zip"
+  filename="brand-assets.zip"
 >
-  <Button intent="primary">Download all SVGs</Button>
+  <Button intent="primary">Download brand assets</Button>
 </Download>
 ```
 
 ## Properties
 
 <ParamField path="src" type="string">
-  Path to your local asset (relative to current MDX file). The asset must be located within the `fern` folder. Required when `sources` isn't provided.
+  Path to a single file for download (relative to the current MDX file). The asset must be located within the `fern` folder. Use `src` for **single-file downloads**. Mutually exclusive with `sources` — you must provide one or the other.
 </ParamField>
 
 <ParamField path="sources" type="string[]">
-  An array of file URLs to bundle into a ZIP download. When provided, the component fetches each file and packages them into a ZIP archive client-side. Required when `src` isn't provided.
+  An array of publicly accessible URLs to bundle into a ZIP download. Use `sources` for **multi-file downloads** — the component fetches each URL client-side and packages them into a ZIP archive. Mutually exclusive with `src`. If only one URL is provided, it behaves like `src` (downloads the file directly without zipping). The filename for each file inside the ZIP is derived from the last segment of its URL (e.g., `logo-dark.svg`). If any file fails to fetch, the entire download will fail.
 </ParamField>
 
 <ParamField path="children" type="React.ReactNode" required={true}>
-  The text or element to display as the click target for the download.
+  The text or element to display as the click target for the download. Typically a `<Button>` or styled link.
 </ParamField>
 
 <ParamField path="filename" type="string">
