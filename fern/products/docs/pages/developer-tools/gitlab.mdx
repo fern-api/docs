@@ -13,7 +13,7 @@ Use GitLab CI/CD to automatically publish your Fern docs when changes are merged
 - A Fern project with a `fern` folder ([quickstart](/learn/docs/getting-started/quickstart))
 </Info>
 
-## Set up CI/CD
+## Add a Fern token to GitLab
 
 <Steps>
 ### Generate a Fern token
@@ -26,61 +26,22 @@ fern token
 
 Copy the token output — you'll add it to GitLab in the next step.
 
-### Add the token to GitLab
+### Add the Fern token as a CI/CD variable
 
-<Steps>
-### Log in to GitLab
-Log in to [GitLab](https://gitlab.com/users/sign_in) and navigate to your Fern docs repository.
-### Navigate to CI/CD settings
-Click **Settings** > **CI/CD**.
-### Add the variable
-Scroll to the **Variables** section, select **Expand**, then click **Add variable**. Set the key to `FERN_TOKEN`, paste the token from the previous step as the value, _deselect_ **Protect variable**, and click **Save changes**.
-</Steps>
-
-### Add the CI/CD pipeline
-
-Create a `.gitlab-ci.yml` file in the root of your repository. The following pipeline publishes your docs when changes are merged to `main` and validates your API definition on merge requests:
-
-```yaml .gitlab-ci.yml
-stages:
-  - check
-  - publish_docs
-
-before_script:
-  - apt-get update -y
-  - apt-get install -y curl
-  - curl -sL https://deb.nodesource.com/setup_current.x | bash -
-  - apt-get install -y nodejs
-  - npm install -g fern-api
-
-check:
-  stage: check
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-    - if: '$CI_COMMIT_BRANCH == "main"'
-  script:
-    - fern check
-
-publish_docs:
-  stage: publish_docs
-  rules:
-    - if: '$CI_COMMIT_BRANCH == "main"'
-  script:
-    - fern generate --docs
-```
-
-### Push to your repository
-
-Commit and push the `.gitlab-ci.yml` file to your repository. The pipeline runs automatically when changes are merged to `main`.
+1. Log in to [GitLab](https://gitlab.com/users/sign_in) and navigate to your Fern docs repository.
+2. Go to **Settings** > **CI/CD**.
+3. Scroll to the **Variables** section, select **Expand**, then click **Add variable**.
+4. Set the key to `FERN_TOKEN`, paste the token you generated in the previous step as the value, _deselect_ **Protect variable**, and click **Save changes**.
 
 </Steps>
 
-## Preview docs on merge requests
+## Add a project access token to GitLab
 
-You can extend the pipeline to post a preview link as a comment on merge requests. This requires a GitLab project access token.
+To post preview links on merge requests, you need a GitLab project access token.
 
 <Steps>
 ### Create a project access token
+
 1. In your GitLab repository, go to **Settings** > **Access Tokens**.
 2. Click **Add new token** and configure the following:
    - **Token name**: a descriptive name (e.g., `fern-preview`)
@@ -93,12 +54,17 @@ You can extend the pipeline to post a preview link as a comment on merge request
 Save the generated token immediately — it won't be displayed after you leave the page.
 </Note>
 
-### Add the token to CI/CD variables
-Follow the same steps as [adding the Fern token](#add-the-token-to-gitlab), but set the key to `REPO_TOKEN` and paste the project access token as the value.
+### Add the project access token as a CI/CD variable
 
-### Add preview stages to the pipeline
+1. Go to **Settings** > **CI/CD**.
+2. Scroll to the **Variables** section, select **Expand**, then click **Add variable**.
+3. Set the key to `REPO_TOKEN`, paste the project access token as the value, _deselect_ **Protect variable**, and click **Save changes**.
 
-Update your `.gitlab-ci.yml` to include a `preview_docs` stage:
+</Steps>
+
+## Add the CI/CD pipeline
+
+Create a `.gitlab-ci.yml` file in the root of your repository. This pipeline validates your API definition on merge requests, publishes your docs when changes are merged to `main`, and posts preview links on merge requests.
 
 ```yaml .gitlab-ci.yml
 stages:
@@ -148,6 +114,8 @@ publish_docs:
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
   script:
+    - echo "Publishing Docs"
     - fern generate --docs
 ```
-</Steps>
+
+Commit and push the `.gitlab-ci.yml` file to your repository. The pipeline runs automatically when changes are merged to `main`.
