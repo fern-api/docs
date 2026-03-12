@@ -1,22 +1,76 @@
 ---
 title: Hosting with GitLab
+description: Set up GitLab CI/CD to automatically publish your Fern docs when changes are merged to your main branch.
 ---
 
 <Markdown src="/snippets/agent-directive.mdx"/>
 
-To host your Fern docs using GitLab, you will need to [add a Fern token to your repository variables](/learn/docs/developer-tools/git-lab#add-a-token-to-gitlab). 
+Use GitLab CI/CD to automatically generate preview links on merge requests and publish your Fern docs when changes are merged to `main`.
 
-<Accordion title="GitLab CI/CD configuration">
-The following GitLab CI/CD workflow will generate a preview link of your docs on merge request and publish your docs when updates are made to `main`. 
+<Info title="Prerequisites">
+- Node.js version 18 or higher
+- [The Fern CLI](/learn/cli-api-reference/cli-reference/overview#install-fern-cli) installed locally
+- A Fern project with a `fern` folder ([quickstart](/learn/docs/getting-started/quickstart))
+</Info>
 
-To add this to your GitLab Fern project, create a `.gitlab-ci.yml` file in the root of your repository.
+## Add a Fern token to GitLab
+
+<Steps>
+### Generate a Fern token
+
+Run [`fern token`](/learn/cli-api-reference/cli-reference/commands#fern-token) in your terminal from the directory containing your `fern` folder. This generates an organization-scoped token that authenticates the Fern CLI in CI/CD.
+
+```bash
+fern token
+```
+
+Copy the token output — you'll add it to GitLab in the next step.
+
+### Add the Fern token as a CI/CD variable
+
+1. Log in to [GitLab](https://gitlab.com/users/sign_in) and navigate to your Fern docs repository.
+2. Go to **Settings** > **CI/CD**.
+3. Scroll to the **Variables** section, select **Expand**, then click **Add variable**.
+4. Set the key to `FERN_TOKEN`, paste the token you generated in the previous step as the value, _deselect_ **Protect variable**, and click **Save changes**.
+
+</Steps>
+
+## Add a project access token to GitLab
+
+To post preview links on merge requests, you need a GitLab project access token.
+
+<Steps>
+### Create a project access token
+
+1. In your GitLab repository, go to **Settings** > **Access Tokens**.
+2. Click **Add new token** and configure the following:
+   - **Token name**: a descriptive name (e.g., `fern-preview`)
+   - **Expiration date**: set as needed (you'll need to regenerate once it expires)
+   - **Role**: Reporter
+   - **Scopes**: api
+3. Click **Create project access token** and copy the token.
+
+<Note title='Save your token'>
+Save the generated token immediately — it won't be displayed after you leave the page.
+</Note>
+
+### Add the project access token as a CI/CD variable
+
+1. Go to **Settings** > **CI/CD**.
+2. Scroll to the **Variables** section, select **Expand**, then click **Add variable**.
+3. Set the key to `REPO_TOKEN`, paste the project access token as the value, _deselect_ **Protect variable**, and click **Save changes**.
+
+</Steps>
+
+## Add the CI/CD pipeline
+
+Create a `.gitlab-ci.yml` file in the root of your repository. This pipeline validates your API definition, posts preview links on merge requests, and publishes your docs when changes are merged to `main`.
 
 ```yaml .gitlab-ci.yml
-stages: 
+stages:
   - check
   - preview_docs
   - publish_docs
-  - publish_sdks
 
 before_script:
   - apt-get update -y
@@ -25,7 +79,7 @@ before_script:
   - apt-get install -y nodejs
   - npm install -g fern-api
 
-check: 
+check:
   stage: check
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
@@ -39,7 +93,7 @@ preview_docs:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
   script:
-    - echo "Running fern generate --docs --preview..."
+    - echo "Generating preview..."
     - |
       OUTPUT=$(fern generate --docs --preview) || true
       echo "$OUTPUT"
@@ -47,16 +101,15 @@ preview_docs:
       echo "Preview URL: $DEMO_URL"
     - |
       if [ -z "$DEMO_URL" ]; then
-        echo "No DEMO_URL found"
+        echo "No preview URL found"
         exit 1
       fi
       curl --location --request POST \
         --header "PRIVATE-TOKEN: $REPO_TOKEN" \
         --header "Content-Type: application/json" \
         --url "https://gitlab.com/api/v4/projects/$CI_MERGE_REQUEST_PROJECT_ID/merge_requests/$CI_MERGE_REQUEST_IID/notes" \
-        --data-raw "{ \"body\": \"🌿 Preview your docs [here]($DEMO_URL)\" }"
-    
-            
+        --data-raw "{ \"body\": \"Preview your docs [here]($DEMO_URL)\" }"
+
 publish_docs:
   stage: publish_docs
   rules:
@@ -64,48 +117,6 @@ publish_docs:
   script:
     - echo "Publishing Docs"
     - fern generate --docs
-
-publish_sdks:
-  stage: publish_sdks
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "web"'
-  script: 
-      - echo "Publishing SDKs"
-      - fern generate --group ts-sdk --version $VERSION --log-level debug
 ```
-</Accordion>
 
-## Add a token to GitLab
-<Steps>
-### Log in
-Log into [GitLab](https://gitlab.com/users/sign_in).
-### Navigate to CI/CD in settings
-Click on the **Settings** tab in your repository. Then, click on **CI/CD**. 
-### Add variable
-Scroll to the **Variables** section and select **Expand** > **Add variable**. Add your key and value, _deselect_ **Protect variable**, and then click **Save changes**. 
-</Steps>
-
-## Preview docs with GitLab
-
-<Steps>
-### Contact us
-To get set up with a GitLab pipeline to preview your docs automatically, reach out via your dedicated Slack channel or [email](mailto:support@buildwithfern.com). 
-### Log in
-Log into [GitLab](https://gitlab.com/users/sign_in).
-### Navigate to Access Tokens
-Click on the **Settings** tab in your repository. Then, click on **Access Tokens**. 
-### Generate project access token
-Click on **Add new token**. You then need to: 
-- Add your token name
-- Select an expiry date (note: once the token expires, you will need to generate a new one)
-- Set role to **Reporter**
-- Set scope to **api**
-
-When finished, click **Create project access token**. 
-
-<Note title='Save your token'>
-Be sure to save the generated token - it won't be displayed after you leave the page. 
-</Note>
-### Add token to repository variables
-You can do this using [the steps listed above](/learn/docs/developer-tools/git-lab#add-a-token-to-gitlab). 
-</Steps>
+Commit and push the `.gitlab-ci.yml` file to your repository. The pipeline runs automatically when changes are merged to `main`.
