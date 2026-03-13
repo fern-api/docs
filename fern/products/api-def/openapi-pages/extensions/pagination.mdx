@@ -10,7 +10,11 @@ description: Configure auto-pagination for list endpoints using the x-fern-pagin
 
 The `x-fern-pagination` extension configures auto-pagination for list endpoints in your OpenAPI specification. [Fern's generated SDKs](/learn/sdks/deep-dives/auto-pagination) provide simple iterators that handle pagination automatically, so SDK users can loop through all results without managing pagination complexity manually.
 
-To configure pagination, annotate the desired endpoint with the `x-fern-pagination` extension, specify the pagination scheme (`offset` or `cursor`), and indicate where your results are located using dot-access notation.
+To configure pagination:
+
+1. Annotate the desired paginated endpoint with the `x-fern-pagination` extension
+2. Specify the pagination scheme (`offset`, `cursor`, `next_uri`, or `next_path`)
+3. Specify where your `results` are located using dot-access notation
 
 <CodeBlocks>
 ```yaml title="Offset pagination" {5-7}
@@ -64,6 +68,56 @@ paths:
                 properties:
                   next:
                     type: string
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Plant'
+```
+
+```yaml title="URI pagination" {5-7}
+paths:
+  /plants:
+    get:
+      operationId: list_plants
+      x-fern-pagination:
+        next_uri: $response.next_page_url
+        results: $response.results
+      responses:
+        '200':
+          description: List of plants
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  next_page_url:
+                    type: string
+                    nullable: true
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Plant'
+```
+
+```yaml title="Path pagination" {5-7}
+paths:
+  /plants:
+    get:
+      operationId: list_plants
+      x-fern-pagination:
+        next_path: $response.next_page_path
+        results: $response.results
+      responses:
+        '200':
+          description: List of plants
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  next_page_path:
+                    type: string
+                    nullable: true
                   results:
                     type: array
                     items:

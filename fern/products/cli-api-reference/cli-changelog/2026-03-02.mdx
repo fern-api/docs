@@ -1,3 +1,54 @@
+## 4.1.1
+**`(fix):`** Add CLI subcommand for resolving customization conflicts on SDK generation PR branches.
+
+
+## 4.1.0
+**`(feat):`** Add external `$ref` bundling for AsyncAPI documents. Multi-file AsyncAPI specs
+that split schemas across separate YAML files (e.g. `$ref: './schemas/types.yml#/MyType'`)
+are now resolved and inlined before parsing, matching the existing behavior for OpenAPI
+documents. Previously these external references caused `fern check` and `fern generate`
+to fail with "Failed to resolve schema reference".
+
+
+## 4.0.1
+**`(fix):`** Fix `x-fern-global-headers` ignoring the `optional` field in the legacy
+OpenAPI importer. Previously, all global headers were defaulted to
+`optional<string>` regardless of whether `optional: false` or no `optional`
+field was specified. Now headers without `optional: true` are correctly
+treated as required `string` types.
+
+
+## 4.0.0
+**`(chore):`** Deprecate IR versions `<= 52`. Cuts down on binary size, build time, and migrations.
+
+**Breaking changes**: To upgrade to this version of the CLI, generators now have
+minimal versions they need to be upgraded to with `fern generator upgrade --include-major`:
+- Python SDK: upgrade to v3.3.0-rc0+
+- TypeScript SDK: upgrade to v0.38.0-rc0+
+- Java SDK: upgrade to v2.5.0+
+- Go SDK: upgrade to v0.28.3+
+- C# SDK: upgrade to v0.5.0+
+- Ruby SDK: upgrade to v1.0.0-rc1+
+- Other generators: upgrade to versions that support IR v53+
+
+
+## 3.98.5
+**`(fix):`** Support namespace resolution in docs types. When multiple OpenAPI specs
+define types with the same name (e.g., `Team` in both EntityManager and
+TaskManager specs), the docs type converter now respects `x-fern-sdk-namespace`
+to namespace TypeIds (e.g., `entity_manager:Team`), preventing collisions.
+The namespace is resolved from `generators.yml` configuration or directly
+from the `x-fern-sdk-namespace` extension in the OpenAPI/AsyncAPI spec.
+
+
+## 3.98.4
+**`(fix):`** Fix docs pipeline (v3-importer-commons) dropping properties from `oneOf`/`anyOf` variants
+inside `allOf`. The old OpenAPI importer was fixed in 3.98.2, but the docs/register pipeline
+used a separate v3-importer-commons path that still had the same bug. Properties like `content`
+and `templateId` in mutual exclusion patterns (`not: {}`) are now correctly surfaced as optional
+properties in generated docs.
+
+
 ## 3.98.3
 **`(fix):`** `fern generate` now fails fast when trying to publish a version that already
 exists on the target package registry (npm, PyPI, Maven Central, NuGet,

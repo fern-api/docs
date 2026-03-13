@@ -1,0 +1,86 @@
+## 4.9.0
+**`(feat):`** Deduplicate AI calls during AUTO versioning when multiple generators
+run in a single `fern generate` invocation. An in-memory cache keyed on
+`sha256(cleanedDiff + language + previousVersion)` is shared across all
+generators so the AI analysis is performed exactly once per unique
+combination of diff, language, and previous version. Subsequent generators
+with the same inputs receive the cached result immediately, eliminating
+redundant AI calls and ensuring consistent version bump decisions.
+
+
+## 4.8.0
+**`(feat):`** Add few-shot examples to the AnalyzeSdkDiff prompt for more consistent
+version bump classification. The examples cover the three most common
+misclassification cases (removed export -> MAJOR, new optional parameter
+-> MINOR, internal constant change -> PATCH) across TypeScript, Python,
+Java, and Go, plus "when in doubt" guidance for boundary decisions.
+
+
+## 4.7.0
+**`(feat):`** Pass `previous_version` and `language` to the AI prompt for AUTO
+versioning diff analysis. The `AnalyzeSdkDiff` BAML function now
+accepts three parameters (`diff`, `language`, `previous_version`)
+instead of just `diff`, giving the AI meaningful calibration context
+for commit messages and version bump decisions. New repos with no
+previous version pass `"0.0.0"` as a sentinel value.
+
+
+## 4.6.0
+**`(feat):`** Expand AUTO versioning diff exclusion list to strip noise files before
+AI analysis. The cleaned diff now excludes lock files (`pnpm-lock.yaml`,
+`poetry.lock`, `yarn.lock`, etc.), test files by naming convention
+(`*.test.ts`, `*_test.go`, `*Test.java`, `__tests__/`, `wiremock/`),
+snapshot files (`*.snap`, `__snapshots__/`), generated documentation
+(`reference.md`), CI/editor config (`.github/`, `.editorconfig`,
+`.prettierrc*`, `biome.json`), linting configs (`.eslintrc*`,
+`.rubocop*`, `phpstan.neon`, `rustfmt.toml`, etc.), and build/devtool
+configs (`tsconfig*.json`, `Makefile`, `Rakefile`, `snippet.json`,
+`.gitignore`, etc.). `CHANGELOG*`/`README*` exclusion confirmed
+case-insensitive. This dramatically reduces diff sizes sent to the AI
+endpoint, fixing silent failures on large SDK diffs.
+
+
+## 4.5.0
+**`(feat):`** Add .fern/metadata.json fallback for AUTO version resolution. When both
+package registry lookups and GitHub release lookups fail to determine the current
+SDK version, the CLI now reads the sdkVersion field from the .fern/metadata.json
+file in the GitHub repository (written by Fern generators during previous
+generations). This provides an additional fallback layer for version resolution.
+
+
+## 4.4.5
+**`(fix):`** Improve error messages when AI analysis fails during AUTO versioning.
+Error and warning logs now include diff size (in characters and KB),
+number of files changed, and guidance when the diff exceeds the FAI
+endpoint's 100,000 character limit. Previously, failures only logged a
+generic "AI analysis failed, falling back to PATCH" message with no
+actionable context.
+
+
+## 4.4.4
+**`(fix):`** Fix `fern check` false-positives on JSON-formatted Swagger 2.0 specs
+
+
+## 4.4.3
+**`(fix):`** Preview domains are by default not basepath aware.
+
+
+## 4.4.2
+**`(fix):`** Fix `fern generator upgrade` failing on Windows with
+`Only URLs with a scheme in: file, data, and node are supported
+by the default ESM loader. Received protocol 'c:'`. The dynamic
+`import()` of the migration package now uses `pathToFileURL()` to
+convert absolute filesystem paths to valid `file://` URLs, which
+is required by the Node.js ESM loader on Windows.
+
+
+## 4.4.1
+**`(fix):`** Fix `fern generator upgrade` failing with `TAR_ENTRY_ERROR` and
+`ENOENT` on `package.json` when upgrading multiple workspaces.
+The root cause was concurrent `npm install` calls to the same
+`--prefix` directory racing on tar extraction. Now the migration
+package is installed exactly once per CLI process using a
+deduplicating promise pattern, and an isolated npm cache prevents
+system-level cache corruption.
+
+

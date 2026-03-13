@@ -36,7 +36,7 @@ export const FernFooter = () => {
 
       {/* Footer Links */}
       <div className="footer-links">
-        <div className="footer-bottom-text"> © 2025 Fern • Located in Brooklyn, NY </div>
+        <div className="footer-bottom-text"> © 2026 Fern • Birch Solutions, Inc., a Postman company</div>
         {/* Newsletter Signup */}
         {/* <div className="newsletter-container">
           <div className="newsletter-label">Subscribe to our updates</div>

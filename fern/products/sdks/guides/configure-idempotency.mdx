@@ -1,19 +1,19 @@
 ---
 title: Configure idempotency headers
-description: SDKs that safely support retrying requests
+description: Configure idempotency headers for SDKs that support retrying requests
 ---
 
 <Markdown src="/snippets/agent-directive.mdx"/>
 
 <Markdown src="/snippets/pro-plan.mdx"/>
 
-For endpoints you've configured as idempotent, Fern's SDKs allow you to
-specify idempotency headers. Typically the headers include `Idempotency-Key`,
+For endpoints you've configured as idempotent, Fern's SDKs allow users to
+specify idempotency headers for safe request retries. Typically the headers include `Idempotency-Key`,
 but you can also specify additional headers.
 
-## How it works for SDK users
+## Generated SDK behavior
 
-Your SDK users can specify an idempotency header like this:
+The generated SDKs expose idempotency headers as parameters only for endpoints marked as idempotent, ensuring users know exactly which invocations are idempotent.
 
 <CodeBlocks>
   <CodeBlock title="TypeScript">
@@ -62,63 +62,51 @@ Your SDK users can specify an idempotency header like this:
   </CodeBlock>
 </CodeBlocks>
 
-<Note>
-  The generated SDKs won't allow users to specify idempotency headers
-for non-idempotent endpoints. This ensures that the user knows exactly
-which invocations are idempotent and which aren't.
-</Note>
+## Setting up idempotency headers
 
-### Setting up idempotency headers
-
-To set up idempotency headers in your API, configure the idempotency headers and mark individual endpoints as idempotent.
+Configure the idempotency headers your API uses, then mark individual endpoints as idempotent:
 
 <Tabs>
-  <Tab title="OpenAPI">
+<Tab title="OpenAPI">
 
-Configure idempotency using the [`x-fern-idempotency-headers` and `x-fern-idempotent` extensions](/api-definitions/openapi/extensions/idempotency):
+```yaml title="openapi.yml" {2-4,10}
+x-fern-idempotency-headers:
+  - header: IDEMPOTENCY-KEY
+    name: idempotency_key
 
-    <CodeBlocks>
-      <CodeBlock title="openapi-overrides.yml">
-          ```yaml {2-4,10}
-          # Configure the idempotency headers
-          x-fern-idempotency-headers:
-            - header: IDEMPOTENCY-KEY
-              name: idempotency_key
-          
-          # Mark an individual endpoint as idempotent
-          paths:
-            /foo:
-              post:
-                x-fern-idempotent: true
-          ```
-        </CodeBlock>
-    </CodeBlocks>
-  </Tab>
-
-  <Tab title="Fern Definition">
-
-Configure [idempotency headers in your `api.yml`](/learn/api-definitions/ferndef/api-yml/global-headers#idempotency-headers), then [mark individual endpoints as idempotent](/learn/api-definitions/ferndef/endpoints/overview#idempotent-endpoints):
-
-    <CodeBlocks>
-      <CodeBlock title="api.yml">
-        ```yaml
-        # Configure the idempotency headers
-        name: idempotency-headers
-        auth: bearer
-        idempotency-headers:
-          Idempotency-Key: string
-          Idempotency-Expiration: integer
-        ```
-      </CodeBlock>
-      <CodeBlock title="service.yml">
-        ```yaml
-        # Mark an individual endpoint as idempotent
-        endpoints:
-          foo:
-            idempotent: true
-        ```
-      </CodeBlock>
-    </CodeBlocks>
-  </Tab>
-</Tabs>
+paths:
+  /plants:
+    post:
+      x-fern-idempotent: true
 ```
+
+</Tab>
+<Tab title="Fern Definition">
+
+```yaml title="api.yml"
+name: api
+auth: bearer
+idempotency-headers:
+  Idempotency-Key: string
+  Idempotency-Expiration: integer
+```
+
+```yaml title="service.yml"
+endpoints:
+  foo:
+    idempotent: true
+```
+
+</Tab>
+</Tabs>
+
+For full configuration details, see the docs for your API definition format:
+
+<CardGroup cols={2}>
+  <Card title="OpenAPI" href="/learn/api-definitions/openapi/extensions/idempotency">
+    Configure `x-fern-idempotency-headers` and `x-fern-idempotent` extensions.
+  </Card>
+  <Card title="Fern Definition" href="/learn/api-definitions/ferndef/api-yml/global-headers#idempotency-headers">
+    Configure idempotency headers in `api.yml` and mark endpoints as idempotent.
+  </Card>
+</CardGroup>
