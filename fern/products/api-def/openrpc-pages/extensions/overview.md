@@ -6,7 +6,7 @@ description: OpenRPC extensions guide for Fern. Use x-fern-ignore, x-fern-exampl
 
 Fern supports a variety of OpenRPC extensions that enhance your API specification and generate higher-quality SDKs. 
 
-You can apply these extensions in two ways: by overlaying them in separate override files or by embedding them directly in your OpenRPC specification. See [Overrides](/api-definitions/overview/overrides) for more information. 
+You can apply these extensions in two ways: by overlaying them in separate override files or by embedding them directly in your OpenRPC specification. See [Overrides](/learn/api-definitions/openrpc/overrides) for more information. 
 
 ## Available extensions
 

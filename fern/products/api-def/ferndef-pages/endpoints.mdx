@@ -19,7 +19,7 @@ Each service defines:
 <CodeBlock title='user.yml'>
   ```yaml 
     service: 
-      base-path: /users 
+      base-path: /users # This defines the group/namespace for the methods
       auth: false 
       endpoints: {}
   ```
@@ -32,6 +32,27 @@ Each service defines:
 ### Section display name
 
 By default, section names in your API Reference come from service file names (e.g., `user.yml` becomes "User"). To override the display name of a section, [use the `section` property in your `docs.yml`](/docs/api-references/customize-api-reference-layout#renaming-sections).
+
+### SDK method names
+
+SDK method names are derived directly from the service file name and endpoint key. The file name becomes the namespace and the endpoint key becomes the method name.
+
+For example, given the following definition:
+
+<CodeBlock title="users.yml">
+```yaml
+service:
+  base-path: /users
+  auth: false
+  endpoints:
+    create:
+      path: ""
+      method: POST
+      request: CreateUserRequest
+```
+</CodeBlock>
+
+Fern generates a method called `client.users.create()`.
 
 ## Endpoints
 
@@ -314,7 +335,15 @@ types:
 
 ### Pagination
 
-Endpoints can specify pagination configuration to enable auto-pagination in [generated SDKs](/learn/sdks/deep-dives/auto-pagination). Fern supports both offset-based and cursor-based pagination schemes.
+Fern supports offset, cursor, URI, and path-based pagination schemes. To set up auto-pagination in [generated SDKs](/learn/sdks/deep-dives/auto-pagination):
+
+1. Annotate the desired paginated endpoint with the `pagination` field
+1. Specify the pagination scheme (`offset`, `cursor`, `next_uri`, or `next_path`)
+1. Specify where your `results` are located using dot-access notation.
+
+<Tip title="Offset pagination options">
+Include `step` in most offset pagination configurations to ensure the offset increments by the page size. Use `has-next-page` when your API returns a boolean indicator for additional pages.
+</Tip>
 
 <CodeBlocks>
 ```yaml title="Offset pagination" {8-12}
@@ -327,7 +356,7 @@ service:
       method: GET
       pagination:
         offset: $request.page
-        step: $request.page_size
+        step: $request.page_size # Recommended
         results: $response.data
         has-next-page: $response.has_more
       request:
@@ -371,6 +400,46 @@ types:
           next:
             properties:
               starting_after: optional<string>
+```
+
+```yaml title="URI pagination" {8-10}
+service:
+  base-path: /plants
+  auth: false
+  endpoints:
+    list:
+      path: ""
+      method: GET
+      pagination:
+        next_uri: $response.next_page_url
+        results: $response.data
+      response: ListPlantsResponse
+
+types:
+  ListPlantsResponse:
+    properties:
+      data: list<Plant>
+      next_page_url: optional<string>
+```
+
+```yaml title="Path pagination" {8-10}
+service:
+  base-path: /plants
+  auth: false
+  endpoints:
+    list:
+      path: ""
+      method: GET
+      pagination:
+        next_path: $response.next_page_path
+        results: $response.data
+      response: ListPlantsResponse
+
+types:
+  ListPlantsResponse:
+    properties:
+      data: list<Plant>
+      next_page_path: optional<string>
 ```
 </CodeBlocks>
 

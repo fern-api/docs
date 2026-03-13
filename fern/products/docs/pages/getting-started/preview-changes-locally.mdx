@@ -62,39 +62,94 @@ fern docs preview delete <url>
 
 ### Automate with GitHub Actions
 
-Generate preview links automatically for every pull request by adding a GitHub Actions workflow. [Add your `FERN_TOKEN` to the repository secrets](/learn/cli-api-reference/cli-reference/commands#fern-token) before using these workflows.
+If you set up your site using the [guided UI](https://dashboard.buildwithfern.com/get-started) or [CLI quickstart](/learn/docs/getting-started/quickstart), preview workflow files are automatically included in your repository. Otherwise, add them manually using the examples below.
+
+These workflows require a `FERN_TOKEN` [repository secret](https://docs.github.com/en/actions/security-guides/using-secrets-in-github-actions#creating-secrets-for-a-repository). If you used the guided workflow, this secret is added automatically. Otherwise, run [`fern token`](/learn/cli-api-reference/cli-reference/commands#fern-token) in your terminal to generate a token, then add it in your repository's **Settings > Secrets and variables > Actions** with the name `FERN_TOKEN`.
+
+<Note>
+You may need to re-run preview builds for any PRs that were opened before you configured the `FERN_TOKEN`.
+</Note>
 
 <CodeBlock title = ".github/workflows/preview-docs.yml">
 ```yaml
 name: Preview Docs
 
 on:
-  pull_request
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+    branches:
+      - main
 
 jobs:
   run:
     runs-on: ubuntu-latest
-    permissions: write-all
+    permissions:
+      pull-requests: write
+      contents: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Install Fern
-        run: npm install -g fern-api
+      - name: Setup Fern CLI
+        uses: fern-api/setup-fern-cli@v1
 
       - name: Generate preview URL
+        id: generate-docs
         env:
           FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
         run: |
           OUTPUT=$(fern generate --docs --preview 2>&1) || true
           echo "$OUTPUT"
           URL=$(echo "$OUTPUT" | grep -oP 'Published docs to \K.*(?= \()')
-          echo "🌿 Preview your docs: $URL" > preview_url.txt
+          echo "preview_url=$URL" >> $GITHUB_OUTPUT
+          echo "Preview URL: $URL"
 
-      - name: Comment URL in PR
+      - name: Get page links for changed MDX files
+        id: page-links
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+        run: |
+          PREVIEW_URL="${{ steps.generate-docs.outputs.preview_url }}"
+          CHANGED_FILES=$(git diff --name-only origin/main...HEAD -- '*.mdx' 2>/dev/null || echo "")
+
+          if [ -z "$CHANGED_FILES" ] || [ -z "$PREVIEW_URL" ]; then
+            echo "page_links=" >> $GITHUB_OUTPUT; exit 0
+          fi
+
+          BASE_URL=$(echo "$PREVIEW_URL" | grep -oP 'https?://[^/]+')
+
+          FILES_PARAM=$(echo "$CHANGED_FILES" | tr '\n' ',' | sed 's/,$//')
+          RESPONSE=$(curl -sf -H "FERN_TOKEN: $FERN_TOKEN" "${PREVIEW_URL}/api/fern-docs/get-slug-for-file?files=${FILES_PARAM}" 2>/dev/null) || {
+            echo "page_links=" >> $GITHUB_OUTPUT; exit 0
+          }
+
+          PAGE_LINKS=$(echo "$RESPONSE" | jq -r --arg url "$BASE_URL" \
+            '.mappings[] | select(.slug != null) | "- [\(.slug)](\($url)/\(.slug))"')
+
+          if [ -n "$PAGE_LINKS" ]; then
+            { echo "page_links<<EOF"; echo "$PAGE_LINKS"; echo "EOF"; } >> $GITHUB_OUTPUT
+          else
+            echo "page_links=" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create comment content
+        run: |
+          echo ":herb: **Preview your docs:** <${{ steps.generate-docs.outputs.preview_url }}>" > comment.md
+
+          if [ -n "${{ steps.page-links.outputs.page_links }}" ]; then
+            echo "" >> comment.md
+            echo "Here are the markdown pages you've updated:" >> comment.md
+            echo "${{ steps.page-links.outputs.page_links }}" >> comment.md
+          fi
+
+      - name: Post PR comment
         uses: thollander/actions-comment-pull-request@v2.4.3
         with:
-          filePath: preview_url.txt
+          filePath: comment.md
+          comment_tag: preview-docs
+          mode: upsert
 ```
 </CodeBlock>
 
@@ -108,6 +163,7 @@ name: Preview Docs
 
 on:
   pull_request_target:
+    types: [opened, synchronize, ready_for_review]
     branches:
       - main
 
@@ -120,28 +176,72 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Install Fern
-        run: npm install -g fern-api
+        with:
+          fetch-depth: 0
 
       - name: Checkout PR
         run: |
           git fetch origin pull/${{ github.event.pull_request.number }}/head:pr-${{ github.event.pull_request.number }}
           git checkout pr-${{ github.event.pull_request.number }}
 
+      - name: Setup Fern CLI
+        uses: fern-api/setup-fern-cli@v1
+
       - name: Generate preview URL
+        id: generate-docs
         env:
           FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
         run: |
           OUTPUT=$(fern generate --docs --preview 2>&1) || true
           echo "$OUTPUT"
           URL=$(echo "$OUTPUT" | grep -oP 'Published docs to \K.*(?= \()')
-          echo "🌿 Preview your docs: $URL" > preview_url.txt
+          echo "preview_url=$URL" >> $GITHUB_OUTPUT
+          echo "Preview URL: $URL"
 
-      - name: Comment URL in PR
+      - name: Get page links for changed MDX files
+        id: page-links
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+        run: |
+          PREVIEW_URL="${{ steps.generate-docs.outputs.preview_url }}"
+          CHANGED_FILES=$(git diff --name-only origin/main...HEAD -- '*.mdx' 2>/dev/null || echo "")
+
+          if [ -z "$CHANGED_FILES" ] || [ -z "$PREVIEW_URL" ]; then
+            echo "page_links=" >> $GITHUB_OUTPUT; exit 0
+          fi
+
+          BASE_URL=$(echo "$PREVIEW_URL" | grep -oP 'https?://[^/]+')
+
+          FILES_PARAM=$(echo "$CHANGED_FILES" | tr '\n' ',' | sed 's/,$//')
+          RESPONSE=$(curl -sf -H "FERN_TOKEN: $FERN_TOKEN" "${PREVIEW_URL}/api/fern-docs/get-slug-for-file?files=${FILES_PARAM}" 2>/dev/null) || {
+            echo "page_links=" >> $GITHUB_OUTPUT; exit 0
+          }
+
+          PAGE_LINKS=$(echo "$RESPONSE" | jq -r --arg url "$BASE_URL" \
+            '.mappings[] | select(.slug != null) | "- [\(.slug)](\($url)/\(.slug))"')
+
+          if [ -n "$PAGE_LINKS" ]; then
+            { echo "page_links<<EOF"; echo "$PAGE_LINKS"; echo "EOF"; } >> $GITHUB_OUTPUT
+          else
+            echo "page_links=" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create comment content
+        run: |
+          echo ":herb: **Preview your docs:** <${{ steps.generate-docs.outputs.preview_url }}>" > comment.md
+
+          if [ -n "${{ steps.page-links.outputs.page_links }}" ]; then
+            echo "" >> comment.md
+            echo "Here are the markdown pages you've updated:" >> comment.md
+            echo "${{ steps.page-links.outputs.page_links }}" >> comment.md
+          fi
+
+      - name: Post PR comment
         uses: thollander/actions-comment-pull-request@v2.4.3
         with:
-          filePath: preview_url.txt
+          filePath: comment.md
+          comment_tag: preview-docs
+          mode: upsert
 ```
 </CodeBlock>
 

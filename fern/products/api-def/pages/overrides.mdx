@@ -39,7 +39,7 @@ fern/
 </Step>
 <Step title="Customize your spec with Fern extensions">
 
-For OpenAPI, AsyncAPI, and OpenRPC, you can use [Fern's extensions](/api-definitions/overview/overrides#definition-specific-extensions) to apply customizations. 
+For OpenAPI, AsyncAPI, and OpenRPC, you can use [Fern's extensions](/learn/api-definitions/asyncapi/overrides#definition-specific-extensions) to apply customizations. 
 
 ```yml title="overrides.yml" {4-5}
 paths: 
@@ -58,6 +58,9 @@ api:
     - openapi: spec-file.yml 
       overrides: ./overrides.yml
 ```
+
+You can also specify [multiple override files](#multiple-override-files).
+
 </Step>
 <Step title="Fern combines your spec and overrides">
 Now when you run `fern generate`, Fern combines your original API specification with the overrides file:
@@ -100,10 +103,90 @@ paths:
 </Step>
 </Steps>
 
-## Separate overrides for SDKs and docs
+## Managing overrides across APIs
 
-<Markdown src="/snippets/separate-sdks-docs.mdx" type="overrides" />
+The `overrides` field accepts a single path or a list of paths. When multiple paths are provided, overrides are applied sequentially in order, with later files taking precedence over earlier ones for conflicting keys.
 
-## Overrides for different environments
+<AccordionGroup>
+<Accordion title="Shared overrides across multiple specs">
 
-<Markdown src="/snippets/different-environments.mdx" type="overrides" />
+When your project has multiple specs that need the same foundational overrides, use a shared base file and layer spec-specific overrides on top. This avoids duplicating common overrides (e.g., SDK method names or authentication extensions) across each spec:
+
+```yaml title="generators.yml"
+api:
+  specs:
+    - openapi: ./payments-api.yml
+      overrides:
+        - ./shared-overrides.yml       # Common overrides for all specs
+        - ./payments-overrides.yml     # Payments-specific overrides
+    - openapi: ./users-api.yml
+      overrides:
+        - ./shared-overrides.yml       # Same common overrides
+        - ./users-overrides.yml        # Users-specific overrides
+```
+
+</Accordion>
+<Accordion title="Separate overrides for SDKs and docs">
+
+When you need entirely different overrides for SDK generation versus documentation, use separate folders with their own `generators.yml`. Each folder references only the overrides relevant to its concern:
+
+<Files>
+  <Folder name="fern" defaultOpen>
+    <File name="fern.config.json" />
+    <File name="openapi.yml" />
+    <Folder name="docs" defaultOpen>
+      <File name="generators.yml" />
+      <File name="docs-overrides.yml" />
+    </Folder>
+    <Folder name="sdks" defaultOpen>
+      <File name="generators.yml" />
+      <File name="sdk-overrides.yml" />
+    </Folder>
+  </Folder>
+</Files>
+
+```yaml title="sdks/generators.yml"
+api:
+  specs:
+    - openapi: ../openapi.yml
+      overrides: sdk-overrides.yml
+```
+
+If the SDK and docs overrides share a common base, you can use multiple override files within each folder to avoid duplication:
+
+```yaml title="sdks/generators.yml"
+api:
+  specs:
+    - openapi: ../openapi.yml
+      overrides:
+        - ../shared-overrides.yml      # Common overrides for both SDKs and docs
+        - sdk-overrides.yml            # SDK-specific overrides
+```
+
+</Accordion>
+<Accordion title="Overrides for different environments">
+
+When your public and internal APIs share the same spec but need different overrides, use multiple override files to layer internal-specific additions on top of the public base. This is especially useful when the internal API is a superset of the public API:
+
+```yaml title="generators.yml" {5, 12-13}
+groups:
+  public:
+    specs:
+      - openapi: openapi.yml
+        overrides: public-overrides.yml
+    generators:
+      ...
+  internal:
+    specs:
+      - openapi: openapi.yml
+        overrides:
+          - public-overrides.yml           # Base: all public overrides
+          - internal-overrides.yml         # Additional: internal-only overrides
+    generators:
+      ...
+```
+
+This avoids duplicating the public overrides in the internal configuration. The `internal-overrides.yml` file only needs to contain the additions specific to the internal API.
+
+</Accordion>
+</AccordionGroup>

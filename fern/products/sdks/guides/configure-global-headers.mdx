@@ -5,15 +5,11 @@ description: Learn how to configure global headers in Fern SDKs. Set up API head
 
 <Markdown src="/snippets/agent-directive.mdx"/>
 
-Your API may leverage certain headers for every endpoint or most endpoints.
-These are called **global headers**.
+If your API requires certain headers on every request (or most requests), you can configure them as **global headers**. Fern will generate an SDK that accepts these headers once in the client constructor and automatically includes them in all API calls.
 
-## How it works for SDK users
+## Generated SDK behavior
 
-Once you configure a global header (either automatically detected or manually
-specified), Fern generates an SDK that accepts this as a constructor parameter.
-Users can then provide the value once, and the generated SDK automatically
-includes the header in all their API calls:
+Once you configure a global header, Fern generates an SDK that accepts the header value as a constructor parameter:
 
 ```python
 import os
@@ -23,20 +19,14 @@ class Client:
   def __init__(self, *, apiKey: str):
 ```
 
-## Specifying global headers
+SDK users provide the value once, and the generated SDK automatically includes the header in all requests.
 
-Fern automatically identifies headers that are used in every request, or the
-majority of requests, and marks them as global. You can manually configure additional
-global headers in either `api.yml` (Fern Definition) or `openapi.yml`.
+## Setting up global headers
 
-<AccordionGroup>
-<Accordion title="OpenAPI">
+Fern automatically identifies headers used in every request, or the majority of requests, and marks them as global. You can manually configure additional global headers in your API definition:
 
-For OpenAPI specifications, you can configure global headers in two ways:
-
-#### Method 1: OpenAPI Spec Extension
-
-Add global headers directly to your OpenAPI spec using the `x-fern-global-headers` extension to label additional headers as global or to alias the names of global headers:
+<Tabs>
+<Tab title="OpenAPI">
 
 ```yaml title="openapi.yml"
 x-fern-global-headers:
@@ -46,84 +36,25 @@ x-fern-global-headers:
     optional: true
 ```
 
-#### Method 2: `generators.yml` Configuration
+</Tab>
+<Tab title="Fern Definition">
 
-Alternatively, you can add headers to the `api` block in your `generators.yml` file:
-
-```yaml title="generators.yml"
-api:
-  - openapi: ./path/to/openapi
-    headers: 
-      custom_api_key:
-        name: api_key
-        type: string
-      userpool_id:
-        name: userpool_id
-        type: optional<string>
-```
-
-For more information, see the [`generators.yml` reference documentation](/sdks/reference/generators-yml#headers).
-
-#### Client code
-
-Both of the above configurations produce the same client code:
-
-```python
-import os
-
-class Client:
-
-  def __init__(self, *, apiKey: str, 
-               userpoolId: typing.Optional[str])
-```
-
-
-</Accordion>
-<Accordion title="Fern Definition">
-
-To specify headers that are meant to be included on every request:
-
-<CodeBlock title="api.yml">
-```yaml {3}
+```yaml title="api.yml"
 name: api
 headers:
   X-App-Id: string
 ```
-</CodeBlock>
 
-### Global path parameters
-You can also specify path parameters that are meant to be included on every request:
+</Tab>
+</Tabs>
 
-<CodeBlock title="api.yml">
-```yaml
-name: api
-base-path: /{userId}/{orgId}
-path-parameters:
-  userId: string
-  orgId: string
-```
-</CodeBlock>
+For full configuration details, see the docs for your API definition format:
 
-#### Overriding the base path
-
-If you have certain endpoints that do not live at the configured `base-path`, you can 
-override the `base-path` at the endpoint level. 
-
-```yml imdb.yml {5}
-service: 
-  endpoints: 
-    getMovie: 
-      method: POST
-      base-path: "override/{arg}"
-      path: "movies/{movieId}"
-      path-parameters: 
-        arg: string
-```
-
-<Note>
-  You cannot yet specify query parameters that are meant to be included on every request.
-If you'd like to see this feature, please upvote [this issue](https://github.com/fern-api/fern/issues/2930).
-</Note>
-
-</Accordion>
-</AccordionGroup>
+<CardGroup cols={2}>
+  <Card title="OpenAPI" href="/learn/api-definitions/openapi/extensions/global-headers">
+    Annotate headers with the `x-fern-global-headers` extension.
+  </Card>
+  <Card title="Fern Definition" href="/learn/api-definitions/ferndef/api-yml/global-headers">
+    Configure global headers, path parameters, and idempotency headers in `api.yml`
+  </Card>
+</CardGroup>

@@ -1,0 +1,298 @@
+---
+title: Sections, pages, and folders
+subtitle: Organize your sidebar navigation structure in `docs.yml`
+description: Configure the sidebar navigation for your Fern documentation site, including sections, pages, folders, icons, and links.
+max-toc-depth: 3
+---
+
+<Markdown src="/snippets/agent-directive.mdx"/>
+
+The `navigation` key in `docs.yml` defines your sidebar structure. Build it by combining sections, pages, and folders.
+
+<Info title="API Reference section">
+Use the special `api` key to create an automatically generated API Reference section. For more information, see [Generate API Reference](/learn/docs/api-references/generate-api-ref).
+
+```yaml docs.yml
+navigation:
+  - section: Introduction
+    contents:
+      - page: My page
+        path: ./pages/my-page.mdx
+  - api: API Reference
+```
+</Info>
+
+### Add a section
+
+Sections organize your documentation in the left-side nav bar. Each section has a name and a list of `contents`, which can include pages, folders, or nested sections.
+
+```yaml docs.yml
+navigation:
+  - section: Introduction
+    contents:
+      - page: My page
+        path: ./pages/my-page.mdx
+      - page: Another page
+        path: ./pages/another-page.mdx
+```
+
+Sections can be nested to create multi-level navigation hierarchies.
+
+```yaml docs.yml
+navigation:
+  - section: Learn
+    contents:
+      - section: Key concepts
+        contents:
+          - page: Embeddings
+            path: ./docs/pages/embeddings.mdx
+          - page: Prompt engineering
+            path: ./docs/pages/prompts.mdx
+      - section: Generation
+        contents:
+          - page: Command nightly
+            path: ./docs/pages/command.mdx
+          - page: Likelihood
+            path: ./docs/pages/likelihood.mdx
+```
+
+<Frame>
+![Result of above docs.yml example](https://fern-image-hosting.s3.amazonaws.com/fern/nested-sections.png)
+</Frame>
+
+To add an overview page to a section, add a `path` property pointing to an `.mdx` file.
+
+{/* <!-- vale off --> */}
+```yaml Section with an overview page {3}
+navigation:
+  - section: Guides
+    path: ./pages/guide-overview.mdx
+    contents:
+      - page: Simple guide
+        path: ./pages/guides/simple.mdx
+      - page: Complex guide
+        path: ./pages/guides/complex.mdx
+```
+{/* <!-- vale on --> */}
+
+### Add a page
+
+Create an `.md` or `.mdx` file, then add a `page` entry to a section's `contents` with the file path.
+
+```yaml docs.yml
+navigation:
+  - section: Introduction
+    contents:
+      - page: My page
+        path: ./pages/my-page.mdx
+      - page: Another page
+        path: ./pages/another-page.mdx
+```
+
+### Add a folder
+
+Add a `folder` entry pointing to a directory. Fern auto-discovers all `.md` and `.mdx` files and adds them to the navigation.
+
+<Files>
+  <Folder name="pages" defaultOpen>
+    <Folder name="guides" defaultOpen>
+      <File name="index.mdx" comment="Becomes the section overview page" />
+      <File name="quickstart.mdx" />
+      <Folder name="advanced" defaultOpen>
+        <File name="index.mdx" comment="Becomes the nested section overview" />
+        <File name="auth.mdx" />
+      </Folder>
+    </Folder>
+  </Folder>
+</Files>
+
+```yaml docs.yml
+navigation:
+  - section: Introduction
+    contents:
+      - folder: ./pages/guides
+        title: Guides # Optional, defaults to folder name
+```
+
+For the pages in a folder, Fern automatically:
+- Converts filenames to titles and URL slugs
+- Creates nested sections from subdirectories
+- Sorts pages alphabetically
+- Uses `index.mdx` or `index.md` files as section overview pages (case-insensitive)
+
+<Accordion title="Folder configuration options">
+
+Customize folder behavior with these options:
+
+```yaml docs.yml
+navigation:
+  - folder: ./pages/guides
+    title: Guides                  # Display name in sidebar
+    slug: user-guides              # Custom URL path
+    title-source: frontmatter      # Use frontmatter titles
+```
+
+<ParamField path="title" type="string" required={false} toc={true}>
+  The title to display for this folder section. If not provided, the folder name is used.
+</ParamField>
+
+<ParamField path="title-source" type="'filename' | 'frontmatter'" required={false} default="filename" toc={true}>
+  Determines how page and section titles within the folder are derived. By default (`filename`), titles are derived from file names. Set to `frontmatter` to use the `title` field from each file's frontmatter instead (falls back to filename if not set). This per-folder setting overrides the global [`settings.folder-title-source`](/learn/docs/configuration/site-level-settings#settingsfolder-title-source) value.
+</ParamField>
+
+<ParamField path="slug" type="string" required={false} toc={true}>
+  Overrides the auto-generated URL slug for the folder.
+</ParamField>
+
+<ParamField path="skip-slug" type="boolean" required={false} default="false" toc={true}>
+  Omits the folder from the URL path, so pages appear at the parent level.
+</ParamField>
+
+<ParamField path="position" type="number" required={false} toc={true}>
+  Set in page frontmatter to control ordering within the folder. Pages with `position` appear first (sorted numerically), followed by the rest alphabetically.
+  ```yaml page frontmatter
+  ---
+  title: Quickstart
+  position: 1
+  ---
+  ```
+</ParamField>
+</Accordion>
+
+## Hiding content
+
+To hide a page, folder, or section, add `hidden: true`. Hidden content (including all pages within a folder) is still accessible via direct URL but is excluded from search and won't be indexed.
+
+{/* <!-- vale off --> */}
+```yaml docs.yml {7, 10, 12}
+navigation:
+  - section: Introduction
+    contents:
+      - page: My page
+        path: ./pages/my-page.mdx
+      - page: Hidden page
+        hidden: true
+        path: ./pages/my-hidden-page.mdx
+      - folder: .pages/features
+        title: Hidden folder
+        hidden: true
+  - section: Hidden sections
+    hidden: true
+    contents:
+      - page: Another hidden page
+        path: ./pages/also-hidden.mdx
+```
+{/* <!-- vale on --> */}
+
+## Availability
+
+Set availability badges on pages, sections, or folders. Options are: `stable`, `generally-available`, `in-development`, `pre-release`, `deprecated`, or `beta`.
+
+Pages inherit availability from their parent section or folder unless overridden by:
+- A per-page `availability` setting in `docs.yml` (shown below)
+- [Page frontmatter availability](/learn/docs/configuration/page-level-settings#availability), which takes precedence over all `docs.yml` availability
+
+
+```yaml docs.yml {3, 11, 14}
+navigation:
+  - section: Developer resources
+    availability: generally-available
+    contents:
+      - page: Code examples # Inherits generally-available
+        path: ./pages/code-examples.mdx
+      - folder: ./pages/cli-tools # Inherits generally-available
+        title: CLI tools
+      - page: Testing framework
+        path: ./pages/testing-framework.mdx
+        availability: beta # Overrides section-level availability
+      - folder: ./pages/performance-monitoring
+        title: Performance monitoring
+        availability: in-development # Overrides section-level availability
+```
+<Note>
+  If you have different versions of your docs, section, folder, and page availability should be set in [the `.yml` files that define the navigational structure for each version](/learn/docs/configuration/versions#define-your-versions).
+</Note>
+
+## Collapsed sections or folders
+
+By default, sections and folders are expanded and not collapsible. Use the `collapsed` property to control how they appear in the sidebar when the page loads.
+
+| Value | Behavior |
+|---|---|
+| `true` | Collapsed on load. The user can expand it. |
+| `open-by-default` | Expanded on load, but collapsible. The section displays a toggle so the user can collapse it. |
+
+{/* <!-- vale off --> */}
+```yaml {8, 10, 17} Example config with collapsed sections
+navigation:
+  - section: Getting started # expanded, not collapsible (default)
+    contents:
+      - page: Introduction
+        path: ./pages/intro.mdx
+      - folder: ./pages/features
+        title: Features
+        collapsed: true # Folder starts collapsed
+  - section: Advanced topics
+    collapsed: true # Section starts collapsed
+    contents:
+      - page: Custom CSS
+        path: ./pages/advanced/css.mdx
+      - page: Analytics
+        path: ./pages/advanced/analytics.mdx
+  - section: API guides
+    collapsed: open-by-default # Section starts expanded, but can be collapsed by the user
+    contents:
+      - page: Authentication
+        path: ./pages/api/auth.mdx
+      - page: Pagination
+        path: ./pages/api/pagination.mdx
+```
+{/* <!-- vale on --> */}
+
+## Sidebar icons
+
+Add icons next to sections, pages, and folders using the `icon` key.
+
+<Markdown src="/snippets/icons.mdx" />
+
+{/* <!-- vale off --> */}
+```yaml Example config with different icon files {3, 6, 10-11, 14}
+navigation:
+  - section: Home
+    icon: fa-regular fa-home  # Font Awesome icon
+    contents:
+      - page: Introduction
+        icon: ./assets/icons/intro-icon.svg  # Custom image file
+        path: ./pages/intro.mdx
+      - folder: .pages/features
+        title: Custom features
+        icon: "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='currentColor'><path d='M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z'/></svg>"  # Inline SVG
+        path: ./pages/custom.mdx
+  - api: API Reference
+    icon: fa-regular fa-puzzle
+```
+{/* <!-- vale on --> */}
+
+## Links
+
+You can add a link to an external page within your sidebar navigation with the following configuration:
+
+{/* <!-- vale off --> */}
+```yaml title="docs.yml"
+navigation:
+  - section: Home
+    contents:
+      - page: Introduction
+        path: ./intro.mdx
+      - link: Our YouTube channel
+        href: https://www.youtube.com/
+```
+{/* <!-- vale on --> */}
+
+<Frame>
+  <img src="./external-link.png" alt="An external link within navigation" />
+</Frame>
+
+### Link target
+
+<Markdown src="/snippets/link-target.mdx" />

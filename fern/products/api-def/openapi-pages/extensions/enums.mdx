@@ -1,7 +1,7 @@
 ---
-title: Enum descriptions and names
-headline: Enum descriptions and names (OpenAPI)
-description: Add descriptions to OpenAPI enum values with `x-fern-enum` extension. Customize enum names for cleaner SDK code and better documentation.
+title: Enum descriptions, names, and availability
+headline: Enum descriptions, names, and availability (OpenAPI)
+description: Add descriptions, custom names, and deprecation status to OpenAPI enum values with the `x-fern-enum` extension.
 ---
 
 <Markdown src="/snippets/agent-directive.mdx"/>
@@ -9,10 +9,11 @@ description: Add descriptions to OpenAPI enum values with `x-fern-enum` extensio
 OpenAPI doesn't natively support adding descriptions to enum values. To do this in Fern you can use the `x-fern-enum`
 extension.
 
-In the example below, we've added some descriptions to enum values. These descriptions will
-propagate into the generated SDK and docs website.
+## Descriptions and availability
 
-```yaml title="openapi.yml" {9-13}
+Use `description` to add documentation to individual enum values and `deprecated` to mark values as deprecated without deprecating the entire enum. These propagate into the generated SDKs and docs website.
+
+```yaml title="openapi.yml" {11, 13-14, 16, 18}
 components:
   schemas:
     CardSuit:
@@ -23,16 +24,22 @@ components:
         - spades
       x-fern-enum:
         clubs:
-          description: Some docs about clubs
+          description: The clubs suit
+        diamonds:
+          description: "Deprecated. Use hearts instead."
+          deprecated: true
+        hearts:
+          description: The hearts suit
         spades:
-          description: Some docs about spades
+          description: The spades suit
 ```
 
-`x-fern-enum` also supports a `name` field that allows you to customize the name of the enum in code.
-This is particularly useful when you have enums that rely on symbolic characters that would otherwise cause
-generated code not to compile.
+## Custom names
 
-For example, the following OpenAPI
+Use the `name` field to customize the name of an enum value in generated code.
+This is particularly useful when enum values rely on symbolic characters that would otherwise cause generated code not to compile.
+
+For example, the following OpenAPI:
 
 ```yaml title="openapi.yml" {9,12}
 components:
@@ -50,7 +57,7 @@ components:
           description: Checks if value is less than
 ```
 
-would generate
+would generate:
 
 ```typescript title="operand.ts"
 export enum Operand {
