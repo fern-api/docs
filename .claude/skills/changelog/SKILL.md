@@ -60,7 +60,10 @@ Pick 1–4 tags that best describe the change. Prefer fewer, more specific tags.
 - **Opening line**: Lead with what the user can now do. Start with "You can now..." or a direct statement of the capability.
 - **Tone**: Professional, friendly, concise. Focus on user benefit, not implementation details.
 - **Length**: Keep entries short — typically 2–6 sentences per feature. Use bullet points for lists of details.
-- **"Learn more" link**: End with a link to the relevant docs page using the `/learn/...` URL format (see `AGENTS.md` link rules).
+- **"Read the docs" button**: End with a Button component linking to the relevant docs page using the `/learn/...` URL format (see `AGENTS.md` link rules):
+  ```mdx
+  <Button intent="none" outlined rightIcon="arrow-right" href="/learn/docs/section/page">Read the docs</Button>
+  ```
 - **Dashboard CTA**: Dashboard entries often include a path to the feature: "To get started, go to **Settings** > **Feature** in the [Dashboard](https://dashboard.buildwithfern.com/)."
 
 ## Structure template
@@ -80,7 +83,7 @@ Optional details:
 - Bullet point 1
 - Bullet point 2
 
-Learn more about [feature name](/learn/docs/section/page).
+<Button intent="none" outlined rightIcon="arrow-right" href="/learn/docs/section/page">Read the docs</Button>
 ```
 
 ### Dashboard entry
@@ -94,7 +97,9 @@ tags: ["relevant-tag"]
 
 One or two sentences explaining what users can now do.
 
-[Learn more](/learn/dashboard/section/page) about feature name. To get started, go to **Menu** > **Option** in the [Dashboard](https://dashboard.buildwithfern.com/).
+To get started, go to **Menu** > **Option** in the [Dashboard](https://dashboard.buildwithfern.com/).
+
+<Button intent="none" outlined rightIcon="arrow-right" href="/learn/dashboard/section/page">Read the docs</Button>
 ```
 
 ## Components you can use
@@ -102,5 +107,6 @@ One or two sentences explaining what users can now do.
 - `<Frame>` with `<img>` — for screenshots
 - `<iframe>` — for embedded content like PDFs
 - `<Tabs>` and `<Tab>` — for alternative views
+- `<Button>` — for "Read the docs" CTAs
 - `<Note>`, `<Warning>` — for callouts
 - Code blocks with language and optional `title` — for config examples
