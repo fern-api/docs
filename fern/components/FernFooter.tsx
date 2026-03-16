@@ -182,6 +182,7 @@ export default function FernFooter() {
       <style>{`
         #fern-footer {
           position: relative;
+          border-top: 1px solid var(--border);
         }
 
         .fern-cf {
