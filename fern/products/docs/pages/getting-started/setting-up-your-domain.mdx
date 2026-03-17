@@ -122,6 +122,17 @@ Once Fern has completed your setup, you'll be able to access your documentation 
 </Step>
 
 </Steps>
+
+<Warning title="Nginx reverse proxy and Brotli encoding">
+If you use nginx as a reverse proxy to serve Fern docs on a subpath, you may encounter HTTP/2 partial transfer errors. This happens because nginx lacks native [Brotli](https://github.com/google/brotli) (`br`) support, but Fern's CDN serves Brotli-compressed responses when the client advertises support for it. Since nginx can't handle Brotli-encoded responses from the upstream, it can corrupt the response stream over HTTP/2.
+
+To fix this, configure nginx to request only encodings it supports natively:
+
+```nginx
+proxy_set_header Accept-Encoding "gzip,deflate";
+```
+</Warning>
+
 </Accordion>
 <Accordion title="Root domain">
 
@@ -203,4 +214,4 @@ instances:
 
 <Info>
 After configuring multiple domains in your `docs.yml`, contact Fern via your dedicated Slack channel or [email](mailto:support@buildwithfern.com) to complete the setup. You'll receive DNS configuration details for each domain.
-</Info>      
+</Info>                        
