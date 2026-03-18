@@ -39,7 +39,7 @@ Some features are disabled in local development:
 
 ## Preview links
 
-Generate shareable preview URLs to review and collaborate on documentation changes before publishing. Each preview link includes a unique UUID and isn't indexed by search engines. Links don't expire.
+Generate shareable preview URLs to review and collaborate on documentation changes before publishing. Preview links aren't indexed by search engines and don't expire.
 
 ```bash
 fern generate --docs --preview
@@ -53,6 +53,14 @@ fern generate --docs --preview
 └─
 ```
 
+By default, each run generates a new URL with a unique UUID. To create a **stable, named preview link** that stays the same across multiple runs, use the `--id` flag:
+
+```bash
+fern generate --docs --preview --id my-feature
+```
+
+The `--id` value is used as part of the preview URL (for example, `https://your-org-preview-my-feature.docs.buildwithfern.com`). Subsequent runs with the same `--id` overwrite the previous preview, so the URL never changes. This is useful when you want to share a link with reviewers and keep it up to date as you push changes.
+
 You can also [list all preview deployments](/learn/cli-api-reference/cli-reference/commands#fern-docs-preview-list) for your organization and [delete a preview deployment](/learn/cli-api-reference/cli-reference/commands#fern-docs-preview-delete) when it's no longer needed:
 
 ```bash
@@ -62,7 +70,7 @@ fern docs preview delete <url>
 
 ### Automate with GitHub Actions
 
-You can use a GitHub Actions workflow to automatically generate a preview URL when a pull request is opened. The workflow posts a comment on the PR with the preview link and direct links to every page changed in the PR, so reviewers can jump straight to affected pages. When you push new commits, the comment is updated with a new preview link and refreshed page links.
+You can use a GitHub Actions workflow to automatically generate a preview URL when a pull request is opened. By passing `--id` with the branch name, every push to the same PR updates the same preview URL instead of creating a new one. The workflow posts a comment on the PR with the preview link and direct links to every page changed in the PR, so reviewers can jump straight to affected pages.
 
 <Frame>
     <img
@@ -108,8 +116,9 @@ jobs:
         id: generate-docs
         env:
           FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+          HEAD_REF: ${{ github.head_ref }}
         run: |
-          OUTPUT=$(fern generate --docs --preview 2>&1) || true
+          OUTPUT=$(fern generate --docs --preview --id "$HEAD_REF" 2>&1) || true
           echo "$OUTPUT"
           URL=$(echo "$OUTPUT" | grep -oP 'Published docs to \K.*(?= \()')
           echo "preview_url=$URL" >> $GITHUB_OUTPUT
@@ -200,8 +209,9 @@ jobs:
         id: generate-docs
         env:
           FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+          HEAD_REF: ${{ github.head_ref }}
         run: |
-          OUTPUT=$(fern generate --docs --preview 2>&1) || true
+          OUTPUT=$(fern generate --docs --preview --id "$HEAD_REF" 2>&1) || true
           echo "$OUTPUT"
           URL=$(echo "$OUTPUT" | grep -oP 'Published docs to \K.*(?= \()')
           echo "preview_url=$URL" >> $GITHUB_OUTPUT
