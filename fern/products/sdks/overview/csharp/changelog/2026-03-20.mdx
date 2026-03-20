@@ -1,3 +1,41 @@
+## 2.51.0
+**`(feat):`** Add `net9.0` target framework to all generated C# SDK projects. The library
+now targets `net462;net8.0;net9.0;netstandard2.0`, enabling `#if NET9_0_OR_GREATER`
+code paths such as `ClientWebSocketOptions.KeepAliveTimeout` for transport-level
+dead connection detection. Test projects now target `net9.0` instead of `net8.0`.
+
+
+**`(feat):`** Add comprehensive WebSocket unit and end-to-end test templates. All generated
+WebSocket SDKs now ship with 349 tests covering `AsyncLock`, `Event<T>`,
+`ReconnectStrategy`, `DisconnectionInfo`, `RequestMessage`, `Query`,
+`WebSocketConnection`, `WebSocketClient`, `ReconnectionInfo`, and
+`WebsocketException`. End-to-end tests run against an in-process
+`TestWebSocketServer` and cover echo, rapid-fire, reconnection, server close,
+abort recovery, concurrent clients, large messages, and full lifecycle.
+Templates are conditionally emitted when the Fern definition includes WebSocket
+endpoints.
+
+
+**`(feat):`** Expose `StateCheckInterval` property on `WebSocketClient`. The property
+(default: 5 seconds) forwards to `WebSocketConnection` in `ConnectAsync`,
+allowing callers to control how often the background state monitor polls
+for silent disconnections.
+
+
+**`(fix):`** Fix server-initiated close skipping reconnection. When the server sent a
+`WebSocketMessageType.Close` frame, the `Listen()` method used `return`
+which exited entirely — bypassing the `ReconnectSynchronized` call. Changed
+to `break` with a `closedByServer` flag so reconnection executes with
+`ReconnectionType.ByServer`.
+
+
+**`(fix):`** Fix `CancelReconnection` flag being ignored for server-initiated close.
+The `OnDisconnectionHappened` callback fires in the Close handler and the
+user can set `info.CancelReconnection = true`, but this flag was never
+checked before calling `ReconnectSynchronized`. Now captured into a local
+`cancelReconnect` variable and checked before reconnecting.
+
+
 ## 2.50.0
 **`(feat):`** Add exponential backoff reconnection strategy for WebSocket connections.
 A new `ReconnectStrategy` class provides configurable exponential backoff
