@@ -1,3 +1,15 @@
+## 2.47.0
+**`(feat):`** Add receive hang detection via a background state monitor task. A new
+`StateCheckInterval` property (default: 5 seconds) controls how often the
+monitor polls `WebSocket.State`. When the state transitions to `Closed`,
+`Aborted`, or `CloseReceived` — indicating the TCP connection died without
+notifying the receive loop — the monitor cancels the pending `ReceiveAsync`
+via a linked `CancellationTokenSource`. This works around known .NET runtime
+issues where `ReceiveAsync` hangs indefinitely on silent TCP disconnections
+(dotnet/runtime#110496) and `Abort()` fails to cancel a pending receive
+(dotnet/runtime#44272). Set `StateCheckInterval` to `null` to disable.
+
+
 ## 2.46.0
 **`(feat):`** Wire up WebSocket reconnection logic. The `WebSocketConnection` template now
 contains a complete reconnection implementation ported from the Marfusios library:
