@@ -1,3 +1,12 @@
+## 0.22.1
+**`(fix):`** Fix double-pin compilation error in `SseStream` timeout implementation. The `deadline`
+field was declared as `Pin<Box<tokio::time::Sleep>>` with a `#[pin]` attribute, causing
+`pin_project` to produce `Pin<&mut Pin<Box<Sleep>>>` which lacks `reset()` and `poll()`
+methods. Changed the field type to `tokio::time::Sleep` (unpinned, letting `pin_project`
+handle pinning) so the projected type is `Pin<&mut Sleep>` which correctly exposes
+the required methods.
+
+
 ## 0.22.0
 **`(feat):`** Add per-event timeout to SSE stream methods. The `SseStream` now accepts a timeout
 duration and yields `ApiError::StreamTimeout` if no event is received within that
