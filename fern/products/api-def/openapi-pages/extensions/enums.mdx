@@ -1,7 +1,7 @@
 ---
-title: Enum descriptions, names, and availability
-headline: Enum descriptions, names, and availability (OpenAPI)
-description: Add descriptions, custom names, and deprecation status to OpenAPI enum values with the `x-fern-enum` extension.
+title: Enum descriptions, names, casing, and availability
+headline: Enum descriptions, names, casing, and availability (OpenAPI)
+description: Add descriptions, custom names, per-language casing overrides, and deprecation status to OpenAPI enum values with the `x-fern-enum` extension.
 ---
 
 <Markdown src="/snippets/agent-directive.mdx"/>
@@ -65,3 +65,36 @@ export enum Operand {
   LessThan = "<"
 }
 ```
+
+## Custom casing
+
+Use the `casing` field to specify exact casing for each target language's naming convention. This gives more granular control than `name` alone, which sets a single default name for generated code.
+
+The `casing` field supports four optional sub-fields:
+
+- `snake` — override for snake_case (used in languages like Python)
+- `camel` — override for camelCase (used in languages like TypeScript/Java)
+- `screamingSnake` — override for SCREAMING_SNAKE_CASE (used in languages like Go)
+- `pascal` — override for PascalCase (used in languages like C#)
+
+```yaml title="openapi.yml" {13-17}
+components:
+  schemas:
+    Status:
+      type: string
+      enum:
+        - active
+        - in-progress
+      x-fern-enum:
+        active:
+          description: The item is active
+        in-progress:
+          name: InProgress
+          casing:
+            snake: in_progress
+            camel: inProgress
+            screamingSnake: IN_PROGRESS
+            pascal: InProgress
+```
+
+You can use `casing` alongside `name`. The `name` field sets the default generated name, while `casing` provides per-language overrides. If both are specified, the `casing` values take precedence for their respective language targets.
