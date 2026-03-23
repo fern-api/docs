@@ -168,6 +168,41 @@ ENV CORS_PROXY_ALLOWED_DOMAINS="plantstore.dev,partner-api.example.com"
 |---|---|---|
 | `ENABLE_JAEGER` | Set to `true` to start [Jaeger](https://www.jaegertracing.io/) for distributed tracing. The Jaeger UI is available on port 16686. | `false` |
 
+## On-page feedback
+
+In self-hosted mode, [on-page feedback](/learn/docs/user-feedback) events are emitted as structured JSON logs to the container's stdout. Each log line is prefixed with `[fern-docs-feedback]` so you can filter for feedback in your logging infrastructure.
+
+### Log format
+
+```json
+[fern-docs-feedback] {"event":"feedback_submitted","timestamp":"2026-01-15T12:34:56.789Z","properties":{"satisfied":true,"message":"Great docs!","email":"user@example.com","type":"on-page-feedback"}}
+```
+
+### Tracked events
+
+| Event | Description |
+|---|---|
+| `feedback_voted` | A user clicked the thumbs up or thumbs down button. |
+| `feedback_submitted` | A user submitted written feedback via the feedback form. |
+| `code_block_feedback_submitted` | A user reported an issue with a code example. |
+
+### Key properties
+
+| Property | Description |
+|---|---|
+| `satisfied` | `true` for thumbs up, `false` for thumbs down. |
+| `message` | The user's written feedback message (present in `feedback_submitted` and `code_block_feedback_submitted` events). |
+| `email` | The user's email address, if provided. |
+| `type` | The feedback source, such as `on-page-feedback`. |
+
+### Filtering logs
+
+To extract feedback events from your container logs, filter for lines containing the `[fern-docs-feedback]` prefix:
+
+```bash
+docker logs <container-id> 2>&1 | grep "\[fern-docs-feedback\]"
+```
+
 ## Additional configuration
 
 The following sections cover optional configurations for specific deployment scenarios.
