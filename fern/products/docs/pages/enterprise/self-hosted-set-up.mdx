@@ -170,9 +170,13 @@ ENV CORS_PROXY_ALLOWED_DOMAINS="plantstore.dev,partner-api.example.com"
 
 ## On-page feedback
 
-In self-hosted mode, [on-page feedback](/learn/docs/user-feedback) events are emitted as structured JSON logs to the container's stdout. Each log line is prefixed with `[fern-docs-feedback]` so you can filter for feedback in your logging infrastructure.
+In self-hosted mode, [on-page feedback](/learn/docs/user-feedback) events are emitted as structured JSON logs to the container's stdout, prefixed with `[fern-docs-feedback]`. You can filter for these in your logging infrastructure:
 
-### Log format
+```bash
+docker logs <container-id> 2>&1 | grep "\[fern-docs-feedback\]"
+```
+
+Each log line contains an event name, a timestamp, and a set of properties:
 
 ```json
 [fern-docs-feedback] {"event":"feedback_submitted","timestamp":"2026-01-15T12:34:56.789Z","properties":{"satisfied":true,"message":"Great docs!","email":"user@example.com","type":"on-page-feedback"}}
@@ -186,7 +190,7 @@ In self-hosted mode, [on-page feedback](/learn/docs/user-feedback) events are em
 | `feedback_submitted` | A user submitted written feedback via the feedback form. |
 | `code_block_feedback_submitted` | A user reported an issue with a code example. |
 
-### Key properties
+### Properties
 
 | Property | Description |
 |---|---|
@@ -194,14 +198,6 @@ In self-hosted mode, [on-page feedback](/learn/docs/user-feedback) events are em
 | `message` | The user's written feedback message (present in `feedback_submitted` and `code_block_feedback_submitted` events). |
 | `email` | The user's email address, if provided. |
 | `type` | The feedback source, such as `on-page-feedback`. |
-
-### Filtering logs
-
-To find feedback events in your container logs, filter for lines containing the `[fern-docs-feedback]` prefix:
-
-```bash
-docker logs <container-id> 2>&1 | grep "\[fern-docs-feedback\]"
-```
 
 ## Additional configuration
 
