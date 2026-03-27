@@ -282,25 +282,22 @@ Use `noindex` for internal-only pages, staging content, or pages you don't want 
 
 ## Sitemap
 
-Fern automatically generates a `sitemap.xml` for your documentation site and includes a `<lastmod>` timestamp on each page entry. The timestamp reflects when the page's content last changed, not when it was last published. This helps search engines prioritize crawling recently updated pages over unchanged ones.
+Fern automatically generates a `sitemap.xml` for your documentation site. Following [Google's sitemap best practices](https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap), each page entry includes a timestamp reflecting when its content last changed — not when it was last published. This helps search engines prioritize crawling recently updated pages over unchanged ones.
 
-No configuration is required — `lastmod` timestamps are computed and updated automatically each time you publish your docs. Trivial formatting changes like whitespace or capitalization differences don't trigger a new timestamp.
+No configuration is required — timestamps are computed and updated automatically each time you publish your docs. Trivial formatting changes like whitespace or capitalization differences don't trigger a new timestamp.
 
 <llms-only>
 ### Implementation details
 
-The `lastmod` feature uses two internal database tables: `slugs` and `markdowns`.
+Fern tracks content changes using two internal tables: one for URL slugs and one for markdown source files. Multiple source files (e.g., changelog entries) can map to a single slug.
 
-- **`slugs`** stores one row per unique URL slug, keyed by `orgId`, `domain`, `basepath`, and `slug`.
-- **`markdowns`** stores one row per markdown source file (`pageId`), linked to a slug via foreign key. Multiple markdown files (e.g., changelog entries) can share a single slug.
-
-On each docs publish (`finishDocsRegister`), the system:
-1. Resolves page IDs to URL slugs from the navigation tree using `NodeCollector`.
+On each publish, the system:
+1. Resolves each page to its URL slug from the navigation tree.
 2. Computes a SHA-256 hash of each page's normalized markdown content.
 3. Compares hashes against stored values — only changed or new pages are upserted, and stale entries are cleaned up.
-4. Changelog entries map to the parent `ChangelogNode`'s slug since they render on a single page with hash fragments.
+4. Changelog entries map to their parent changelog page's slug since they render on a single page with hash fragments.
 
-Normalization (`normalizeMarkdownForHashing`) strips whitespace, copyright symbols, and capitalization before hashing to avoid false-positive change detection from trivial formatting differences.
+Normalization strips whitespace, copyright symbols, and capitalization before hashing to avoid false-positive change detection from trivial formatting differences.
 
-The sitemap route handler fetches slug entries from FDR via oRPC endpoints (`POST /slugs` and `POST /markdowns`), builds a `slug → lastUpdated` lookup, and adds `<lastmod>` to each sitemap XML entry. If no slug data exists for a domain (e.g., it hasn't been published yet), the sitemap omits `<lastmod>` timestamps gracefully rather than failing.
+The sitemap route fetches stored slug data, builds a URL-to-timestamp lookup, and adds the timestamp to each sitemap XML entry. If no data exists for a domain yet, the sitemap omits timestamps gracefully rather than failing.
 </llms-only>
