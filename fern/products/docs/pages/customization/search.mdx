@@ -1,6 +1,6 @@
 ---
 title: Search configuration
-description: Configure search for your Fern docs using Algolia DocSearch. Learn how attributes are weighted, how ranking works, and how to influence results with keywords.
+description: Configure search for your Fern docs using Algolia DocSearch. Learn how search filters work, how results are ranked, and how to integrate with Algolia.
 ---
 
 <Markdown src="/snippets/agent-directive.mdx"/>
@@ -32,66 +32,56 @@ It includes built-in dropdown filters that appear dynamically based on your site
   </video>
 </Frame>
 
+For sites with multiple products or versions, you can scope search results to the user's current product and version by default. Set [`default-search-filters: true`](/learn/docs/configuration/site-level-settings#settingsdefault-search-filters) in your `docs.yml` settings to enable this. Users can still remove these filters to broaden their search.
+
 If you're using [Ask Fern](/learn/docs/ai-features/ask-fern/overview) (AI search), the search box also functions as your site's chat window.
 
 <Note>
-    **Note:** If an article includes the `nofollow` or `noindex` [frontmatter](/learn/docs/configuration/page-level-settings#indexing-properties), it won't be indexed by Algolia DocSearch and won't appear in search results.
+    Pages with the `nofollow` or `noindex` [frontmatter](/learn/docs/configuration/page-level-settings#indexing-properties) are excluded from the Algolia DocSearch index and won't appear in search results.
 </Note>
 
-## Attribute weighting
+## How results are ranked
 
-Algolia ranks results based on which attributes contain the matching text. Attributes listed earlier are weighted higher than those listed later. Fern configures the following searchable attributes, in order of priority:
+Fern configures Algolia's ranking to prioritize matches in high-signal attributes like titles and keywords over body text, then applies tiebreakers for recency, version, and page position.
 
-| Priority | Attribute | Description |
-| --- | --- | --- |
-| 1 | Keywords | Keywords set in the page's [frontmatter](/learn/docs/configuration/page-level-settings#seo-properties) |
-| 2 | Page title | The title set in frontmatter or `docs.yml` |
-| 3 | Heading hierarchy (h1–h6) | Headings within the page, from h1 (highest) to h6 (lowest) |
-| 4 | Endpoint path | The API endpoint path (e.g., `/plants/{plantId}`) |
-| 5 | Endpoint path alternates | Alternative representations of the endpoint path |
-| 6 | Parameter name | Names of API parameters |
-| 7 | Metadata attributes | Availability, API type, HTTP method, content type, response type, status code, and parameter type |
-| 8 | Breadcrumb | The navigation breadcrumb trail for the page |
-| 9 | Description | The page's meta description |
-| 10 | Body content | The full body text of the page |
-| 11 | Code snippets | Code blocks embedded in the page |
+<AccordionGroup>
+  <Accordion title="Attribute weighting">
+    Algolia ranks results based on which attributes contain the matching text. Attributes listed earlier are weighted higher than those listed later. Fern configures the following searchable attributes, in order of priority:
 
-All attributes use `unordered` matching, meaning that the position of the query terms within an attribute doesn't affect ranking. For example, a match at the end of a page title ranks the same as a match at the beginning.
+    | Priority | Attribute | Description |
+    | --- | --- | --- |
+    | 1 | Keywords | [Keywords](/learn/docs/configuration/page-level-settings#document-properties) set in the page's frontmatter. Use these to surface a page for queries without changing its content. |
+    | 2 | Page title | The [title](/learn/docs/configuration/page-level-settings#title) set in frontmatter or `docs.yml` |
+    | 3 | Heading hierarchy (h1–h6) | [Headings](/learn/docs/writing-content/markdown-basics#page-header) within the page, from h1 (highest) to h6 (lowest) |
+    | 4 | Endpoint path | The API endpoint path (e.g., `/plants/{plantId}`) |
+    | 5 | Endpoint path alternates | Alternative representations of the endpoint path |
+    | 6 | Parameter name | Names of API parameters |
+    | 7 | Metadata attributes | Availability, API type, HTTP method, content type, response type, status code, and parameter type |
+    | 8 | Breadcrumb | The navigation breadcrumb trail for the page |
+    | 9 | Description | The page's [meta description](/learn/docs/configuration/page-level-settings#meta-description) |
+    | 10 | Body content | The full body text of the page |
+    | 11 | Code snippets | [Code blocks](/learn/docs/writing-content/components/code-blocks) embedded in the page |
 
-## Ranking and tiebreaking
+    All attributes use `unordered` matching, meaning that the position of the query terms within an attribute doesn't affect ranking. For example, a match at the end of a page title ranks the same as a match at the beginning.
+  </Accordion>
+  <Accordion title="Tiebreaking">
+    When multiple results have the same text relevance score, Fern applies custom ranking rules as tiebreakers:
 
-When multiple results have the same text relevance score, Fern applies custom ranking rules as tiebreakers:
+    1. **Date (descending):** Newer content ranks higher. This primarily affects changelog entries, which carry a timestamp.
+    2. **Version index (ascending):** Content from the default version ranks above content from older versions. This prevents duplicate results across versioned docs.
+    3. **Page position (ascending):** Content closer to the top of a page ranks above content further down. For example, a heading match near the top of a page outranks a section match further down on the same page.
 
-1. **Date (descending):** Newer content ranks higher. This primarily affects changelog entries, which carry a timestamp.
-2. **Version index (ascending):** Content from the default version ranks above content from older versions. This prevents duplicate results across versioned docs.
-3. **Page position (ascending):** Content closer to the top of a page ranks above content further down. For example, a heading match near the top of a page outranks a section match further down on the same page.
+    Additionally, Fern deduplicates results by canonical pathname, so each page appears at most once in the results. The version index and page position tiebreakers determine which record represents the page when duplicates exist.
+  </Accordion>
+  <Accordion title="Page hierarchy">
+    The navigation hierarchy of your documentation doesn't directly affect search ranking. A nested page ranks the same as a top-level page for text relevance purposes. However, within a single page, heading depth does matter: matches in h1 headings rank above h2, h2 above h3, and so on. The heading hierarchy is stored per record, so Algolia can distinguish between a match in a top-level section and one in a subsection.
+  </Accordion>
+  <Accordion title="Empty result handling">
+    If a query returns no results, Algolia progressively removes common documentation terms to broaden the search. The following words are treated as optional when no exact matches are found: `endpoint`, `api`, `guide`, `documentation`, `doc`, `parameter`, `webhook`, `websocket`, `http`, `code`, and `snippet`.
 
-Additionally, Fern deduplicates results by canonical pathname, so each page appears at most once in the results. The version index and page position tiebreakers determine which record represents the page when duplicates exist.
-
-### Optional word removal
-
-If a query returns no results, Algolia progressively removes common documentation terms to broaden the search. The following words are treated as optional when no exact matches are found: `endpoint`, `api`, `guide`, `documentation`, `doc`, `parameter`, `webhook`, `websocket`, `http`, `code`, and `snippet`.
-
-For example, a search for `webhook endpoint` that returns no results is retried as `webhook` and `endpoint` individually.
-
-## Influencing search results
-
-You can influence how your pages rank in search results using the `keywords` frontmatter property:
-
-```mdx
----
-title: Getting started with the PlantStore API
-keywords: plants, garden, nursery, managed workspaces
----
-```
-
-Keywords are the highest-weighted attribute in Fern's search ranking. Adding targeted keywords to a page helps surface it for specific search queries without changing the page content.
-
-For more on setting keywords, see [page-level settings](/learn/docs/configuration/page-level-settings#seo-properties).
-
-### Page hierarchy and ranking
-
-The navigation hierarchy of your documentation doesn't directly affect search ranking. A nested page ranks the same as a top-level page for text relevance purposes. However, within a single page, heading depth does matter: matches in h1 headings rank above h2, h2 above h3, and so on. The heading hierarchy is stored per record, so Algolia can distinguish between a match in a top-level section and one in a subsection.
+    For example, a search for `webhook endpoint` that returns no results is retried as `webhook` and `endpoint` individually.
+  </Accordion>
+</AccordionGroup>
 
 ## Integrating with Algolia
 
