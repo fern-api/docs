@@ -899,6 +899,20 @@ jobs:
                 sha: fileSha,
               });
 
+              // Update existing PR body (truncate if needed)
+              const MAX_BODY_LENGTH = 65536;
+              let updatedBody = scaffoldContent;
+              if (updatedBody.length > MAX_BODY_LENGTH) {
+                const truncationNote = '\n\n---\n⚠️ **This list was truncated** because it exceeded GitHub\'s character limit. See the full list in `.github/broken-links/broken-links.md` on this branch.\n';
+                updatedBody = updatedBody.substring(0, MAX_BODY_LENGTH - truncationNote.length) + truncationNote;
+              }
+              await github.rest.pulls.update({
+                owner,
+                repo,
+                pull_number: existingPR.number,
+                body: updatedBody,
+              });
+
               prUrl = existingPR.html_url;
               prNumber = existingPR.number;
               console.log(`Updated PR: ${prUrl}`);
@@ -946,6 +960,14 @@ jobs:
                 sha: commit.data.sha,
               });
 
+              // Truncate PR body if it exceeds GitHub's 65536 character limit
+              const MAX_PR_BODY_LENGTH = 65536;
+              let prBody = scaffoldContent;
+              if (prBody.length > MAX_PR_BODY_LENGTH) {
+                const truncationNote = '\n\n---\n\u26a0\ufe0f **This list was truncated** because it exceeded GitHub\'s character limit. See the full list in `.github/broken-links/broken-links.md` on this branch.\n';
+                prBody = prBody.substring(0, MAX_PR_BODY_LENGTH - truncationNote.length) + truncationNote;
+              }
+
               // Create the PR
               const pr = await github.rest.pulls.create({
                 owner,
@@ -953,7 +975,7 @@ jobs:
                 title: 'Fix broken links (Devin)',
                 head: branchName,
                 base: baseBranch,
-                body: scaffoldContent,
+                body: prBody,
                 draft: true,
               });
 
