@@ -21,7 +21,7 @@ Before setting up self-hosted documentation, ensure you have:
 
 The self-hosted documentation runs on a private Docker image: `fernenterprise/fern-self-hosted`
 
-**Contact Fern Support** to receive a Docker Hub organization access token (OAT) and the latest image tag.
+**Contact Fern Support** to receive a Docker Hub organization access token (OAT).
 
 Log in to Docker Hub using the token provided by Fern:
 
@@ -34,17 +34,11 @@ When prompted for a password, enter the OAT provided by the Fern team.
 </Step>
 <Step title="Download the Docker image">
 
-Pull the image using the tag provided by Fern:
+Pull the image:
 
 ```bash
-docker pull fernenterprise/fern-self-hosted:<latest-tag>
+docker pull fernenterprise/fern-self-hosted:latest
 ```
-
-Replace `<latest-tag>` with the specific tag provided by Fern.
-
-<Warning>
-Don't use `fernenterprise/fern-self-hosted:latest` as it may not contain the most recent version. Always use the specific tag provided by Fern.
-</Warning>
 
 Verify the image is available in your Docker daemon:
 
@@ -69,14 +63,12 @@ your-project/
 Add the following content to the `Dockerfile`:
 
 ```dockerfile Dockerfile
-FROM fernenterprise/fern-self-hosted:<latest-tag>
+FROM fernenterprise/fern-self-hosted:latest
 
 COPY fern/ /fern/
 
 RUN fern-generate
 ```
-
-Replace `<latest-tag>` with the tag from the previous step.
 
 <Info>
 `fern-generate` is a command available inside the Docker image that processes your documentation at build time, enabling faster container startup, air-gapped deployment, and a smaller attack surface. It's not a command you run on your host machine. You can alternatively [defer generation to runtime](#runtime-generation).
@@ -94,15 +86,13 @@ docker build -t self-hosted-docs .
 </Step>
 <Step title="Run the documentation">
 
-Start your self-hosted documentation on port 8080:
+Start your self-hosted documentation:
 
 ```bash
-docker run -p 8080:3000 self-hosted-docs
+docker run -p 3000:3000 self-hosted-docs
 ```
 
-The `-p 8080:3000` flag maps port 8080 on your machine to port 3000 inside the container. The documentation will be available at [localhost:8080](http://localhost:8080).
-
-You can replace `8080` with any available port on your machine.
+The documentation will be available at [localhost:3000](http://localhost:3000).
 
 </Step>
 <Step title="Deploy the documentation">
@@ -127,7 +117,7 @@ instances:
 To override the domain at runtime (for example, when the actual hostname differs from the `custom-domain` in `docs.yml`), set the `CUSTOM_DOMAIN` environment variable:
 
 ```bash
-docker run -p 8080:3000 -e CUSTOM_DOMAIN=docs.plantstore.dev self-hosted-docs
+docker run -p 3000:3000 -e CUSTOM_DOMAIN=docs.plantstore.dev self-hosted-docs
 ```
 
 See [Environment variables](#environment-variables) for details.
@@ -241,7 +231,7 @@ The value must start with `/` and must not end with a trailing slash.
 Set `NEXT_PUBLIC_BASE_PATH` in your Dockerfile before running `fern-generate`. This patches the base path into the bundle at build time, so the container can run with a read-only filesystem.
 
 ```dockerfile
-FROM fernenterprise/fern-self-hosted:<latest-tag>
+FROM fernenterprise/fern-self-hosted:latest
 
 COPY fern/ /fern/
 
@@ -256,7 +246,7 @@ RUN fern-generate
 Pass `NEXT_PUBLIC_BASE_PATH` when starting the container. The base path is patched into the bundle at container startup.
 
 ```bash
-docker run -p 8080:3000 -e NEXT_PUBLIC_BASE_PATH=/docs self-hosted-docs
+docker run -p 3000:3000 -e NEXT_PUBLIC_BASE_PATH=/docs self-hosted-docs
 ```
 
 <Warning>
@@ -266,7 +256,7 @@ Runtime patching modifies files inside the container on startup, so it is not co
 </Tab>
 </Tabs>
 
-With `NEXT_PUBLIC_BASE_PATH=/docs`, the documentation is accessible at `http://localhost:8080/docs` instead of `http://localhost:8080/`.
+With `NEXT_PUBLIC_BASE_PATH=/docs`, the documentation is accessible at `http://localhost:3000/docs` instead of `http://localhost:3000/`.
 
 <Info>
 A single Docker image built **without** `NEXT_PUBLIC_BASE_PATH` can be configured at runtime to serve from any path. This lets you reuse one image across environments that may need different base paths.
@@ -282,7 +272,7 @@ By default, `fern-generate` runs at Docker build time. Defer generation to runti
 Use the `--only-deps` flag to defer generation to runtime:
 
 ```dockerfile
-FROM fernenterprise/fern-self-hosted:<latest-tag>
+FROM fernenterprise/fern-self-hosted:latest
 
 COPY fern/ /fern/
 
@@ -335,7 +325,7 @@ If there's no `deps` or `dependencies` section (or only local paths), you can sk
 Run `fern-generate` at build time when network access is available:
 
 ```dockerfile
-FROM fernenterprise/fern-self-hosted:<latest-tag>
+FROM fernenterprise/fern-self-hosted:latest
 
 COPY fern/ /fern/
 
@@ -351,7 +341,7 @@ Use this option when you don't have all the information at build time and need t
 To generate at runtime in an air-gapped environment, vendor buf dependencies locally:
 
 ```dockerfile
-FROM fernenterprise/fern-self-hosted:<latest-tag>
+FROM fernenterprise/fern-self-hosted:latest
 
 # Install buf CLI for dependency caching
 RUN npm install -g @bufbuild/buf
@@ -400,7 +390,7 @@ api:
 This approach works with both build-time and runtime generation:
 
 ```dockerfile
-FROM fernenterprise/fern-self-hosted:<latest-tag>
+FROM fernenterprise/fern-self-hosted:latest
 
 COPY fern/ /fern/
 
