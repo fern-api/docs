@@ -1,11 +1,22 @@
 Use the `x-fern-sdk-group-name` and `x-fern-sdk-method-name` extensions to control how endpoints are organized in your SDK.
 
 <Note title="Fern automatically parses `operationId`">
-  If no extensions are present, Fern uses your operation ID to generate SDK method names. Format operation IDs as `{tag_name}_{operation_name}` (example: `users_get`) to automatically generate methods like `users.get()`. If the operation ID doesn't start with a tag, Fern uses it directly as the method name.
+  If no extensions are present, Fern uses your operation ID and tags to generate SDK method names. Format operation IDs as `{tag_name}_{operation_name}` (example: `users_get`) **and** include a matching `tags` entry on the operation to automatically generate methods like `users.get()`. Without a matching tag, Fern uses the full operation ID as a flat method name (e.g., `usersGet()`).
 </Note>
 
-In the example below, Fern will generate a
-method called `client.users.create()` for the `POST /users` endpoint.
+For example, the following spec generates `client.users.get()` without any Fern extensions:
+
+```yaml title="openapi.yaml" {4-5}
+paths:
+  /users:
+    get:
+      tags:
+        - users
+      operationId: users_get
+```
+
+For more control, use the `x-fern-sdk-group-name` and `x-fern-sdk-method-name` extensions directly.
+In the example below, Fern generates `client.users.create()` for the `POST /users` endpoint:
 
 ```yaml title="openapi.yaml" {4-5}
 paths:
