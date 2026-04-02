@@ -1,59 +1,42 @@
 ---
-title: Library docs generator
+title: Library docs generator <Badge type="note">Beta</Badge>
 description: Generate MDX documentation pages from your Python or C++ library source code and include them in your Fern Docs site.
 ---
 
 <Markdown src="/snippets/agent-directive.mdx"/>
 
-The library docs generator produces MDX documentation pages from your library source code and integrates them into your Fern Docs navigation. It parses your Python or C++ library to generate pages for modules, classes, functions, and types with cross-reference links and hierarchical navigation.
-
-<Note>
-This feature is in **Beta** and supports Python and C++ libraries.
-</Note>
+The library docs generator parses your **Python or C++** library source code to produce MDX documentation pages for modules, classes, functions, methods, and parameters. Generated pages include cross-reference links and hierarchical navigation, and are integrated directly into your Fern Docs site.
 
 ## Configuration
 
 <Steps>
-<Step title="Define your libraries in docs.yml">
+<Step title="Define your libraries in `docs.yml`">
 
-Add a `libraries` section at the top level of your `docs.yml`. Each entry defines a library name, source location, output directory, and language.
-
-```yaml docs.yml
-libraries:
-  plant-sdk:
-    input:
-      git: https://github.com/acme/plant-sdk-python
-    output:
-      path: ./static/plant-sdk-docs
-    lang: python
-```
-
-| Property | Description |
-|----------|-------------|
-| `input.git` | GitHub URL of the repository containing the library source code. |
-| `input.subpath` | Optional path within the repository to the library source (for monorepos). |
-| `output.path` | Directory where the generated MDX files are written, relative to the `fern/` directory. |
-| `lang` | The language of the library. Supported values: `python`, `cpp`. |
-
-For a monorepo where the library code lives in a subdirectory:
+Add a `libraries` entry to your `docs.yml` file. Each library needs an `input` source, an `output` directory, and a `lang` (language).
 
 ```yaml docs.yml
 libraries:
-  plant-sdk:
+  plant-core:
     input:
-      git: https://github.com/acme/monorepo
-      subpath: packages/plant-sdk
+      git: https://github.com/acme/plant-core-cpp # repository URL
+      subpath: packages/plant-core # optional, for monorepos
     output:
-      path: ./static/plant-sdk-docs
-    lang: python
+      path: ./static/plant-core-docs # relative to fern/ directory
+    lang: cpp # python or cpp
+    config:
+      doxyfile: ./Doxyfile # optional, C++ only
 ```
+
+<Info>
+  You can define [multiple libraries](#multiple-libraries-example) in the same file.
+</Info>
 
 </Step>
 <Step title="Add a library reference to your navigation">
 
 Add a `library` navigation item that references the library name you defined in the `libraries` section:
 
-```yaml docs.yml {7}
+```yaml docs.yml {14}
 libraries:
   plant-sdk:
     input:
@@ -88,13 +71,11 @@ Run the CLI command to generate MDX files from your library source code:
 fern docs md generate
 ```
 
-To generate docs for a specific library only:
-
-```bash
-fern docs md generate --library plant-sdk
-```
-
 The command clones the repository, parses the source code, and writes MDX files and a `_navigation.yml` file to the output directory.
+
+<Tip>
+If you have multiple libraries configured, `fern docs md generate` processes all of them in parallel. Use `--library plant-sdk` to generate docs for a specific library only.
+</Tip>
 
 </Step>
 <Step title="Preview locally">
@@ -110,35 +91,16 @@ The library docs appear as a navigation section with pages for each module, clas
 </Step>
 <Step title="Publish">
 
-When you publish your docs, include a `fern docs md generate` step before `fern generate --docs` to ensure the library documentation is up to date:
+Publish your library documentation:
 
 ```bash
-fern docs md generate
 fern generate --docs
 ```
 
 </Step>
 </Steps>
 
-## C++ libraries
-
-For C++ libraries, set `lang: cpp`. You can optionally provide a path to a custom Doxyfile:
-
-```yaml docs.yml
-libraries:
-  plant-core:
-    input:
-      git: https://github.com/acme/plant-core-cpp
-    output:
-      path: ./static/plant-core-docs
-    lang: cpp
-    config:
-      doxyfile: ./Doxyfile
-```
-
-The generator produces pages for classes, structs, functions, enums, typedefs, and variables, with template parameters, method overload tabs, and hierarchical namespace navigation.
-
-## Multiple libraries
+<Accordion title="Multiple libraries example">
 
 You can define and reference multiple libraries in the same `docs.yml`:
 
@@ -163,5 +125,26 @@ navigation:
       - library: plant-python-sdk
       - library: plant-core
 ```
+</Accordion>
 
-Running `fern docs md generate` processes all libraries in parallel.
+## Configuration reference
+
+<ParamField path="input.git" type="string" required={true}>
+  GitHub URL of the repository containing the library source code.
+</ParamField>
+
+<ParamField path="input.subpath" type="string">
+  Path within the repository to the library source. Useful for monorepos.
+</ParamField>
+
+<ParamField path="output.path" type="string" required={true}>
+  Directory where the generated MDX files are written, relative to the `fern/` directory.
+</ParamField>
+
+<ParamField path="lang" type="string" required={true}>
+  The language of the library. Supported values: `python`, `cpp`.
+</ParamField>
+
+<ParamField path="config.doxyfile" type="string">
+  Path to a custom Doxyfile. C++ only.
+</ParamField>
