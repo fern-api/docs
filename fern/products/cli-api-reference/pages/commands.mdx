@@ -16,6 +16,7 @@ hideOnThisPage: true
 | [`fern logout`](#fern-logout) | Log out of the Fern CLI |
 | [`fern export`](#fern-export) | Export an OpenAPI spec for your API |
 | [`fern api update`](#fern-api-update) | Manually update your OpenAPI spec |
+| [`fern api enrich`](#fern-api-enrich) | Merge `x-fern-examples` from an overrides file into native OpenAPI examples |
 
 ## Documentation commands
 
@@ -757,5 +758,53 @@ hideOnThisPage: true
     fern api update --api public-api
     ```
   </CodeBlock>
+  </Accordion>
+
+  <Accordion title="fern api enrich">
+
+    Use `fern api enrich` to merge [`x-fern-examples`](/learn/api-definitions/openapi/extensions/request-response-examples) from an overrides file into native OpenAPI `example` fields. The command reads each endpoint's `x-fern-examples` entries and maps them to standard OpenAPI locations:
+
+    - `path-parameters` → `parameters[].example` (where `in: path`)
+    - `query-parameters` → `parameters[].example` (where `in: query`)
+    - `headers` → `parameters[].example` (where `in: header`)
+    - `request.body` → `requestBody.content.*.example`
+    - `response.body` → `responses.<status>.content.*.example`
+
+    When an endpoint has multiple examples, each is stored as a named entry under the plural `examples` field instead.
+
+    After merging, all `x-fern-examples` keys are stripped from the output.
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern api enrich <openapi> -f <overrides-file> -o <output-file>
+    ```
+    </CodeBlock>
+
+    ```bash
+    fern api enrich openapi.yml -f ai_examples_override.yml -o enriched-openapi.yml
+    ```
+
+    This is useful when you want to convert [AI-generated examples](/learn/docs/ai-features/ai-examples) or manually authored `x-fern-examples` into portable OpenAPI examples that any OpenAPI-compatible tool can consume.
+
+    ### file
+
+    Use `-f` (or `--file`) to specify the overrides file containing `x-fern-examples`. This flag is required.
+
+    ```bash
+    fern api enrich openapi.yml -f ai_examples_override.yml -o output.yml
+    ```
+
+    ### output
+
+    Use `-o` (or `--output`) to specify the path for the enriched output file. Supports `.yml` and `.json` extensions. This flag is required.
+
+    ```bash
+    # Output as YAML
+    fern api enrich openapi.yml -f overrides.yml -o enriched-openapi.yml
+
+    # Output as JSON
+    fern api enrich openapi.yml -f overrides.yml -o enriched-openapi.json
+    ```
+
   </Accordion>
 </AccordionGroup>
