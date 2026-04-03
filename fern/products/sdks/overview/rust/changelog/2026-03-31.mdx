@@ -1,3 +1,140 @@
+## 0.30.2
+**`(fix):`** Fix dynamic snippet generation for bytes endpoints with query parameters
+to use the request struct instead of positional arguments.
+
+
+## 0.30.1
+**`(fix):`** Generate request structs for bytes (octet-stream) endpoints with query
+parameters, replacing positional arguments with a single struct that
+bundles the raw body and all query params with a builder pattern.
+
+
+## 0.30.0
+**`(feat):`** Overhaul WebSocket reconnection: exponential backoff with jitter, auto-reset
+of retry counter after 5s of stable connection, and message queuing during
+reconnect (text and binary messages are buffered and flushed after reconnection
+instead of erroring).
+
+
+**`(feat):`** Add `DisconnectInfo` struct to `WebSocketMessage::Close`, exposing the close
+code and reason string from the server. `recv()` now returns `None` on close
+frames to signal end-of-stream.
+
+
+**`(feat):`** Generate typed `ConnectOptions` structs for WebSocket channels with query
+parameters, replacing positional `&str` arguments with a `#[derive(Default)]`
+struct that supports `..Default::default()` ergonomics. Uses `QueryBuilder`
+under the hood, matching the HTTP endpoint pattern.
+
+
+**`(feat):`** Support custom connect and message method names from the IR
+(`channel.connectMethodName`, `msg.methodName`), falling back to `connect`
+and `send_{name}` respectively.
+
+
+**`(feat):`** Add `generateWebSocketClients` config alias alongside `enableWebsockets`,
+matching the TypeScript/Python/Java generator config key.
+
+
+**`(feat):`** Route each WebSocket connector through the correct environment URL method
+in multi-URL APIs (e.g., Deepgram's `wss://agent.deepgram.com` vs
+`wss://api.deepgram.com`).
+
+
+**`(feat):`** Add `Unknown(serde_json::Value)` catch-all variant to generated
+`ServerMessage` enums for forward compatibility with new server message types.
+
+
+**`(feat):`** Graceful WebSocket close: sends Close frame and waits up to 5s for the
+server's response, with double-close guard.
+
+
+**`(fix):`** Change implicit auth parameter from required `&str` to `Option<&str>`,
+conditionally injecting the Authorization header only when a token is provided.
+
+
+**`(fix):`** Fix connector auth forwarding for APIs with explicit Authorization headers
+(e.g., Deepgram) — the connector now correctly unwraps the `Option` to match
+the client's `&str` parameter type.
+
+
+**`(fix):`** Fix `recv()` on JSON-only channels to return an error with frame size on
+unexpected binary frames instead of silently skipping them.
+
+
+**`(chore):`** Derive channel names from the channel path instead of the channel ID, moving
+version segments to suffix position (e.g., `/v1/agent/converse` →
+`AgentConverseV1Client`).
+
+
+**`(fix):`** Replace `#[serde(untagged)]` derive on `ServerMessage` enums with a custom
+`Deserialize` impl that uses round-trip scoring. Fixes silent mismatches
+where `#[serde(default)]` on struct fields caused every variant to match,
+always returning the first.
+
+
+**`(chore):`** Introduce `ReconnectContext` struct to group reconnection state, replacing
+8 separate `Arc`-wrapped parameters in `read_loop` and `try_reconnect`.
+
+
+**`(fix):`** Fix `try_reconnect` to retry with exponential backoff up to
+`max_reconnect_attempts`, instead of giving up after a single failed attempt.
+
+
+**`(fix):`** Fix `flush_queues` to preserve messages on send failure by cloning before
+sending and pushing back to the front of the queue on error.
+
+
+**`(chore):`** Remove dead `parse_websocket_message` function and unused
+`serde::de::DeserializeOwned` import from WebSocket client infrastructure.
+
+
+**`(fix):`** Fix wire test generator to set `config.environment = None` for multi-URL
+APIs so requests route to the WireMock server instead of real API endpoints.
+
+
+**`(fix):`** Fix `number_serializers` unit test assertion to use `1e+20` matching Rust's
+serde_json exponent formatting.
+
+
+**`(fix):`** Fix WebSocket connectors to support `api_key` auth in addition to bearer
+token. The connector now receives a pre-computed Authorization header value
+from the root client, using the IR's api key prefix (e.g., `Token`) with
+`api_key` taking priority over `token`, matching the HTTP client's behavior.
+
+
+### What's new
+- This is a breaking change for any code that previously passed query
+parameters as positional arguments to `connect()`.
+
+
+## 0.29.0
+**`(feat):`** Add per-endpoint URL resolution for multi-URL environments. Each endpoint
+now resolves its base URL at call time from the environment object, matching
+the Python and Java SDK approach.
+
+
+**`(feat):`** Generate `ApiClientBuilder` from code instead of a static template, enabling
+environment-aware builder methods for multi-URL APIs.
+
+
+**`(feat):`** Add per-base-URL getter methods on the `Environment` enum (e.g.,
+`api_url()`, `agent_url()`) for multi-URL environments.
+
+
+**`(feat):`** Add `Option<Environment>` field to `ClientConfig` for multi-URL environments
+to support per-endpoint URL resolution.
+
+
+**`(feat):`** Add `base_url()`, `config()`, `execute_request_with_base_url()`, and
+`execute_stream_request_with_base_url()` accessors to `HttpClient` for
+multi-URL endpoint resolution.
+
+
+**`(chore):`** Remove construction-time URL override from `RootClientGenerator`; all
+sub-clients now receive `config.clone()` uniformly.
+
+
 ## 0.28.0
 **`(feat):`** Add `number_serializers` module that serializes whole-number `f64` values
 without trailing `.0` (e.g., `24000.0` serializes as `24000`). Some APIs

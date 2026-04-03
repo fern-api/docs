@@ -67,11 +67,185 @@ check out the [Global Configuration](/learn/docs/configuration/site-level-settin
 
 ### Built-in CSS color variables
 
-Colors set in your [`docs.yml` colors configuration](/learn/docs/configuration/site-level-settings#colors-configuration) are automatically available as CSS custom properties in your stylesheets. You don't need to redefine them — use these variables in your custom CSS to stay consistent with your site's theme and ensure styles adapt automatically between light and dark modes.
+Fern automatically generates CSS variables from your [`docs.yml` colors configuration](/learn/docs/configuration/site-level-settings#colors-configuration) and makes them available as CSS custom properties in your stylesheets. Colors are converted to [oklch](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value/oklch) for consistent color management, with hex fallbacks for unsupported browsers. These variables adapt automatically between light and dark modes — light mode uses the `.light` and `:root` selectors, while dark mode uses the `.dark` selector.
 
-For example, `--accent-1` through `--accent-12` provide your accent color scale, `--grayscale-1` through `--grayscale-12` provide grayscale, and variables like `--background`, `--card-background`, and `--border` give you theme-level colors.
+<AccordionGroup>
+<Accordion title="Accent and grayscale scales">
 
-For the full list of available CSS variables, color scales, and theme customization techniques, see the [CSS selectors reference](/learn/docs/customization/css-selectors-reference#light-and-dark-mode-customization).
+- `--accent-1` through `--accent-12` — accent color scale (generated from `accent-primary`)
+- `--accent-a1` through `--accent-a12` — accent color scale with alpha transparency
+- `--grayscale-1` through `--grayscale-12` — grayscale color scale
+- `--grayscale-a1` through `--grayscale-a12` — grayscale with alpha transparency
+
+</Accordion>
+
+<Accordion title="Named color scales">
+
+Fern also generates named color scales that follow [Radix UI's step paradigms](https://www.radix-ui.com/colors/docs/palette-composition/understanding-the-scale). These match your `accent-primary` hue and include scales like `--red-1` through `--red-12`, `--blue-1` through `--blue-12`, and so on for other colors.
+
+</Accordion>
+
+<Accordion title="Theme variables">
+
+- `--background` — page background color
+- `--card-background` — card background color
+- `--border` — border color
+- `--sidebar-background` — sidebar background color
+- `--header-background` — header background color
+- `--accent` — primary accent color
+
+</Accordion>
+</AccordionGroup>
+
+The accordions below show common patterns for using these variables to theme backgrounds, cards, text, and images.
+
+<AccordionGroup>
+
+<Accordion title="Dynamic backgrounds">
+
+Use CSS variables to create backgrounds that automatically adapt to the theme. Override with `.dark` selector only when you need theme-specific styling.
+
+```css
+/* Auto-adapts using Fern variables */
+.fern-background-image {
+  background-color: var(--background);
+  background-image: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--accent-9), var(--background) 85%) 0%,
+    var(--background) 100%
+  );
+}
+
+/* Explicit dark mode override for different gradient direction */
+.dark .fern-background-image {
+  background-image: linear-gradient(
+    to bottom,
+    var(--background) 0%,
+    color-mix(in srgb, var(--accent-9), var(--background) 85%) 100%
+  );
+}
+```
+
+</Accordion>
+
+<Accordion title="Dynamic cards">
+
+Cards automatically adapt to theme changes when using CSS variables. Add explicit dark mode overrides only for properties like shadows that need theme-specific values.
+
+```css
+/* Plant catalog card that adapts to theme */
+.fern-card.plant-card {
+  background-color: var(--card-background);
+  border-color: var(--border);
+  color: var(--grayscale-12);
+  box-shadow: 0 1px 2px var(--grayscale-a3);
+}
+
+.fern-card.plant-card.interactive:hover {
+  box-shadow: 0 4px 12px var(--accent-a6);
+}
+
+/* Dark mode shadow adjustment */
+.dark .fern-card.plant-card {
+  box-shadow: 0 2px 6px var(--grayscale-a4);
+}
+```
+
+</Accordion>
+
+<Accordion title="Dynamic text">
+
+Text colors automatically adapt when using Fern's grayscale and accent variables. Use `--grayscale-12` for primary text, `--grayscale-a11` for secondary text, and `--accent-11` for links.
+
+```css
+/* Plant species content */
+.plant-content {
+  color: var(--grayscale-12);
+}
+
+.plant-content .description {
+  color: var(--grayscale-a11);
+}
+
+.plant-content a {
+  color: var(--accent-11);
+  text-decoration-color: color-mix(in srgb, var(--accent-11), transparent 50%);
+}
+
+.plant-content a:hover {
+  color: var(--accent-12);
+}
+```
+
+</Accordion>
+
+<Accordion title="Dynamic images">
+
+There are multiple approaches for adapting images to light and dark modes.
+
+**SVG icons with currentColor (recommended):**
+
+```html HTML
+<svg class="plant-icon" width="24" height="24" fill="currentColor">
+  <!-- SVG paths -->
+</svg>
+```
+
+```css CSS
+.plant-icon {
+  color: var(--grayscale-11);
+}
+
+.plant-icon.accent {
+  color: var(--accent-11);
+}
+```
+
+**Swapping background images:**
+
+```css CSS
+.hero-plant {
+  background-image: url('/assets/plants/hero-light.png');
+  background-size: cover;
+  background-position: center;
+}
+
+.dark .hero-plant {
+  background-image: url('/assets/plants/hero-dark.png');
+}
+```
+
+**Using picture element with prefers-color-scheme:**
+
+```html HTML
+<picture>
+  <source srcset="/assets/plants/hero-dark.png" media="(prefers-color-scheme: dark)">
+  <img src="/assets/plants/hero-light.png" alt="Plant species">
+</picture>
+```
+
+<Warning>
+  The `prefers-color-scheme` media query follows the operating system theme preference and may not match a manual theme toggle on your site. For perfect alignment with Fern's theme switcher, use the `.dark` selector approach instead.
+</Warning>
+
+**Using CSS filters (last resort):**
+
+```css CSS
+.logo-monochrome {
+  filter: grayscale(1);
+}
+
+.dark .logo-monochrome {
+  filter: invert(1) grayscale(1);
+}
+```
+
+<Warning>
+  Avoid hardcoding hex colors in your custom CSS. Always use Fern's CSS variables to maintain proper contrast and theme consistency.
+</Warning>
+
+</Accordion>
+</AccordionGroup>
 
 ### Common use cases
 

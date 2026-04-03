@@ -12,85 +12,107 @@ description: Learn how to set up self-hosted documentation on your own infrastru
 Before setting up self-hosted documentation, ensure you have:
 - Docker installed on your system
 - Access to your Fern project's `fern/` directory
-- A Docker Hub account (for accessing the private image)
+- A Docker Hub organization access token (OAT) from Fern (for pulling the private image)
 
 ## Setup instructions
 
 <Steps>
-<Step title="Request Access to the Docker Image">
+<Step title="Authenticate with Docker Hub">
 
-The self-hosted documentation runs on a private Docker image: `fernapi/fern-self-hosted`
+The self-hosted documentation runs on a private Docker image: `fernenterprise/fern-self-hosted`
 
-**Contact Fern Support** and provide your Docker Hub username to the Fern team. Fern will allowlist your account to download the private image, and provide you with the latest tag.
+**Contact Fern Support** to receive a Docker Hub organization access token (OAT).
 
-</Step>
-<Step title="Download the Docker Image">    
-
-Once your account is allowlisted, download the latest image:
+Log in to Docker Hub using the token provided by Fern:
 
 ```bash
-docker pull fernapi/fern-self-hosted:<latest-tag>
+docker login --username fernenterprise
 ```
 
-<Warning>
-Do not use `fernapi/fern-self-hosted:latest` as it may not contain the most recent version. Always use the specific latest tag provided by Fern.
-</Warning>
+When prompted for a password, enter the OAT provided by the Fern team.
 
-You can verify the image is available in your Docker daemon:
+In CI, pass the token via the `DOCKERHUB_OAT` environment variable:
 
 ```bash
-docker images | grep fernapi/fern-self-hosted
+echo "$DOCKERHUB_OAT" | docker login --username fernenterprise --password-stdin
+```
+
+</Step>
+<Step title="Download the Docker image">
+
+Pull the image:
+
+```bash
+docker pull fernenterprise/fern-self-hosted:latest
+```
+
+Verify the image is available in your Docker daemon:
+
+```bash
+docker images | grep fernenterprise/fern-self-hosted
 ```
 
 </Step>
 <Step title="Create a Dockerfile">
 
-In the directory containing your `fern/` folder, create a new `Dockerfile` with the following content:
+In the same directory that contains your `fern/` folder, create a file named `Dockerfile`:
 
-```dockerfile <your-docker-file-name>
-FROM fernapi/fern-self-hosted:<latest-tag>
+```
+your-project/
+├── Dockerfile
+└── fern/
+    ├── fern.config.json
+    ├── docs.yml
+    └── ...
+```
+
+Add the following content to the `Dockerfile`:
+
+```dockerfile Dockerfile
+FROM fernenterprise/fern-self-hosted:latest
 
 COPY fern/ /fern/
 
 RUN fern-generate
 ```
 
-Replace `<latest-tag>` with the actual tag used in the previous step.
-
 <Info>
-  `fern-generate` processes your documentation at build time, enabling faster container startup, air-gapped deployment, and a smaller attack surface. You can alternatively [defer generation to runtime](#runtime-generation).
-  </Info>
+`fern-generate` is a command available inside the Docker image that processes your documentation at build time, enabling faster container startup, air-gapped deployment, and a smaller attack surface. It's not a command you run on your host machine. You can alternatively [defer generation to runtime](#runtime-generation).
+</Info>
 
 </Step>
-<Step title="Build Your Custom Docker Image">
+<Step title="Build your Docker image">
 
-Build your custom Docker image using the Dockerfile:
+From the directory containing your `Dockerfile` and `fern/` folder, build the image:
 
 ```bash
-docker build -f <your-docker-file-name> -t <your-image-name> <path-to-dockerfile>
-```
-
-Example:
-  
-```bash
-docker build -f Dockerfile -t self-hosted-docs .
+docker build -t self-hosted-docs .
 ```
 
 </Step>
-<Step title="Run the Documentation">
+<Step title="Run the documentation">
 
 Start your self-hosted documentation:
 
 ```bash
-docker run -p <port-number>:3000 <your-image-name>
+docker run -p 3000:3000 self-hosted-docs
 ```
 
-The documentation will be available at `localhost:<port-number>`.
+The documentation will be available at [localhost:3000](http://localhost:3000).
 
 </Step>
-<Step title="Configure Custom Domain">
+<Step title="Deploy the documentation">
 
-Your documentation will be published to the domain specified in your `docs.yml` file. For example:
+You can now deploy the image to your own infrastructure, allowing you to host the documentation on your own domain.
+
+Once deployed, you can set up [preview environments](/learn/docs/self-hosted/previews) to preview documentation changes on every pull request.
+
+</Step>
+</Steps>
+
+## Custom domain
+
+Your documentation uses the domain specified in your `docs.yml` file. For example:
 
 ```yaml
 instances:
@@ -101,20 +123,10 @@ instances:
 To override the domain at runtime (for example, when the actual hostname differs from the `custom-domain` in `docs.yml`), set the `CUSTOM_DOMAIN` environment variable:
 
 ```bash
-docker run -p 3000:3000 -e CUSTOM_DOMAIN=docs.plantstore.dev <your-image-name>
+docker run -p 3000:3000 -e CUSTOM_DOMAIN=docs.plantstore.dev self-hosted-docs
 ```
 
 See [Environment variables](#environment-variables) for details.
-
-</Step>
-<Step title="Deploy the Documentation">
-
-You can now deploy the image to your own infrastructure, allowing you to host the documentation on your own domain.
-
-Once deployed, you can set up [preview environments](/learn/docs/self-hosted/previews) to preview documentation changes on every pull request.
-
-</Step>
-</Steps>
 
 ## Environment variables
 
@@ -225,7 +237,7 @@ The value must start with `/` and must not end with a trailing slash.
 Set `NEXT_PUBLIC_BASE_PATH` in your Dockerfile before running `fern-generate`. This patches the base path into the bundle at build time, so the container can run with a read-only filesystem.
 
 ```dockerfile
-FROM fernapi/fern-self-hosted:<latest-tag>
+FROM fernenterprise/fern-self-hosted:latest
 
 COPY fern/ /fern/
 
@@ -240,7 +252,7 @@ RUN fern-generate
 Pass `NEXT_PUBLIC_BASE_PATH` when starting the container. The base path is patched into the bundle at container startup.
 
 ```bash
-docker run -p 3000:3000 -e NEXT_PUBLIC_BASE_PATH=/docs <your-image-name>
+docker run -p 3000:3000 -e NEXT_PUBLIC_BASE_PATH=/docs self-hosted-docs
 ```
 
 <Warning>
@@ -266,7 +278,7 @@ By default, `fern-generate` runs at Docker build time. Defer generation to runti
 Use the `--only-deps` flag to defer generation to runtime:
 
 ```dockerfile
-FROM fernapi/fern-self-hosted:<latest-tag>
+FROM fernenterprise/fern-self-hosted:latest
 
 COPY fern/ /fern/
 
@@ -319,7 +331,7 @@ If there's no `deps` or `dependencies` section (or only local paths), you can sk
 Run `fern-generate` at build time when network access is available:
 
 ```dockerfile
-FROM fernapi/fern-self-hosted:<latest-tag>
+FROM fernenterprise/fern-self-hosted:latest
 
 COPY fern/ /fern/
 
@@ -335,7 +347,7 @@ Use this option when you don't have all the information at build time and need t
 To generate at runtime in an air-gapped environment, vendor buf dependencies locally:
 
 ```dockerfile
-FROM fernapi/fern-self-hosted:<latest-tag>
+FROM fernenterprise/fern-self-hosted:latest
 
 # Install buf CLI for dependency caching
 RUN npm install -g @bufbuild/buf
@@ -384,7 +396,7 @@ api:
 This approach works with both build-time and runtime generation:
 
 ```dockerfile
-FROM fernapi/fern-self-hosted:<latest-tag>
+FROM fernenterprise/fern-self-hosted:latest
 
 COPY fern/ /fern/
 
@@ -405,6 +417,13 @@ The container parses all `generators.yml` files in your fern directory, finds pr
 ### Kubernetes deployment
 
 Here is a sample Deployment and Service configuration. Replace `your-registry/fern-docs:latest` with your image name.
+
+Apply the configuration:
+
+```bash
+kubectl apply -f deployment.yaml
+kubectl apply -f service.yaml
+```
 
 **deployment.yaml:**
 
