@@ -77,11 +77,4 @@ The correct link is:
 
 ## New pages
 
-Every new `.mdx` page created under `fern/pages/` or `fern/products/` must include the agent directive snippet. Add the following line:
-
-- After the closing `---` of the front matter (if the page has front matter), or
-- At the very top of the file (if there is no front matter).
-
-```mdx
-<Markdown src="/snippets/agent-directive.mdx"/>
-```
+The agent directive is now handled automatically via the `agents.page-directive` setting in `docs.yml`. New pages do not need any manual snippet inclusion.
