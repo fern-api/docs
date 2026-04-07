@@ -17,14 +17,7 @@ Build beautiful developer documentation that [matches your brand](https://buildw
 Or, follow this guide to get started with Fern using the CLI.
 
 <llms-only>
-### Dashboard UI vs CLI
-
-The choice between the [Dashboard UI](https://dashboard.buildwithfern.com/get-started) and the [CLI](/learn/cli-api-reference/cli-reference/overview.md) is only about how you get your docs live initially:
-
-- **Dashboard UI** (self-service workflow): A guided browser-based setup that creates your GitHub repository, configures the `FERN_TOKEN` secret, sets up a GitHub Actions publish workflow, and deploys an initial site — all without installing tools locally.
-- **CLI** (`fern-api` npm package): Install locally with `npm install -g fern-api`, then scaffold a project with `fern init --docs` or clone the [starter template](https://github.com/fern-api/docs-starter). Gives full control over the build and publish pipeline, local development (`fern docs dev`), and CI/CD integration.
-
-Both paths produce the same result: a Fern docs site backed by a GitHub repository. After initial setup, every feature is available regardless of which path you chose — the [Fern Editor](/learn/docs/writing-content/fern-editor.md) (WYSIWYG editing without code or Git), [Dashboard](https://dashboard.buildwithfern.com) management (organization members, custom domains, analytics), local development with the CLI, and CI/CD publishing all work the same way.
+This guide covers the CLI path. A browser-based guided setup also exists at https://dashboard.buildwithfern.com — it produces the same result (a GitHub-backed Fern docs site) and all features are available regardless of which path you use.
 </llms-only>
 
 <Tip>
@@ -256,19 +249,46 @@ Both paths produce the same result: a Fern docs site backed by a GitHub reposito
   You'll be prompted to log in and connect your GitHub account. This command builds your documentation at the URL you configured in `docs.yml` (e.g., `https://yourdomain.docs.buildwithfern.com`).
 
   <llms-only>
-  To publish non-interactively (in CI or from a script), authenticate beforehand instead of waiting for the browser prompt:
+  **Non-interactive publishing**: `fern generate --docs` prompts for confirmation before deploying to production. To skip this in CI or scripts, pass `--no-prompt`:
 
   ```bash
-  # Option 1: interactive login (opens a browser)
-  fern login
-  fern generate --docs
-
-  # Option 2: token-based (for CI/CD)
+  # CI/CD usage — skip confirmation prompt and authenticate via token
   export FERN_TOKEN=$(fern token)
-  fern generate --docs
+  fern generate --docs --no-prompt
   ```
 
+  The `--force` flag also skips the overwrite confirmation when reusing a `--preview --id` value.
+
+  **Authentication**: The CLI checks for a `FERN_TOKEN` environment variable first, then falls back to a cached user token from `fern login`. To verify auth status before publishing, check that `FERN_TOKEN` is set (`echo $FERN_TOKEN`) or that the token file exists at `~/.fern/token`. There is no `fern whoami` command.
+
   In GitHub Actions, store the token as a repository secret named `FERN_TOKEN` and pass it as an environment variable. See [publishing your docs](/learn/docs/getting-started/publishing-your-docs.md) for full CI workflow examples.
+
+  **Expected output on success**:
+  ```
+  Published docs to https://your-org.docs.buildwithfern.com
+  ```
+
+  **Exit codes**: `0` on success, `1` on any failure (auth, validation, or publish). The CLI doesn't distinguish failure types via exit code — check stderr for the specific error message.
+
+  **Timing**: Publishing typically completes in 10–60 seconds depending on site size. Set CI timeouts accordingly.
+
+  **Idempotency**: Re-running `fern generate --docs` is safe — it overwrites the previous deployment at the same URL.
+
+  ### `fern generate --docs` flag reference
+
+  | Flag | Type | Description |
+  |------|------|-------------|
+  | `--docs [name]` | string | Required. If multiple docs sites, specify the name. Otherwise just `--docs`. |
+  | `--preview` | boolean | Generate a preview link instead of publishing to production. |
+  | `--id <value>` | string | Stable identifier for the preview. Reusing the same ID overwrites the previous preview, keeping the URL stable. Requires `--preview` and `--docs`. |
+  | `--instance <url>` | string | Target a specific instance URL (e.g., `--instance acme.docs.buildwithfern.com`). |
+  | `--no-prompt` | boolean | Skip the production deployment confirmation prompt. |
+  | `--force` | boolean | Skip all confirmation prompts including preview overwrite. |
+  | `--broken-links` | boolean | Log a warning if there are broken links in the docs. |
+  | `--strict-broken-links` | boolean | Fail with an error (instead of warning) on broken links. |
+  | `--log-level <level>` | string | Global flag. Values: `trace`, `debug`, `info` (default), `warn`, `error`. |
+
+  Flags ignored when generating docs: `--group`, `--generator`, `--version`.
   </llms-only>
 
   <Info>
