@@ -1,16 +1,15 @@
 ---
 title: Hiding content in your site
+description: Control visibility of pages, sections, versions, and API endpoints by hiding them from your sidebar and search results.
 ---
 
-
-Fern provides two settings for controlling content visibility:
-
-- **`hidden: true`** in `docs.yml` — makes a page, section, or version accessible only by direct URL. For pages and endpoints, this removes the item from both the sidebar and search results (including [llms.txt](/learn/docs/ai-features/llms-txt)). For sections and versions, this removes the group from the sidebar but doesn't affect indexing of individual pages within it.
-- **`noindex: true`** in [page frontmatter](/learn/docs/configuration/page-level-settings#noindex) — excludes a page from search engines and [llms.txt](/learn/docs/ai-features/llms-txt) while keeping it visible in the sidebar. Useful for early access content you want navigable but not indexed.
+Fern gives you two main tools for controlling content visibility: `hidden: true` in `docs.yml` removes content from your site's sidebar and search results, while `noindex: true` in page frontmatter excludes a page from search without affecting navigation.
 
 ## Hiding a page
 
-Set `hidden: true` in `docs.yml` to remove a page from the sidebar and search results. The page remains accessible by direct URL, so you can still share the link. There's no need to also set `noindex` in the page's frontmatter — `hidden: true` handles both automatically.
+### Accessible only by direct URL
+
+Set `hidden: true` in `docs.yml` to remove a page from the sidebar, search results, and [llms.txt](/learn/docs/ai-features/llms-txt) while keeping it accessible via direct link. This is useful for sharing draft documentation with reviewers or linking from external tools like support tickets. There's no need to also set `noindex` — `hidden: true` handles both automatically.
 
 ```yaml title="docs.yml" {4}
 navigation:
@@ -25,12 +24,12 @@ navigation:
 ```
 
 <Card title="See it in action" icon="eye" href="/learn/docs/customization/hidden-page">
-  This page is hidden from the sidebar and search engines, but you can access it by direct link.
+This page is hidden from the sidebar and search engines, but you can access it by direct link.
 </Card>
 
-## Excluding a page from search only
+### Excluded from search only
 
-Set `noindex: true` in a page's frontmatter to exclude it from search engines and [llms.txt](/learn/docs/ai-features/llms-txt) while keeping it visible in the sidebar. This is useful for early access documentation or content you want readers to find through navigation but not through search.
+Set `noindex: true` in a page's frontmatter to exclude it from search engines and [llms.txt](/learn/docs/ai-features/llms-txt) while keeping it discoverable on your site. This is useful for early access documentation or content you want readers to find through navigation but not through search or AI tools.
 
 ```mdx title="early-access-feature.mdx" {3}
 ---
@@ -41,11 +40,26 @@ noindex: true
 
 For more SEO-related options, see [SEO metadata](/learn/docs/seo/setting-seo-metadata).
 
+## Hiding an API endpoint
+
+Set `hidden: true` in the endpoint's layout configuration in `docs.yml` to hide it from the sidebar. Like page-level `hidden`, hidden endpoints are automatically excluded from search engine indexing so there's no need to set `noindex: true`.
+
+```yaml title="docs.yml" {6}
+navigation:
+  - api: API Reference
+    layout:
+      - plants:
+          - endpoint: POST /plants/{plantId}
+            hidden: true
+```
+
+For full configuration details including examples for OpenAPI, Fern Definition, WebSocket, and GraphQL endpoints, see [Hiding endpoints](/learn/docs/api-references/customize-api-reference-layout#hiding-endpoints).
+
 ## Hiding a section or version
 
-You can also hide an entire section or version from the sidebar — for example, a legacy API version or a section of internal tooling docs. 
+Hide an entire section or version from the sidebar — for example, a legacy API version or a section of internal tooling docs.
 
-Unlike page-level `hidden`, hiding a section or version only removes it from the sidebar. Pages within the hidden group remain indexed by search engines. To also exclude individual pages from search results, add `noindex: true` to each page's frontmatter.
+Unlike hiding a page or endpoint, hiding a section or version only removes the group from the sidebar. The individual pages within it remain indexed by search engines and AI because `hidden` applies to the section grouping, not to each page. To also exclude individual pages from search results, add `noindex: true` to each page's frontmatter.
 
 <Tabs>
 <Tab title="Hidden section">
@@ -82,19 +96,4 @@ versions:
 <Info>The default version (the first version in your `versions` list) can't be hidden.</Info>
 </Tab>
 </Tabs>
-
-## Hiding an API endpoint
-
-You can hide individual API endpoints from the sidebar by setting `hidden: true` in the endpoint's layout configuration in `docs.yml`. Hidden endpoints are automatically excluded from search engine indexing so there's no need to set `noindex: true`.
-
-```yaml title="docs.yml" {6}
-navigation:
-  - api: API Reference
-    layout:
-      - plants:
-          - endpoint: POST /plants/{plantId}
-            hidden: true
-```
-
-For full configuration details including examples for OpenAPI, Fern Definition, WebSocket, and GraphQL endpoints, see [Hiding endpoints](/learn/docs/api-references/customize-api-reference-layout#hiding-endpoints).
 
