@@ -1,0 +1,450 @@
+---
+title: APIリファレンスレイアウトのカスタマイズ
+description: Fern でAPIリファレンスレイアウトをカスタマイズ。オプションの設定、セクションとエンドポイントの並べ替え、ナビゲーションのフラット化、エンドポイントの非表示、エラーの表示、カスタムコンテンツの追加が可能です。
+---
+
+
+[`docs.yml`ファイルにAPIを含める](/learn/docs/api-references/generate-api-ref)と、サイドバーナビゲーションでのエンドポイントとセクションの表示方法をカスタマイズできます。デフォルトでは、API仕様の構造に基づいてナビゲーション階層が生成されますが、いくつかのカスタマイズが設定可能です。
+
+<Note title="APIセクション">
+OpenAPI仕様を使用している場合、セクションは`tags`プロパティに基づいて作成され、`lowerCamelCase`規則（例：createUser）に変換されます。Fern Definitionを使用している場合、セクションは[`service`](/learn/api-definitions/ferndef/endpoints/overview#service-definition)ファイル名に基づいて作成されます。
+</Note>
+
+エンドポイントのサブセットのみを表示したい場合は、[OpenAPI仕様](/learn/api-definitions/openapi/extensions/audiences)または[Fern Definition](/learn/api-definitions/ferndef/audiences)のAudiencesプロパティについてお読みください。
+
+## APIリファレンスの並べ替え
+
+### エンドポイントとセクションのアルファベット順並べ替え
+
+`layout`で明示的に順序指定されていない限り、すべてのセクションとエンドポイントをアルファベット順に並べるには、`alphabetized`を`true`に設定します。
+
+```yaml title="docs.yml"
+navigation: 
+  - api: API Reference
+    alphabetized: true
+```
+
+### トップレベルセクションの並べ替え
+
+`layout`オプションを使用すると、APIリファレンスのトップレベルにあるサブパッケージ、セクション、エンドポイント、ページの順序を指定できます。
+
+<Tabs>
+  <Tab title="OpenAPI仕様">
+  ```yaml title="docs.yml"
+  navigation: 
+    - api: API Reference
+      layout: 
+        - POST /user
+        - user
+        - store
+        - plant
+  ```
+
+  APIが[ネームスペース](/learn/api-definitions/overview/project-structure#combined-sdks-from-multiple-apis)を使用している場合、エンドポイントにネームスペースと`::`をプレフィックスとして付けます：
+  ```yaml title="docs.yml"
+  navigation: 
+    - api: API Reference
+      layout: 
+        - payments::POST /user
+        - user
+        - store
+  ```
+  </Tab>
+  <Tab title="Fern Definition">
+  ```yaml title="docs.yml"
+  navigation: 
+    - api: API Reference
+      layout: 
+        - user.create
+        - user
+        - store
+        - plant
+  ```
+  </Tab>
+</Tabs>
+
+<Frame>
+<img src="ordered.png" alt="並べ替えられたAPIリファレンス" />
+</Frame>
+
+### セクション内容の並べ替え
+
+<Tabs>
+  <Tab title="OpenAPI">
+  `METHOD /path`形式でエンドポイントを参照できます。
+  ```yaml title="docs.yml"
+  navigation: 
+    - api: API Reference
+      layout: 
+        - user: 
+            - POST /user
+            - PUT /user/{username}
+            - DELETE /user/{username}
+  ```
+  </Tab>
+  <Tab title="Fern Definition">
+  `serviceName.endpointName`形式でエンドポイントを参照できます。
+  ```yaml title="docs.yml"
+  navigation:
+    - api: API Reference
+      layout:
+        - user:
+            - user.create
+            - user.update
+            - user.delete
+  ```
+  </Tab>
+  <Tab title="WebSocket">
+  `WSS /path/name`形式でWebSocketエンドポイントを参照できます。
+  ```yaml title="docs.yml"
+  navigation:
+    - api: API Reference
+      layout:
+        - plants:
+            - GET /plants
+            - WSS /plants/live-updates
+            - WSS /plants/growth-monitor
+  ```
+  </Tab>
+</Tabs>
+
+<Frame>
+<img src="content-ordered.png" alt="APIリファレンスで並べ替えられたコンテンツ" />
+</Frame>
+
+## APIリファレンスのカスタマイズ
+
+### セクション名の変更
+
+デフォルトでは、セクション表示名は仕様の[サービスファイル名](/api-definitions/ferndef/endpoints/overview#service-definition)（Fern Definition）またはタグ名（OpenAPI）から取得されます。
+
+セクションの表示名を上書きするには、`docs.yml`で`section`プロパティを使用します。
+
+<Tabs>
+  <Tab title="OpenAPI">
+  ```yaml title="docs.yml" {4-6}
+  navigation:
+    - api: API Reference
+      layout:
+        - section: "Billing" # 新しいセクション表示名
+          referenced-packages:
+            - billing # 仕様の元のタグ名のlowerCamelCaseバージョン
+          contents: []
+        - section: "Bank Accounts"
+          referenced-packages:
+            - bankAccounts
+          contents: []
+  ```
+  <Note>
+    仕様（またはオーバーレイファイル）で[`x-displayName`拡張](/api-definitions/openapi/extensions/tag-display-names)を使用してタグ表示名を直接カスタマイズすることもできます。
+  </Note>
+  </Tab>
+  <Tab title="Fern Definition">
+  ```yaml title="docs.yml" {4-6}
+  navigation:
+    - api: API Reference
+      layout:
+        - section: "Billing" # 新しいセクション表示名
+          referenced-packages:
+            - billing # 仕様の元のサービスファイル名のlowerCamelCaseバージョン
+          contents: []
+        - section: "Bank Accounts"
+          referenced-packages:
+            - bankAccounts
+          contents: []
+  ```
+  </Tab>
+</Tabs>
+
+### セクションのフラット化
+
+APIリファレンスのタイトルを削除してセクション内容を表示するには、`flattened`を`true`に設定します。
+
+```yaml title="docs.yml"
+navigation: 
+  - api: API Reference
+    flattened: true
+```
+
+<Frame>
+<img src="flattened.png" alt="フラット化されたAPIリファレンス" />
+</Frame>
+
+### エンドポイントのスタイリング
+
+エンドポイントの表示をカスタマイズするには、`title`を追加できます。`slug`を使用してエンドポイントURLをカスタマイズすることもできます。
+
+<Tabs>
+  <Tab title="OpenAPI">
+  ```yaml title="docs.yml" {6-7}
+  navigation: 
+    - api: API Reference
+      layout: 
+        - user: 
+            - endpoint: POST /user
+              title: Create a User
+              slug: user-creation
+            - DELETE /user/{username}
+  ```
+  </Tab>
+  <Tab title="Fern Definition">
+  ```yaml title="docs.yml" {6-7}
+  navigation:
+    - api: API Reference
+      layout:
+        - user:
+            - endpoint: user.create
+              title: Create a User
+              slug: user-creation
+            - user.delete
+  ```
+  </Tab>
+  <Tab title="WebSocket">
+  ```yaml title="docs.yml" {5-7}
+  navigation:
+    - api: API Reference
+      layout:
+        - plants:
+            - endpoint: WSS /plants/live-updates
+              title: Live plant updates
+              slug: live-updates
+  ```
+  </Tab>
+</Tabs>
+
+<Frame>
+<img src="custom-endpoint.png" alt="エンドポイントタイトルの設定" />
+</Frame>
+
+### エンドポイントの非表示
+
+`hidden`を`true`に設定することで、APIリファレンスからエンドポイントを非表示にできます。エンドポイントはURLでアクセス可能ですが、検索エンジンのインデックスから自動的に除外されます（`noindex`）。そのため[`noindex`を設定する必要はありません](/learn/docs/customization/hiding-content#hiding-an-api-endpoint)。
+
+<Tabs>
+  <Tab title="OpenAPI">
+  ```yaml title="docs.yml" {10}
+  navigation: 
+    - api: API Reference
+      layout: 
+        - user: 
+            - endpoint: POST /user
+              title: Create a User
+              slug: user-creation
+            - endpoint: DELETE /user/{username}
+              hidden: true
+  ```
+  </Tab>
+  <Tab title="Fern Definition">
+  ```yaml title="docs.yml" {10}
+  navigation: 
+    - api: API Reference
+      layout: 
+        - user: 
+            - endpoint: user.create
+              title: Create a User
+              slug: user-creation
+            - endpoint: user.delete
+              hidden: true
+  ```
+  </Tab>
+  <Tab title="WebSocket">
+  ```yaml title="docs.yml" {6}
+  navigation:
+    - api: API Reference
+      layout:
+        - plants:
+            - endpoint: WSS /plants/live-updates
+              hidden: true
+  ```
+  </Tab>
+</Tabs>
+
+### カスタムセクションの追加
+
+`section`をAPIリファレンスレイアウトに追加することで、サイドバーに任意のフォルダを追加できます。セクションはエンドポイントのグループ全体、個々のエンドポイント、またはMarkdownページだけで構成できます。セクションは`icon`、`summary`、`slug`（または`skip-slug`）、`availability`、`contents`などのプロパティを追加してカスタマイズできます。
+
+<Tabs>
+  <Tab title="OpenAPI">
+  ```yaml title="docs.yml"
+  navigation: 
+    - api: API Reference
+      layout: 
+        - section: My Section
+          icon: flower
+          contents: 
+            - PUT /user/{username}
+            - plant
+            - plantInfo # タグ名はcamelCase規則に変換されます
+  ```
+  </Tab>
+  <Tab title="Fern Definition">
+  ```yaml title="docs.yml"
+  navigation:
+    - api: API Reference
+      layout:
+        - section: My Section
+          icon: flower
+          contents:
+            - user.update
+            - plant
+  ```
+  </Tab>
+</Tabs>
+
+<Frame>
+<img src="custom-section.png" alt="APIリファレンスのカスタムセクション" />
+</Frame>
+
+### セクション概要の追加
+
+APIリファレンスまたは個々のセクションに概要ページを2つの方法で追加できます：
+
+<AccordionGroup>
+  <Accordion title="手動サマリーページ">
+    `summary`プロパティを使用して、`.md`または`.mdx`ページを概要として追加できます。
+
+    ```yaml title="docs.yml"
+    navigation:
+      - api: API Reference
+        summary: pages/api-overview.mdx
+        layout:
+          - user:
+              summary: pages/user-overview.mdx
+    ```
+  </Accordion>
+  <Accordion title="OpenAPIタグからの自動サマリー">
+    OpenAPI仕様を使用している場合、`tag-description-pages: true`を設定すると、タグの説明を各セクションのサマリーページとして使用できます。
+
+    ```yaml title="docs.yml"
+    navigation:
+      - api: API Reference
+        tag-description-pages: true
+    ```
+
+    <Note>
+      `tag-description-pages: true`を有効にし、セクションに手動で`summary`を指定した場合、手動のサマリーが優先されます。
+    </Note>
+  </Accordion>
+</AccordionGroup>
+
+<Frame>
+<img src="summary.png" alt="サマリーページ付きのAPIリファレンス" />
+</Frame>
+
+### ページとリンクの追加
+
+APIリファレンス内に通常のページと外部リンクを追加できます。
+
+```yaml title="docs.yml"
+navigation: 
+  - api: API Reference
+    layout: 
+      - user: 
+          contents: 
+            - page: User Guide
+              path: ./docs/pages/user-guide.mdx
+            - link: Link Title
+              href: http://google.com
+```
+
+### 可用性の追加
+
+APIリファレンス全体または特定のセクションに可用性を設定できます。オプション：`stable`、`generally-available`、`in-development`、`pre-release`、`deprecated`、`beta`。
+
+```yaml title="docs.yml" {3, 6}
+navigation: 
+  - api: API Reference
+    availability: generally-available
+    layout: 
+      - section: My Section
+        availability: beta
+        icon: flower
+        contents: 
+        # エンドポイントをここに配置
+```
+
+セクションに可用性を設定すると、そのセクション内のすべてのエンドポイントは、API定義で明示的に上書きされない限り、セクションレベルの可用性を継承します。
+
+<Warning>
+  `docs.yml`で個々のOpenAPIおよびFern Definitionエンドポイントに可用性を設定することはできません — エンドポイントの可用性はAPI定義で直接設定する必要があります。[OpenAPI](/learn/api-definitions/openapi/extensions/availability)または[Fern Definition](/learn/api-definitions/ferndef/availability)の可用性について詳しくはこちら。
+</Warning>
+
+### エンドポイントエラーの表示
+
+`display-errors`を`true`に設定すると、エンドポイントページにエラースキーマを表示します。エラー名、ステータスコード、レスポンスオブジェクトはAPI定義から取得されます。
+
+```yaml title="docs.yml"
+navigation:
+  - api: API Reference
+    display-errors: true
+```
+
+<Frame>
+![エンドポイントエラー](https://fern-image-hosting.s3.amazonaws.com/fern/errors.png)
+</Frame>
+
+エラーをクリックすると展開され、エラー名、コード、返されるオブジェクトが表示されます。レスポンスもエラーオブジェクトを表示するように更新されます。
+
+<Frame>
+![展開されたエンドポイントエラー](https://fern-image-hosting.s3.amazonaws.com/fern/errors-expanded.png)
+</Frame>
+
+## 設定オプションリファレンス
+
+以下のプロパティは`docs.yml`ナビゲーションの`- api`エントリで設定できます。
+
+<ParamField path="alphabetized" toc={true} type="boolean">
+  `true`の場合、すべてのセクションとエンドポイントをアルファベット順に整理します。
+</ParamField>
+
+<ParamField path="api" toc={true} type="string" required={true}>
+  APIリファレンスセクションのタイトル。
+</ParamField>
+
+<ParamField path="audiences" toc={true} type="list<string>">
+  APIリファレンスに表示されるエンドポイント、スキーマ、プロパティを決定する[オーディエンス](/learn/docs/api-references/audiences)のリスト。
+</ParamField>
+
+<ParamField path="availability" toc={true} type="string">
+  APIリファレンス全体または特定のセクションの[可用性ステータス](#adding-availability)を設定します。
+</ParamField>
+
+<ParamField path="display-errors" toc={true} type="boolean">
+  APIリファレンスのエンドポイントページに[エラースキーマ](#displaying-endpoint-errors)を表示します。
+</ParamField>
+
+<ParamField path="flattened" toc={true} type="boolean">
+  すべてのエンドポイントをトップレベルに表示し、APIリファレンスセクションのタイトルを非表示にします。
+</ParamField>
+
+<ParamField path="icon" toc={true} type="string">
+  ナビゲーションのAPIセクションの横に表示するアイコン。
+</ParamField>
+
+<ParamField path="layout" toc={true} type="list">
+  APIエンドポイントがドキュメントサイトに表示される順序をカスタマイズします。詳細は[APIリファレンスの並べ替え](#ordering-the-api-reference)を参照してください。
+</ParamField>
+
+<ParamField path="paginated" toc={true} type="boolean">
+  すべてのエンドポイントを個別のページに表示します。デフォルトでは、エンドポイントは1つの長いページに表示されます。
+</ParamField>
+
+<ParamField path="skip-slug" toc={true} type="boolean">
+  `true`の場合、APIセクションのスラグ生成をスキップします。
+</ParamField>
+
+<ParamField path="slug" toc={true} type="string">
+  APIセクションのスラグをカスタマイズします。デフォルトでは、スラグはAPIタイトルから生成されます。
+</ParamField>
+
+<ParamField path="summary" toc={true} type="string">
+  APIセクションの上部に表示されるMarkdownファイルへの相対パス。
+</ParamField>
+
+<ParamField path="tag-description-pages" toc={true} type="boolean">
+  `true`の場合、OpenAPIタグの説明を各セクションのサマリーページとして使用します。
+</ParamField>
+
+<ParamField path="api-name" toc={true} type="string">
+  プロジェクトに[複数のAPI](/learn/docs/api-references/generate-api-ref#include-more-than-one-api-reference)がある場合のみ使用。値はAPI定義を含むフォルダ名と一致する必要があります。単一のAPIのみの場合はこのプロパティを設定しないでください。エラーの原因となります。
+</ParamField>

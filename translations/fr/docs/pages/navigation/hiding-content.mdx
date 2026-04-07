@@ -1,0 +1,98 @@
+---
+title: Masquer du contenu sur votre site
+description: Contrôlez la visibilité des pages, sections, versions et endpoints API en les masquant de votre barre latérale et des résultats de recherche.
+---
+
+Fern vous offre deux outils principaux pour contrôler la visibilité du contenu : `hidden: true` dans `docs.yml` supprime le contenu de la barre latérale et des résultats de recherche de votre site, tandis que `noindex: true` dans le frontmatter d'une page exclut une page de la recherche sans affecter la navigation.
+
+## Masquer une page
+
+### Accessible uniquement par URL directe
+
+Définissez `hidden: true` dans `docs.yml` pour supprimer une page de la barre latérale, des résultats de recherche et de [llms.txt](/learn/docs/ai-features/llms-txt) tout en la gardant accessible via un lien direct. Ceci est utile pour partager des brouillons de documentation avec des réviseurs ou pour créer des liens depuis des outils externes comme les tickets de support. Il n'est pas nécessaire de définir également `noindex` — `hidden: true` gère les deux automatiquement.
+
+```yaml title="docs.yml" {4}
+navigation:
+  - section: Introduction
+    contents:
+      - page: My Page
+        path: ./pages/my-page.mdx
+      - page: Hide and Seek
+        hidden: true
+        path: ./pages/hide-and-seek.mdx
+  - api: API Reference
+```
+
+<Card title="Voir en action" icon="eye" href="/learn/docs/customization/hidden-page">
+Cette page est masquée de la barre latérale et des moteurs de recherche, mais vous pouvez y accéder par lien direct.
+</Card>
+
+### Exclue de la recherche uniquement
+
+Définissez `noindex: true` dans le frontmatter d'une page pour l'exclure des moteurs de recherche et de [llms.txt](/learn/docs/ai-features/llms-txt) tout en la gardant découvrable sur votre site. Ceci est utile pour la documentation en accès anticipé ou le contenu que vous souhaitez que les lecteurs trouvent via la navigation mais pas via la recherche ou les outils IA.
+
+```mdx title="early-access-feature.mdx" {3}
+---
+title: Fonctionnalité en accès anticipé
+noindex: true
+---
+```
+
+Pour plus d'options liées au SEO, consultez [Métadonnées SEO](/learn/docs/seo/setting-seo-metadata).
+
+## Masquer un endpoint API
+
+Définissez `hidden: true` dans la configuration de mise en page de l'endpoint dans `docs.yml` pour le masquer de la barre latérale. Comme pour `hidden` au niveau de la page, les endpoints masqués sont automatiquement exclus de l'indexation des moteurs de recherche, il n'est donc pas nécessaire de définir `noindex: true`.
+
+```yaml title="docs.yml" {6}
+navigation:
+  - api: API Reference
+    layout:
+      - plants:
+          - endpoint: POST /plants/{plantId}
+            hidden: true
+```
+
+Pour les détails complets de configuration, y compris des exemples pour OpenAPI, Fern Definition et les endpoints WebSocket, consultez [Masquer des endpoints](/learn/docs/api-references/customize-api-reference-layout#hiding-endpoints).
+
+## Masquer une section ou une version
+
+Masquez une section entière ou une version de la barre latérale — par exemple, une version d'API héritée ou une section de documentation d'outils internes.
+
+Contrairement au masquage d'une page ou d'un endpoint, masquer une section ou une version ne supprime que le groupe de la barre latérale. Les pages individuelles qu'elle contient restent indexées par les moteurs de recherche et l'IA car `hidden` s'applique au regroupement de la section, pas à chaque page. Pour exclure également les pages individuelles des résultats de recherche, ajoutez `noindex: true` au frontmatter de chaque page.
+
+<Tabs>
+<Tab title="Section masquée">
+```yaml title="docs.yml" {8}
+navigation:
+  - section: Introduction
+    contents:
+      - page: My Page
+        path: ./pages/my-page.mdx
+  - api: API Reference
+  - section: Hidden Section
+    hidden: true
+    contents:
+      - page: Hide and Seek
+        path: ./pages/hide-and-seek.mdx
+```
+
+<Frame>
+<img src="hidden-section.png" alt="Un site avec une section masquée" />
+</Frame>
+</Tab>
+<Tab title="Version masquée">
+```yaml title="docs.yml" {8}
+versions:
+  - display-name: v3
+    path: ./versions/v3.yml
+  - display-name: v2
+    path: ./versions/v2.yml
+  - display-name: v1 (Legacy)
+    path: ./versions/v1.yml
+    hidden: true
+```
+
+<Info>La version par défaut (la première version de votre liste `versions`) ne peut pas être masquée.</Info>
+</Tab>
+</Tabs>

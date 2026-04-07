@@ -1,0 +1,83 @@
+---
+title: GraphQLリファレンスの生成
+description: Fern Docsを使用して、GraphQLスキーマからGraphQL APIリファレンスドキュメントを生成します。
+availability: pre-release
+---
+
+<Warning>GraphQL APIリファレンスは現在積極的にメンテナンスされていません。ご質問がある場合は[お問い合わせ](https://buildwithfern.com/contact)ください。</Warning>
+
+Fernは[GraphQLスキーマ](https://graphql.org/learn/schema/)からAPIリファレンスドキュメントを生成します。スキーマファイルをFernプロジェクトに追加すると、Fernがクエリ、ミューテーション、サブスクリプション、型をインタラクティブなリファレンスとしてレンダリングします。
+
+## 設定
+
+<Steps>
+<Step title="プロジェクト構造をセットアップする">
+
+GraphQLスキーマファイルを`/fern`ディレクトリに追加し、それを参照する`generators.yml`を作成します：
+
+```yaml generators.yml
+api:
+  specs:
+    - graphql: plants.schema.graphql
+      name: Plants
+      origin: https://api.example.com/plants/graphql
+```
+
+</Step>
+<Step title="ナビゲーションにGraphQLリファレンスを追加する">
+
+`docs.yml`のナビゲーションに`- api: API Reference`を追加します：
+
+```yml docs.yml
+navigation:
+  - api: API Reference
+```
+
+</Step>
+<Step title="レイアウトをカスタマイズする">
+
+設定オプションとレイアウトのカスタマイズの一覧については、[APIリファレンスレイアウトのカスタマイズ](/learn/docs/api-references/customize-api-reference-layout)を参照してください。
+
+</Step>
+</Steps>
+
+### 複数のGraphQLリファレンスを含める
+
+ドキュメントに複数のGraphQL定義を含めるには、`api-name`プロパティを使用します。`api-name`はGraphQLスキーマを含むフォルダ名に対応します。
+
+<Files>
+  <Folder name="fern" defaultOpen>
+    <File name="fern.config.json" />
+    <File name="docs.yml" />
+    <Folder name="plant-graphql" defaultOpen>
+      <File name="schema.graphql" comment="Plant GraphQLスキーマ" />
+      <File name="generators.yml" />
+    </Folder>
+    <Folder name="garden-graphql" defaultOpen>
+      <File name="schema.graphql" comment="Garden GraphQLスキーマ" />
+      <File name="generators.yml" />
+    </Folder>
+  </Folder>
+</Files>
+
+```yaml title="docs.yml"
+navigation:
+  - api: Plant GraphQL API
+    api-name: plant-graphql
+  - api: Garden GraphQL API
+    api-name: garden-graphql
+```
+
+### 設定プロパティ
+
+<ParamField path="api.specs[].graphql" required>
+  GraphQLスキーマファイルへのパス。プロジェクトが複数のGraphQL APIを公開している場合、複数のGraphQL仕様を含めることができます。
+</ParamField>
+
+<ParamField path="api.specs[].name">
+  この仕様のオペレーションがAPIリファレンスサイドバーに表示されるフォルダの名前。関連するGraphQLオペレーションをグループ化するために使用します。
+</ParamField>
+
+<ParamField path="api.specs[].origin">
+  GraphQL APIエンドポイントのURL。Fernはこのエンドポイントに対して[イントロスペクション](https://graphql.org/learn/introspection/)を実行してスキーマを取得します。設定すると、[`fern api update`を実行する](/learn/cli-api-reference/cli-reference/commands#fern-api-update)ことでこのエンドポイントからローカルスキーマが更新されます。
+</ParamField>

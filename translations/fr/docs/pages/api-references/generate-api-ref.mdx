@@ -1,0 +1,106 @@
+---
+title: Générer une référence API REST
+description: Utilisez Fern Docs pour générer une documentation de référence API REST à partir d'une spécification OpenAPI ou d'une Fern Definition.
+---
+
+
+Fern génère une documentation de référence API REST à partir d'une [spécification OpenAPI](/learn/api-definitions/openapi/overview) ou d'une [Fern Definition](/learn/api-definitions/ferndef/overview). Une fois la définition de l'API configurée, il suffit d'ajouter une seule ligne de configuration pour l'intégrer à la documentation.
+
+<Tip>
+  Fern prend également en charge les références [gRPC](/learn/docs/api-references/generate-grpc-ref), [WebSocket](/learn/docs/api-references/generate-websocket-ref) (AsyncAPI ou Fern Definition), [OpenRPC](/learn/docs/api-references/generate-openrpc-ref) et [Webhook](/learn/docs/api-references/generate-webhook-ref).
+</Tip>
+
+## Configuration
+
+<Steps>
+<Step title="Configurer la structure du projet">
+
+Pour **OpenAPI/AsyncAPI** : Ajoutez votre fichier de spécification à votre répertoire `/fern` et créez un `generators.yml` qui le référence dans la section `api.specs`
+
+Pour **Fern Definition** : Ajoutez un répertoire `definition/` avec vos fichiers de définition d'API (Fern le détecte automatiquement)
+
+```yaml generators.yml
+api:
+  specs:
+    - openapi: "./openapi.yml"
+```
+
+
+</Step>
+<Step title="Ajouter la référence API à la navigation">
+
+Ajoutez `- api: API Reference` à votre navigation dans `docs.yml` :
+
+```yml docs.yml
+navigation:
+  - api: API Reference
+```
+
+Fern remplira automatiquement vos endpoints, types et extraits de code à partir de votre définition d'API. Les exemples de requêtes et de réponses sont [générés par IA](/learn/docs/ai-features/ai-examples) pour afficher des données réalistes au lieu de valeurs fictives.
+</Step>
+<Step title="Personnaliser la mise en page">
+
+Pour une liste complète des options de configuration et des personnalisations de mise en page, consultez [Personnaliser la mise en page de la référence API](/learn/docs/api-references/customize-api-reference-layout).
+
+</Step>
+</Steps>
+
+### Inclure plusieurs références API
+
+Pour inclure plusieurs définitions d'API distinctes dans votre documentation, utilisez la propriété `api-name`. Le `api-name` correspond au nom du dossier contenant votre définition d'API.
+
+Cela fonctionne avec n'importe quelle combinaison de formats OpenAPI et Fern Definition. Par exemple :
+
+<Files>
+  <Folder name="fern" defaultOpen>
+    <File name="fern.config.json" />
+    <File name="docs.yml" />
+    <Folder name="plant-api" defaultOpen>
+      <File name="openapi.yml" comment="Spécification OpenAPI" />
+      <File name="generators.yml" comment="Référence la spécification OpenAPI" />
+    </Folder>
+    <Folder name="garden-api" defaultOpen>
+      <Folder name="definition" defaultOpen>
+        <File name="api.yml" />
+      </Folder>
+    </Folder>
+  </Folder>
+</Files>
+
+<Tabs>
+<Tab title="Mise en page simple">
+Pour une configuration simple sans onglets, vous pouvez inclure plusieurs références API directement dans votre navigation :
+
+```yaml title="docs.yml"
+navigation:
+  - api: Plant Store
+    api-name: plant-api   # Correspond au nom du dossier contenant votre définition d'API
+  - api: Garden
+    api-name: garden-api  # Correspond au nom du dossier contenant votre définition d'API
+```
+</Tab>
+<Tab title="Mise en page avec onglets">
+Lors de l'utilisation d'onglets, chaque référence API doit être placée dans le `layout` d'un onglet :
+
+```yaml title="docs.yml" {12, 17}
+tabs:
+  plant-api:
+    display-name: Plant Store API
+    icon: leaf
+  garden-api:
+    display-name: Garden API
+    icon: tree
+navigation:
+  - tab: plant-api
+    layout:
+      - api: Plant Store API
+        api-name: plant-api
+        skip-slug: true
+  - tab: garden-api
+    layout:
+      - api: Garden API
+        api-name: garden-api
+        skip-slug: true
+```
+</Tab>
+</Tabs>

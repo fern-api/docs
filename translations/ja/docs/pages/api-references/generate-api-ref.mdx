@@ -1,0 +1,106 @@
+---
+title: REST APIリファレンスの生成
+description: Fern Docsを使用して、OpenAPI仕様またはFern DefinitionからREST APIリファレンスドキュメントを生成します。
+---
+
+
+FernはREST APIリファレンスドキュメントを[OpenAPI仕様](/learn/api-definitions/openapi/overview)または[Fern Definition](/learn/api-definitions/ferndef/overview)から生成します。API定義のセットアップが完了したら、1行の設定を追加するだけでドキュメントに組み込めます。
+
+<Tip>
+  Fernは[gRPC](/learn/docs/api-references/generate-grpc-ref)、[WebSocket](/learn/docs/api-references/generate-websocket-ref)（AsyncAPIまたはFern Definition）、[OpenRPC](/learn/docs/api-references/generate-openrpc-ref)、[Webhook](/learn/docs/api-references/generate-webhook-ref)リファレンスもサポートしています。
+</Tip>
+
+## 設定
+
+<Steps>
+<Step title="プロジェクト構造をセットアップする">
+
+**OpenAPI/AsyncAPI**の場合：仕様ファイルを`/fern`ディレクトリに追加し、`api.specs`セクションで参照する`generators.yml`を作成します
+
+**Fern Definition**の場合：API定義ファイルを含む`definition/`ディレクトリを追加します（Fernが自動検出します）
+
+```yaml generators.yml
+api:
+  specs:
+    - openapi: "./openapi.yml"
+```
+
+
+</Step>
+<Step title="ナビゲーションにAPIリファレンスを追加する">
+
+`docs.yml`のナビゲーションに`- api: API Reference`を追加します：
+
+```yml docs.yml
+navigation:
+  - api: API Reference
+```
+
+Fernは、API定義からエンドポイント、型、コードスニペットを自動的に設定します。リクエストとレスポンスの例は、プレースホルダー値の代わりにリアルなデータを表示するために[AIを使用して生成](/learn/docs/ai-features/ai-examples)されます。
+</Step>
+<Step title="レイアウトをカスタマイズする">
+
+設定オプションとレイアウトのカスタマイズの一覧については、[APIリファレンスレイアウトのカスタマイズ](/learn/docs/api-references/customize-api-reference-layout)を参照してください。
+
+</Step>
+</Steps>
+
+### 複数のAPIリファレンスを含める
+
+ドキュメントに複数の異なるAPI定義を含めるには、`api-name`プロパティを使用します。`api-name`はAPI定義を含むフォルダ名に対応します。
+
+これは、OpenAPIとFern Definitionフォーマットの任意の組み合わせで動作します。例：
+
+<Files>
+  <Folder name="fern" defaultOpen>
+    <File name="fern.config.json" />
+    <File name="docs.yml" />
+    <Folder name="plant-api" defaultOpen>
+      <File name="openapi.yml" comment="OpenAPI仕様" />
+      <File name="generators.yml" comment="OpenAPI仕様を参照" />
+    </Folder>
+    <Folder name="garden-api" defaultOpen>
+      <Folder name="definition" defaultOpen>
+        <File name="api.yml" />
+      </Folder>
+    </Folder>
+  </Folder>
+</Files>
+
+<Tabs>
+<Tab title="フラットレイアウト">
+タブを使わないシンプルな設定では、複数のAPIリファレンスをナビゲーションに直接含めることができます：
+
+```yaml title="docs.yml"
+navigation:
+  - api: Plant Store
+    api-name: plant-api   # API定義を含むフォルダ名と一致
+  - api: Garden
+    api-name: garden-api  # API定義を含むフォルダ名と一致
+```
+</Tab>
+<Tab title="タブレイアウト">
+タブを使用する場合、各APIリファレンスはタブの`layout`内に配置する必要があります：
+
+```yaml title="docs.yml" {12, 17}
+tabs:
+  plant-api:
+    display-name: Plant Store API
+    icon: leaf
+  garden-api:
+    display-name: Garden API
+    icon: tree
+navigation:
+  - tab: plant-api  # 上で定義したタブを参照
+    layout:
+      - api: Plant Store API
+        api-name: plant-api  # API定義を含むフォルダ名と一致
+        skip-slug: true
+  - tab: garden-api  # 上で定義したタブを参照
+    layout:
+      - api: Garden API
+        api-name: garden-api  # API定義を含むフォルダ名と一致
+        skip-slug: true
+```
+</Tab>
+</Tabs>

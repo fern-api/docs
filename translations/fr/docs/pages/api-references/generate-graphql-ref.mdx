@@ -1,0 +1,83 @@
+---
+title: Générer une référence GraphQL
+description: Utilisez Fern Docs pour générer une documentation de référence API GraphQL à partir d'un schéma GraphQL.
+availability: pre-release
+---
+
+<Warning>La référence API GraphQL n'est pas activement maintenue. [Contactez-nous](https://buildwithfern.com/contact) si vous avez des questions.</Warning>
+
+Fern génère une documentation de référence API à partir d'un [schéma GraphQL](https://graphql.org/learn/schema/). Ajoutez votre fichier de schéma à votre projet Fern et Fern affiche les requêtes, mutations, abonnements et types sous forme de référence interactive.
+
+## Configuration
+
+<Steps>
+<Step title="Configurer la structure du projet">
+
+Ajoutez votre fichier de schéma GraphQL à votre répertoire `/fern` et créez un `generators.yml` qui le référence :
+
+```yaml generators.yml
+api:
+  specs:
+    - graphql: plants.schema.graphql
+      name: Plants
+      origin: https://api.example.com/plants/graphql
+```
+
+</Step>
+<Step title="Ajouter la référence GraphQL à la navigation">
+
+Ajoutez `- api: API Reference` à votre navigation dans `docs.yml` :
+
+```yml docs.yml
+navigation:
+  - api: API Reference
+```
+
+</Step>
+<Step title="Personnaliser la mise en page">
+
+Pour une liste complète des options de configuration et des personnalisations de mise en page, consultez [Personnaliser la mise en page de la référence API](/learn/docs/api-references/customize-api-reference-layout).
+
+</Step>
+</Steps>
+
+### Inclure plusieurs références GraphQL
+
+Pour inclure plusieurs définitions GraphQL dans votre documentation, utilisez la propriété `api-name`. Le `api-name` correspond au nom du dossier contenant votre schéma GraphQL.
+
+<Files>
+  <Folder name="fern" defaultOpen>
+    <File name="fern.config.json" />
+    <File name="docs.yml" />
+    <Folder name="plant-graphql" defaultOpen>
+      <File name="schema.graphql" comment="Schéma GraphQL Plant" />
+      <File name="generators.yml" />
+    </Folder>
+    <Folder name="garden-graphql" defaultOpen>
+      <File name="schema.graphql" comment="Schéma GraphQL Garden" />
+      <File name="generators.yml" />
+    </Folder>
+  </Folder>
+</Files>
+
+```yaml title="docs.yml"
+navigation:
+  - api: Plant GraphQL API
+    api-name: plant-graphql
+  - api: Garden GraphQL API
+    api-name: garden-graphql
+```
+
+### Propriétés de configuration
+
+<ParamField path="api.specs[].graphql" required>
+  Chemin vers votre fichier de schéma GraphQL. Vous pouvez inclure plusieurs spécifications GraphQL si votre projet expose plus d'une API GraphQL.
+</ParamField>
+
+<ParamField path="api.specs[].name">
+  Nom du dossier sous lequel les opérations de cette spécification apparaissent dans la barre latérale de la référence API. Utilisez ceci pour regrouper les opérations GraphQL associées.
+</ParamField>
+
+<ParamField path="api.specs[].origin">
+  URL de votre endpoint API GraphQL. Fern effectue une [introspection](https://graphql.org/learn/introspection/) sur cet endpoint pour récupérer le schéma. Lorsque défini, l'exécution de [`fern api update`](/learn/cli-api-reference/cli-reference/commands#fern-api-update) met à jour le schéma local depuis cet endpoint.
+</ParamField>

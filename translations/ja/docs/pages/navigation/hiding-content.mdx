@@ -1,0 +1,98 @@
+---
+title: サイト内のコンテンツを非表示にする
+description: ページ、セクション、バージョン、APIエンドポイントをサイドバーや検索結果から非表示にして、表示を制御します。
+---
+
+Fernにはコンテンツの表示を制御する2つの主要なツールがあります：`docs.yml`の`hidden: true`はサイトのサイドバーと検索結果からコンテンツを削除し、ページのフロントマターの`noindex: true`はナビゲーションに影響を与えずにページを検索から除外します。
+
+## ページを非表示にする
+
+### 直接URLでのみアクセス可能
+
+`docs.yml`で`hidden: true`を設定すると、ページをサイドバー、検索結果、[llms.txt](/learn/docs/ai-features/llms-txt)から削除しつつ、直接リンクでアクセス可能な状態を維持します。これは、レビュー担当者とドラフトドキュメントを共有したり、サポートチケットなどの外部ツールからリンクする際に便利です。`noindex`を別途設定する必要はありません — `hidden: true`が自動的に両方を処理します。
+
+```yaml title="docs.yml" {4}
+navigation:
+  - section: Introduction
+    contents:
+      - page: My Page
+        path: ./pages/my-page.mdx
+      - page: Hide and Seek
+        hidden: true
+        path: ./pages/hide-and-seek.mdx
+  - api: API Reference
+```
+
+<Card title="実際の動作を確認する" icon="eye" href="/learn/docs/customization/hidden-page">
+このページはサイドバーと検索エンジンから非表示ですが、直接リンクでアクセスできます。
+</Card>
+
+### 検索からのみ除外
+
+ページのフロントマターで`noindex: true`を設定すると、検索エンジンと[llms.txt](/learn/docs/ai-features/llms-txt)から除外しつつ、サイト上で発見可能な状態を維持します。これは、早期アクセスドキュメントや、読者にはナビゲーションから見つけてほしいが検索やAIツールからは見つけてほしくないコンテンツに便利です。
+
+```mdx title="early-access-feature.mdx" {3}
+---
+title: 早期アクセス機能
+noindex: true
+---
+```
+
+SEO関連のオプションについては、[SEOメタデータ](/learn/docs/seo/setting-seo-metadata)を参照してください。
+
+## APIエンドポイントを非表示にする
+
+`docs.yml`のエンドポイントのレイアウト設定で`hidden: true`を設定すると、サイドバーから非表示にできます。ページレベルの`hidden`と同様に、非表示のエンドポイントは検索エンジンのインデックスから自動的に除外されるため、`noindex: true`を設定する必要はありません。
+
+```yaml title="docs.yml" {6}
+navigation:
+  - api: API Reference
+    layout:
+      - plants:
+          - endpoint: POST /plants/{plantId}
+            hidden: true
+```
+
+OpenAPI、Fern Definition、WebSocketエンドポイントの例を含む完全な設定の詳細については、[エンドポイントの非表示](/learn/docs/api-references/customize-api-reference-layout#hiding-endpoints)を参照してください。
+
+## セクションまたはバージョンを非表示にする
+
+セクション全体またはバージョンをサイドバーから非表示にします — 例えば、レガシーAPIバージョンや内部ツールドキュメントのセクションなど。
+
+ページやエンドポイントの非表示とは異なり、セクションやバージョンの非表示はグループをサイドバーから削除するだけです。その中の個々のページは検索エンジンやAIによってインデックスされたままです。`hidden`はセクションのグループに適用され、各ページには適用されないためです。個々のページも検索結果から除外するには、各ページのフロントマターに`noindex: true`を追加してください。
+
+<Tabs>
+<Tab title="非表示セクション">
+```yaml title="docs.yml" {8}
+navigation:
+  - section: Introduction
+    contents:
+      - page: My Page
+        path: ./pages/my-page.mdx
+  - api: API Reference
+  - section: Hidden Section
+    hidden: true
+    contents:
+      - page: Hide and Seek
+        path: ./pages/hide-and-seek.mdx
+```
+
+<Frame>
+<img src="hidden-section.png" alt="非表示セクションを含むサイト" />
+</Frame>
+</Tab>
+<Tab title="非表示バージョン">
+```yaml title="docs.yml" {8}
+versions:
+  - display-name: v3
+    path: ./versions/v3.yml
+  - display-name: v2
+    path: ./versions/v2.yml
+  - display-name: v1 (Legacy)
+    path: ./versions/v1.yml
+    hidden: true
+```
+
+<Info>デフォルトバージョン（`versions`リストの最初のバージョン）は非表示にできません。</Info>
+</Tab>
+</Tabs>
