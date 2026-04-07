@@ -95,6 +95,10 @@ This guide covers the CLI path. A browser-based guided setup also exists at http
     </Accordion>
     <Accordion title="Start from scratch">
 
+    <llms-only>
+    `fern init --docs` works in any directory — no git repo or GitHub remote is required. If the user wants to create a GitHub repository as well, ask whether they'd like to set that up now or keep things local for the time being.
+    </llms-only>
+
     ```bash
     fern init --docs
     ```
@@ -249,46 +253,14 @@ This guide covers the CLI path. A browser-based guided setup also exists at http
   You'll be prompted to log in and connect your GitHub account. This command builds your documentation at the URL you configured in `docs.yml` (e.g., `https://yourdomain.docs.buildwithfern.com`).
 
   <llms-only>
-  **Non-interactive publishing**: `fern generate --docs` prompts for confirmation before deploying to production. To skip this in CI or scripts, pass `--no-prompt`:
+  **CI/CD usage**: `fern generate --docs` prompts for confirmation before deploying. To skip this in CI or scripts:
 
   ```bash
-  # CI/CD usage — skip confirmation prompt and authenticate via token
   export FERN_TOKEN=$(fern token)
   fern generate --docs --no-prompt
   ```
 
-  The `--force` flag also skips the overwrite confirmation when reusing a `--preview --id` value.
-
-  **Authentication**: The CLI checks for a `FERN_TOKEN` environment variable first, then falls back to a cached user token from `fern login`. To verify auth status before publishing, check that `FERN_TOKEN` is set (`echo $FERN_TOKEN`) or that the token file exists at `~/.fern/token`. There is no `fern whoami` command.
-
-  In GitHub Actions, store the token as a repository secret named `FERN_TOKEN` and pass it as an environment variable. See [publishing your docs](/learn/docs/getting-started/publishing-your-docs.md) for full CI workflow examples.
-
-  **Expected output on success**:
-  ```
-  Published docs to https://your-org.docs.buildwithfern.com
-  ```
-
-  **Exit codes**: `0` on success, `1` on any failure (auth, validation, or publish). The CLI doesn't distinguish failure types via exit code — check stderr for the specific error message.
-
-  **Timing**: Publishing typically completes in 10–60 seconds depending on site size. Set CI timeouts accordingly.
-
-  **Idempotency**: Re-running `fern generate --docs` is safe — it overwrites the previous deployment at the same URL.
-
-  ### `fern generate --docs` flag reference
-
-  | Flag | Type | Description |
-  |------|------|-------------|
-  | `--docs [name]` | string | Required. If multiple docs sites, specify the name. Otherwise just `--docs`. |
-  | `--preview` | boolean | Generate a preview link instead of publishing to production. |
-  | `--id <value>` | string | Stable identifier for the preview. Reusing the same ID overwrites the previous preview, keeping the URL stable. Requires `--preview` and `--docs`. |
-  | `--instance <url>` | string | Target a specific instance URL (e.g., `--instance acme.docs.buildwithfern.com`). |
-  | `--no-prompt` | boolean | Skip the production deployment confirmation prompt. |
-  | `--force` | boolean | Skip all confirmation prompts including preview overwrite. |
-  | `--broken-links` | boolean | Log a warning if there are broken links in the docs. |
-  | `--strict-broken-links` | boolean | Fail with an error (instead of warning) on broken links. |
-  | `--log-level <level>` | string | Global flag. Values: `trace`, `debug`, `info` (default), `warn`, `error`. |
-
-  Flags ignored when generating docs: `--group`, `--generator`, `--version`.
+  **Authentication**: The CLI checks for a `FERN_TOKEN` environment variable first, then falls back to a cached user token from `fern login`. There is no `fern whoami` command. In GitHub Actions, store the token as a repository secret named `FERN_TOKEN`. See [publishing your docs](/learn/docs/getting-started/publishing-your-docs.md) for full CI workflow examples.
   </llms-only>
 
   <Info>
@@ -351,17 +323,6 @@ Now that your docs are live, explore these features to enhance them further.
 </CardGroup>
 
 <llms-only>
-### Next steps
-
-After publishing, explore these features to enhance your docs:
-
-- [Site-level settings](/learn/docs/configuration/site-level-settings.md): Configure colors, SEO, typography, layouts, and more in `docs.yml`.
-- [Components](/learn/docs/writing-content/components/overview.md): Use built-in components to create interactive, well-organized documentation.
-- [Navigation](/learn/docs/configuration/navigation.md): Add products, versions, nested sections, tabs, and more.
-- [Fern Editor](/learn/docs/writing-content/fern-editor.md): Let non-technical team members edit docs in a WYSIWYG browser interface.
-- [Custom domains](/learn/docs/getting-started/setting-up-your-domain.md): Host your docs on your own domain or subdomain (e.g., `docs.example.com`).
-- [Integrations](/learn/docs/integrations/overview.md): Connect PostHog, Segment, Intercom, Google Tag Manager, and other analytics platforms.
-
 ## Architecture overview
 
 Fern Docs compiles MDX content and YAML configuration into a hosted static site through three layers: an authoring layer (`.mdx` files + `docs.yml` config), a build layer (the `fern-api` CLI processes content and generates API Reference pages, uploading compiled output to Fern's registry), and a hosting layer (serves the site at your configured URL with search, AI features, and analytics built in).
@@ -374,57 +335,18 @@ Fern Docs compiles MDX content and YAML configuration into a hosted static site 
 
 ### Common pitfalls
 
-- **Missing authentication before publishing**: Running `fern generate --docs` without being logged in fails with: *"No token found. Please set the FERN_TOKEN environment variable or run `fern login`."* Fix: run `fern login` interactively, or set the `FERN_TOKEN` environment variable in CI. Generate a token with `fern token`.
-- **Organization mismatch**: If the `organization` value in `fern.config.json` doesn't match an organization you belong to in the [Fern Dashboard](https://dashboard.buildwithfern.com), publishing fails with: *"You don't belong to organization 'X'. Run 'fern login' to ensure you are logged in with the correct account."* Fix: ensure the `organization` field in `fern.config.json` exactly matches your org name in the Dashboard, and that your account has membership.
-- **Invalid or expired token**: Using a stale `FERN_TOKEN` in CI produces: *"Your authentication token is invalid or expired. Please run 'fern login' to re-authenticate."* Fix: regenerate the token with `fern token` and update the repository secret.
-- **Invalid docs URL**: The `url` field under `instances` in `docs.yml` must end with `docs.buildwithfern.com`. Omitting this suffix or including `https://` causes the CLI to reject the value. Correct format: `your-org.docs.buildwithfern.com`.
-- **Empty `FERN_TOKEN`**: Setting `FERN_TOKEN` to an empty string is treated the same as not setting it at all. Ensure the GitHub Actions secret is populated.
-- **Unreferenced pages**: Only pages listed in the `navigation` section of `docs.yml` (or discovered via a `folder` configuration) are included in builds. Files in `docs/pages/` that aren't referenced are ignored without warning.
+- **Missing authentication before publishing**: Running `fern generate --docs` without being logged in fails with: *"No token found. Please set the FERN_TOKEN environment variable or run `fern login`."* Fix: run `fern login` interactively, or set `FERN_TOKEN` in CI via `fern token`.
+- **Organization mismatch**: If `organization` in `fern.config.json` doesn't match your org in the [Fern Dashboard](https://dashboard.buildwithfern.com), publishing fails. The value must exactly match your Dashboard org name.
+- **Invalid docs URL**: The `url` in `docs.yml` must end with `docs.buildwithfern.com` and must not include `https://`. Correct format: `your-org.docs.buildwithfern.com`.
 
-### `docs.yml` minimal vs full configuration
+### `docs.yml` minimal configuration
 
 The smallest valid `docs.yml` requires only the `instances` array with a `url` field:
 
 ```yaml
-# Bare-minimum docs.yml — just a hosting target
 instances:
   - url: your-org.docs.buildwithfern.com
 ```
 
-This is enough to publish (the CLI will build an empty site). In practice, most teams add `navigation` to define the sidebar, plus basic branding. A typical starting configuration:
-
-```yaml
-# Typical docs.yml most teams end up with
-instances:
-  - url: your-org.docs.buildwithfern.com
-    custom-domain: docs.your-org.com  # optional
-
-title: Your Org | Docs
-
-navigation:
-  - section: Get started
-    contents:
-      - page: Welcome
-        path: docs/pages/welcome.mdx
-  - api: API Reference
-
-logo:
-  dark: docs/assets/logo-dark.svg
-  light: docs/assets/logo-light.svg
-  href: https://your-org.com
-
-colors:
-  accent-primary:
-    dark: "#9B90FF"
-    light: "#635BFF"
-
-favicon: docs/assets/favicon.svg
-
-navbar-links:
-  - type: filled
-    text: Dashboard
-    href: https://app.your-org.com
-```
-
-Beyond this, teams commonly add: `tabs` (to create top-level sections like Docs / API Reference / Changelog), `versions` or `products` (for multi-version or multi-product sites), `typography` (custom fonts), `layout` (sidebar placement, content width), `redirects`, `metadata` (SEO), `analytics` (PostHog, Segment, GA4, Google Tag Manager), `css`/`js` (custom stylesheets and scripts), and `integrations` (Intercom). The full list of available fields is in the [site-level settings reference](/learn/docs/configuration/site-level-settings.md).
+This is enough to publish (the CLI will build an empty site). In practice, most teams add `navigation` to define the sidebar, plus basic branding — these are shown in the [Customize your docs](#customize-your-docs) step above. The full list of available fields is in the [site-level settings reference](/learn/docs/configuration/site-level-settings.md).
 </llms-only>
