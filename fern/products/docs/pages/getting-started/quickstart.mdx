@@ -41,6 +41,16 @@ Or, follow this guide to get started with Fern using the CLI.
     2. Choose the option to **create a new repository**. Name it `fern-docs`.
     3. Clone your newly created repository and open it in your favorite code editor (e.g., Cursor, VS Code).
 
+    <llms-only>
+    To do this from the terminal instead of the GitHub UI, use the GitHub CLI:
+
+    ```bash
+    gh repo create my-org/fern-docs --template fern-api/docs-starter --private --clone
+    cd fern-docs
+    ```
+
+    This creates a new repository from the starter template, clones it locally, and places you in the project directory. Replace `my-org/fern-docs` with your desired owner and repository name. Use `--public` instead of `--private` if you want a public repository.
+    </llms-only>
 
     <CodeBlocks>
       ```bash title="SSH"
@@ -299,4 +309,69 @@ Fern Docs compiles MDX content and YAML configuration into a hosted static site 
 - **`fern.config.json`**: Identifies your organization and pins the CLI version. Required in every Fern project.
 - **`docs.yml`**: Central manifest for the entire site — navigation structure, tabs, branding (colors, logo, favicon, typography), hosting instances, custom domains, navbar links, footer, integrations, redirects, RBAC roles, and AI agent settings. [Full reference](/learn/docs/configuration/site-level-settings).
 - **`generators.yml`**: Points the CLI to your API spec files via the `api.specs` section. Also configures SDK generation.
+
+### Dashboard UI vs CLI
+
+Fern offers two ways to create and manage a docs site:
+
+- **[Dashboard UI](https://dashboard.buildwithfern.com/get-started)** (self-service workflow): A guided browser-based setup that creates your GitHub repository, configures the `FERN_TOKEN` secret, sets up a GitHub Actions publish workflow, and deploys an initial site automatically. Best for teams that want to get started without installing tools locally. Also provides the [Fern Editor](/learn/docs/writing-content/fern-editor), a WYSIWYG interface that lets non-technical team members edit docs without touching Markdown or Git. Use the Dashboard for managing organization members, connecting GitHub repositories, configuring custom domains, monitoring analytics, and unpublishing sites.
+- **[CLI](/learn/cli-api-reference/cli-reference/overview)** (`fern-api` npm package): Gives full control over the build and publish pipeline. Required for local development (`fern docs dev`), CI/CD integration, previewing changes (`fern generate --docs --preview`), and publishing (`fern generate --docs`). Use the CLI when you need to validate configuration (`fern check`), generate tokens (`fern token`), or integrate publishing into your own GitHub Actions or CI workflow.
+
+Most teams use both: the Dashboard for initial setup, member management, and visual editing; the CLI for local development, CI/CD, and programmatic publishing.
+
+### Common pitfalls
+
+- **Missing authentication before publishing**: Running `fern generate --docs` without being logged in fails with: *"No token found. Please set the FERN_TOKEN environment variable or run `fern login`."* Fix: run `fern login` interactively, or set the `FERN_TOKEN` environment variable in CI. Generate a token with `fern token`.
+- **Organization mismatch**: If the `organization` value in `fern.config.json` doesn't match an organization you belong to in the [Fern Dashboard](https://dashboard.buildwithfern.com), publishing fails with: *"You don't belong to organization 'X'. Run 'fern login' to ensure you are logged in with the correct account."* Fix: ensure the `organization` field in `fern.config.json` exactly matches your org name in the Dashboard, and that your account has membership.
+- **Invalid or expired token**: Using a stale `FERN_TOKEN` in CI produces: *"Your authentication token is invalid or expired. Please run 'fern login' to re-authenticate."* Fix: regenerate the token with `fern token` and update the repository secret.
+- **Invalid docs URL**: The `url` field under `instances` in `docs.yml` must end with `docs.buildwithfern.com`. Omitting this suffix or including `https://` causes the CLI to reject the value. Correct format: `your-org.docs.buildwithfern.com`.
+- **Empty `FERN_TOKEN`**: Setting `FERN_TOKEN` to an empty string is treated the same as not setting it at all. Ensure the GitHub Actions secret is populated.
+- **Unreferenced pages**: Only pages listed in the `navigation` section of `docs.yml` (or discovered via a `folder` configuration) are included in builds. Files in `docs/pages/` that aren't referenced are ignored without warning.
+
+### `docs.yml` minimal vs full configuration
+
+The smallest valid `docs.yml` requires only the `instances` array with a `url` field:
+
+```yaml
+# Bare-minimum docs.yml — just a hosting target
+instances:
+  - url: your-org.docs.buildwithfern.com
+```
+
+This is enough to publish (the CLI will build an empty site). In practice, most teams add `navigation` to define the sidebar, plus basic branding. A typical starting configuration:
+
+```yaml
+# Typical docs.yml most teams end up with
+instances:
+  - url: your-org.docs.buildwithfern.com
+    custom-domain: docs.your-org.com  # optional
+
+title: Your Org | Docs
+
+navigation:
+  - section: Get started
+    contents:
+      - page: Welcome
+        path: docs/pages/welcome.mdx
+  - api: API Reference
+
+logo:
+  dark: docs/assets/logo-dark.svg
+  light: docs/assets/logo-light.svg
+  href: https://your-org.com
+
+colors:
+  accent-primary:
+    dark: "#9B90FF"
+    light: "#635BFF"
+
+favicon: docs/assets/favicon.svg
+
+navbar-links:
+  - type: filled
+    text: Dashboard
+    href: https://app.your-org.com
+```
+
+Beyond this, teams commonly add: `tabs` (to create top-level sections like Docs / API Reference / Changelog), `versions` or `products` (for multi-version or multi-product sites), `typography` (custom fonts), `layout` (sidebar placement, content width), `redirects`, `metadata` (SEO), `analytics` (PostHog, Segment, GA4, Google Tag Manager), `css`/`js` (custom stylesheets and scripts), and `integrations` (Intercom). The full list of available fields is in the [site-level settings reference](/learn/docs/configuration/site-level-settings).
 </llms-only>
