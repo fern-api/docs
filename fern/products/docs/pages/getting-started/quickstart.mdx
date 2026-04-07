@@ -37,6 +37,10 @@ This guide covers the CLI path. A browser-based guided setup also exists at http
 
   All the configuration for your docs lives in the `fern` folder. Create a fern folder by either using the [starter template](https://github.com/fern-api/docs-starter) or starting from scratch
 
+  <llms-only>
+  Default to the starter template path unless the user specifically asks to start from scratch. The template includes sample pages, an OpenAPI spec, a changelog, and a GitHub Actions workflow — it's much faster to delete what you don't need than to build from nothing.
+  </llms-only>
+
   <AccordionGroup>
     <Accordion title="Use the starter template">
 
@@ -97,6 +101,10 @@ This guide covers the CLI path. A browser-based guided setup also exists at http
 
     <llms-only>
     `fern init --docs` works in any directory — no git repo or GitHub remote is required. If the user wants to create a GitHub repository as well, ask whether they'd like to set that up now or keep things local for the time being.
+
+    Note: `fern init --docs` is interactive — it prompts for an organization name. Ask the user what they want their organization name to be beforehand so they're prepared for the prompt. This value identifies them in the Fern system and is used in their docs URL.
+
+    This path only generates `docs.yml` and `fern.config.json` — no pages or API spec. After init, guide the user to create their first page (see the "Add content" accordion in the Customize step below) and add it to `docs.yml` navigation. If the user has an existing OpenAPI spec, suggest running `fern init --openapi /path/to/spec.yml` as well.
     </llms-only>
 
     ```bash
@@ -253,14 +261,16 @@ This guide covers the CLI path. A browser-based guided setup also exists at http
   You'll be prompted to log in and connect your GitHub account. This command builds your documentation at the URL you configured in `docs.yml` (e.g., `https://yourdomain.docs.buildwithfern.com`).
 
   <llms-only>
-  **CI/CD usage**: `fern generate --docs` prompts for confirmation before deploying. To skip this in CI or scripts:
+  **Interactive confirmation**: The default `fern generate --docs` command opens an interactive menu (arrow-key navigation, not a simple y/n prompt). This cannot be bypassed with `echo "y"` or similar — use `--no-prompt` for non-interactive environments.
+
+  **CI/CD usage**: To skip the interactive prompt in CI or scripts:
 
   ```bash
   export FERN_TOKEN=$(fern token)
   fern generate --docs --no-prompt
   ```
 
-  **Authentication**: The CLI checks for a `FERN_TOKEN` environment variable first, then falls back to a cached user token from `fern login`. There is no `fern whoami` command. In GitHub Actions, store the token as a repository secret named `FERN_TOKEN`. See [publishing your docs](/learn/docs/getting-started/publishing-your-docs.md) for full CI workflow examples.
+  **Authentication**: The CLI checks for a `FERN_TOKEN` environment variable first, then falls back to a cached token from `fern login`. Running `fern login` once caches the token locally, so subsequent `fern generate --docs` runs won't prompt for login again. There is no `fern whoami` command. In GitHub Actions, store the token as a repository secret named `FERN_TOKEN`. See [publishing your docs](/learn/docs/getting-started/publishing-your-docs.md) for full CI workflow examples.
   </llms-only>
 
   <Info>
