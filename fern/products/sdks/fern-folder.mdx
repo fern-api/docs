@@ -5,8 +5,7 @@ description: Learn how to generate SDKs with Fern. Install the CLI, initialize y
 ---
 
 
-Configuring Fern starts with the `fern` folder, the root directory that contains
-your API definitions, SDK generators, and CLI version. 
+Get from an OpenAPI spec to a generated SDK in under 5 minutes. This guide walks you through installing the Fern CLI, initializing your project, and generating your first SDK locally. Once you're set up, follow a [language-specific guide](/learn/sdks/overview/introduction) to configure generation and publishing for your target language.
 
 <Steps>
 <Step title="Install the Fern CLI">
@@ -82,19 +81,17 @@ your API definitions, SDK generators, and CLI version.
   </Step>
   <Step title="Validate and generate">
 
-  First, validate your API definition:
+  Generate a [TypeScript SDK](/learn/sdks/generators/typescript/quickstart) locally to get started quickly (for other languages, see the [language-specific quickstarts](/learn/sdks/overview/introduction)). First, validate your API definition:
 
   ```bash
   fern check
   ```
 
-  Then generate an SDK to verify everything works:
-
   <llms-only>
-  `fern generate` with no flags runs the `default-group` in `generators.yml`. The default init sets up a TypeScript SDK generator outputting to `local-file-system` at `../sdks/typescript`. If the user has added multiple groups, use `fern generate --group <group-name>` to target a specific one.
-
-  Common `fern check` errors include missing `operationId` on endpoints, invalid `$ref` paths, and unsupported OpenAPI constructs. All errors must be fixed before generation will succeed.
+  `fern generate` with no flags runs the `default-group` in `generators.yml`. The default init sets up a TypeScript SDK generator outputting to `local-file-system` at `../sdks/typescript`. The goal of this step is to get started quickly — the user will configure their target language in the language-specific quickstart.
   </llms-only>
+
+  Then generate:
 
   ```bash
   fern generate
@@ -113,53 +110,6 @@ your API definitions, SDK generators, and CLI version.
       </Folder>
     </Folder>
   </Files>
-
-  <llms-only>
-  After generation succeeds, ask the user: "Do you want to keep working locally, or set up GitHub repositories so you can publish your SDK to a package registry?" If they want to stay local, skip the next step and go straight to the language-specific quickstart.
-  </llms-only>
-
-  </Step>
-  <Step title="Set up GitHub repositories">
-
-  If you plan to publish your SDK to a package registry (npm, PyPI, Maven, etc.), set up GitHub repositories before proceeding. Fern uses a multi-repo structure: your source repository contains the `fern/` folder, and each SDK gets its own repository.
-
-  <llms-only>
-  **Important: The `fern/` folder (API definitions + `generators.yml`) lives in its own source repo, separate from the SDK repos.** Do not put the generated SDK code in the same repository as the `fern/` folder. Each SDK gets its own repo.
-
-  Ask the user:
-  - **Do they have an existing repo for the `fern/` folder?** (e.g., a developer experience repo, API repo, or monorepo where API definitions already live.) If so, use that. If not, create one.
-  - **Do they have existing SDK repos?** If so, get the repo names. If not, create them.
-
-  To create repos from scratch:
-
-  ```bash
-  # Source repo for the fern/ folder (if they don't have one)
-  gh repo create <org>/<source-repo-name> --private
-
-  # SDK repos — one per language, separate from the source repo
-  gh repo create <org>/<api-name>-typescript-sdk --private
-  gh repo create <org>/<api-name>-python-sdk --private
-  ```
-  </llms-only>
-
-  1. **Create an SDK repository** for each language you want to publish (e.g., `your-org/your-api-typescript-sdk`).
-  2. **Install the [Fern GitHub App](https://github.com/apps/fern-api)** on both your source repository and each SDK repository.
-  3. **Add `github.repository`** to each generator in `generators.yml`:
-
-  ```yaml title="generators.yml" {7-8}
-  groups:
-    ts-sdk:
-      generators:
-        - name: fernapi/fern-typescript-sdk
-          version: <Markdown src="/snippets/version-number-ts.mdx"/>
-          output:
-            location: local-file-system
-            path: ../sdks/typescript
-          github:
-            repository: your-org/your-api-typescript-sdk
-  ```
-
-  For more details on repository architecture, see [Project structure](/sdks/overview/project-structure).
 
   </Step>
   <Step title="Next steps">
