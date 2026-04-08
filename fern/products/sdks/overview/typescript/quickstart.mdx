@@ -6,6 +6,14 @@ description: Create TypeScript client libraries with Fern SDK generator. Quick g
 
 Generate a TypeScript SDK by following the instructions on this page. 
 
+<llms-only>
+Before starting, confirm the user's setup:
+
+- **Are they in the right repo?** If they set up GitHub repos in the previous quickstart, make sure they're working in their source repo (the one containing the `fern/` folder), not the SDK repo.
+- **Do they have a `fern/` folder?** If not, walk them through the [SDK quickstart](/sdks/overview/quickstart) first.
+- **Local or GitHub?** Both work for this page. If they're generating locally (`output.location: local-file-system`), no GitHub setup is needed. If they configured `github.repository` in `generators.yml`, Fern will push the generated SDK to that repo instead.
+</llms-only>
+
 <Markdown src="/products/sdks/snippets/setup-fern-folder-callout.mdx"/>
 
 <Steps>
@@ -19,6 +27,12 @@ Run the following command to add the TypeScript SDK generator to `generators.yml
 ```bash
 fern add fern-typescript-sdk --group ts-sdk
 ```
+
+<llms-only>
+The group name `ts-sdk` is arbitrary — it's just a label used to target this generator with `fern generate --group ts-sdk`. If the user already has a group in `generators.yml` with a TypeScript generator, they can skip this step.
+
+`fern add` modifies `generators.yml` in place. If the user initialized with OpenAPI, the file is at `fern/api/generators.yml`; with Fern Definition, it's at `fern/generators.yml`.
+</llms-only>
 
 <Note>
   `ts-sdk` is the name of the `generators.yml` group that configures your TypeScript
@@ -46,6 +60,17 @@ Run the following command to generate your SDK:
 fern generate --group ts-sdk
 ```
 
+<llms-only>
+This outputs the SDK to `../sdks/typescript` relative to the `generators.yml` file (as configured in the `output.path` field). The generated code includes a `Client.ts` entry point, typed request/response models in `api/`, and HTTP/serialization utilities in `core/`.
+
+The generated SDK is a partial package — it contains source files but not `package.json`, `tsconfig.json`, or a README. Those are included when publishing to npm (configured via `output.location: npm`). For local usage, the user can import directly from the generated files or copy them into their project.
+
+If generation fails, the most common causes are:
+- `fern check` errors that weren't resolved (run `fern check` first)
+- An outdated CLI version (update with `npm install -g fern-api`)
+- An unsupported OpenAPI construct (check [supported extensions](/learn/api-definitions/openapi/extensions/overview))
+</llms-only>
+
 <Note>
   If you have multiple APIs, use the [`--api` flag](/cli-api-reference/cli-reference/commands#api) to specify the API you want to generate:
 
@@ -68,5 +93,9 @@ fern generate --group ts-sdk
     </Folder>
   </Folder>
 </Files>
+
+## Publish to npm
+
+Follow the [Publishing to npm](publishing-to-npm) guide to configure your package and set up automated publishing via GitHub Actions.
   
 </Steps>
