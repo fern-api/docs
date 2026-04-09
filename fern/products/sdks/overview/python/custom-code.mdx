@@ -1,7 +1,7 @@
 ---
 title: Adding custom code
 headline: Adding custom code (Python)
-description: Learn how to add custom logic, methods, and dependencies to your Python SDK. Extend Fern-generated clients with custom code.
+description: Learn how to add custom logic, methods, and dependencies to your Python SDK. Extend Fern-generated clients and models with custom code.
 ---
 
 
@@ -42,79 +42,133 @@ To get started adding custom code:
     ```
 </Steps>
 
-    ## Adding custom SDK methods
+## Adding custom client methods
 
-    <Markdown src="/products/sdks/snippets/custom-sdk-methods-intro.mdx"/>
+<Markdown src="/products/sdks/snippets/custom-sdk-methods-intro.mdx"/>
 
-    <Note>
-      See an example from ElevenLabs using this process in their [Python SDK](https://github.com/elevenlabs/elevenlabs-python/blob/main/src/elevenlabs/client.py).
-    </Note>
+<Note>
+  See an example from ElevenLabs using this process in their [Python SDK](https://github.com/elevenlabs/elevenlabs-python/blob/main/src/elevenlabs/client.py).
+</Note>
 
-    <Steps>
-      ### Update `generators.yml` configuration
+<Steps>
+  ### Update `generators.yml` configuration
 
-      Name your Fern-generated client something like `BaseClient` to reflect
-      that this client will be extended. Configure the generator to output the
-      client in a file called `base_client.py`.
+  Name your Fern-generated client something like `BaseClient` to reflect
+  that this client will be extended. Configure the generator to output the
+  client in a file called `base_client.py`.
 
-      ```yaml {4-8} title="generators.yml"
-      - name: fernapi/fern-python-sdk
-        version: "..."
-        config:
-          client:
-            class_name: BaseClient        # The name of the generated client you will extend
-            filename: base_client.py      # The name of the file the generated client will live in
-            exported_class_name: YourClient   # The name of the class you will be creating that extends the generated client
-            exported_filename: client.py
-      ```
-      ### Generate the SDK
+  ```yaml {4-8} title="generators.yml"
+  - name: fernapi/fern-python-sdk
+    version: "..."
+    config:
+      client:
+        class_name: BaseClient        # The name of the generated client you will extend
+        filename: base_client.py      # The name of the file the generated client will live in
+        exported_class_name: YourClient   # The name of the class you will be creating that extends the generated client
+        exported_filename: client.py
+  ```
 
-      Trigger SDK generation by running `fern generate`:
+  ### Generate the SDK
 
-      ```bash
-      fern generate --group sdk
-      ```
+  Trigger SDK generation by running `fern generate`:
 
-      ### Import and extend the generated client
+  ```bash
+  fern generate --group sdk
+  ```
 
-      First, import the Fern generated base clients from `.base_client.py` and extend them to create your custom clients. Then, add whatever methods you want.
+  ### Import and extend the generated client
 
-    ```python title="src/<package>/client.py"
-      from .base_client import BaseClient // import generated client
-      
-      class YourClient(BaseClient): // extend generated client
-          def my_helper(self) -> None:
-              print("Hello World!")
-              def my_helper(self) -> None:
-                  print("Hello World")
-        ```
-      <Note>
-      See an example [client.py](https://github.com/elevenlabs/elevenlabs-python/blob/main/src/elevenlabs/client.py) from ElevenLabs.
-    </Note>
+  Import the Fern-generated base clients from `base_client.py` and extend them to create your custom clients. Then, add your custom methods.
 
+  ```python title="src/<package>/client.py"
+  from .base_client import BaseClient  # import generated client
 
-      ### Update `.fernignore`
+  class YourClient(BaseClient):  # extend generated client
+      def my_helper(self) -> None:
+          print("Hello World!")
+  ```
 
-      Add the `client.py` to `.fernignore`.
+  <Note>
+    See an example [client.py](https://github.com/elevenlabs/elevenlabs-python/blob/main/src/elevenlabs/client.py) from ElevenLabs.
+  </Note>
 
-        ```diff title=".fernignore"
-        + src/<package>/client.py
-        ```
+  ### Update `.fernignore`
 
-        <Note>
-      See an example [.fernignore](https://github.com/elevenlabs/elevenlabs-python/blob/main/.fernignore) from ElevenLabs.
-    </Note>
+  Add `client.py` to `.fernignore`.
 
+  ```diff title=".fernignore"
+  + src/<package>/client.py
+  ```
 
-      ### Consume the method
+  <Note>
+    See an example [.fernignore](https://github.com/elevenlabs/elevenlabs-python/blob/main/.fernignore) from ElevenLabs.
+  </Note>
 
-      <Markdown src="/products/sdks/snippets/consume-method.mdx"/>
+  ### Consume the method
 
-      ```python
-      client.my_helper()
-      ```
-    </Steps>
+  <Markdown src="/products/sdks/snippets/consume-method.mdx"/>
 
+  ```python
+  client.my_helper()
+  ```
+</Steps>
+
+## Adding custom methods to models
+
+You can extend the Pydantic models that Fern generates for your API's types. This is useful when you want to add convenience methods, computed properties, or domain-specific logic directly to the objects your SDK returns.
+
+<Steps>
+  ### Create a custom model that extends the generated type
+
+  Fern generates Pydantic models in the `types/` directory. To add methods, create a new file that imports and extends the generated model.
+
+  For example, if your API defines a `Plant` type, Fern generates a `Plant` model. You can extend it:
+
+  ```python title="src/<package>/custom_plant.py"
+  from .types.plant import Plant as BasePlant
+
+  class Plant(BasePlant):
+      def get_full_description(self) -> str:
+          return f"{self.name} ({self.species})"
+  ```
+
+  ### Update `.fernignore`
+
+  Add your custom model file to `.fernignore` so Fern doesn't overwrite it.
+
+  ```diff title=".fernignore"
+  + src/<package>/custom_plant.py
+  ```
+
+  ### Export your custom model
+
+  To make your custom model available as part of the SDK's public API, use the [`additional_init_exports`](/sdks/generators/python/configuration#additional_init_exports) option in `generators.yml`:
+
+  ```yaml {4-7} title="generators.yml"
+  - name: fernapi/fern-python-sdk
+    version: "..."
+    config:
+      additional_init_exports:
+        - from: custom_plant
+          imports:
+            - Plant
+  ```
+
+  ### Consume the custom model
+
+  Users can import and use your extended model with its custom methods.
+
+  ```python
+  from package import Plant
+
+  plant = Plant(name="Monstera", species="Monstera deliciosa")
+  print(plant.get_full_description())  # "Monstera (Monstera deliciosa)"
+  ```
+</Steps>
+
+<Note>
+  This approach works for adding methods to any Fern-generated Pydantic model, including request and response types. Since your custom class inherits from the generated model, it retains all original fields and serialization behavior.
+</Note>
 
 ## Adding custom dependencies
 
@@ -122,12 +176,12 @@ To get started adding custom code:
 
 To add packages that your custom code requires, update your `generators.yml`.
 
-      ```yaml {4-7} title="generators.yml"
-      - name: fernapi/fern-python-sdk
-        version: "..."
-        config:
-          extra_dependencies:
-            numpy: '1.2.0'
-          extra_dev_dependencies:
-            requests_mock: '1.12.1'
-      ```
+```yaml {4-7} title="generators.yml"
+- name: fernapi/fern-python-sdk
+  version: "..."
+  config:
+    extra_dependencies:
+      numpy: '1.2.0'
+    extra_dev_dependencies:
+      requests_mock: '1.12.1'
+```
