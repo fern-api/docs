@@ -1,0 +1,78 @@
+---
+title: aiohttp support
+headline: aiohttp support (Python)
+description: Fern-generated Python SDKs auto-detect aiohttp for async HTTP operations, resolving DNS concurrency issues without requiring code changes.
+---
+
+
+Fern-generated Python SDKs include built-in support for [aiohttp](https://docs.aiohttp.org/) as an async HTTP transport. When the `httpx_aiohttp` package is installed, the generated async client uses it automatically instead of the default `httpx.AsyncClient`, resolving DNS concurrency issues that can occur in high-throughput async contexts.
+
+No code changes are required. Install the optional extra and the SDK handles the rest.
+
+## Why use aiohttp
+
+Python's `httpx.AsyncClient` uses `asyncio.getaddrinfo` for DNS resolution, which can serialize lookups under heavy concurrency. The `aiohttp` transport layer uses its own resolver, avoiding this bottleneck. If your application makes many concurrent async API calls, enabling aiohttp support can improve throughput and reduce latency.
+
+## Installation
+
+Install the SDK with the `aiohttp` optional extra:
+
+```bash
+pip install your-package[aiohttp]
+```
+
+Or with Poetry:
+
+```bash
+poetry add "your-package[aiohttp]"
+```
+
+This installs two additional dependencies:
+
+- `aiohttp` — the async HTTP framework
+- `httpx-aiohttp` — a bridge that lets `httpx` use `aiohttp` as its transport
+
+## How auto-detection works
+
+The generated async client checks at runtime whether `httpx_aiohttp` is importable:
+
+- **With `[aiohttp]` installed:** async operations use the aiohttp transport automatically.
+- **Without `[aiohttp]` installed:** async operations use the default httpx transport, with no change in behavior.
+
+If a custom `httpx_client` is passed to the async client constructor, that client is used as-is and auto-detection is skipped.
+
+## Generated dependencies
+
+The generated `pyproject.toml` includes an `[aiohttp]` optional dependency group:
+
+```toml title="pyproject.toml"
+[tool.poetry.extras]
+aiohttp = ["aiohttp", "httpx-aiohttp"]
+```
+
+The generator also produces a `_default_clients.py` module and a test file (`tests/test_aiohttp_autodetect.py`) that verifies auto-detection for both the with and without `httpx_aiohttp` scenarios.
+
+## CI testing
+
+The generated GitHub Actions workflow includes a two-pass test strategy:
+
+1. **Standard tests** — runs the full test suite without the aiohttp extra.
+2. **aiohttp tests** — installs the extra and runs tests marked with `@pytest.mark.aiohttp`.
+
+To run aiohttp-specific tests locally:
+
+```bash
+poetry install --extras aiohttp
+poetry run pytest -m aiohttp
+```
+
+To run all tests including aiohttp:
+
+```bash
+poetry install --extras aiohttp
+poetry run pytest
+```
+
+<Note>
+If you use the `extras` configuration option in `generators.yml` to define your own extras, the built-in `aiohttp` extra is merged with your custom configuration automatically.
+</Note>
