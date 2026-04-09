@@ -3,23 +3,37 @@ title: Standalone search widget
 description: Embed Fern's AI-powered search on any React site using the @fern-api/search-widget package.
 ---
 
-The `@fern-api/search-widget` package provides a standalone React component that brings Ask Fern's AI-powered search to any website, not just your Fern Docs site. Use it to embed a search modal in your dashboard, marketing site, or any React application.
+The [`@fern-api/search-widget`](https://www.npmjs.com/package/@fern-api/search-widget) package provides a standalone React component that brings Ask Fern's AI-powered search to any website. Use it to embed a search modal in your dashboard, marketing site, or any React application — outside of your Fern Docs site.
 
-<Note>
-  The search widget requires React 19. All other dependencies are bundled.
-</Note>
+## Prerequisites
+
+- **React 19** — the widget requires React 19. All other dependencies are bundled.
+- **A live Fern Docs site with AI search enabled** — the widget connects to your published docs site to fetch search results. Enable Ask Fern in the [Fern Dashboard](https://dashboard.buildwithfern.com/) under **Settings > Ask AI**. See [Ask Fern overview](/learn/docs/ai-features/ask-fern/overview) for setup details.
+
+## When to use this
+
+Use the standalone search widget when you want to surface your documentation search outside of your Fern Docs site:
+
+- **Product dashboards** — embed a search bar in your app so users can find relevant documentation without leaving their workflow.
+- **Marketing or landing pages** — let visitors search your documentation directly from your website.
+- **Internal tools** — add documentation search to admin panels, support portals, or developer consoles.
+- **Custom help centers** — build a branded help experience that pulls answers from your existing docs.
+
+## Demo
+
+See the widget in action in the [live demo](https://fern-demo.github.io/fern-search-widget-demo/), or browse the [demo repository](https://github.com/fern-demo/fern-search-widget-demo) for a complete working example built with Vite and React 19.
 
 ## Installation
 
 <CodeBlocks>
 ```bash npm
-npm install @fern-api/search-widget react react-dom
+npm install @fern-api/search-widget react@19 react-dom@19
 ```
 ```bash pnpm
-pnpm add @fern-api/search-widget react react-dom
+pnpm add @fern-api/search-widget react@19 react-dom@19
 ```
 ```bash yarn
-yarn add @fern-api/search-widget react react-dom
+yarn add @fern-api/search-widget react@19 react-dom@19
 ```
 </CodeBlocks>
 
@@ -40,7 +54,7 @@ function App() {
 }
 ```
 
-The `domain` prop should point to your Fern Docs site (for example, `https://buildwithfern.com/learn`). The component renders a button that opens a search modal when clicked.
+The `domain` prop should point to your published Fern Docs site (for example, `https://buildwithfern.com/learn`). The component renders a button that opens a search modal when clicked.
 
 ## Props
 
@@ -48,7 +62,7 @@ The `domain` prop should point to your Fern Docs site (for example, `https://bui
 
 | Prop | Type | Description |
 | --- | --- | --- |
-| `domain` | `string` | The documentation domain to search against (for example, `https://docs.example.com`). |
+| `domain` | `string` | The URL of your published Fern Docs site (for example, `https://docs.example.com`). |
 
 ### Optional
 
@@ -62,90 +76,22 @@ The `domain` prop should point to your Fern Docs site (for example, `https://bui
 | `disabled` | `boolean` | — | Disables the button. |
 | `onClick` | `function` | — | Additional click handler that runs before the modal opens. |
 
-All standard HTML button attributes are also supported and forwarded to the trigger button.
+All standard HTML button attributes are also supported and forwarded to the trigger button. For full details on props and styling the trigger button, see the [package README](https://www.npmjs.com/package/@fern-api/search-widget).
 
-## Styling the button
+## Authentication
 
-The `SearchModal` component renders a `<button>` element that you can style in three ways.
+The widget automatically handles authentication for public documentation. When the button mounts, it fetches a scoped Algolia search key from your docs site's API. No manual key management is required.
 
-### Inline styles
+<AccordionGroup>
+  <Accordion title="Auth-protected documentation">
+    If your docs site uses [authentication](/learn/docs/authentication/overview) (SSO, JWT, or password protection), the widget respects your auth configuration. For server-side integrations that need to access auth-protected content, pass a `FERN_API_KEY` header when fetching the search key. The API key must belong to the organization that owns the docs site.
 
-```tsx
-<SearchModal
-  domain="https://docs.example.com"
-  lang="en"
-  style={{
-    padding: '0.75rem 1.5rem',
-    background: '#2563eb',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-  }}
->
-  Search Documentation
-</SearchModal>
-```
-
-### CSS classes
-
-```tsx
-<SearchModal
-  domain="https://docs.example.com"
-  lang="en"
-  className="my-search-button"
->
-  Search
-</SearchModal>
-```
-
-```css
-.my-search-button {
-  padding: 0.75rem 1.5rem;
-  background: #2563eb;
-  color: white;
-  border: none;
-  border-radius: 6px;
-}
-```
-
-### Default class
-
-Target the built-in `fern-search-button` class:
-
-```css
-.fern-search-button {
-  padding: 0.75rem 1.5rem;
-  background: #2563eb;
-  color: white;
-}
-```
-
-## Full example
-
-```tsx
-import { SearchModal } from '@fern-api/search-widget';
-import '@fern-api/search-widget/styles';
-
-function App() {
-  return (
-    <div className="app">
-      <header>
-        <h1>My Documentation</h1>
-        <SearchModal
-          domain="https://docs.mysite.com"
-          lang="en"
-          className="search-trigger"
-        >
-          Search Docs
-        </SearchModal>
-      </header>
-    </div>
-  );
-}
-
-export default App;
-```
+    You can also pass a `ROLES` header (comma-separated) to scope search results to specific [RBAC roles](/learn/docs/authentication/features/rbac).
+  </Accordion>
+  <Accordion title="Self-hosted and local preview limitations">
+    The AI chat feature isn't available in self-hosted or local preview environments. Keyword search still functions, but AI-powered answers require a live, cloud-hosted Fern Docs site.
+  </Accordion>
+</AccordionGroup>
 
 ## Troubleshooting
 
@@ -158,10 +104,11 @@ export default App;
     ```
   </Accordion>
   <Accordion title="Button shows 'Loading...' or disappears">
-    The button fetches an API key from your docs domain on mount. Check that:
+    The button fetches a search key from your docs domain on mount. Check that:
 
-    - The `domain` prop points to a valid Fern Docs site.
-    - Network requests to `{domain}/api/fern-docs/search/api-key` succeed.
+    - The `domain` prop points to your live, published Fern Docs site (not `localhost`).
+    - Ask Fern (AI search) is enabled for the site.
+    - Network requests to `{domain}/api/fern-docs/search/v2/key` succeed.
     - Your browser console has no CORS or network errors.
   </Accordion>
   <Accordion title="Modal does not open">
