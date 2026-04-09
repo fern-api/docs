@@ -161,3 +161,45 @@ sequenceDiagram
     CLI->>CLI: Run container, generate SDK
     CLI->>CLI: Push to output (local/GitHub)
 ```
+
+## Custom container registry
+
+By default, `fern generate --local` pulls generator Docker images from Docker Hub. If your organization mirrors Fern's images into a private registry, you can configure the CLI to pull from that registry instead.
+
+<Note>
+Custom container registries are only supported with local generation (`--local`). Remote generation through Fern's cloud infrastructure doesn't support custom registries.
+</Note>
+
+To use a custom registry, replace the `name` field in your generator configuration with an [`image`](/learn/sdks/reference/generators-yml#image) object containing `name` and `registry`:
+
+```yaml title="generators.yml" {4-6}
+groups:
+  python-sdk:
+    generators:
+      - image:
+          name: fern-python-sdk
+          registry: ghcr.io/your-org
+        version: 4.0.0
+        output:
+          location: local-file-system
+          path: ../sdks/python
+```
+
+The `image.name` must be a recognized Fern generator name (for example, `fern-python-sdk` or `fern-typescript-sdk`). This ensures the CLI can resolve the correct IR version for your generator. The `version` must also match a published Fern generator version.
+
+### Authentication
+
+If your registry requires authentication, log in before running `fern generate --local`. The CLI uses the credentials stored by Docker.
+
+```bash
+# Example: authenticate with GitHub Container Registry
+echo $CR_PAT | docker login ghcr.io -u USERNAME --password-stdin
+
+# Then run local generation as usual
+fern generate --local
+```
+
+### Limitations
+
+- **Remote generation**: Custom images are blocked for remote generation (`fern generate` without `--local`). Only Fern's trusted images can run on Fern's cloud infrastructure.
+- **Auto-upgrade**: Generators configured with a custom `image` are skipped during `fern generator upgrade`. You must manually update the version for these generators.

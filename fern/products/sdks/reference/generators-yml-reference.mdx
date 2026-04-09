@@ -492,7 +492,37 @@ groups:
 ```
 
 <ParamField path="name" type="string" required={true}>
-The Fern generator package name (e.g., fernapi/fern-typescript-sdk)
+The Fern generator package name (e.g., `fernapi/fern-typescript-sdk`). Mutually exclusive with `image`.
+</ParamField>
+
+<ParamField path="image" type="object" required={false}>
+Use `image` instead of `name` to pull the generator from a [custom container registry](/learn/sdks/deep-dives/self-hosted#custom-container-registry) during [self-hosted generation](/learn/sdks/deep-dives/self-hosted). Mutually exclusive with `name`.
+
+Each generator must be identified by either `name` or `image`, but not both.
+
+<Note>
+The `image` field is only supported with `fern generate --local`. Remote generation doesn't support custom registries.
+</Note>
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `image.name` | `string` | Yes | A recognized Fern generator name (e.g., `fern-python-sdk`). Required for IR version resolution. |
+| `image.registry` | `string` | Yes | The container registry hostname and optional namespace (e.g., `ghcr.io/your-org`). |
+
+The CLI constructs the full image reference as `{registry}/{name}:{version}` when pulling. For example, with `registry: ghcr.io/your-org`, `name: fern-python-sdk`, and `version: 4.0.0`, the CLI pulls `ghcr.io/your-org/fern-python-sdk:4.0.0`.
+
+```yaml title="generators.yml" {4-6}
+groups:
+  python-sdk:
+    generators:
+      - image:
+          name: fern-python-sdk
+          registry: ghcr.io/your-org
+        version: 4.0.0
+        output:
+          location: local-file-system
+          path: ../sdks/python
+```
 </ParamField>
 
 <ParamField path="version" type="string" required={true}>
