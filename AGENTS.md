@@ -137,7 +137,7 @@ Add a `<Card>` to the `<CardGroup>` in the components overview page at
 Insert it in alphabetical order:
 
 ```mdx
-<Card title="Component name" icon="fa-duotone fa-icon-name" href="/docs/writing-content/components/slug">
+<Card title="Component name" icon="fa-duotone fa-icon-name" href="/learn/docs/writing-content/components/slug">
   One-line description matching the page's frontmatter description
 </Card>
 ```
@@ -146,3 +146,33 @@ Insert it in alphabetical order:
 
 Use `accordion.mdx` or `button.mdx` as a reference — they demonstrate the full pattern including
 grouped variants, nested component examples, and complete `<ParamField>` documentation.
+
+## LLM visibility tags
+
+Use `<llms-only>` and `<llms-ignore>` to control what AI agents see vs. what human readers see on the docs site.
+
+### `<llms-only>` — content for AI agents only
+
+Use when content helps an agent execute a task but would clutter the page for human readers:
+
+- Step-by-step instructions that are redundant with a UI walkthrough but useful for an agent following along programmatically
+- Prerequisite context like "this endpoint requires authentication via Bearer token" that a human would already know from the page layout
+- Explicit cross-references between related pages (e.g., "For rate limit details, see /learn/docs/api-reference/rate-limits")
+
+### `<llms-ignore>` — content for human readers only
+
+Use when content is useful to a human browsing the site but adds noise for an agent:
+
+- Marketing CTAs, signup prompts, promotional callouts
+- Decorative content, hero images, or UI-only navigation hints
+- Internal comments or TODOs in source files
+
+### Rules
+
+- Don't overuse — most content should be visible to both audiences. Only tag content where the human and agent needs clearly diverge.
+- Keep `<llms-only>` blocks concise and actionable. If it's longer than a few sentences, it's probably regular content that should be visible to everyone.
+- Tutorials are a common use case: the human version might walk through a UI with screenshots, while an `<llms-only>` block can add the equivalent curl command or config snippet that an agent can execute directly.
+
+### Example to follow
+
+See `fern/products/docs/pages/getting-started/quickstart.mdx` for a working example of using `<llms-only>` blocks to make a tutorial executable for agents alongside the human-readable version.
