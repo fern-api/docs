@@ -1,5 +1,15 @@
 # AGENTS.md
 
+## Core principles
+
+- Write what users need to succeed—no more, no less. Every sentence should earn its place.
+- Before creating new content, search the repo for existing pages that already cover the topic. Prefer updating over duplicating.
+- Favor minimal, precise edits. Don't rewrite a page when a paragraph fix will do.
+- If a proposed change or direction seems wrong, say so and explain why. Good docs come from honest pushback.
+- When something is unclear or underspecified, ask before you write. Don't fill gaps with assumptions.
+- Never fabricate information. If you don't know something, say so.
+- Link between related pages and sections. When you mention a concept that's documented elsewhere, cross-reference it so users can find their way naturally.
+
 ## Link checking
 
 Internal links between documentation pages use **URL paths built from the YAML config**, not file paths on disk or relative paths.
