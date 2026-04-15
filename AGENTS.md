@@ -1,5 +1,15 @@
 # AGENTS.md
 
+## Core principles
+
+- Write what users need to succeed—no more, no less. Every sentence should earn its place.
+- Before creating new content, search the repo for existing pages that already cover the topic. Prefer updating over duplicating.
+- Favor minimal, precise edits. Don't rewrite a page when a paragraph fix will do.
+- If a proposed change or direction seems wrong, say so and explain why. Good docs come from honest pushback.
+- When something is unclear or underspecified, ask before you write. Don't fill gaps with assumptions.
+- Never fabricate information. If you don't know something, say so.
+- Link between related pages and sections. When you mention a concept that's documented elsewhere, cross-reference it so users can find their way naturally.
+
 ## Link checking
 
 Internal links between documentation pages use **URL paths built from the YAML config**, not file paths on disk or relative paths.
@@ -75,13 +85,104 @@ The correct link is:
 - **Same-page anchors**: `#section-name` — these don't need a full path.
 - **Anchors on internal links**: `/learn/docs/config/navigation#section-availability` — append `#anchor` to the URL path.
 
-## New pages
+## Changelog entries
 
-Every new `.mdx` page created under `fern/pages/` or `fern/products/` must include the agent directive snippet. Add the following line:
+Changelog entries live in `fern/products/docs/pages/changelog/` and `fern/products/dashboard/pages/changelog/`. Filename format: `YYYY-MM-DD.mdx`.
 
-- After the closing `---` of the front matter (if the page has front matter), or
-- At the very top of the file (if there is no front matter).
+### Rules
+
+- Always include `tags` in YAML frontmatter. Pick 1–4 from the existing set (e.g., `api-reference`, `components`, `navigation`, `customization`, `search`, `ai`, `security`, `bug-fix`). Tags are categorical — describe the area, not the feature name.
+- Use `##` (h2) for each feature heading. No h1.
+- Lead with what the user can now do: "You can now..." or a direct capability statement.
+- Keep it short: 2–6 sentences per feature. Bullet points for lists of details.
+- End each feature section with a Button linking to the relevant docs page:
+```mdx
+  <Button intent="none" outlined rightIcon="arrow-right" href="/learn/docs/section/page">Read the docs</Button>
+```
+- For dashboard entries, include a path to the feature in the UI before the Button.
+- Follow the link rules above — Button `href` values use `/learn/...` URL paths from the YAML config.
+
+### Example
 
 ```mdx
-<Markdown src="/snippets/agent-directive.mdx"/>
+---
+tags: ["security"]
+---
+
+## Password-protected pages
+
+You can now restrict access to individual documentation pages with a password. Visitors see a prompt before the page content loads.
+
+To configure this, go to **Settings** > **Page access** in the [Dashboard](https://dashboard.buildwithfern.com/).
+
+<Button intent="none" outlined rightIcon="arrow-right" href="/learn/dashboard/settings/page-access">Read the docs</Button>
 ```
+
+### What not to do
+
+- Don't use h1 (`#`) — the date serves as the title.
+- Don't describe implementation details — focus on user benefit.
+- Don't skip the Button CTA.
+- Don't invent new tags when an existing one fits.
+
+Prefer existing tags when possible. Common tags include: `api-reference`, `components`, `navigation`, `customization`, `configuration`, `search`, `ai`, `security`, `bug-fix`, `performance`, `writing-content`.
+
+## New component pages
+
+When documenting a new component, follow the structure used by existing component pages
+in `fern/products/docs/pages/writing-content/components/`.
+
+### Page structure
+
+1. **Frontmatter**: `title` (component name) and `description` (one sentence starting with a verb).
+2. **Intro paragraph**: One or two sentences explaining what the component does and when to use it. Reference the component name in backtick-wrapped JSX format (e.g., `<Button>`).
+3. **Usage section** (`## Usage`): A live rendered example in a `<div>`, followed by the equivalent MDX in a code block with `jsx Markdown` syntax.
+4. **Variants section** (`## Variants`): One `###` subsection per variant, each with a rendered example and code block. Cover the most common use cases.
+5. **Properties section** (`## Properties`): One `<ParamField>` per prop. Include `path`, `type`, `required`, and `default` where applicable.
+
+### Adding to the overview page
+
+Add a `<Card>` to the `<CardGroup>` in the components overview page at
+`fern/products/docs/pages/writing-content/components/overview.mdx`.
+Insert it in alphabetical order:
+
+```mdx
+<Card title="Component name" icon="fa-duotone fa-icon-name" href="/learn/docs/writing-content/components/slug">
+  One-line description matching the page's frontmatter description
+</Card>
+```
+
+### Example to follow
+
+Use `accordion.mdx` or `button.mdx` as a reference — they demonstrate the full pattern including
+grouped variants, nested component examples, and complete `<ParamField>` documentation.
+
+## LLM visibility tags
+
+Use `<llms-only>` and `<llms-ignore>` to control what AI agents see vs. what human readers see on the docs site.
+
+### `<llms-only>` — content for AI agents only
+
+Use when content helps an agent execute a task but would clutter the page for human readers:
+
+- Step-by-step instructions that are redundant with a UI walkthrough but useful for an agent following along programmatically
+- Prerequisite context like "this endpoint requires authentication via Bearer token" that a human would already know from the page layout
+- Explicit cross-references between related pages (e.g., "For rate limit details, see /learn/docs/api-reference/rate-limits")
+
+### `<llms-ignore>` — content for human readers only
+
+Use when content is useful to a human browsing the site but adds noise for an agent:
+
+- Marketing CTAs, signup prompts, promotional callouts
+- Decorative content, hero images, or UI-only navigation hints
+- Internal comments or TODOs in source files
+
+### Rules
+
+- Don't overuse — most content should be visible to both audiences. Only tag content where the human and agent needs clearly diverge.
+- Keep `<llms-only>` blocks concise and actionable. If it's longer than a few sentences, it's probably regular content that should be visible to everyone.
+- Tutorials are a common use case: the human version might walk through a UI with screenshots, while an `<llms-only>` block can add the equivalent curl command or config snippet that an agent can execute directly.
+
+### Example to follow
+
+See `fern/products/docs/pages/getting-started/quickstart.mdx` for a working example of using `<llms-only>` blocks to make a tutorial executable for agents alongside the human-readable version.

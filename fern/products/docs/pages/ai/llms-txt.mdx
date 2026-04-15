@@ -20,13 +20,27 @@ Fern also serves [clean Markdown instead of HTML](https://developer.mozilla.org/
 
 Fern generates two files for LLMs:
 
-- **`llms.txt`** contains a lightweight summary of your documentation site with each page distilled into a one-sentence description and URL. For sites with API endpoints, it also links to your [OpenAPI specification](/learn/docs/developer-tools/openapi-spec) as a standalone, machine-readable file so AI tools can parse your full API schema directly.
+- **`llms.txt`** contains a lightweight summary of your documentation site with each page distilled into a one-sentence description and URL. For sites with API endpoints, it also links to your [OpenAPI specification](/learn/docs/developer-tools/openapi-spec) as a standalone, machine-readable file so AI tools can parse your full API schema directly. For sites with WebSocket channels, it also links to your [AsyncAPI specification](/learn/docs/developer-tools/asyncapi-spec).
 
 - **`llms-full.txt`** contains complete documentation content including the full text of all pages. For API documentation, this includes your complete API Reference with resolved OpenAPI specifications and SDK code examples for enabled languages.
 
 Both files are available at any level of your documentation hierarchy (`/llms.txt`, `/llms-full.txt`, `/docs/llms.txt`, `/docs/ai-features/llms-full.txt`, etc.).
 
 Examples: [Eleven Labs llms.txt](https://elevenlabs.io/docs/llms.txt), [Cash App llms-full.txt](https://developers.cash.app/llms-full.txt).
+
+## Custom files
+
+To serve your own `llms.txt` or `llms-full.txt` instead of the auto-generated versions, point to your files under the [`agents` key in `docs.yml`](/learn/docs/configuration/site-level-settings#agents-configuration):
+
+```yaml docs.yml
+agents:
+  llms-txt: ./path/to/llms.txt
+  llms-full-txt: ./path/to/llms-full.txt
+```
+
+Paths are relative to the `docs.yml` file. The CLI validates that each file exists and uploads it as part of your docs deployment. Your custom files are served at the root-level `/llms.txt` and `/llms-full.txt` endpoints. Nested paths (e.g., `/api-reference/llms.txt`) continue to use the auto-generated output.
+
+You can provide one or both files. Any file you don't specify falls back to the auto-generated version.
 
 <AccordionGroup>
 <Accordion title="How page descriptions are generated">
@@ -146,11 +160,26 @@ To authenticate your requests, include your API key in the header.
 
 ## Per-page directives
 
-Use the [`agents` key in `docs.yml`](/learn/docs/configuration/site-level-settings#agents-configuration) to prepend a short instruction to AI agents when they fetch the Markdown version of a page, so they can discover and navigate your full docs. The directive is injected after the frontmatter metadata section but before the page body, so agents see it first even if they truncate the rest of the page. It applies to individual page Markdown (`.md`/`.mdx` URLs) and to each page section within `llms-full.txt`. Human-facing documentation is unaffected.
+Every page served to AI agents is automatically prepended with a default directive that tells agents how to navigate your documentation programmatically:
+
+```text title="Default page directive" wordWrap
+For clean Markdown of any page, append .md to the page URL. For a complete documentation index, see https://docs.example.com/llms.txt. For full documentation content, see https://docs.example.com/llms-full.txt.
+```
+
+The URLs in the directive are generated from your site's domain and basepath. The directive is injected after the frontmatter metadata section but before the page body, so agents see it first even if they truncate the rest of the page. It applies to individual page Markdown (`.md`/`.mdx` URLs) and to each page section within `llms-full.txt`, and human-facing documentation is unaffected.
+
+To override the default, set a custom directive using the [`agents` key in `docs.yml`](/learn/docs/configuration/site-level-settings#agents-configuration):
 
 ```yaml docs.yml
 agents:
   page-directive: "For a complete page index, fetch https://docs.example.com/llms.txt"
+```
+
+To disable the directive entirely, set `page-directive` to an empty string:
+
+```yaml docs.yml
+agents:
+  page-directive: ""
 ```
 
 ## Analytics and monitoring

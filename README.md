@@ -19,7 +19,7 @@ Before you begin, make sure you have the following installed:
 
 2. **Clone this repository:**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/fern-api/docs.git
    cd docs
    ```
 
@@ -115,9 +115,9 @@ To catch issues earlier in your workflow, set up Vale to run automatically on yo
 ### Getting changes reviewed
 
 If you want to **add a new page or make a large structural change**:
-- [File an issue in GitHub](https://github.com/fern-api/docs/issues) and assign [@devalog](https://github.com/devalog), [@kgowru](https://github.com/kgowru), or [@dsinghvi](https://github.com/dsinghvi). We'll review your issue to make sure your proposed page fits with Fern's overall documentation strategy and isn't duplicating any ongoing work. 
+- [File an issue in GitHub](https://github.com/fern-api/docs/issues) and assign [@devalog](https://github.com/devalog). We'll review your issue to make sure your proposed page fits with Fern's overall documentation strategy and isn't duplicating any ongoing work. 
 
 For **all other changes**:
 -  Submit a PR directly with your suggested changes. A Fern docs member will review and confirm.
 
-If you see something that is wrong or outdated in the documentation but don't know how to fix it, [file an issue](https://github.com/fern-api/docs/issues) or reach out to [@devalog](https://github.com/devalog), [@kgowru](https://github.com/kgowru), or [@dsinghvi](https://github.com/dsinghvi).
+If you see something that is wrong or outdated in the documentation but don't know how to fix it, [file an issue](https://github.com/fern-api/docs/issues) or reach out to [@devalog](https://github.com/devalog).

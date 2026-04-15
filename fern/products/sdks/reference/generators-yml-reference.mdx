@@ -483,16 +483,22 @@ Generator settings for a specific group.
 
 ```yaml title="generators.yml"
 groups:
-  typescript-sdk: # User-defined name
+  typescript-sdk:
     audiences: ["external"]
     generators:
       - name: fernapi/fern-typescript-sdk
-        version: 0.9.0
+        version: <Markdown src="/snippets/version-number-typescript.mdx"/>
         smart-casing: true
+  python-sdk: # Self-hosted with custom registry
+    generators:
+      - image:
+          name: fern-python-sdk
+          registry: ghcr.io/your-org
+        version: <Markdown src="/snippets/version-number-python.mdx"/>
 ```
 
 <ParamField path="name" type="string" required={true}>
-The Fern generator package name (e.g., fernapi/fern-typescript-sdk)
+The Fern generator package name (e.g., `fernapi/fern-typescript-sdk`). Mutually exclusive with `image`.
 </ParamField>
 
 <ParamField path="version" type="string" required={true}>
@@ -504,6 +510,20 @@ Enables intelligent case conversion that preserves numbers and common programmin
 - Numbers stay intact (e.g., `v2` instead of `v_2`, `getUsersV2` instead of `getUsersV_2`)
 - Initialisms are preserved (e.g., `CustomerID` instead of `CustomerId`)
 - Acronyms remain correct (e.g., `HTTPSConnection` stays `HTTPSConnection`)
+</ParamField>
+
+<ParamField path="image" type="object" required={false} toc={true}>
+Use `image` instead of `name` to pull the generator from a [custom container registry](/learn/sdks/deep-dives/self-hosted#custom-container-registry) during [self-hosted generation](/learn/sdks/deep-dives/self-hosted) (remote generation doesn't support custom registries). Mutually exclusive with `name`.
+
+The CLI constructs the full image reference as `{registry}/{name}:{version}` when pulling. For example, with `registry: ghcr.io/your-org`, `name: fern-python-sdk`, and `version: 4.0.0`, the CLI pulls `ghcr.io/your-org/fern-python-sdk:4.0.0`.
+</ParamField>
+
+<ParamField path="image.name" type="string" required={true}>
+A recognized Fern generator name (e.g., `fern-python-sdk`). Required for IR version resolution.
+</ParamField>
+
+<ParamField path="image.registry" type="string" required={true}>
+The container registry hostname and optional namespace (e.g., `ghcr.io/your-org`). The CLI constructs the full image reference as `{registry}/{name}:{version}` when pulling. For example, with `registry: ghcr.io/your-org`, `name: fern-python-sdk`, and `version: 4.0.0`, the CLI pulls `ghcr.io/your-org/fern-python-sdk:4.0.0`.
 </ParamField>
 
 #### `config`
