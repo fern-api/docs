@@ -1,20 +1,9 @@
 ---
-title: Visibility and filtering
-description: Control what content AI agents and human readers see using noindex, llms-only, and llms-ignore tags, and filter output with query parameters.
+title: Customize LLM output
+description: Exclude pages with noindex, filter content with llms-only and llms-ignore tags, filter endpoint output with query parameters, or serve your own custom files.
 ---
 
-Fern gives you three levels of control over what AI agents see: exclude whole pages with `noindex`, split content within a page between AI and human audiences using `<llms-only>` and `<llms-ignore>` tags, and filter LLM endpoint output at request time with query parameters.
-
-## Exclude whole pages
-
-You can exclude whole pages from LLM endpoints (`llms.txt` and `llms-full.txt`) by [adding `noindex: true`](/learn/docs/seo/setting-seo-metadata#noindex) to the page's frontmatter. Pages marked `noindex` aren't indexed by search engines but remain visible in your sidebar navigation and can still be accessed directly by URL. To also hide a page from navigation, see [Hiding content](/learn/docs/customization/hiding-content).
-
-```mdx docs/pages/internal-notes.mdx
----
-title: Internal notes
-noindex: true
----
-```
+Customize what LLMs receive from your site by filtering content within a page using `<llms-only>` and `<llms-ignore>` tags, filtering endpoint output with query parameters, excluding pages with `noindex`, or serving your own custom files.
 
 ## Filter within a page
 
@@ -85,3 +74,28 @@ Filter `llms.txt` and `llms-full.txt` output with the `lang` and `excludeSpec` q
 <ParamField path="excludeSpec" type="boolean">
   Exclude OpenAPI and AsyncAPI specification sections.
 </ParamField>
+
+## Exclude whole pages
+
+You can exclude whole pages from LLM endpoints (`llms.txt` and `llms-full.txt`) by [adding `noindex: true`](/learn/docs/seo/setting-seo-metadata#noindex) to the page's frontmatter. Pages marked `noindex` aren't indexed by search engines but remain visible in your sidebar navigation and can still be accessed directly by URL. To also hide a page from navigation, see [Hiding content](/learn/docs/customization/hiding-content).
+
+```mdx docs/pages/internal-notes.mdx
+---
+title: Internal notes
+noindex: true
+---
+```
+
+## Serve custom files
+
+To serve your own `llms.txt` or `llms-full.txt` instead of the auto-generated versions, point to your files under the [`agents` key in `docs.yml`](/learn/docs/configuration/site-level-settings#agents-configuration):
+
+```yaml docs.yml
+agents:
+  llms-txt: ./path/to/llms.txt
+  llms-full-txt: ./path/to/llms-full.txt
+```
+
+Paths are relative to the `docs.yml` file. The CLI validates that each file exists and uploads it as part of your docs deployment. Your custom files are served at the root-level `/llms.txt` and `/llms-full.txt` endpoints. Nested paths (e.g., `/api-reference/llms.txt`) continue to use the auto-generated output.
+
+You can provide one or both files. Any file you don't specify falls back to the auto-generated version.
