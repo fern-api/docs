@@ -4,14 +4,14 @@ description: Generate MDX documentation pages from your Python or C++ library so
 ---
 
 
-The library docs generator parses your **Python or C++** library source code to produce MDX documentation pages for modules, classes, functions, methods, and parameters. Generated pages include cross-reference links and hierarchical navigation, and are integrated directly into your Fern Docs site.
+The library docs generator parses your **Python or C++** library source code and generates MDX documentation pages for modules, classes, functions, methods, and parameters. Generated pages include cross-reference links and hierarchical navigation, and are integrated directly into your Fern Docs site.
 
 ## Configuration
 
 <Steps>
 <Step title="Define your libraries in `docs.yml`">
 
-Add a `libraries` entry to your `docs.yml` file. Each library needs an `input` source, an `output` directory, and a `lang` (language).
+Add a `libraries` entry to your `docs.yml` file. Each library needs an `input` source (the repo to parse), an `output.path` (where generated MDX files are written), and a `lang` (`python` or `cpp`).
 
 ```yaml docs.yml
 libraries:
@@ -33,7 +33,7 @@ libraries:
 </Step>
 <Step title="Add to navigation">
 
-Reference the generated pages in your navigation using `folder:` directives. The `folder:` directive discovers all MDX files in the specified directory and creates navigation sections based on the subdirectory structure.
+Point a [`folder:` entry](/learn/docs/configuration/navigation#add-a-folder) in your navigation at the same directory you set as `output.path`. Fern discovers every MDX file in that folder and mirrors its subfolder structure into sidebar sections.
 
 ```yaml docs.yml {8}
 navigation:
@@ -113,28 +113,23 @@ navigation:
 ```
 </Accordion>
 
-## Customize generated docs
+## Customize generated docs (optional)
 
-The generator writes MDX files to `output.path` and wires them into the sidebar with a [`folder:` entry](/learn/docs/configuration/navigation#add-a-folder), so the navigation mirrors the folder structure on disk.
-
-- **Change navigation** by reorganizing the output directory. Move, rename, or nest files and subfolders to restructure the sidebar — Fern picks up the new layout on the next `fern docs dev` or publish.
-- **Edit page content** by modifying the MDX files directly. Generated pages are standard MDX, so you can add prose, examples, callouts, or any [component](/learn/docs/writing-content/components/overview).
+You can reorganize the output directory to restructure the sidebar navigation. Move, rename, or nest files and subfolders, and Fern picks up the new layout on the next `fern docs dev` or publish. 
 
 For example, splitting `./static/plant-sdk-docs` into `getting-started/` and `reference/` subfolders produces two sidebar sections:
 
-```yaml docs.yml {5,7}
-navigation:
-  - section: Plant SDK Reference
-    contents:
-      - folder: ./static/plant-sdk-docs/getting-started
-        title: Getting started
-      - folder: ./static/plant-sdk-docs/reference
-        title: API reference
-```
+  ```yaml docs.yml {4,6}
+  navigation:
+    - section: Plant SDK Reference
+      contents:
+        - folder: ./static/plant-sdk-docs/getting-started
+          title: Getting started
+        - folder: ./static/plant-sdk-docs/reference
+          title: API reference
+  ```
 
-<Warning>
-  Re-running `fern docs md generate` overwrites the files in `output.path`. Commit your customizations, and if you plan to regenerate, keep hand-edited pages outside the output directory.
-</Warning>
+You can also edit page content by modifying the MDX files directly — generated pages are [standard MDX](/learn/docs/writing-content/markdown-basics), so you can add prose, examples, callouts, or any [component](/learn/docs/writing-content/components/overview). Re-running `fern docs md generate` overwrites everything in `output.path`, so commit your customizations first, and keep hand-edited pages outside the output directory if you plan to regenerate.
 
 ## Configuration reference
 
