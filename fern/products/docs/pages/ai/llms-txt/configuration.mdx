@@ -1,0 +1,101 @@
+---
+title: Configuration
+description: Customize llms.txt files, page descriptions, query parameter filtering, and per-page directives for AI agent consumption.
+---
+
+## Custom files
+
+To serve your own `llms.txt` or `llms-full.txt` instead of the auto-generated versions, point to your files under the [`agents` key in `docs.yml`](/learn/docs/configuration/site-level-settings#agents-configuration):
+
+```yaml docs.yml
+agents:
+  llms-txt: ./path/to/llms.txt
+  llms-full-txt: ./path/to/llms-full.txt
+```
+
+Paths are relative to the `docs.yml` file. The CLI validates that each file exists and uploads it as part of your docs deployment. Your custom files are served at the root-level `/llms.txt` and `/llms-full.txt` endpoints. Nested paths (e.g., `/api-reference/llms.txt`) continue to use the auto-generated output.
+
+You can provide one or both files. Any file you don't specify falls back to the auto-generated version.
+
+## Page descriptions
+
+Both files include page descriptions pulled from [frontmatter](/learn/docs/configuration/page-level-settings). Fern uses the `description` field if present, otherwise falls back to `subtitle`.
+
+```mdx title="Frontmatter"
+---
+title: Fern Docs
+subtitle: Build beautiful documentation websites with Fern.
+---
+```
+
+The output format depends on whether you're requesting an individual page or a section:
+<Tabs>
+<Tab title="Individual pages">
+
+Both `llms.txt` and `llms-full.txt` return the same format:
+
+```txt title=".../page/llms.txt and .../page/llms-full.txt"
+# Fern Docs
+
+> Build beautiful documentation websites with Fern.
+```
+</Tab>
+<Tab title="Section">
+
+The two files differ:
+
+<CodeBlocks>
+```txt title=".../section/llms.txt"
+- [Fern Docs](https://example.com/docs): Build beautiful documentation websites with Fern.
+```
+
+```txt title=".../section/llms-full.txt"
+# Fern Docs
+
+> Build beautiful documentation websites with Fern.
+```
+</CodeBlocks>
+</Tab>
+</Tabs>
+
+## Filter output with query parameters
+
+Filter `llms.txt` and `llms-full.txt` output with the `lang` and `excludeSpec` query parameters to reduce token usage. Parameters can also be combined.
+
+```txt Example
+/llms.txt?lang=python
+/llms-full.txt?excludeSpec=true
+/llms-full.txt?lang=python&excludeSpec=true
+```
+
+<ParamField path="lang" type="'node' | 'python' | 'java' | 'ruby' | 'go' | 'csharp' | 'swift'">
+  Filter SDK code examples to a specific language. Common aliases are also accepted: `javascript`, `typescript`, `js`, `ts`, `py`, and `golang`. Case-insensitive.
+</ParamField>
+
+<ParamField path="excludeSpec" type="boolean">
+  Exclude OpenAPI and AsyncAPI specification sections.
+</ParamField>
+
+## Per-page directives
+
+Every page served to AI agents is automatically prepended with a default directive that tells agents how to navigate your documentation programmatically:
+
+```text title="Default page directive" wordWrap
+For clean Markdown of any page, append .md to the page URL. For a complete documentation index, see https://docs.example.com/llms.txt. For full documentation content, see https://docs.example.com/llms-full.txt.
+```
+
+The URLs in the directive are generated from your site's domain and basepath. The directive is injected after the frontmatter metadata section but before the page body, so agents see it first even if they truncate the rest of the page. It applies to individual page Markdown (`.md`/`.mdx` URLs) and to each page section within `llms-full.txt`, and human-facing documentation is unaffected.
+
+To override the default, set a custom directive using the [`agents` key in `docs.yml`](/learn/docs/configuration/site-level-settings#agents-configuration):
+
+```yaml docs.yml
+agents:
+  page-directive: "For a complete page index, fetch https://docs.example.com/llms.txt"
+```
+
+To disable the directive entirely, set `page-directive` to an empty string:
+
+```yaml docs.yml
+agents:
+  page-directive: ""
+```
