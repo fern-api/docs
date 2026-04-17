@@ -26,8 +26,9 @@ Internal links between documentation pages use **URL paths built from the YAML c
 | `{product-slug}` | `slug` field on the product in `fern/docs.yml` | `docs`, `sdks`, `dashboard` |
 | `{section-slug}` | Section name or `slug` override in the product's YML file | `getting-started`, `ai-features` |
 | `{page-slug}` | Page name or `slug` override in the product's YML file | `overview`, `llms-txt` |
+| `skip-slug: true` | Set on a product, section, or tab | Omits that segment from the URL entirely |
 
-The Home product has no slug, so its pages start at `/learn/{section}/{page}`.
+Products, sections, and tabs with `skip-slug: true` — or with no `slug:` field at all (like the Home product in `fern/docs.yml`) — are omitted from the URL. The Home product's pages therefore start at `/learn/{section-slug}/{page-slug}`.
 
 ### Example
 
@@ -73,9 +74,11 @@ The correct link is:
 
 1. Find the product's `slug` in `fern/docs.yml`.
 2. Open the product's YML file (e.g., `fern/products/docs/docs.yml`).
-3. Find the target page — check for explicit `slug:` overrides on both the section and the page.
-4. If no explicit slug, the slug is auto-derived: lowercased and hyphenated from the display name.
-5. Assemble: `/learn/{product-slug}/{section-slug}/{page-slug}`.
+3. Walk from the product down to the target page. For each section and the page itself:
+   - If it has `skip-slug: true`, omit it from the URL.
+   - Otherwise, use its explicit `slug:` if set. Page frontmatter `slug:` takes precedence over `slug:` in the navigation YML.
+   - If no explicit slug is set, auto-derive it: lowercased and hyphenated from the display name.
+4. Assemble: `/learn/{product-slug}/{section-slug}/{page-slug}`.
 
 ### What's fine as-is
 
