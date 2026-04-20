@@ -1,0 +1,149 @@
+---
+title: Dynamic authentication
+description: Implement dynamic authentication patterns like short-lived JWT signing in Python SDKs using method overrides.
+---
+
+
+Your API may require dynamic authentication where credentials need to be generated or refreshed for each request, such as signing short-lived JWTs or rotating tokens. Python SDKs support this pattern through method overrides.
+
+## Method override pattern
+
+For Python SDKs, you can implement dynamic authentication by extending the generated client and overriding methods to inject authentication logic.
+
+### Example: Short-lived JWT signing
+
+Here's how to implement JWT signing for Python SDKs:
+
+<Steps>
+
+### Create a wrapper client
+
+Create a custom client class that extends the generated Fern client and adds JWT signing logic:
+
+```python title="src/wrapper/client.py"
+from .client import PlantStoreClient as FernClient
+import jwt
+import time
+from typing import Optional, Dict, Any
+
+class PlantStoreClient(FernClient):
+    def __init__(self, *, private_key: str, environment: str):
+        super().__init__(environment=environment)
+        self._private_key = private_key
+    
+    def _generate_jwt(self) -> str:
+        """Generate a short-lived JWT token valid for 15 seconds"""
+        now = int(time.time())
+        payload = {
+            "iat": now,
+            "exp": now + 15,
+        }
+        return jwt.encode(payload, self._private_key, algorithm="RS256")
+    
+    def _with_jwt(self, request_options: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Inject JWT into request options"""
+        token = self._generate_jwt()
+        options = request_options or {}
+        headers = options.get("headers", {})
+        headers["Authorization"] = f"Bearer {token}"
+        options["headers"] = headers
+        return options
+    
+    def get_plant(self, plant_id: str, *, request_options: Optional[Dict[str, Any]] = None):
+        return super().plants.get(plant_id, request_options=self._with_jwt(request_options))
+    
+    def create_plant(self, request: Any, *, request_options: Optional[Dict[str, Any]] = None):
+        return super().plants.create(request, request_options=self._with_jwt(request_options))
+    
+    # Override additional methods as needed...
+```
+
+### Export the wrapper client
+
+Update your `__init__.py` to export the wrapper instead of the generated client:
+
+```python title="src/__init__.py"
+from .wrapper.client import PlantStoreClient
+
+__all__ = ["PlantStoreClient"]
+```
+
+### Add to `.fernignore`
+
+Protect your custom code from being overwritten:
+
+```diff title=".fernignore"
++ src/wrapper
++ src/__init__.py
+```
+
+### Use the client
+
+Users can use the client with automatic JWT signing:
+
+```python
+from plant_store_sdk import PlantStoreClient
+import os
+
+client = PlantStoreClient(
+    private_key=os.environ["PRIVATE_KEY"],
+    environment="https://api.plantstore.com"
+)
+
+# JWT is automatically signed and injected for each request
+plant = client.get_plant("monstera-123")
+new_plant = client.create_plant({
+    "name": "Fiddle Leaf Fig",
+    "species": "Ficus lyrata"
+})
+```
+
+</Steps>
+
+<Note>
+This approach requires overriding each method individually. You'll need to override all methods that make API calls to ensure JWT authentication is applied consistently across your SDK.
+</Note>
+
+## Other authentication patterns
+
+This same pattern works for other dynamic authentication scenarios:
+
+- **OAuth token refresh**: Automatically refresh expired access tokens before each request
+- **HMAC (Hash-based Message Authentication Code) signing**: Sign requests with HMAC signatures based on request content
+- **Rotating API keys**: Switch between multiple API keys based on rate limits
+- **Time-based tokens**: Generate tokens that include timestamps or nonces
+
+## Important considerations
+
+### Security considerations
+
+- **Secure key storage**: Never hardcode private keys; use environment variables or secure key management systems
+- **Avoid double authentication**: If your API already uses bearer token authentication in the Fern definition, be careful not to override the existing `Authorization` header. Consider using a different header name or conditionally setting the header
+
+### Performance
+
+- **Token memoization**: Consider caching tokens to avoid regenerating them on every request. You can add a simple cache that refreshes tokens before they expire
+- **Grace period**: Refresh tokens slightly before they expire (e.g., 2 seconds early) to avoid edge cases where a token expires during request processing
+
+### Header merging
+
+- **Preserve existing headers**: When injecting authentication headers, always merge with existing headers to avoid overwriting headers set by the SDK or user
+- **Request options**: Python SDKs accept `request_options` as a keyword argument that can include custom headers
+
+### Time synchronization
+
+- **Clock drift**: Be aware of potential clock drift between your client and server. Consider adding tolerance to your token expiration checks
+- **Timestamp precision**: Use Unix timestamps (seconds since epoch) for `iat` and `exp` claims to match JWT standards
+
+## Best practices
+
+- **Override all methods**: Ensure you override all API methods to maintain consistent authentication across your SDK
+- **Cache tokens appropriately**: Balance between security (shorter token lifetime) and performance (less frequent regeneration)
+- **Handle errors gracefully**: Implement retry logic for authentication failures and token refresh errors
+- **Test thoroughly**: Ensure your wrapper handles all edge cases, including concurrent requests, token expiration, and network failures
+- **Monitor token usage**: Log token generation and refresh events to help debug authentication issues in production
+
+## See also
+
+- [Adding custom code](/sdks/generators/python/custom-code) - Python-specific customization guide
+- [Python configuration](/sdks/generators/python/configuration) - Full list of configuration options

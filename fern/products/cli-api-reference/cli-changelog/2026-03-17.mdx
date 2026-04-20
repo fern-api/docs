@@ -1,3 +1,63 @@
+## 4.35.0
+**`(feat):`** Add `--id` flag to `fern generate --docs --preview` for stable preview
+URLs. When `--id <name>` is provided, the preview domain uses the given
+identifier instead of a random UUID, so subsequent runs with the same ID
+overwrite the previous preview and the URL stays constant. In non-CI
+environments the CLI checks whether the preview already exists and
+prompts for confirmation before overwriting (skip with `--force`).
+
+
+## 4.34.0
+**`(feat):`** Add `infer-default-environment` API definition setting. When set to `false`,
+the OpenAPI importer will not automatically designate the first server as the
+default environment, requiring SDK users to explicitly provide a base URL.
+Defaults to `true` to preserve existing behavior.
+
+```yaml
+api:
+  specs:
+    - openapi: ./openapi.yml
+      settings:
+        infer-default-environment: false
+```
+
+
+## 4.33.0
+**`(feat):`** Add `enums-coerceable-to-literals` option for `coerce-consts-to`, and make
+it the new default. This behaves like `enums` (const values become
+single-element enums) but allows `coerce-enums-to-literals` to transitively
+coerce them to literals, which is consistent with past default behavior. The
+existing `enums` option continues to block this transitive coercion.
+
+
+## 4.32.2
+**`(fix):`** Fix custom LICENSE files not being included in SDK output when using
+`fern generate --local`. The license path (e.g. `../../LICENSE`) was
+resolved relative to `fern.config.json` instead of `generators.yml`,
+causing the file to not be found in multi-API workspace layouts where
+these files are in different directories.
+
+
+## 4.32.1
+**`(fix):`** Downgrade the `no-openapi-v2-in-docs` validation rule from an error to a
+warning. Fern supports OpenAPI 2.0 (Swagger) specs in docs generation, so
+`fern check` no longer fails when Swagger 2.0 specs are present.
+
+
+## 4.32.0
+**`(feat):`** Add support for the `x-fern-sdk-method-name` extension on AsyncAPI v2
+`publish` and `subscribe` operations. Users can now customize the
+generated SDK method name (e.g., changing `sendPublish` to `send`)
+without migrating to AsyncAPI v3.
+
+
+## 4.31.3
+**`(fix):`** Enable WebSocket auth in AsyncAPI by populating IR auth schemes. The AsyncAPI
+converter now converts security schemes from both generators.yml auth overrides
+and native AsyncAPI spec securitySchemes into IR AuthScheme objects, so the docs
+explorer correctly renders auth forms for WebSocket endpoints.
+
+
 ## 4.31.1
 **`(fix):`** Fix `x-fern-streaming` with `stream-condition` emitting the condition field
 as an optional boolean instead of a required literal in split request types.

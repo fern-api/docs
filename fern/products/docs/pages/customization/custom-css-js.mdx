@@ -1,0 +1,423 @@
+---
+title: Fully customize your docs
+subtitle: Add custom CSS, global JavaScript, and UI components. 
+description: Learn how to add custom CSS, JavaScript, and UI components to your Fern documentation. Style your docs with custom classes and scripts.
+---
+
+
+This page covers CSS and JavaScript customization:
+
+- **CSS** for styling, visual changes, and hiding elements
+- **JavaScript** for client-side behavior, third-party integrations, and widgets
+
+For server-rendered reusable elements in your MDX content, see [Custom React components](/learn/docs/customization/custom-react-components). To replace Fern's default header or footer, see [Custom header and footer](/learn/docs/customization/header-and-footer).
+
+You can also [customize many things directly in your `docs.yml` file](/docs/configuration/site-level-settings), including colors, typography, navbar links, layout, analytics, and metadata. Try these built-in options first before adding custom code. 
+
+## Custom CSS
+
+You can add custom CSS to your docs to further customize the look and feel. The defined class names are applied across all MDX files. See the [CSS selectors reference](/learn/docs/customization/css-selectors-reference) for a complete list of available `.fern-*` selectors.
+
+<Steps>
+### Create `styles.css`
+
+Add a `styles.css` file and include it in your `fern/` project:
+
+<CodeBlock title="Add the styles.css file">
+```bash {5}
+  fern/
+  ├─ openapi/
+  ├─ pages/
+  ├─ images/
+  ├─ styles.css
+  ├─ docs.yml
+  └─ fern.config.json
+```
+</CodeBlock>
+
+### Edit `docs.yml`
+
+In `docs.yml`, specify the path to the `styles.css` file:
+
+<CodeBlock title="docs.yml">
+```yaml
+css: ./styles.css
+```
+</CodeBlock>
+
+### Add multiple custom CSS files (optional)
+
+You can specify any number of custom CSS files:
+
+<CodeBlock title="docs.yml">
+```yaml
+css:
+  - ./css/header-styles.css
+  - ./css/footer-styles.css
+```
+</CodeBlock>
+
+</Steps>
+
+<Note>
+For customizing the background, logo, font, and layout of your Docs via Fern's built-in styling, 
+check out the [Global Configuration](/learn/docs/configuration/site-level-settings). 
+</Note>
+
+### Built-in CSS color variables
+
+Fern automatically generates CSS variables from your [`docs.yml` colors configuration](/learn/docs/configuration/site-level-settings#colors-configuration) and makes them available as CSS custom properties in your stylesheets. Colors are converted to [oklch](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value/oklch) for consistent color management, with hex fallbacks for unsupported browsers. These variables adapt automatically between light and dark modes — light mode uses the `.light` and `:root` selectors, while dark mode uses the `.dark` selector.
+
+<AccordionGroup>
+<Accordion title="Accent and grayscale scales">
+
+- `--accent-1` through `--accent-12` — accent color scale (generated from `accent-primary`)
+- `--accent-a1` through `--accent-a12` — accent color scale with alpha transparency
+- `--grayscale-1` through `--grayscale-12` — grayscale color scale
+- `--grayscale-a1` through `--grayscale-a12` — grayscale with alpha transparency
+
+</Accordion>
+
+<Accordion title="Named color scales">
+
+Fern also generates named color scales that follow [Radix UI's step paradigms](https://www.radix-ui.com/colors/docs/palette-composition/understanding-the-scale). These match your `accent-primary` hue and include scales like `--red-1` through `--red-12`, `--blue-1` through `--blue-12`, and so on for other colors.
+
+</Accordion>
+
+<Accordion title="Theme variables">
+
+- `--background` — page background color
+- `--card-background` — card background color
+- `--border` — border color
+- `--sidebar-background` — sidebar background color
+- `--header-background` — header background color
+- `--accent` — primary accent color
+
+</Accordion>
+</AccordionGroup>
+
+The accordions below show common patterns for using these variables to theme backgrounds, cards, text, and images.
+
+<AccordionGroup>
+
+<Accordion title="Dynamic backgrounds">
+
+Use CSS variables to create backgrounds that automatically adapt to the theme. Override with `.dark` selector only when you need theme-specific styling.
+
+```css
+/* Auto-adapts using Fern variables */
+.fern-background-image {
+  background-color: var(--background);
+  background-image: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--accent-9), var(--background) 85%) 0%,
+    var(--background) 100%
+  );
+}
+
+/* Explicit dark mode override for different gradient direction */
+.dark .fern-background-image {
+  background-image: linear-gradient(
+    to bottom,
+    var(--background) 0%,
+    color-mix(in srgb, var(--accent-9), var(--background) 85%) 100%
+  );
+}
+```
+
+</Accordion>
+
+<Accordion title="Dynamic cards">
+
+Cards automatically adapt to theme changes when using CSS variables. Add explicit dark mode overrides only for properties like shadows that need theme-specific values.
+
+```css
+/* Plant catalog card that adapts to theme */
+.fern-card.plant-card {
+  background-color: var(--card-background);
+  border-color: var(--border);
+  color: var(--grayscale-12);
+  box-shadow: 0 1px 2px var(--grayscale-a3);
+}
+
+.fern-card.plant-card.interactive:hover {
+  box-shadow: 0 4px 12px var(--accent-a6);
+}
+
+/* Dark mode shadow adjustment */
+.dark .fern-card.plant-card {
+  box-shadow: 0 2px 6px var(--grayscale-a4);
+}
+```
+
+</Accordion>
+
+<Accordion title="Dynamic text">
+
+Text colors automatically adapt when using Fern's grayscale and accent variables. Use `--grayscale-12` for primary text, `--grayscale-a11` for secondary text, and `--accent-11` for links.
+
+```css
+/* Plant species content */
+.plant-content {
+  color: var(--grayscale-12);
+}
+
+.plant-content .description {
+  color: var(--grayscale-a11);
+}
+
+.plant-content a {
+  color: var(--accent-11);
+  text-decoration-color: color-mix(in srgb, var(--accent-11), transparent 50%);
+}
+
+.plant-content a:hover {
+  color: var(--accent-12);
+}
+```
+
+</Accordion>
+
+<Accordion title="Dynamic images">
+
+There are multiple approaches for adapting images to light and dark modes.
+
+**SVG icons with currentColor (recommended):**
+
+```html HTML
+<svg class="plant-icon" width="24" height="24" fill="currentColor">
+  <!-- SVG paths -->
+</svg>
+```
+
+```css CSS
+.plant-icon {
+  color: var(--grayscale-11);
+}
+
+.plant-icon.accent {
+  color: var(--accent-11);
+}
+```
+
+**Swapping background images:**
+
+```css CSS
+.hero-plant {
+  background-image: url('/assets/plants/hero-light.png');
+  background-size: cover;
+  background-position: center;
+}
+
+.dark .hero-plant {
+  background-image: url('/assets/plants/hero-dark.png');
+}
+```
+
+**Using picture element with prefers-color-scheme:**
+
+```html HTML
+<picture>
+  <source srcset="/assets/plants/hero-dark.png" media="(prefers-color-scheme: dark)">
+  <img src="/assets/plants/hero-light.png" alt="Plant species">
+</picture>
+```
+
+<Warning>
+  The `prefers-color-scheme` media query follows the operating system theme preference and may not match a manual theme toggle on your site. For perfect alignment with Fern's theme switcher, use the `.dark` selector approach instead.
+</Warning>
+
+**Using CSS filters (last resort):**
+
+```css CSS
+.logo-monochrome {
+  filter: grayscale(1);
+}
+
+.dark .logo-monochrome {
+  filter: invert(1) grayscale(1);
+}
+```
+
+<Warning>
+  Avoid hardcoding hex colors in your custom CSS. Always use Fern's CSS variables to maintain proper contrast and theme consistency.
+</Warning>
+
+</Accordion>
+</AccordionGroup>
+
+### Common use cases
+
+<AccordionGroup>
+<Accordion title="Hiding page elements">
+
+You can use custom CSS to hide specific Fern docs components that you don't want
+to display.
+
+<CodeBlock title="styles.css">
+    ```css
+    .fern-layout-footer-toolbar { # Hides Fern feedback widget
+      display: none !important;
+    }
+    ```
+</CodeBlock>
+
+You can target other Fern UI components using their CSS class names. See the [CSS selectors reference](/learn/docs/customization/css-selectors-reference) for all available selectors, or use your browser's developer tools to inspect elements. 
+</Accordion>
+<Accordion title="Adding custom styling">
+
+You can use custom CSS to create brand-specific styling for tables, components, and other elements in your documentation.
+
+<CodeBlock title="styles.css">
+```css maxLines=10
+
+.petstore-table {
+    background-color: white;
+    border: 1px solid #DEDEE1;
+    border-radius: 4px;
+}
+
+.dark .petstore-table { 
+    background-color: #1e1e1e;
+    border: 1px solid #2e2e2e;
+}
+
+.petstore-table thead {
+    position: sticky;
+    top: 0;
+}
+
+.petstore-table thead tr {
+    background-color: #edecee;
+    border: 1px solid #DEDEE1;
+    border-radius: 4px 4px 0px 0px;
+}
+
+.dark .petstore-table thead tr {
+    background-color: #2e2e2e;
+    border: 1px solid #2e2e2e;
+}
+
+.petstore-table th {
+    padding: 6px;
+}
+
+.petstore-table tbody td {
+    padding: 6px;
+}
+
+.petstore-table tbody tr:nth-child(odd) {
+    border: 1px solid #DEDEE1;
+}
+.petstore-table tbody tr:nth-child(even) {
+    border: 1px solid #DEDEE1;
+    background-color: #f7f6f8;
+}
+
+.dark .petstore-table tbody tr:nth-child(odd) {
+    border: 1px solid #2e2e2e;
+}
+
+.dark .petstore-table tbody tr:nth-child(even) {
+    border: 1px solid #2e2e2e;
+    background-color: #2e2e2e;
+}
+```
+</CodeBlock>
+</Accordion>
+</AccordionGroup>
+
+### Inline CSS on MDX pages
+
+You can add CSS directly within an MDX page using a `<style>` tag. This is useful for page-specific styles that don't need to be applied globally.
+
+<CodeBlocks>
+<CodeBlock title="page.mdx">
+```mdx
+---
+title: My page
+---
+
+<style>
+{`
+.tropical-callout {
+  background: linear-gradient(135deg, #2d5016 0%, #4a7c23 100%);
+  border-radius: 8px;
+  padding: 16px;
+  color: white;
+}
+
+.dark .tropical-callout {
+  background: linear-gradient(135deg, #1a3009 0%, #2d5016 100%);
+}
+`}
+</style>
+
+<div className="tropical-callout">
+  Monstera deliciosa thrives in bright, indirect light.
+</div>
+```
+</CodeBlock>
+</CodeBlocks>
+
+The CSS must be wrapped in curly braces and backticks (`{``}`) to be valid JSX. Use the `.dark` selector prefix to define styles for dark mode.
+
+## Custom JavaScript
+
+Customize the behavior of your Docs site by injecting custom JavaScript globally.Add a `custom.js` file and include it in your `fern/` project:
+
+<CodeBlock title="Add the custom.js file">
+```bash {5}
+  fern/
+  ├─ openapi/
+  ├─ pages/
+  ├─ images/
+  ├─ custom.js
+  ├─ docs.yml
+  └─ fern.config.json
+```
+</CodeBlock>
+
+In `docs.yml`, specify the path to the `custom.js` file:
+
+<CodeBlock title="docs.yml">
+```yaml
+js: ./custom.js
+```
+</CodeBlock>
+
+You can also specify multiple custom JS files stored locally and remote:
+
+<CodeBlock title="docs.yml">
+```yaml
+js:
+  - path/to/js/file.js
+  - path: path/to/another/js/file.js
+    strategy: beforeInteractive
+  - url: https://example.com/path/to/js/file.js
+```
+</CodeBlock>
+
+<Note>
+We use `path` for local sources and `url` for remote sources.
+</Note>
+
+### Strategy
+
+Optionally, specify the strategy for each custom JavaScript file. Choose from `beforeInteractive`, `afterInteractive` (default), and `lazyOnload`. 
+
+<CodeBlock title="docs.yml">
+```yaml
+js:
+  - path: path/to/another/js/file.js
+    strategy: beforeInteractive
+```
+</CodeBlock>
+
+### Common use cases
+
+- **Third-party integrations:** For tools not natively supported in `docs.yml`, add analytics, session recording, support widgets, or tag managers by pasting their embed snippets into your custom JS file. See [Integrating third-party tools](/learn/docs/integrations/overview#connect-other-integrations-via-custom-javascript) for supported tools and examples.
+- **Custom search:** Implement custom search (also requires [your Algolia credentials](/docs/customization/search))
+- **Scripts and widgets:** Insert any client-side scripts or embeddable widgets
+
+                                                                                

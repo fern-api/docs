@@ -3,81 +3,57 @@ title: Project structure
 description: An overview of the file and folder structure of a Fern Docs project
 ---
 
-<Markdown src="/snippets/agent-directive.mdx"/>
 
-This page provides an overview of the file and folder structure of a Fern Docs project. The following structure is recommended for organizing your documentation content, but is customizable to fit your needs.
+This page provides an overview of the file and folder structure of a Fern Docs project.
 
-## Top-level folders 
+## Directory structure
+
+The configuration files for your docs live in the `fern` folder:
 
 <Files>
   <Folder name="fern" defaultOpen>
-    <Folder name="pages" comment="MDX files" />
-    <Folder name="assets" comment="Images or videos" />
+    <Folder name="docs" comment="Documentation content" defaultOpen>
+      <Folder name="pages" comment="MDX files" />
+      <Folder name="assets" comment="Images, logos, favicon" />
+      <Folder name="changelog" comment="Changelog entries" />
+    </Folder>
+    <Folder name="snippets" comment="Reusable MDX snippets" />
     <File name="docs.yml" comment="Defines navigation, theme, and hosting" />
-    <Folder name="openapi" comment="Or definition/ for the Fern Definition" />
-    <File name="generators.yml" comment="References spec, configures SDKs" />
+    <File name="openapi.yaml" comment="API definition (OpenAPI, AsyncAPI, etc.)" />
+    <File name="generators.yml" comment="References specs, configures SDKs" />
     <File name="fern.config.json" comment="Organization name and CLI version" />
+    <File name="styles.css" comment="Custom CSS styles" />
   </Folder>
 </Files>
 
-A Fern Docs project has the following top-level folders:
-
-- `pages`: Contains the Markdown (MDX) files that make up your documentation. This folder can use any name.
-- `assets`: Contains any images or videos used in your documentation. This folder can use any name.
-- `docs.yml`: Defines the navigation, theme, and hosting details of your documentation.
-- `openapi` or `definition/`: Contains your API specification files (if you have an API Reference section).
-- `generators.yml`: Required for OpenAPI to reference your spec location. Also used to configure SDK generation. Not required for Fern Definition docs-only projects.
-- `fern.config.json`: The configuration file specifying your organization name and CLI version.
-
-## Reserved folder names
-
-Some folders in a Fern project have reserved names and must be named exactly as shown:
-
-| Folder | Required name | When it's used |
-| --- | --- | --- |
-| `fern` | `fern` | Always. The root folder for every Fern project. |
-| `apis` | `apis` | Multi-API workspaces that contain more than one API definition. |
-| `changelog` | `changelog` | Projects that include a [changelog](/learn/docs/configuration/changelogs). |
-
 <Warning>
-Renaming these folders causes Fern to not recognize them. Always use the exact names listed above.
+The `fern` and `changelog` folders are reserved names — Fern won't recognize them if renamed. All other folder names are customizable.
 </Warning>
 
 ## Pages folder
 
-The `pages` folder contains the Markdown (MDX) files that make up your documentation. Each MDX file represents a page in your documentation.
+The `pages` folder contains the Markdown (MDX) files that make up your documentation. Each MDX file represents a page in your documentation. The folder name is customizable.
 
 <Files>
   <Folder name="pages" defaultOpen>
-    <Folder name="introduction" defaultOpen>
-      <File name="quickstart.mdx" />
-      <File name="project-structure.mdx" />
-      <File name="showcase.mdx" />
-    </Folder>
-    <Folder name="building-your-docs" defaultOpen>
-      <Folder name="navigation">
-        <File name="sections.mdx" />
-        <File name="tabs.mdx" />
-        <File name="versions.mdx" />
-      </Folder>
-      <File name="configuration.mdx" />
-    </Folder>
+    <File name="welcome.mdx" />
+    <File name="navigation.mdx" />
+    <File name="customization.mdx" />
+    <File name="support.mdx" />
   </Folder>
 </Files>
 
-The `pages` folder is organized into subfolders based on the sections of your documentation. Each subfolder contains the MDX files for the pages in that section.
+You can organize the `pages` folder into subfolders based on the sections of your documentation, or keep pages flat as shown above.
 
 ## Assets folder
 
-The `assets` folder contains any images or videos used in your documentation. You can reference these assets in your MDX files using relative paths.
+The `assets` folder contains any images or videos used in your documentation. You can reference these assets in your MDX files using relative paths. The folder name is customizable.
 
 <Files>
   <Folder name="assets" defaultOpen>
-    <File name="favicon.ico" />
-    <File name="product-screenshot.svg" />
-    <File name="demo-video.mp4" />
-    <File name="logo-dark-mode.png" />
-    <File name="logo-light-mode.png" />
+    <File name="favicon.svg" />
+    <File name="logo.svg" comment="Light mode logo" />
+    <File name="logo-dark.svg" comment="Dark mode logo" />
   </Folder>
 </Files>
 
@@ -85,41 +61,59 @@ The `assets` folder contains any images or videos used in your documentation. Yo
 
 The `docs.yml` file is the heart of your Fern documentation site. This configuration file controls your documentation's navigation structure, visual design, site functionality, and hosting settings. Only files referenced in your `docs.yml` navigation (or discovered via a [`folder` configuration](/learn/docs/configuration/navigation#auto-populate-from-folder)) are included in builds — any unreferenced files are ignored.
 
-For complete configuration options, see the [docs.yml reference](/docs/configuration/site-level-settings).
+For complete configuration options, see the [`docs.yml` reference](/docs/configuration/site-level-settings).
 
-<CodeBlock title="fern/docs.yml of this website">
+<CodeBlock title="Example fern/docs.yml">
 ```yml
 instances:
-  - url: fern.docs.buildwithfern.com/learn
-    custom-domain: buildwithfern.com/learn
+  - url: plantstore.docs.buildwithfern.com
+
+title: Fern Docs Starter
+
+tabs:
+  home:
+    display-name: Docs
+    icon: home
+  API Reference:
+    display-name: API Reference
+    icon: puzzle
 
 navigation:
-  - section: Introduction
+  - tab: home
     layout:
-      - page: QuickStart
-        path: pages/introduction/quickstart.mdx
-      - page: Project Structure
-        path: pages/introduction/project-structure.mdx
-      - page: Showcase
-        path: pages/introduction/showcase.mdx
+      - section: Get started
+        contents:
+          - page: Welcome
+            path: docs/pages/welcome.mdx
+          - page: Edit your docs
+            path: docs/pages/editing-your-docs.mdx
+      - section: Changelog
+        contents:
+          - changelog: docs/changelog
+  - tab: API Reference
+    layout:
+      - api: Plant Store API
 
 navbar-links:
+  - type: minimal
+    text: Fork this repo
+    url: https://github.com/fern-api/docs-starter
   - type: filled
-    text: Book a demo
-    url: https://buildwithfern.com/contact
+    text: Dashboard
+    url: https://dashboard.buildwithfern.com
 
 logo:
-  light: ./images/logo-primary.svg
-  dark: ./images/logo-white.svg
+  light: docs/assets/logo.svg
+  dark: docs/assets/logo-dark.svg
 
 colors:
   accent-primary:
-    dark: "#ADFF8C"
-    light: "#209d63"
+    dark: "#70E155"
+    light: "#008700"
 
-favicon: ./images/favicon.ico 
+favicon: docs/assets/favicon.svg
 
-title: Fern's Documentation
+css: styles.css
 ```
 </CodeBlock>
 
@@ -134,26 +128,30 @@ To generate [API Reference](/docs/api-references/generate-api-ref) documentation
 
 <AccordionGroup>
   <Accordion title="OpenAPI">
-    The `openapi` folder contains your OpenAPI Specification file. Fern supports either YAML or JSON format.
+    Place your OpenAPI specification file in the `fern/` directory (or in a subfolder). Fern supports either YAML or JSON format.
 
-    You must also create a `generators.yml` file that references your spec:
+    Reference it in `generators.yml`:
 
     ```yaml title="generators.yml"
     api:
       specs:
-        - openapi: ../openapi/openapi.json
+        - openapi: openapi.yaml
     ```
 
-    In addition to your specification file, you can optionally [add an overrides file](/learn/api-definitions/asyncapi/overrides) for additional customizations.
+    You can optionally [add an overlays file](/learn/api-definitions/openapi/overlays) for additional customizations. To see this in practice, check out [Fluidstack's Fern configuration](https://github.com/fluidstackio/fern-config/tree/main/fern/openapi).
 
-    <Files>
-      <Folder name="openapi" defaultOpen>
-        <File name="openapi.yaml" comment="Or openapi.json" />
-        <File name="overrides.yaml" comment="Optional" />
-      </Folder>
-    </Files>
+  </Accordion>
+  <Accordion title="AsyncAPI">
+    Place your AsyncAPI specification file in the `fern/` directory alongside your OpenAPI spec. Reference it in `generators.yml`:
 
-    To see this in practice, check out [Fluidstack's Fern configuration](https://github.com/fluidstackio/fern-config/tree/main/fern/openapi).
+    ```yaml title="generators.yml"
+    api:
+      specs:
+        - openapi: openapi.yaml
+        - asyncapi: asyncapi.yaml
+    ```
+
+    You can optionally [add an overrides file](/learn/api-definitions/asyncapi/overrides) for additional customizations.
 
   </Accordion>
   <Accordion title="Fern Definition">
@@ -205,13 +203,13 @@ The `fern.config.json` file stores your organization name and the Fern CLI versi
 
 ```json title="fern.config.json"
 {
-  "organization": "plant-catalog",
+  "organization": "plantstore",
   "version": "<Markdown src="/snippets/version-number-cli.mdx"/>"
 }
 ```
 
 <Info> 
   When working with a locally installed CLI, set `version` to `"*"`. See [Install Fern CLI locally](/cli-api-reference/cli-reference/overview#install-fern-cli-locally) for details.
-</Info>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
+</Info>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
 
 

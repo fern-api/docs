@@ -298,7 +298,7 @@ export const FernFooter: React.FC = () => {
               <div className="footer-column-links">
                 <a href="/learn/sdks/overview/introduction" className="footer-link">SDKs</a>
                 <a href="/learn/docs/getting-started/overview" className="footer-link">Docs</a>
-                <a href="/learn/ask-fern" className="footer-link">Ask Fern</a>
+                <a href="/learn/docs/ai-features/ask-fern/overview" className="footer-link">Ask Fern</a>
                 <a href="/learn/cli-api-reference/cli-reference/overview" className="footer-link">CLI Reference</a>
               </div>
             </div>

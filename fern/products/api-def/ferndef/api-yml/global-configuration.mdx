@@ -1,0 +1,70 @@
+---
+title: Global configuration
+description: Specify global headers, path parameters or query parameters meant to be included on every request.
+---
+
+
+The `api.yml` configuration supports global configuration like headers and path parameters. 
+
+## Global headers
+
+You can specify headers that are meant to be included on every request:
+
+<CodeBlock title="api.yml">
+```yaml
+name: api
+headers:
+  X-App-Id: string
+```
+</CodeBlock>
+
+When you define global headers in your `api.yml`, you must [include them in your endpoint examples](/api-definitions/ferndef/examples#examples-with-headers).
+
+## Global path parameters
+
+You can specify path parameters that are meant to be included on every request:
+
+<CodeBlock title="api.yml">
+```yaml
+name: api
+base-path: /{userId}/{orgId}
+path-parameters:
+  userId: string
+  orgId: string
+```
+</CodeBlock>
+
+### Overriding the base path
+
+If you have certain endpoints that don't live at the configured `base-path`, you can 
+override the `base-path` at the endpoint level.
+
+```yml imdb.yml {5}
+service: 
+  endpoints: 
+    getMovie: 
+      method: POST
+      base-path: "override/{arg}"
+      path: "movies/{movieId}"
+      path-parameters: 
+        arg: string
+```
+
+## Global query parameters
+
+You can't yet specify query parameters that are meant to be included on every request.
+If you'd like to see this feature, upvote [this issue](https://github.com/fern-api/fern/issues/2930).
+
+## Idempotency headers
+
+Configure idempotency headers to define which headers [SDK users](/learn/sdks/deep-dives/idempotency) can specify for safe request retries. You must also [mark each endpoint as idempotent](/learn/api-definitions/ferndef/endpoints/overview#idempotent-endpoints) for the headers to be exposed. When both are configured, Fern's generated SDKs expose these headers as parameters for idempotent endpoint calls.
+
+```yaml title="api.yml"
+name: api
+auth: bearer
+idempotency-headers:
+  Idempotency-Key: string
+  Idempotency-Expiration: optional<integer>
+```
+
+Each key in `idempotency-headers` is the HTTP header name, and the value is the type. [SDK users](/learn/sdks/deep-dives/idempotency) can then specify these headers when calling idempotent endpoints.

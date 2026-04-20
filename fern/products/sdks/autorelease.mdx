@@ -3,24 +3,21 @@ title: Fern Autorelease
 description: Automate SDK releases with Fern Autorelease. Detects API spec changes, regenerates SDKs, determines version bumps, and publishes to package registries.
 ---
 
-<Markdown src="/snippets/agent-directive.mdx"/>
 
 <Note title="Early Access">
-Fern Autorelease is currently in early access. [Contact us](https://buildwithfern.com/contact) to get started.
+Fern Autorelease is in early access. [Contact us](https://buildwithfern.com/contact) to get started.
 </Note>
 
 Fern Autorelease automates SDK releases end-to-end. When your API specification changes, Autorelease regenerates SDKs, determines the version bump, and publishes to package registries.
 
 ## How it works
 
-Autorelease detects changes to your spec using either **git-based detection** (monitors your spec repository for commits) or **pull-based detection** (periodically fetches your hosted spec from a URL). Once changes are detected, Autorelease:
+When changes to your API specification are committed, Autorelease:
 
 1. Regenerates SDKs for all configured languages
-2. Analyzes the API diff and determines the next version (semantic, calendar-based, integer, or custom)
+2. Analyzes the API diff and determines the appropriate [semantic version](https://semver.org/) bump
 3. Commits to repositories, tags releases, and publishes packages
 4. Updates changelogs automatically
-
-Autorelease pauses and requests confirmation if it's uncertain about the version bump. Publishing uses tokens stored in your GitHub Actions secrets—Fern never has access to these credentials.
 
 If a release fails, Autorelease pauses and sends alerts via Slack (if configured) or the Fern Dashboard where you can review and retry.
 
@@ -55,38 +52,9 @@ groups:
   />
 </Frame>
 
-### Customize Autorelease
+### Review releases before publishing
 
-You can customize Autorelease if you need to fetch from a hosted spec URL or review releases before publishing.
-
-<AccordionGroup>
-<Accordion title="Enable pull-based detection">
-
-Add a cron schedule to your `generators.yml`:
-
-```yaml generators.yml
-autorelease:
-  cron:
-    schedule: "0 0 * * 0"  # Weekly on Sunday at midnight
-```
-
-Or configure per-generator:
-
-```yaml generators.yml
-groups:
-  python-sdk:
-    generators:
-      - name: fernapi/fern-python-sdk
-        version: <Markdown src="/snippets/version-number-python.mdx"/>
-        autorelease:
-          cron:
-            schedule: "0 */6 * * *"  # Every 6 hours
-```
-</Accordion>
-
-<Accordion title="Review releases before publishing">
-
-[Set `mode: pull-request`](/learn/sdks/reference/generators-yml#pull-request) to review releases before publishing.  Autorelease will open a pull request for you to review instead of publishing directly.
+[Set `mode: pull-request`](/learn/sdks/reference/generators-yml#pull-request) to review releases before publishing. Autorelease opens a pull request for you to review instead of publishing directly.
 
 ```yaml generators.yml {8}
 groups: 
@@ -98,5 +66,16 @@ groups:
           repository: your-org/your-repo-name
           mode: pull-request
 ```
-</Accordion>
-</AccordionGroup>
+
+### Disable autorelease
+
+To disable Autorelease for a specific generator while keeping it enabled globally, set `autorelease: false` on that generator:
+
+```yaml generators.yml {6}
+groups:
+  internal-sdk:
+    generators:
+      - name: fernapi/fern-python-sdk
+        version: <Markdown src="/snippets/version-number-python.mdx"/>
+        autorelease: false
+```

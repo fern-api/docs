@@ -5,17 +5,17 @@ subtitle: 'Learn about the Fern CLI commands.'
 hideOnThisPage: true
 ---
 
-<Markdown src="/snippets/agent-directive.mdx"/>
 
 | Command | Description |
 |---------|-------------|
 | [`fern init`](#fern-init) | Create new Fern project from OpenAPI spec or scratch |
 | [`fern check`](#fern-check) | Validate API definition & configuration |
 | [`fern upgrade`](#fern-upgrade) | Update Fern CLI & generators to latest versions |
-| [`fern login`](#fern-login) | Login to Fern CLI via GitHub or Google |
+| [`fern login`](#fern-login) | Login to Fern CLI via GitHub, Google, Postman, or enterprise SSO |
 | [`fern logout`](#fern-logout) | Log out of the Fern CLI |
 | [`fern export`](#fern-export) | Export an OpenAPI spec for your API |
 | [`fern api update`](#fern-api-update) | Manually update your OpenAPI spec |
+| [`fern api enrich`](#fern-api-enrich) | Merge `x-fern-examples` from an overrides file into native OpenAPI examples |
 
 ## Documentation commands
 
@@ -26,6 +26,7 @@ hideOnThisPage: true
 | [`fern generate --docs`](#fern-generate---docs) | Build & publish documentation updates |
 | [`fern docs preview list`](#fern-docs-preview-list) | List all preview deployments |
 | [`fern docs preview delete`](#fern-docs-preview-delete) | Delete a preview deployment |
+| [`fern docs md check`](#fern-docs-md-check) | Validate MDX syntax in documentation files |
 
 ## SDK generation commands  
 
@@ -272,6 +273,8 @@ hideOnThisPage: true
     A Docker daemon must be running on your machine, as SDK generation runs inside a Docker container.
     </Note>
 
+    By default, the CLI pulls generator images from Docker Hub. To pull from a custom container registry, use the [`image` field](/learn/sdks/reference/generators-yml#image) in your `generators.yml` instead of `name`. See [custom container registry](/learn/sdks/deep-dives/self-hosted#optional-configure-a-custom-container-registry) for details.
+
     ### force
 
     Use `--force` to skip confirmation prompts during generation. This is useful in CI/CD environments where interactive prompts would block the pipeline.
@@ -285,15 +288,29 @@ hideOnThisPage: true
 
   <Accordion title="fern check">
 
-    Use `fern check` to validate your API definition and Fern configuration: [`fern.config.json`](/learn/sdks/overview/project-structure#fernconfigjson), `generators.yml`, and `docs.yml`.
+    <Warning>
+    The `--broken-links` and `--strict-broken-links` flags are deprecated. Use the [`broken-links` validation rule](/learn/docs/configuration/site-level-settings#check-configuration) in `docs.yml` instead.
 
-    When successfully executed, this command will not produce any output.
+    You can also use the [Fern Dashboard](https://dashboard.buildwithfern.com/) to validate both internal and external links on your live published site.
+    </Warning>
+
+    Use `fern check` to validate your API definition and Fern configuration, including [`fern.config.json`](/learn/sdks/overview/project-structure#fernconfigjson), `generators.yml`, and `docs.yml`. It checks for broken links, invalid API examples, configuration errors, and more. When all checks pass, the command produces no output.
 
     <CodeBlock title="terminal">
     ```bash
     fern check [--api <api>] [--warnings]
     ```
     </CodeBlock>
+
+    You can configure the severity of the validation rules run by `fern check` in your `docs.yml` file [using the `check.rules` property](/learn/docs/configuration/site-level-settings#check-configuration).
+
+    ```yaml docs.yml
+    check:
+      rules:
+        broken-links: error
+        example-validation: warn
+        missing-redirects: error
+    ```
 
     ### api
 
@@ -310,18 +327,6 @@ hideOnThisPage: true
     ```bash
     fern check --warnings
     ```
-
-    ### strict-broken-links
-
-    Use `--strict-broken-links` to fail the command if any broken links are found in your API docs.
-
-    ```bash
-    fern check --strict-broken-links
-    ```
-
-    <Note>
-    For comprehensive link checking, use the [Fern Dashboard](https://dashboard.buildwithfern.com/), which validates both internal and external links on your live published site. This is recommended over `--strict-broken-links` because the Dashboard checks your actual published site and can verify external links that the CLI cannot.
-    </Note>
 
     ## Usage in a GitHub Action
 
@@ -360,7 +365,7 @@ hideOnThisPage: true
 
     <CodeBlock title="terminal">
     ```bash
-    fern generate --docs [instance <instance-url>] [--preview]
+    fern generate --docs [instance <instance-url>] [--preview] [--id <name>] [--force]
     ```
     </CodeBlock>
 
@@ -378,6 +383,25 @@ hideOnThisPage: true
 
     ```bash
     fern generate --docs --preview
+    ```
+
+    ### id
+
+    Use `--id` with `--preview` to create a stable, named preview link. The preview URL follows the format `{org}-preview-{id}.docs.buildwithfern.com`, so rerunning with the same `--id` updates the existing preview in place rather than creating a new one.
+
+    ```bash
+    fern generate --docs --preview --id my-feature
+    # -> https://your-org-preview-my-feature.docs.buildwithfern.com
+    ```
+
+    This is useful in CI workflows where you want one preview URL per pull request. See [Preview changes](/learn/docs/preview-publish/preview-changes#preview-links) for details.
+
+    ### force
+
+    When reusing an `--id` that already exists, Fern prompts you to confirm the overwrite. Use `--force` to skip the confirmation. This is detected automatically in GitHub Actions, but is needed for other CI environments like Azure Pipelines.
+
+    ```bash
+    fern generate --docs --preview --id my-feature --force
     ```
 
   </Accordion>
@@ -432,12 +456,52 @@ hideOnThisPage: true
     ```
     </CodeBlock>
 
+    <Warning>
+    On Windows, `fern docs dev` requires [long path support](https://learn.microsoft.com/en-us/windows/win32/fileio/maximum-file-path-limitation#enable-long-paths-in-windows-10-version-1607-and-later) to be enabled.
+
+    To enable long path support, run the following command in an elevated PowerShell prompt, then restart your terminal:
+
+    ```powershell
+    New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem' -Name 'LongPathsEnabled' -Value 1 -PropertyType DWORD -Force
+    ```
+
+    If you can't enable long path support, use [Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/windows/wsl/install) to run `fern docs dev` in a Linux environment instead.
+    </Warning>
+
     ### port
 
     Use `--port <port-number>` to specify the port the docs preview will be run on. 
 
     ```bash
     fern docs dev --port 57908
+    ```
+
+  </Accordion>
+
+  <Accordion title="fern docs md check">
+
+    Use `fern docs md check` to validate MDX syntax across all documentation pages referenced in your navigation configuration, including `docs.yml`, versioned configuration files, and product-specific YAML files.
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern docs md check
+    ```
+    </CodeBlock>
+
+    The command parses each MDX file and reports syntax errors with file paths and line:column numbers. The command accounts for frontmatter offsets, so reported line numbers correspond to the actual lines in your file.
+
+    ```plaintext
+    fern/pages/quickstart.mdx:12:5
+      Unexpected closing tag, expected corresponding closing tag for `<CodeBlock>`
+
+    fern/pages/guide.mdx:45:1
+      Expected a closing tag for `<Note>` before the end of `paragraph`
+    ```
+
+    When all files are valid, you'll see a success message:
+
+    ```plaintext
+    ✓ All 42 MDX files are valid
     ```
 
   </Accordion>
@@ -489,16 +553,28 @@ hideOnThisPage: true
 
     <CodeBlock title="terminal">
     ```bash
-    fern login [--device code]
+    fern login
+    fern login --device-code
+    fern login --email <email>
     ```
     </CodeBlock>
 
+    By default, `fern login` opens a browser for GitHub, Google, or Postman authentication. Two alternative flows are available:
+
     ### device-code
 
-    Use `--device-code` to login via device code authorization. 
+    Use `--device-code` to login via device code authorization in environments where a browser cannot open automatically (e.g., SSH sessions or containers).
 
     ```bash
     fern login --device-code
+    ```
+
+    ### email
+
+    Use `--email` to login via enterprise SSO. Pass the email address associated with your organization's SSO provider.
+
+    ```bash
+    fern login --email user@example.com
     ```
 
     <Note>
@@ -707,5 +783,40 @@ hideOnThisPage: true
     fern api update --api public-api
     ```
   </CodeBlock>
+  </Accordion>
+
+  <Accordion title="fern api enrich">
+
+    Use `fern api enrich` to convert [AI-generated examples](/learn/docs/ai-features/ai-examples) or manually authored [`x-fern-examples`](/learn/api-definitions/openapi/extensions/request-response-examples) into portable OpenAPI examples that any OpenAPI-compatible tool can consume.
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern api enrich <openapi> -f <overrides-file> -o <output-file>
+    ```
+    </CodeBlock>
+
+    The command merges examples from an overrides file into native OpenAPI `example` fields and strips the `x-fern-examples` keys from the output. When an endpoint has multiple examples, each is stored as a named entry under the plural `examples` field.
+
+    The command requires two flags:
+
+    - `-f` (or `--file`) — the overrides file containing `x-fern-examples` (e.g., `ai_examples_override.yml`).
+    - `-o` (or `--output`) — the path for the enriched output file. Supports `.yml` and `.json` extensions.
+
+    ```bash
+    # Output as YAML
+    fern api enrich openapi.yml -f overrides.yml -o enriched-openapi.yml
+
+    # Output as JSON
+    fern api enrich openapi.yml -f overrides.yml -o enriched-openapi.json
+    ```
+
+    Each `x-fern-examples` field is mapped to its standard OpenAPI location:
+
+    - `path-parameters` → `parameters[].example` (where `in: path`)
+    - `query-parameters` → `parameters[].example` (where `in: query`)
+    - `headers` → `parameters[].example` (where `in: header`)
+    - `request.body` → `requestBody.content.*.example`
+    - `response.body` → `responses.<status>.content.*.example`
+
   </Accordion>
 </AccordionGroup>

@@ -1,0 +1,153 @@
+---
+title: Java configuration
+description: Configure your Java SDK generator with custom client names, package prefixes, builder patterns, and Maven publishing options for Fern.
+---
+
+
+You can customize the behavior of the Java SDK generator in `generators.yml`:
+
+```yaml {7-9} title="generators.yml"
+groups:
+  java-sdk:
+    generators:
+      - name: fernapi/fern-java-sdk
+        version: <Markdown src="/snippets/version-number-java.mdx"/>
+        config:
+          client-class-name: YourApiClient
+```
+
+<ParamField path="base-api-exception-class-name" type="string" required={false} toc={true}>
+Customizes the name of the base API exception class that all API-specific exceptions will extend. This allows you to define a custom base exception class name for better integration with your existing error handling patterns.
+</ParamField>
+
+<ParamField path="base-exception-class-name" type="string" required={false} toc={true}>
+Specifies the name of the base exception class that all generated exceptions will inherit from. This provides a common parent class for all SDK exceptions, enabling consistent exception handling patterns.
+</ParamField>
+
+<ParamField path="client-class-name" type="string" default="<Organization>ApiClient" required={false} toc={true}>
+
+The provided string will be used as the client class name.
+</ParamField>
+
+<ParamField path="collapse-optional-nullable" type="boolean" default="false" required={false} toc={true}>
+When enabled, generates `OptionalNullable<T>` types for merge patch request fields to distinguish between three states: absent (field not provided), null (field explicitly set to null), and present (field has a non-null value). This enables proper handling of JSON Merge Patch semantics where omitting a field, setting it to null, and providing a value have different meanings.
+</ParamField>
+
+<ParamField path="custom-dependencies" type="List<string>" required={false} toc={true}>
+
+<Markdown src="/snippets/pro-plan.mdx"/>
+
+Example:
+
+    ```yaml
+    custom-dependencies:
+    - "implementation com.foo:bar:0.0.0"
+    - "testImplementation com.foo:bar:0.0.0"
+    - "api com.foo:bar:0.0.0"
+    ```
+
+</ParamField>
+
+<ParamField path="disable-required-property-builder-checks" type="boolean" default="false" required={false} toc={true}>
+When enabled, disables validation checks in builder patterns for required properties. This removes compile-time checks that ensure all required fields are set before building an object, providing more flexibility but less safety.
+</ParamField>
+
+<ParamField path="enable-extensible-builders" type="boolean" default="false" required={false} toc={true}>
+
+When enabled, generates extensible builder classes that support customization through inheritance. This allows you to [add custom code](/learn/sdks/generators/java/custom-code#adding-custom-client-configuration) to extend the generated builders with additional functionality.
+</ParamField>
+
+<ParamField path="enable-forward-compatible-enums" type="boolean" default="false" required={false} toc={true}>
+When enabled, generates enum classes that can handle unknown values gracefully. This allows the SDK to process new enum values that may be added to the API without breaking existing client code, improving forward compatibility.
+</ParamField>
+
+<ParamField path="enable-inline-types" type="boolean" default="false" required={false} toc={true}>
+When enabled, generates inline types for nested schemas instead of creating separate classes. This results in cleaner type definitions where nested objects are defined within their parent types, reducing the number of generated files.
+</ParamField>
+
+<ParamField path="enable-public-constructors" type="boolean" default="false" required={false} toc={true}>
+
+When enabled, generates public constructors for model types.
+</ParamField>
+
+<ParamField path="enable-wire-tests" type="boolean" default="false" required={false} toc={true}>
+When enabled, generates [mock server (wire) tests](/sdks/deep-dives/testing#mock-server-tests) to verify that the SDK sends and receives HTTP requests as expected.
+</ParamField>
+
+<ParamField path="generate-unknown-as-json-node" type="boolean" default="false" required={false} toc={true}>
+When enabled, generates unknown or untyped properties as structured JSON objects instead of raw Object types. This provides better type safety and easier manipulation of dynamic JSON content while maintaining flexibility for unknown data structures.
+</ParamField>
+
+<ParamField path="inline-file-properties" type="boolean" default="false" required={false} toc={true}>
+Controls whether file upload properties are generated as inline request properties instead of separate method parameters. When enabled, file fields become part of the request object rather than being passed as individual function arguments.
+</ParamField>
+
+<ParamField path="inline-path-parameters" type="boolean" default="false" required={false} toc={true}>
+When enabled, path parameters are included as properties in the request object instead of being passed as separate method parameters. This creates a more unified request structure where all parameters are grouped together.
+</ParamField>
+
+<ParamField path="json-include" type="'non-empty' | 'non-absent'" default="non-absent" required={false} toc={true}>
+Controls Jackson's JSON serialization behavior for optional fields. Use 'non-empty' to exclude null and empty values, or 'non-absent' to only exclude null values while preserving empty collections and strings.
+</ParamField>
+
+<ParamField path="package-layout" type="'nested' | 'flat'" default="nested" required={false} toc={true}>
+Determines the organization of generated Java packages. Choose 'nested' for a hierarchical package structure that mirrors your API organization, or 'flat' for a simpler structure with fewer nested packages.
+</ParamField>
+
+<ParamField path="package-prefix" type="string" required={false} toc={true}>
+By default, the generated SDK will use the package prefix `com.{orgName}.api`, where `{orgName}` is your Fern organization name (defined in `fern.config.json`). 
+To override this, you can specify the `package-prefix` field in your `generators.yml` configuration.
+```
+config: 
+  package-prefix: my.new.package
+```
+</ParamField>
+
+<ParamField path="publish-to" type="'central' | 'ossrh'" required={false} toc={true}>
+Publish target for Maven packages. Use `central` for Maven Central Portal or `ossrh` for legacy Nexus Repository.
+</ParamField>
+
+<ParamField path="use-local-date-for-dates" type="boolean" default="false" required={false} toc={true}>
+When enabled, generates `java.time.LocalDate` instead of `String` for Fern date types. This provides better type safety and enables compile-time validation for date values, while maintaining the same string wire format for API communication.
+</ParamField>
+
+<ParamField path="wrapped-aliases" type="boolean" default="false" required={false} toc={true}>
+  When enabled, generates wrapper types for each alias to increase type-safety.
+For example, if you have an alias `ResourceId: string` then if this is true, the
+generator will generate a `ResourceId.java` file. If false, it will just treat it
+as `java.util.String`.
+</ParamField>
+
+## Publishing metadata configuration options
+
+If you want to customize how your publishing metadata looks in your
+`build.gradle` file, update the `metadata` field in `generators.yml`.
+
+```yml {4-9}
+    generators:
+      - name: fernapi/fern-java-sdk
+        version: 2.7.0
+        metadata:
+          author: "AuthorName"
+          email: "example@email.com"
+          package-description: "Your site description here"
+          reference-url: "https://example.com"
+          license: "MIT"
+
+```
+
+<ParamField path="author" type="string" required={false} toc={true}>
+Specifies the author name that will appear in the generated package metadata and build configuration files.
+</ParamField>
+<ParamField path="email" type="string" required={false} toc={true}>
+Sets the contact email address for the package author that will be included in the generated package metadata.
+</ParamField>
+<ParamField path="license" type="'MIT' | 'Apache-2.0' | { custom: 'Custom License Name' }" required={false} toc={true}>
+Defines the software license for the generated SDK. Choose from standard licenses like 'MIT' or 'Apache-2.0', or specify a custom license name.
+</ParamField>
+<ParamField path="package-description" type="string" required={false} toc={true}>
+Provides a description of the SDK package that will appear in package metadata and documentation. This helps users understand what the SDK is for and its purpose.
+</ParamField>
+<ParamField path="reference-url" type="string" required={false} toc={true}>
+Sets the reference URL (typically the API documentation or project website) that will be included in the package metadata for users to find additional information.
+</ParamField>

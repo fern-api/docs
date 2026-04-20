@@ -1,0 +1,128 @@
+---
+title: Rust configuration
+description: Configuration options for the Fern Rust SDK.
+---
+
+
+You can customize the behavior of the Rust SDK generator in `generators.yml`:
+
+```yaml {6-15} title="generators.yml"
+groups:
+  rust-sdk:
+    generators:
+      - name: fernapi/fern-rust-sdk
+        version: <Markdown src="/snippets/version-number-rust.mdx"/>
+        config:
+          clientClassName: YourClientName
+          crateName: your-crate-name
+          crateVersion: "1.0.0"
+          dateTimeType: "offset"
+          environmentEnumName: YourEnvironment
+          enableWireTests: true
+```
+
+<ParamField path="clientClassName" type="string" required={false} toc={true}>
+The name of the generated client struct. This allows you to customize the struct name that users will instantiate when using your SDK.
+</ParamField>
+
+<ParamField path="crateName" type="string" required={false} toc={true}>
+The name of the generated Rust crate. This is used in `Cargo.toml` and determines how users will add your SDK as a dependency.
+</ParamField>
+
+<ParamField path="crateVersion" type="string" required={false} toc={true}>
+The version of the generated crate. This is used in `Cargo.toml` for publishing to crates.io.
+</ParamField>
+
+<ParamField path="dateTimeType" type="'offset' | 'utc'" default="offset" required={false} toc={true}>
+Determines how timezone information is handled:
+
+- `offset`: Uses `DateTime<FixedOffset>` to preserve the original timezone from API responses
+- `utc`: Uses `DateTime<Utc>` to normalize all datetimes to UTC regardless of their original timezone
+
+Both options accept any datetime format and assume UTC if no timezone is provided in the datetime string.
+</ParamField>
+
+<ParamField path="environmentEnumName" type="string" required={false} toc={true}>
+The name of the generated environment enum. This allows you to customize the enum name that defines your API environments (such as production, staging, development).
+</ParamField>
+
+<ParamField path="enableWebsockets" type="boolean" default="false" required={false} toc={true}>
+When enabled, generates WebSocket client code for APIs with WebSocket channels. WebSocket channels are accessible through the root client via connector structs (e.g., `client.realtime.connect(...)`).
+</ParamField>
+
+<ParamField path="enableWireTests" type="boolean" default="false" required={false} toc={true}>
+When enabled, generates [mock server (wire) tests](/learn/sdks/deep-dives/testing#mock-server-tests) to verify that the SDK sends the correct HTTP requests and correctly handles responses per the API spec.
+</ParamField>
+
+<ParamField path="generateExamples" type="boolean" default="true" required={false} toc={true}>
+When enabled, generates code examples in the README and reference documentation.
+</ParamField>
+
+### Package metadata
+
+Configure metadata for publishing to crates.io:
+
+```yaml title="generators.yml"
+config:
+  packageDescription: "SDK for the Plant Store API"
+  packageLicense: "MIT"
+  packageRepository: "https://github.com/your-org/your-sdk"
+  packageDocumentation: "https://docs.example.com"
+```
+
+<ParamField path="packageDescription" type="string" required={false} toc={true}>
+A description of the crate for crates.io. This appears in the crate's metadata and search results.
+</ParamField>
+
+<ParamField path="packageLicense" type="string" required={false} toc={true}>
+The license identifier for the crate (e.g., "MIT", "Apache-2.0").
+</ParamField>
+
+<ParamField path="packageLicenseFile" type="string" required={false} toc={true}>
+Path to a custom license file (e.g., `LICENSE.md`). When set, uses `license-file` instead of `license` in `Cargo.toml`. This is useful when your license isn't a standard Software Package Data Exchange (SPDX) identifier.
+</ParamField>
+
+<ParamField path="packageRepository" type="string" required={false} toc={true}>
+The URL of the crate's source repository.
+</ParamField>
+
+<ParamField path="packageDocumentation" type="string" required={false} toc={true}>
+The URL of the crate's documentation.
+</ParamField>
+
+### Dependencies
+
+Add custom dependencies to your generated SDK:
+
+```yaml title="generators.yml"
+config:
+  extraDependencies:
+    tokio: "1.0"
+    serde_json: "1.0"
+  extraDevDependencies:
+    mockall: "0.11"
+```
+
+<ParamField path="extraDependencies" type="object" required={false} toc={true}>
+Additional dependencies to include in the generated `Cargo.toml`. Specify as a map of crate names to version requirements. You can also specify full dependency specifications with features and default features:
+
+```yaml title="generators.yml"
+config:
+  extraDependencies:
+    reqwest:
+      version: "0.12"
+      defaultFeatures: true
+```
+
+```yaml title="generators.yml"
+config:
+  extraDependencies:
+    reqwest:
+      version: "0.12"
+      features: ["rustls-tls"]
+```
+</ParamField>
+
+<ParamField path="extraDevDependencies" type="object" required={false} toc={true}>
+Additional dev dependencies to include in the generated `Cargo.toml`. These are only used during development and testing.
+</ParamField>

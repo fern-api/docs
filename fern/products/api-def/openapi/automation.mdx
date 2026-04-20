@@ -1,0 +1,64 @@
+---
+title: Sync your OpenAPI specification
+subtitle: Pull your latest OpenAPI Specification into your Fern Folder automatically.
+---
+
+
+Automatically pull your latest OpenAPI spec from a publicly available URL into your fern folder using the [sync-openapi GitHub Action](https://github.com/fern-api/sync-openapi). This keeps your committed spec in sync with your live API without manual updates.
+
+## Setup
+<Steps>
+  <Step title="Configure the origin URL">
+   Add the `origin` field to your `generators.yml` to specify where your OpenAPI spec is hosted:
+   
+   ```yml title="generators.yml"
+    api:
+      specs: 
+        - openapi: .path/to/openapi.json               # Definition file
+          overrides: .path/to-openapi-overrides.yml    # Overrides file
+          origin: https://api.example.com/openapi.json # URL to fetch latest spec from
+    ```
+  </Step>
+  <Step title="Add the GitHub Action">
+    Create `.github/workflows/sync-openapi.yml` in your repository. This action uses [`fern api update`](/cli-api-reference/cli-reference/commands#fern-api-update) to pull the latest version of your OpenAPI spec from the `origin` field in your `generators.yml` file. 
+
+    ```yml title=".github/workflows/sync-openapi.yml"
+    name: Sync OpenAPI Specs # can be customized
+    on:                               # additional custom triggers can be configured
+      workflow_dispatch:              # Manual trigger
+      push:                                          
+        branches:
+          - main                      # Trigger on push to
+      schedule:
+        - cron: '0 3 * * *'           # Daily at 3:00 AM UTC
+  jobs:
+    update-from-source:
+      runs-on: ubuntu-latest
+      steps:
+        - uses: actions/checkout@v4
+          with:
+            token: ${{ secrets.OPENAPI_SYNC_TOKEN }}
+        - name: Update API with Fern
+          uses: fern-api/sync-openapi@v2
+          with:
+            update_from_source: true
+            token: ${{ secrets.OPENAPI_SYNC_TOKEN }}
+            branch: 'update-api'
+            auto_merge: false
+            add_timestamp: true
+```
+  </Step>
+  <Step title="Create a GitHub token">
+    Generate a [fine-grained personal access token](https://github.com/settings/personal-access-tokens) with **Contents** and **Pull requests** read/write permissions for your repository.
+  </Step>
+  <Step title="Add to Repository Secrets">
+    In your repository, go to `Settings > Secrets and variables > Actions`. Click **New repository secret**, name it `OPENAPI_SYNC_TOKEN`, paste your token, and click **Add secret**.
+  </Step>
+</Steps>
+
+This creates daily pull requests with any API spec updates. To change the frequency, modify the `cron` schedule (see GitHub's [schedule syntax](https://docs.github.com/en/actions/reference/events-that-trigger-workflows#schedule)).
+
+## Other use cases 
+
+If your OpenAPI spec lives in a different repository (rather than at a public URL), you can sync it to your Fern folder using explicit file mappings. See the [sync-openapi GitHub Action README](https://github.com/fern-api/sync-openapi) for this and other advanced configurations.
+

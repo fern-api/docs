@@ -1,0 +1,208 @@
+---
+title: Dynamic authentication
+description: Implement dynamic authentication patterns like short-lived JWT signing in TypeScript SDKs using custom fetcher middleware.
+---
+
+
+Your API may require dynamic authentication where credentials need to be generated or refreshed for each request, such as signing short-lived JWTs or rotating tokens. TypeScript SDKs support this pattern through custom fetcher middleware.
+
+## Custom fetcher middleware
+
+The recommended way to implement dynamic authentication in TypeScript SDKs is to use a custom fetcher. This acts as middleware for all requests, allowing you to inject authentication logic in a single place without overriding individual methods.
+
+### How it works
+
+When you enable `allowCustomFetcher` in your generator configuration, the generated SDK accepts a `fetcher` parameter in the client options. This fetcher wraps all HTTP requests, giving you a single injection point for authentication logic.
+
+### Example: Short-lived JWT signing
+
+Here's how to implement JWT signing with token memoization:
+
+<Steps>
+
+### Enable custom fetcher in generator configuration
+
+Add `allowCustomFetcher: true` to your `generators.yml`:
+
+```yaml title="generators.yml"
+# inside your TypeScript SDK generator
+- name: fernapi/fern-typescript-sdk
+  config:
+    allowCustomFetcher: true
+```
+
+### Add runtime dependency via packageJson
+
+Add the `jsonwebtoken` dependency using the `packageJson` config option so it gets merged into the generated package.json:
+
+```yaml title="generators.yml"
+# inside your TypeScript SDK generator
+- name: fernapi/fern-typescript-sdk
+  config:
+    packageJson:
+      dependencies:
+        jsonwebtoken: "^9.0.0"
+      devDependencies:
+        "@types/jsonwebtoken": "^9.0.0"
+```
+
+See the [TypeScript configuration page](/sdks/generators/typescript/configuration#packagejson) for all available packageJson options.
+
+### Create a custom fetcher with JWT signing
+
+Create a fetcher function that wraps the default fetcher and injects JWT authentication:
+
+```typescript title="src/wrapper/jwtFetcher.ts"
+import * as jwt from "jsonwebtoken";
+import { fetcher as defaultFetcher, type FetchFunction } from "../core/fetcher";
+
+export function createJwtFetcher(privateKey: string): FetchFunction {
+  // Cache token to avoid regenerating on every request
+  let cachedToken: { value: string; expiresAt: number } | undefined;
+
+  return async (args) => {
+    const now = Math.floor(Date.now() / 1000);
+    
+    // Regenerate token if expired or about to expire (within 2 seconds)
+    if (!cachedToken || cachedToken.expiresAt - 2 <= now) {
+      const payload = {
+        iat: now,
+        exp: now + 15, // Token valid for 15 seconds
+      };
+      const token = jwt.sign(payload, privateKey, { algorithm: "RS256" });
+      cachedToken = { value: token, expiresAt: payload.exp };
+    }
+
+    // Inject JWT into request headers
+    const headers = {
+      ...(args.headers ?? {}),
+      Authorization: `Bearer ${cachedToken.value}`,
+    };
+
+    // Call the default fetcher with modified headers
+    return defaultFetcher({ ...args, headers });
+  };
+}
+```
+
+### Create a wrapper client
+
+Extend the generated client to use the custom fetcher:
+
+```typescript title="src/wrapper/PlantStoreClient.ts"
+import { PlantStoreClient as FernClient } from "../Client";
+import { createJwtFetcher } from "./jwtFetcher";
+
+// Infer the exact options type from the generated client's constructor
+type FernClientOptions = ConstructorParameters<typeof FernClient>[0];
+// Accept all options except 'fetcher', and add our 'privateKey'
+type Options = Omit<FernClientOptions, "fetcher"> & { privateKey: string };
+
+export class PlantStoreClient extends FernClient {
+  constructor(options: Options) {
+    // Extract privateKey and pass all other options to the parent
+    const { privateKey, ...clientOptions } = options;
+    super({
+      ...clientOptions,
+      fetcher: createJwtFetcher(privateKey),
+    });
+  }
+}
+```
+
+<Note>
+This pattern uses `ConstructorParameters` to infer the exact options type from the generated client, ensuring compatibility with all client options (headers, timeoutInSeconds, maxRetries, etc.) without hardcoding them. This keeps the wrapper future-proof as the generator adds new options.
+</Note>
+
+### Export the wrapper client
+
+Update your `index.ts` to export the wrapper instead of the generated client:
+
+```typescript title="src/index.ts"
+export { PlantStoreClient } from "./wrapper/PlantStoreClient";
+export * from "./api"; // Export types
+```
+
+### Add to `.fernignore`
+
+Protect your custom code from being overwritten:
+
+```diff title=".fernignore"
++ src/wrapper
++ src/index.ts
+```
+
+<Note>Use `.fernignore` to preserve your custom wrapper files, not to manage package.json. Add dependencies via the `packageJson` config option in generators.yml instead.</Note>
+
+### Use the client
+
+Users can use the client with automatic JWT signing on all requests:
+
+```typescript
+import { PlantStoreClient } from "plant-store-sdk";
+
+const client = new PlantStoreClient({
+  privateKey: process.env.PRIVATE_KEY,
+  environment: "https://api.plantstore.com",
+});
+
+// JWT is automatically signed and injected for each request
+const plant = await client.plants.get("monstera-123");
+const newPlant = await client.plants.create({ 
+  name: "Fiddle Leaf Fig",
+  species: "Ficus lyrata" 
+});
+```
+
+</Steps>
+
+## Other authentication patterns
+
+This same pattern works for other dynamic authentication scenarios:
+
+- **OAuth token refresh**: Automatically refresh expired access tokens before each request
+- **HMAC (Hash-based Message Authentication Code) signing**: Sign requests with HMAC signatures based on request content
+- **Rotating API keys**: Switch between multiple API keys based on rate limits
+- **Time-based tokens**: Generate tokens that include timestamps or nonces
+
+## Important considerations
+
+### Custom fetcher requirements
+
+- **Generator configuration**: The `allowCustomFetcher` option must be enabled in your `generators.yml` for the `fetcher` parameter to be available in `BaseClientOptions`
+- **Import path**: Import the default fetcher from `../core/fetcher` (or the appropriate path in your generated SDK) to wrap it with your custom logic
+- **Preserve all arguments**: When wrapping the default fetcher, ensure you pass through all arguments to maintain compatibility with the SDK's internal behavior
+
+### Security considerations
+
+- **Server-side only**: Never expose private keys in browser environments. JWT signing with private keys should only be done in server-side code (Node.js, Deno, Bun)
+- **Secure key storage**: Never hardcode private keys; use environment variables or secure key management systems
+- **Avoid double authentication**: If your API already uses bearer token authentication in the Fern definition, be careful not to override the existing `Authorization` header. Consider using a different header name or conditionally setting the header
+
+### Performance and concurrency
+
+- **Token memoization**: Cache tokens to avoid regenerating them on every request. The example above caches tokens and refreshes them 2 seconds before expiration
+- **Thread safety**: The memoization pattern shown is safe for concurrent requests in JavaScript's single-threaded event loop, but be mindful of race conditions in other environments
+- **Grace period**: Refresh tokens slightly before they expire (e.g., 2 seconds early) to avoid edge cases where a token expires during request processing
+
+### Header merging
+
+- **Preserve existing headers**: When injecting authentication headers, always spread existing headers to avoid overwriting headers set by the SDK or user
+- **Header precedence**: Headers are merged in order: SDK defaults → client options → request options → custom fetcher. Your custom fetcher runs last and can override previous headers
+
+### Time synchronization
+
+- **Clock drift**: Be aware of potential clock drift between your client and server. Consider adding tolerance to your token expiration checks
+- **Timestamp precision**: Use Unix timestamps (seconds since epoch) for `iat` and `exp` claims to match JWT standards
+
+## Best practices
+
+- **Cache tokens appropriately**: Balance between security (shorter token lifetime) and performance (less frequent regeneration)
+- **Handle errors gracefully**: Implement retry logic for authentication failures and token refresh errors
+- **Test thoroughly**: Ensure your wrapper handles all edge cases, including concurrent requests, token expiration, and network failures
+- **Monitor token usage**: Log token generation and refresh events to help debug authentication issues in production
+
+## See also
+
+- [Adding custom code](/sdks/generators/typescript/custom-code) - TypeScript-specific customization guide
+- [TypeScript configuration](/sdks/generators/typescript/configuration) - Full list of configuration options

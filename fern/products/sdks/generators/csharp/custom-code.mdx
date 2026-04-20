@@ -1,0 +1,104 @@
+---
+title: Adding custom code
+headline: Adding custom code (.NET)
+description: Add custom logic and methods to your .NET SDK with Fern. Extend BaseClient, create custom helpers, and use .fernignore effectively.
+---
+
+
+This page covers how to add custom logic and methods to your .NET SDK. 
+
+<Markdown src="/products/sdks/snippets/custom-code-callout.mdx"/>
+
+## Adding custom logic
+
+To get started adding custom code:
+
+<Steps>
+  <Step title="Create a new file and add your custom logic">
+    ```csharp title="src/YourNamespace/Helper.cs"
+    namespace YourNamespace;
+
+    public static class Helper
+    {
+        public static void MyHelper()
+        {
+            Console.WriteLine("Hello World!");
+        }
+    }
+    ```
+  </Step>
+  <Step title="Add your file to `.fernignore`">
+    ```yaml {3} title=".fernignore"
+    # Specify files that shouldn't be modified by Fern
+
+    src/YourNamespace/Helper.cs
+    ```
+  </Step>
+  <Step title="Consume the helper">
+    <Markdown src="/products/sdks/snippets/consume-method.mdx"/>
+
+    ```csharp
+    using YourNamespace;
+
+    Helper.MyHelper();
+    ```
+  </Step>
+</Steps>
+
+## Adding custom SDK methods
+
+<Markdown src="/products/sdks/snippets/custom-sdk-methods-intro.mdx"/>
+
+<Steps>
+  <Step title="Update `generators.yml` configuration">
+    Name your Fern-generated client something like `BaseClient` to reflect that this client will be extended.
+
+    ```yaml {4} title="generators.yml"
+    - name: fernapi/fern-csharp-sdk
+      version: <Markdown src="/snippets/version-number-csharp.mdx" />
+      config:
+        client-class-name: BaseClient
+    ```
+  </Step>
+  <Step title="Import and extend the generated client">
+    First, import the Fern generated base client and extend it. Then, add whatever methods you want.
+
+    ```csharp title="src/YourNamespace/MyClient.cs"
+    namespace YourNamespace;
+
+    public class MyClient : BaseClient
+    {
+        public MyClient(ClientOptions? clientOptions = null) : base(clientOptions)
+        {
+        }
+
+        public void MyHelper()
+        {
+            Console.WriteLine("Hello World!");
+        }
+    }
+    ```
+  </Step>
+  <Step title="Update `.fernignore`">
+    Add the `MyClient.cs` to `.fernignore`.
+
+    ```diff title=".fernignore"
+    + src/YourNamespace/MyClient.cs
+    ```
+  </Step>
+  <Step title="Consume the method">
+    Instead of constructing the generated client, your users will want to construct the extended client.
+
+    ```csharp
+    using YourNamespace;
+
+    var client = new MyClient();
+    ```
+
+    <Markdown src="/products/sdks/snippets/consume-method.mdx"/>
+
+    ```csharp
+    client.MyHelper();
+    ```
+  </Step>
+</Steps>

@@ -1,0 +1,147 @@
+---
+title: Use audiences to filter your API
+headline: Use audiences to filter your API (OpenAPI)
+subtitle: Learn how to use x-fern-audiences to filter OpenAPI endpoints, schemas, and properties for different API consumers like public and beta users.
+---
+
+
+<Markdown src="/snippets/team-or-pro-plan.mdx"/>
+
+Fern provides two ways to filter which API elements appear in your SDKs and API Reference docs:
+
+- **`audiences` (tag-based filtering):** Tag specific endpoints, schemas, or properties with audience labels, then filter SDKs and Docs to those tags. Best for creating variants based on user types (public vs. beta, free vs. enterprise) or feature maturity, regardless of URL structure.
+
+- **`settings.filter` (path-based filtering):** Filter entire URL paths or patterns. Best when your API organization naturally divides by URL (like `/v1/*` vs. `/v2/*`, or `/admin/*` vs. `/user/*`). See the [`settings.filter` reference](/learn/sdks/reference/generators-yml#openapi) for configuration details.
+
+Many teams use both approaches: path-based filtering for major divisions, audience tags for fine-grained control within those divisions.
+
+## Path based filtering
+
+Use [`settings.filter` in your `generators.yml`](/learn/api-definitions/openapi/generators-yml-reference#settingsfilter) to limit which endpoints are included in the generated SDK or API Reference based on their paths:
+
+```yaml title="generators.yml"
+api:
+  specs:
+    - openapi: "./openapi.yml"
+      settings:
+        filter:
+          endpoints: ["POST /users", "GET /users/{id}"]
+```
+
+## Tag based filtering (audiences)
+
+Apply audience tags in your OpenAPI spec, then configure your SDKs or API Reference to filter to those audiences.
+
+<Steps>
+<Step title="Tag elements in your spec">
+
+<AccordionGroup>
+<Accordion title="Tag servers">
+
+Add the `x-fern-server-name` and `x-fern-audiences` extension to the relevant server.
+
+In the example below, the `Production` server is only available to public consumers:
+
+```yaml title="openapi.yml" {3-5}
+servers:
+  - url: https://api.com
+    x-fern-server-name: Production
+    x-fern-audiences:
+      - public
+```
+</Accordion>
+<Accordion title="Tag endpoints">
+
+Add the `x-fern-audiences` extension to the relevant endpoint.
+
+In the example below, the `POST /users/sendEmail` endpoint is only available to public consumers:
+
+```yaml title="openapi.yml" {4-5}
+paths:
+  /users/sendEmail:
+    post:
+      x-fern-audiences:
+        - public
+      operationId: send_email
+```
+</Accordion>
+<Accordion title="Tag schemas">
+
+Add the `x-fern-audiences` extension to the relevant schema.
+
+In this example, the `Email` type is available to both public and beta customers.
+
+```yaml title="openapi.yml" {13-15}
+components:
+  schemas:
+    Email:
+      title: Email
+      type: object
+      properties:
+        subject:
+          type: string
+        body:
+          type: string
+        to:
+          type: string
+      x-fern-audiences:
+        - public
+        - beta
+```
+</Accordion>
+<Accordion title="Tag properties">
+
+Add the `x-fern-audiences` extension to the relevant property.
+
+In this example, the `to` property is available to beta customers only.
+
+```yaml title="openapi.yml" {13-17}
+components:
+  schemas:
+    Email:
+      title: Email
+      type: object
+      properties:
+        subject:
+          type: string
+        body:
+          type: string
+        to:
+          type: string
+          x-fern-audiences:
+            - beta
+```
+</Accordion>
+</AccordionGroup>
+</Step>
+<Step title="Filter SDKs or Docs">
+
+Specify which audiences to include in your SDKs or API Reference docs. If **no audiences** are specified, all tagged elements will be included in your SDK regardless of their audience tags.
+
+<Tabs>
+<Tab title="SDKs">
+The following example configures the SDK to filter to the `public` audience:
+
+```yaml title="generators.yml" {3-4}
+groups:
+  sdks:
+    audiences:
+      - public
+    generators:
+      - name: fernapi/fern-typescript-sdk
+        version: 0.8.8
+```
+</Tab>
+<Tab title="Docs">
+The following example configures the docs to filter to the `public` audience:
+
+```yaml title="docs.yml" {3-4}
+navigation:
+  - api: API Reference
+    audiences:
+      - public
+```
+</Tab>
+</Tabs>
+</Step>
+</Steps>
