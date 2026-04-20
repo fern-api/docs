@@ -1,3 +1,17 @@
+## 5.5.4
+**`(fix):`** Clamp the minimum Python version produced by the generator to ^3.10. Python 3.8 reached EOL in Oct 2024 and Python 3.9 in Oct 2025; many popular PyPI packages (e.g. `requests` >=2.33) no longer publish wheels for those versions, which causes dependency resolution to pin older, known-vulnerable releases (GHSA-gc5v-m9x4-r6x2 / CVE-2026-25645). When `pyproject_python_version` specifies a range that allows a version older than 3.10, the generator now logs a warning and emits `python = "^3.10"` in the generated `pyproject.toml`.
+
+
+**`(fix):`** Bump the `requests` / `types-requests` dependencies used by the generated wire test suite from `^2.31.0` to `^2.33.0` to pick up the fix for GHSA-gc5v-m9x4-r6x2 (insecure temp file reuse in `requests.utils.extract_zipped_paths`).
+
+
+**`(chore):`** Add a defensive `urllib3` pin to the generated SDK's dev dependencies that
+excludes the vulnerable `>=2.0.0,<2.2.2` range addressed by CVE-2024-37891
+(GHSA-34jh-p97f-mpxf). This prevents `poetry lock` from resolving to a
+vulnerable urllib3 even when user-supplied `extra_dependencies` transitively
+cap urllib3 (e.g. older boto3 pins whose botocore requires urllib3 < 2.1).
+
+
 ## 5.5.3
 **`(chore):`** Bump generated `pytest` dev dependency from `^8.2.0` to `^9.0.3` for SDKs
 targeting Python 3.9+. This addresses CVE-2025-71176 (GHSA-6w46-j5rx-g56g),
