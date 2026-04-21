@@ -36,10 +36,24 @@ Errors below are surfaced by `fern check` and `fern generate --docs`.
     ```
   </Accordion>
   <Accordion title='Redirect from "/path" to "/path" creates an infinite loop (source equals destination).'>
-    A [redirect](/learn/docs/configuration/site-level-settings#redirects-configuration)'s `source` and `destination` are the same path. Remove the redirect or point the `destination` at a different URL.
+    A [redirect](/learn/docs/configuration/site-level-settings#redirects-configuration) points at itself — a request to `/path` would be redirected to `/path`, and so on forever. Either delete the redirect (if `/path` is a valid page) or point `destination` at a different URL.
+
+    ```yaml title="docs.yml"
+    redirects:
+      - source: /path
+        destination: /new-path  # must differ from `source`
+    ```
   </Accordion>
   <Accordion title="Circular redirect chain detected: /a → /b → /a">
-    Two or more [redirects](/learn/docs/configuration/site-level-settings#redirects-configuration) form a cycle. Update the chain so each `source` eventually resolves to a single final `destination`.
+    Two or more [redirects](/learn/docs/configuration/site-level-settings#redirects-configuration) form a cycle: `/a` redirects to `/b`, and `/b` redirects back to `/a` (directly or through more hops). The browser would bounce between them indefinitely. Point every `source` in the chain at the final destination directly, so no `destination` is itself another `source`.
+
+    ```yaml title="docs.yml"
+    redirects:
+      - source: /a
+        destination: /c  # skip `/b` and go straight to the final page
+      - source: /b
+        destination: /c
+    ```
   </Accordion>
 </AccordionGroup>
 
