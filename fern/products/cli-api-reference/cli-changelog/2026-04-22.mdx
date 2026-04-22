@@ -1,3 +1,32 @@
+## 4.87.0
+**`(feat):`** Add new `docs.yml` metadata fields for controlling dynamically generated OG images:
+`og:dynamic:text-color`, `og:dynamic:background-color`, `og:dynamic:logo-color`
+(`dark` | `light`), and five visibility toggle flags (`og:dynamic:show-logo`,
+`og:dynamic:show-section`, `og:dynamic:show-description`, `og:dynamic:show-url`,
+`og:dynamic:show-gradient`).
+Also fixes a pre-existing gap where `og:dynamic` and `og:background-image` were
+missing from the Zod `MetadataConfig` schema, causing `fern check` to reject them.
+
+
+**`(fix):`** Populate `apiNameToId` in `fern docs dev` so MDX widgets that resolve APIs by
+user-facing name (e.g. `<MergeSupportedFieldsByIntegrationWidget apiName="hris_v2" ... />`)
+work in local preview. Previously the preview server hardcoded this mapping to
+`{}`, causing such widgets to throw `MergeWidgetResolutionError` and render the
+affected pages as 500 Internal Server Error.
+
+
+**`(chore):`** Emit non-fatal warnings during `fern check` / `fern docs dev` when `docs.yml`
+metadata settings silently conflict. Covered cases:
+- `og:dynamic: true` combined with `og:image` or `twitter:image` (the static
+  images only apply to the homepage once dynamic generation is enabled).
+- `og:dynamic:*` sub-settings or `og:background-image` set without
+  `og:dynamic: true` (they are ignored).
+- `og:dynamic:logo-color` set with `og:dynamic:show-logo: false` (no effect).
+- `og:image:width` / `og:image:height` set without `og:image`.
+- `og:dynamic:text-color` equal to `og:dynamic:background-color`
+  (text is invisible).
+
+
 ## 4.86.2
 **`(fix):`** Gate the consolidation of top-level OpenAPI servers into a single multi-URL
 environment behind a new setting, `multi-server-strategy`, with values
