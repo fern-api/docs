@@ -1,0 +1,59 @@
+---
+title: Idempotency
+headline: Idempotency (OpenAPI)
+description: Configure idempotency for safe request retries using x-fern-idempotency-headers and x-fern-idempotent extensions
+---
+
+
+<Markdown src="/snippets/pro-plan.mdx"/>
+
+Fern supports idempotency configuration through two extensions that work together: `x-fern-idempotency-headers` configures the idempotency headers your API uses, and `x-fern-idempotent` marks individual endpoints as idempotent. When configured, Fern's generated SDKs allow users to specify idempotency headers for safe request retries.
+
+## Configure idempotency headers
+
+Add the `x-fern-idempotency-headers` extension at the root level of your OpenAPI specification to define which headers your API uses for idempotency:
+
+```yaml title="openapi.yml"
+x-fern-idempotency-headers:
+  - header: Idempotency-Key
+    name: idempotency_key
+  - header: Idempotency-Expiration
+    name: idempotency_expiration
+```
+
+Each idempotency header supports the following properties:
+
+| Property | Description |
+| --- | --- |
+| `header` | The HTTP header name (e.g., `Idempotency-Key`) |
+| `name` | The parameter name used in the generated SDK (e.g., `idempotency_key`) |
+
+## Mark endpoints as idempotent
+
+Add the `x-fern-idempotent` extension to individual endpoints and set it to `true` to mark them as idempotent:
+
+```yaml title="openapi.yml" {1-3,8}
+x-fern-idempotency-headers:
+  - header: Idempotency-Key
+    name: idempotency_key
+
+paths:
+  /plants:
+    post:
+      x-fern-idempotent: true
+      operationId: create_plant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                species:
+                  type: string
+      responses:
+        '201':
+          description: Plant created successfully
+```

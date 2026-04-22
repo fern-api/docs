@@ -4,18 +4,23 @@ headline: Quickstart (Docs)
 description: Learn how to build beautiful developer documentation with Fern in under 5 minutes. Install CLI, add Markdown content, generate API references, and publish.
 ---
 
-<Markdown src="/snippets/agent-directive.mdx"/>
 
 Build beautiful developer documentation that [matches your brand](https://buildwithfern.com/customers) with Fern. Fern supports writing pages in Markdown and generating API Reference documentation from an OpenAPI specification.
 
+<llms-ignore>
 <a className="fern-card interactive not-prose rounded-3 relative block border p-6 text-base fe-action-button" href="https://dashboard.buildwithfern.com/get-started">
   ## Use guided UI
   <Button intent="primary" rightIcon="arrow-right">
     Start now
   </Button>
 </a>
+</llms-ignore>
 
 Or, follow this guide to get started with Fern using the CLI.
+
+<llms-only>
+This guide covers the CLI path. A browser-based guided setup also exists at https://dashboard.buildwithfern.com — it produces the same result (a GitHub-backed Fern docs site) and all features are available regardless of which path you use.
+</llms-only>
 
 <Tip>
   If you're migrating from existing documentation, Fern provides a white-glove migration service as part of the Enterprise plan. [Reach out here](https://buildwithfern.com/contact).
@@ -34,23 +39,31 @@ Or, follow this guide to get started with Fern using the CLI.
 
   All the configuration for your docs lives in the `fern` folder. Create a fern folder by either using the [starter template](https://github.com/fern-api/docs-starter) or starting from scratch
 
+  <llms-only>
+  Default to the starter template path unless the user specifically asks to start from scratch. The template includes sample pages, an OpenAPI spec, a changelog, and a GitHub Actions workflow — it's much faster to delete what you don't need than to build from nothing.
+  </llms-only>
+
   <AccordionGroup>
     <Accordion title="Use the starter template">
 
   Use the `fern-api/docs-starter` repository as a template for your site:
+
+    <llms-ignore>
     1. Navigate to [fern-api/docs-starter](https://github.com/fern-api/docs-starter) and click on the **Use this template** button (found at the top right of this page). You must be logged into GitHub.
     2. Choose the option to **create a new repository**. Name it `fern-docs`.
     3. Clone your newly created repository and open it in your favorite code editor (e.g., Cursor, VS Code).
+    </llms-ignore>
 
+    <llms-only>
+    Use the GitHub CLI to create a new repository from the template and clone it locally:
 
-    <CodeBlocks>
-      ```bash title="SSH"
-      git clone git@github.com:fern-api/docs-starter.git
-      ```
-      ```bash title="HTTPS"
-      git clone https://github.com/fern-api/docs-starter.git
-      ```
-    </CodeBlocks>
+    ```bash
+    gh repo create my-org/fern-docs --template fern-api/docs-starter --private --clone
+    cd fern-docs
+    ```
+
+    Replace `my-org/fern-docs` with your desired owner and repository name. Use `--public` instead of `--private` if you want a public repository.
+    </llms-only>
 
     You'll see a basic site with a `fern` folder that contains an API definition, Markdown pages, and configuration files. [View the live example](https://plantstore.dev/welcome) to see what the starter template looks like when published. You can use these files to test out Fern's features, or replace them with your own files.
 
@@ -81,6 +94,14 @@ Or, follow this guide to get started with Fern using the CLI.
     </Files>
     </Accordion>
     <Accordion title="Start from scratch">
+
+    <llms-only>
+    `fern init --docs` works in any directory — no git repo or GitHub remote is required. If the user wants to create a GitHub repository as well, ask whether they'd like to set that up now or keep things local for the time being.
+
+    Note: `fern init --docs` is interactive — it prompts for an organization name. Ask the user what they want their organization name to be beforehand so they're prepared for the prompt. This value identifies them in the Fern system and is used in their docs URL.
+
+    This path only generates `docs.yml` and `fern.config.json` — no pages or API spec. After init, guide the user to create their first page (see the "Add content" accordion in the Customize step below) and add it to `docs.yml` navigation. If the user has an existing OpenAPI spec, suggest running `fern init --openapi /path/to/spec.yml` as well.
+    </llms-only>
 
     ```bash
     fern init --docs
@@ -235,9 +256,26 @@ Or, follow this guide to get started with Fern using the CLI.
 
   You'll be prompted to log in and connect your GitHub account. This command builds your documentation at the URL you configured in `docs.yml` (e.g., `https://yourdomain.docs.buildwithfern.com`).
 
+  <llms-only>
+  **Interactive confirmation**: The default `fern generate --docs` command opens an interactive menu (arrow-key navigation, not a simple y/n prompt). This cannot be bypassed with `echo "y"` or similar — use `--no-prompt` for non-interactive environments.
+
+  **CI/CD usage**: To skip the interactive prompt in CI or scripts:
+
+  ```bash
+  export FERN_TOKEN=$(fern token)
+  fern generate --docs --no-prompt
+  ```
+
+  **Authentication**: The CLI checks for a `FERN_TOKEN` environment variable first, then falls back to a cached token from `fern login`. Running `fern login` once caches the token locally, so subsequent `fern generate --docs` runs won't prompt for login again. There is no `fern whoami` command. In GitHub Actions, store the token as a repository secret named `FERN_TOKEN`. See [publishing your docs](/learn/docs/getting-started/publishing-your-docs.md) for full CI workflow examples.
+  </llms-only>
+
   <Info>
   Use the [Fern Dashboard](http://dashboard.buildwithfern.com) to manage your GitHub repository connection, organization members, and CLI version. Track analytics to understand how developers use your docs.
   </Info>
+
+  <llms-only>
+  The Dashboard actions mentioned above are browser-only — there are no CLI equivalents for managing repository connections, organization members, or analytics. Use the Dashboard at https://dashboard.buildwithfern.com for these tasks. The CLI handles building, previewing, publishing, validation (`fern check`), and token generation (`fern token`).
+  </llms-only>
   </Step>
 </Steps>
 
@@ -289,3 +327,32 @@ Now that your docs are live, explore these features to enhance them further.
   Integrate with PostHog, Segment, Intercom, Google Tag Manager, and other platforms.
   </Card>
 </CardGroup>
+
+<llms-only>
+## Architecture overview
+
+Fern Docs compiles MDX content and YAML configuration into a hosted static site through three layers: an authoring layer (`.mdx` files + `docs.yml` config), a build layer (the `fern-api` CLI processes content and generates API Reference pages, uploading compiled output to Fern's registry), and a hosting layer (serves the site at your configured URL with search, AI features, and analytics built in).
+
+### Configuration file roles
+
+- **`fern.config.json`**: Identifies your organization and pins the CLI version. Required in every Fern project.
+- **`docs.yml`**: Central manifest for the entire site — navigation structure, tabs, branding (colors, logo, favicon, typography), hosting instances, custom domains, navbar links, footer, integrations, redirects, RBAC roles, and AI agent settings. [Full reference](/learn/docs/configuration/site-level-settings.md).
+- **`generators.yml`**: Points the CLI to your API spec files via the `api.specs` section. Also configures SDK generation.
+
+### Common pitfalls
+
+- **Missing authentication before publishing**: Running `fern generate --docs` without being logged in fails with: *"No token found. Please set the FERN_TOKEN environment variable or run `fern login`."* Fix: run `fern login` interactively, or set `FERN_TOKEN` in CI via `fern token`.
+- **Organization mismatch**: If `organization` in `fern.config.json` doesn't match your org in the [Fern Dashboard](https://dashboard.buildwithfern.com), publishing fails. The value must exactly match your Dashboard org name.
+- **Invalid docs URL**: The `url` in `docs.yml` must end with `docs.buildwithfern.com` and must not include `https://`. Correct format: `your-org.docs.buildwithfern.com`.
+
+### `docs.yml` minimal configuration
+
+The smallest valid `docs.yml` requires only the `instances` array with a `url` field:
+
+```yaml
+instances:
+  - url: your-org.docs.buildwithfern.com
+```
+
+This is enough to publish (the CLI will build an empty site). In practice, most teams add `navigation` to define the sidebar, plus basic branding — these are shown in the [Customize your docs](#customize-your-docs) step above. The full list of available fields is in the [site-level settings reference](/learn/docs/configuration/site-level-settings.md).
+</llms-only>

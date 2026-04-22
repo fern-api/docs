@@ -1,0 +1,111 @@
+---
+title: Configure idempotency headers
+description: Configure idempotency headers for SDKs that support retrying requests
+---
+
+
+<Markdown src="/snippets/pro-plan.mdx"/>
+
+For endpoints you've configured as idempotent, Fern's SDKs allow users to
+specify idempotency headers for safe request retries. Typically the headers include `Idempotency-Key`,
+but you can also specify additional headers.
+
+## Generated SDK behavior
+
+The generated SDKs expose idempotency headers as parameters only for endpoints marked as idempotent, ensuring users know exactly which invocations are idempotent.
+
+<CodeBlocks>
+  <CodeBlock title="TypeScript">
+    ```ts {5}
+    const response = await client.transactions.send({
+      amount: 100,
+      currency: "usd",
+    }, {
+      idempotencyKey: "64099353-b48b-4dcd-98b7-74df1cc57933"
+    });
+    ```
+  </CodeBlock>
+  <CodeBlock title="Python">
+    ```python {4}
+    response = client.transactions.send(
+      amount=100, 
+      currency="USD", {
+      idempotency_key="64099353-b48b-4dcd-98b7-74df1cc57933"
+    })
+    ```
+  </CodeBlock>
+  <CodeBlock title="Java">
+    ```java {7}
+    var response = client.transactions().send(
+      SendTransactionsRequest.builder()
+        .amount(100)
+        .currency(Currency.USD)
+        .build(),
+      IdempotentRequestOptions.builder()
+        .idempotencyKey("64099353-b48b-4dcd-98b7-74df1cc57933")
+        .build()
+    );
+    ```
+  </CodeBlock>
+  <CodeBlock title="Go">
+    ```go {7}
+    response, err := client.Transactions.Send(
+      ctx,
+      &SendTransactionsRequest{
+        Amount: 100,
+        Currency: Currency.USD,
+      },
+      option.WithIdempotencyKey("64099353-b48b-4dcd-98b7-74df1cc57933"),
+    )
+    ```
+  </CodeBlock>
+</CodeBlocks>
+
+## Setting up idempotency headers
+
+Configure the idempotency headers your API uses, then mark individual endpoints as idempotent:
+
+<Tabs>
+<Tab title="OpenAPI">
+
+```yaml title="openapi.yml" {2-4,10}
+x-fern-idempotency-headers:
+  - header: IDEMPOTENCY-KEY
+    name: idempotency_key
+
+paths:
+  /plants:
+    post:
+      x-fern-idempotent: true
+```
+
+</Tab>
+<Tab title="Fern Definition">
+
+```yaml title="api.yml"
+name: api
+auth: bearer
+idempotency-headers:
+  Idempotency-Key: string
+  Idempotency-Expiration: integer
+```
+
+```yaml title="service.yml"
+endpoints:
+  foo:
+    idempotent: true
+```
+
+</Tab>
+</Tabs>
+
+For full configuration details, see the docs for your API definition format:
+
+<CardGroup cols={2}>
+  <Card title="OpenAPI" href="/learn/api-definitions/openapi/extensions/idempotency">
+    Configure `x-fern-idempotency-headers` and `x-fern-idempotent` extensions.
+  </Card>
+  <Card title="Fern Definition" href="/learn/api-definitions/ferndef/api-yml/global-headers#idempotency-headers">
+    Configure idempotency headers in `api.yml` and mark endpoints as idempotent.
+  </Card>
+</CardGroup>

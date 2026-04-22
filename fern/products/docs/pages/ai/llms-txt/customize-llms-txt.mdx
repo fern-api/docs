@@ -1,0 +1,125 @@
+---
+title: Customize LLM output
+description: Exclude pages with noindex, filter content with llms-only and llms-ignore tags, filter endpoint output with query parameters, or serve your own custom files.
+---
+
+Customize what LLMs receive from your site by filtering content within a page using `<llms-only>` and `<llms-ignore>` tags, filtering endpoint output with query parameters, excluding pages with `noindex`, or serving your own custom files.
+
+## Filter within a page
+
+Within pages, use `<llms-only>` and `<llms-ignore>` tags to control what content is exposed to AI versus human readers on your documentation site.
+
+### Content for AI only
+
+`<llms-only>` content appears only on the LLM-serving endpoints that external agents (like Claude, ChatGPT, or Cursor) fetch directly: `/llms.txt`, `/llms-full.txt`, and each page's [`.md`/`.mdx` source](/learn/docs/developer-tools/view-markdown). It's hidden from every human-facing surface, including the rendered page, [Copy page](/learn/docs/configuration/site-level-settings#page-actions-configuration), the search widget, and [Ask Fern](/learn/docs/ai-features/ask-fern/overview).
+
+Use `<llms-only>` for:
+- Technical context that's verbose but helpful for AI, like implementation details or architecture notes
+- Code-related metadata that would clutter the human UI
+- Cross-references that help AI understand relationships between pages
+
+### Content for humans only
+
+`<llms-ignore>` content appears on every human-facing surface, including the rendered page, [Copy page](/learn/docs/configuration/site-level-settings#page-actions-configuration), the search widget, and [Ask Fern](/learn/docs/ai-features/ask-fern/overview) (which indexes and can cite it like any other page content). It's stripped from the LLM-serving endpoints (`/llms.txt`, `/llms-full.txt`, and each page's `.md`/`.mdx` source).
+
+Use `<llms-ignore>` for:
+- Marketing CTAs or promotional content
+- Navigation hints meant only for human readers
+- Internal comments that should remain only in source files
+
+### Example
+
+Fern's own [docs quickstart](https://github.com/fern-api/docs/blob/main/fern/products/docs/pages/getting-started/quickstart.mdx) pairs GitHub UI click-through steps with their CLI equivalent:
+
+````jsx quickstart.mdx wordWrap
+Use the `fern-api/docs-starter` repository as a template for your site:
+
+<llms-ignore>
+1. Navigate to [fern-api/docs-starter](https://github.com/fern-api/docs-starter) and click on the **Use this template** button (found at the top right of this page). You must be logged into GitHub.
+2. Choose the option to **create a new repository**. Name it `fern-docs`.
+3. Clone your newly created repository and open it in your favorite code editor (e.g., Cursor, VS Code).
+</llms-ignore>
+
+<llms-only>
+Use the GitHub CLI to create a new repository from the template and clone it locally:
+
+```bash
+gh repo create my-org/fern-docs --template fern-api/docs-starter --private --clone
+cd fern-docs
+```
+
+Replace `my-org/fern-docs` with your desired owner and repository name. Use `--public` instead of `--private` if you want a public repository.
+</llms-only>
+````
+
+<div className="highlight-frame">
+  <div className="highlight-frame-content">
+  Use the `fern-api/docs-starter` repository as a template for your site:
+
+  <llms-ignore>
+  1. Navigate to [fern-api/docs-starter](https://github.com/fern-api/docs-starter) and click on the **Use this template** button (found at the top right of this page). You must be logged into GitHub.
+  2. Choose the option to **create a new repository**. Name it `fern-docs`.
+  3. Clone your newly created repository and open it in your favorite code editor (e.g., Cursor, VS Code).
+  </llms-ignore>
+
+  <llms-only>
+  Use the GitHub CLI to create a new repository from the template and clone it locally:
+
+  ```bash
+  gh repo create my-org/fern-docs --template fern-api/docs-starter --private --clone
+  cd fern-docs
+  ```
+
+  Replace `my-org/fern-docs` with your desired owner and repository name. Use `--public` instead of `--private` if you want a public repository.
+  </llms-only>
+  </div>
+</div>
+
+On the docs site, human readers see only the numbered UI steps — the `<llms-only>` block is hidden. LLMs reading this page's Markdown output see the inverse: no UI steps, only the `gh repo create` command they can actually run. Each audience gets the path they can act on.
+
+The guiding principle: **UI-only elements belong to human readers, and their programmatic equivalents belong to AI agents.** Wrap clickable cards and UI walkthroughs in `<llms-ignore>` so agents skip them, and pair each UI step with an `<llms-only>` block that gives the CLI or API equivalent.
+
+To preview and debug what AI sees for any page, you can append `.md` or `.mdx` to the page URL to [view its Markdown source](/learn/docs/developer-tools/view-markdown).
+
+## Filter endpoint output
+
+Filter `llms.txt` and `llms-full.txt` output with the `lang` and `excludeSpec` query parameters to reduce token usage. Parameters can also be combined.
+
+```txt Example
+/llms.txt?lang=python
+/llms-full.txt?excludeSpec=true
+/llms-full.txt?lang=python&excludeSpec=true
+```
+
+<ParamField path="lang" type="'node' | 'python' | 'java' | 'ruby' | 'go' | 'csharp' | 'swift'">
+  Filter SDK code examples to a specific language. Common aliases are also accepted: `javascript`, `typescript`, `js`, `ts`, `py`, and `golang`. Case-insensitive.
+</ParamField>
+
+<ParamField path="excludeSpec" type="boolean">
+  Exclude OpenAPI and AsyncAPI specification sections.
+</ParamField>
+
+## Exclude whole pages
+
+You can exclude whole pages from LLM endpoints (`llms.txt` and `llms-full.txt`) by [adding `noindex: true`](/learn/docs/seo/setting-seo-metadata#noindex) to the page's frontmatter. Pages marked `noindex` aren't indexed by search engines but remain visible in your sidebar navigation and can still be accessed directly by URL. To also hide a page from navigation, see [Hiding content](/learn/docs/customization/hiding-content).
+
+```mdx docs/pages/internal-notes.mdx
+---
+title: Internal notes
+noindex: true
+---
+```
+
+## Serve custom files
+
+To serve your own `llms.txt` or `llms-full.txt` instead of the auto-generated versions, point to your files under the [`agents` key in `docs.yml`](/learn/docs/configuration/site-level-settings#agents-configuration):
+
+```yaml docs.yml
+agents:
+  llms-txt: ./path/to/llms.txt
+  llms-full-txt: ./path/to/llms-full.txt
+```
+
+Paths are relative to the `docs.yml` file. The CLI validates that each file exists and uploads it as part of your docs deployment. Your custom files are served at the root-level `/llms.txt` and `/llms-full.txt` endpoints. Nested paths (e.g., `/api-reference/llms.txt`) continue to use the auto-generated output.
+
+You can provide one or both files. Any file you don't specify falls back to the auto-generated version.

@@ -1,0 +1,273 @@
+---
+title: Authentication
+description: 'Model auth schemes such as bearer, basic, api key, and OAuth.'
+---
+
+
+Fern supports two ways to configure authentication:
+
+- **In your OpenAPI spec** using `securitySchemes` — the standard approach that keeps auth configuration portable and works with other OpenAPI tools.
+- **In `generators.yml`** using `auth-schemes` — use this to customize parameter names and environment variables, override what's defined in your spec, or configure OAuth (which isn't available in OpenAPI).
+
+Your authentication configuration applies across generated SDKs and the [API Explorer](/learn/docs/api-references/api-explorer). All SDKs support both direct configuration and environment variables for credentials. If you define the same scheme in both places, `generators.yml` takes precedence.
+
+## Configure authentication in your spec
+
+Define your schemes in `components.securitySchemes`, then apply them globally or per-endpoint using the `security` property.
+
+```yml title="openapi.yml"
+# Define the scheme
+components:
+  securitySchemes:
+    BearerAuth: # User-defined scheme name
+      type: http
+      scheme: bearer
+
+# Apply globally across all endpoints
+security:
+  - BearerAuth: []
+```
+
+Generated SDK usage:
+
+```ts index.ts
+const client = new Client({
+  token: "ey34..."
+});
+```
+
+<AccordionGroup>
+<Accordion title="Bearer">
+
+```yml title="openapi.yml"
+components:
+  securitySchemes:
+    BearerAuth: # User-defined scheme name
+      type: http
+      scheme: bearer
+```
+
+To customize parameter names and environment variables, add `x-fern-bearer`:
+
+```yaml title="openapi.yml"
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      x-fern-bearer:
+        name: apiKey
+        env: PLANTSTORE_API_KEY
+```
+
+</Accordion>
+<Accordion title="Basic">
+
+```yaml title="openapi.yml"
+components:
+  securitySchemes:
+    BasicAuth: # User-defined scheme name
+      type: http
+      scheme: basic
+```
+
+To customize parameter names and environment variables, add `x-fern-basic`:
+
+```yaml title="openapi.yml"
+components:
+  securitySchemes:
+    BasicAuth:
+      type: http
+      scheme: basic
+      x-fern-basic:
+        username:
+          name: clientId
+          env: PLANTSTORE_CLIENT_ID
+        password:
+          name: clientSecret
+          env: PLANTSTORE_CLIENT_SECRET
+```
+
+</Accordion>
+<Accordion title="API key">
+
+```yml title="openapi.yml"
+components:
+  securitySchemes:
+    ApiKeyAuth: # User-defined scheme name
+      type: apiKey
+      in: header
+      name: X_API_KEY
+```
+
+To customize parameter names and environment variables, add `x-fern-header`:
+
+```yaml title="openapi.yml"
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X_API_KEY
+      x-fern-header:
+        name: apiToken
+        env: PLANTSTORE_API_KEY
+        prefix: "Token "
+```
+
+<Note>
+The `prefix` option automatically prepends a string to API keys, useful when your API expects formats like `"Bearer abc123"` or `"Token abc123"`.
+</Note>
+
+</Accordion>
+</AccordionGroup>
+
+### Multiple auth schemes
+
+Configure endpoints to support multiple authentication schemes or combinations. In the `security` section, multiple top-level items are OR options, while schemes within a single item are combined with AND.
+
+```yaml title="openapi.yml"
+components:
+  securitySchemes:
+    bearerAuth: # User-defined scheme name
+      type: http
+      scheme: bearer
+    basicAuth: # User-defined scheme name
+      type: http
+      scheme: basic
+    apiKey: # User-defined scheme name
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+paths:
+  /plant/search/status:
+    get:
+      summary: Search plants by status
+      security:
+        - bearerAuth: []           # Option 1: Bearer token only
+        - basicAuth: []            # Option 2: Basic auth AND API key
+          apiKey: []
+```
+
+In this example, users can authenticate with either a bearer token OR with both basic auth and an API key together.
+
+<Note>
+When using OAuth client credentials with multiple schemes, ensure the scheme name in your OpenAPI spec's `security` section matches the name defined in `generators.yml`.
+</Note>
+
+## Customize or override authentication in `generators.yml`
+
+Define your scheme in [`auth-schemes`](/learn/sdks/reference/generators-yml#auth-schemes), then apply it as the default across all endpoints with [`api.auth`](/learn/sdks/reference/generators-yml#auth):
+
+```yml title="generators.yml"
+# Define the scheme
+auth-schemes:
+  BearerAuth: # User-defined scheme name
+    scheme: bearer
+    token:
+      name: apiKey
+      env: PLANTSTORE_API_KEY
+
+# Apply it as the default across all endpoints
+api:
+  auth: BearerAuth
+  specs:
+    - openapi: ./openapi.yml
+```
+<Note>
+For complete configuration options, see the [`auth-schemes` reference](/learn/sdks/reference/generators-yml#auth-schemes). You can also override authentication settings [for a specific SDK](/learn/sdks/reference/generators-yml#override-api-authentication-settings).
+</Note>
+
+Generated SDK usage:
+
+```ts index.ts
+// Uses process.env.PLANTSTORE_API_KEY
+const client = new PlantStoreClient();
+
+// Or provide explicitly
+const client = new PlantStoreClient({
+  apiKey: "your-api-key"
+});
+```
+
+<AccordionGroup>
+<Accordion title="Bearer">
+
+```yaml title="generators.yml"
+auth-schemes:
+  BearerAuth: # User-defined scheme name
+    scheme: bearer
+    token:
+      name: apiKey
+      env: MY_API_KEY
+```
+
+</Accordion>
+<Accordion title="Basic">
+
+```yaml title="generators.yml"
+auth-schemes:
+  BasicAuth: # User-defined scheme name
+    scheme: basic
+    username:
+      name: clientId
+      env: MY_CLIENT_ID
+    password:
+      name: clientSecret
+      env: MY_CLIENT_SECRET
+```
+
+</Accordion>
+<Accordion title="API key">
+
+```yaml title="generators.yml"
+auth-schemes:
+  ApiKeyAuth: # User-defined scheme name
+    header: X-API-Key
+    name: apiKey
+    env: MY_API_KEY
+    prefix: "Token "
+```
+
+</Accordion>
+<Accordion title="OAuth client credentials">
+
+<Warning title="Pro and Enterprise feature">
+This feature is available on [Pro and Enterprise plans](https://buildwithfern.com/pricing). Contact support@buildwithfern.com to get started.
+</Warning>
+
+```yaml title="generators.yml"
+auth-schemes:
+  OAuth: # User-defined scheme name
+    scheme: oauth
+    type: client-credentials
+    client-id-env: OAUTH_CLIENT_ID
+    client-secret-env: OAUTH_CLIENT_SECRET
+    get-token:
+      endpoint: "POST /oauth/token"
+      request-properties:
+        client-id: client_id
+        client-secret: client_secret
+      response-properties:
+        access-token: access_token
+        expires-in: expires_in
+        refresh-token: refresh_token
+    refresh-token:
+      endpoint: "POST /oauth/refresh"
+      request-properties:
+        refresh-token: refresh_token
+      response-properties:
+        access-token: access_token
+        expires-in: expires_in
+```
+
+The `endpoint` values reference paths in your OpenAPI spec. When `expires-in` is returned, the SDK automatically refreshes tokens before they expire.
+
+<Tip>
+If your API uses [namespaces](/learn/api-definitions/overview/project-structure#combined-sdks-from-multiple-apis) (multiple API specs), prefix the endpoint with the namespace and `::`. For example, `"payments::POST /oauth/token"`.
+</Tip>
+
+</Accordion>
+</AccordionGroup>
+

@@ -1,0 +1,52 @@
+---
+title: Retry behavior
+headline: Retry behavior (OpenAPI)
+description: Control API retry logic with x-fern-retries extension. Configure endpoint-level retry behavior and disable retries for payment processing and order creation.
+---
+
+
+<Callout intent="info">
+  The `x-fern-retries` extension is supported in Python SDKs only.
+</Callout>
+
+The `x-fern-retries` extension configures retry behavior per endpoint in your OpenAPI specification, overriding any
+retry settings configured by SDK users. Use it to disable retries for non-idempotent operations like payment
+processing or order creation.
+
+To disable retries for specific endpoints, set `disabled: true`.
+
+```yaml title="openapi.yml" {4-5,15-16}
+paths:
+  /plants/{plantId}:
+    get:
+      x-fern-retries:
+        disabled: true
+      operationId: get_plant
+      parameters:
+        - name: plantId
+          in: path
+          required: true
+          schema:
+            type: string
+  /plants:
+    post:
+      x-fern-retries:
+        disabled: true
+      operationId: create_plant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                species:
+                  type: string
+      responses:
+        '201':
+          description: Plant created successfully
+```
+
+When retries are disabled at the endpoint level, the generated SDK won't retry failed requests to that endpoint, regardless of the SDK's user custom configuration.

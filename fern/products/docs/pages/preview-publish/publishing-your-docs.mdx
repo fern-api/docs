@@ -1,0 +1,206 @@
+---
+title: Publishing your docs
+description: Publish your Fern docs to production and staging sites with automated workflows. Set up custom domains and manage deployments easily.
+---
+
+
+When you are ready for your docs to be publicly accessible, publish them using the Fern CLI. Choose one of the following approaches: publish [only to a production site](#publish-to-production), or [to separate staging and production sites](#publish-to-staging-and-production). 
+
+<Info>
+  Use the [Fern Dashboard](https://dashboard.buildwithfern.com) to manage CLI access, connect your GitHub repository, and monitor analytics and broken links.
+</Info>
+
+## Publish to production
+
+For a single production site (no staging environment), run the following command to publish your documentation:
+
+```bash
+fern generate --docs
+```
+
+```bash Example
+fern generate --docs
+[docs]: Found 0 errors and 1 warnings. Run fern check --warnings to print out the warnings.
+[docs]: ✓ All checks passed
+[docs]: Published docs to https://plantstore.docs.buildwithfern.com
+┌─
+│ ✓  https://plantstore.docs.buildwithfern.com
+└─
+```
+
+<Accordion title="Automate publishing process">
+
+Use a GitHub Action workflow to publish your docs when a push is made to the `main` branch. 
+
+<Steps>
+<Step title="Generate token">
+
+<Markdown src="/snippets/fern-token.mdx" />
+</Step>
+<Step title="Add token as a secret">
+Add the token as a [repository secret](https://docs.github.com/en/actions/security-guides/using-secrets-in-github-actions#creating-secrets-for-a-repository) called `FERN_TOKEN`.
+</Step>
+<Step title="Create workflow">
+Create a Publish Docs workflow ([example](https://github.com/fern-api/docs/blob/main/.github/workflows/publish-docs.yml)), and reference the secret. 
+
+```yaml .github/workflows/publish-docs.yml maxLines=7 startLine=21 {21}
+name: Publish Docs
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'push' && contains(github.ref, 'refs/heads/main') && github.run_number > 1 }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Fern
+        run: npm install -g fern-api
+
+      - name: Publish Docs
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+        run: fern generate --docs
+```
+</Step>
+</Steps>
+</Accordion>
+
+## Publish to staging and production
+
+To preview changes on a staging site before publishing to production, define [multiple instances](/learn/docs/configuration/site-level-settings#instances-configuration) in your `docs.yml` file. Once you configure multiple instances, you must use the `--instance` flag when publishing.
+
+<Steps>
+<Step title="Configure instances">
+
+Add both staging and production URLs to your `docs.yml` file. Don't include `https://` in the URLs.
+
+```yaml docs.yml
+instances:
+  - url: plantstore-prod.docs.buildwithfern.com
+  - url: plantstore-staging.docs.buildwithfern.com
+```
+</Step>
+<Step title="Publish to a specific instance">
+
+Use the `--instance` flag to publish to a specific environment:
+
+```bash
+# Publish to staging
+fern generate --docs --instance plantstore-staging.docs.buildwithfern.com
+
+# Publish to production
+fern generate --docs --instance plantstore-prod.docs.buildwithfern.com
+```
+
+After publishing, both instances will appear in the [Fern Dashboard](https://dashboard.buildwithfern.com).
+
+</Step>
+</Steps>
+
+<Accordion title="Automate publishing process">
+
+Use GitHub Action workflows to automatically deploy to staging on every push, while keeping production deployments manual.
+
+<Steps>
+<Step title="Generate token">
+<Markdown src="/snippets/fern-token.mdx" />
+</Step>
+<Step title="Add token as a secret">
+Add the token as a [repository secret](https://docs.github.com/en/actions/security-guides/using-secrets-in-github-actions#creating-secrets-for-a-repository) called `FERN_TOKEN`.
+</Step>
+<Step title="Set up automatic staging deployment workflow">
+
+This workflow automatically publishes to your staging instance when changes are pushed to the `main` branch:
+
+```yaml .github/workflows/publish-staging.yml maxLines=7
+name: Publish Staging Docs
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Fern
+        run: npm install -g fern-api
+
+      - name: Validate configuration
+        run: fern check
+
+      - name: Publish to Staging
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+        run: fern generate --docs --instance plantstore-staging.docs.buildwithfern.com
+```
+</Step>
+<Step title="Set up manual production deployment workflow">
+
+This workflow allows you to manually trigger a production deployment from the GitHub Actions UI:
+
+```yaml .github/workflows/publish-production.yml maxLines=7
+name: Publish Production Docs
+
+on:
+  workflow_dispatch:
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Fern
+        run: npm install -g fern-api
+
+      - name: Validate configuration
+        run: fern check
+
+      - name: Publish to Production
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+        run: fern generate --docs --instance plantstore-prod.docs.buildwithfern.com
+```
+
+To deploy to production, go to the **Actions** tab in your GitHub repository, select the workflow, and click **Run workflow**.
+</Step>
+</Steps>
+</Accordion>
+
+## Hosting 
+
+When you publish your docs, Fern takes care of hosting them for you. You can also [publish your docs to a custom domain](/docs/preview-publish/setting-up-your-domain). 
+
+### Self-hosting your docs
+
+If you need access to your docs offline or would like to host your docs on your own server, Fern [offers that option as well](/docs/self-hosted/overview). Self-hosted docs have limited access to certain features (including Ask Fern and analytics).
+
+## Unpublishing your docs
+
+To unpublish a docs site, navigate to the **Settings** page for your site in the [Fern Dashboard](https://dashboard.buildwithfern.com) and click **Unpublish**. This makes the domain no longer publicly accessible, but doesn't delete the site — you can republish it at any time. This is useful for creating draft sites or temporarily hiding a site from public view.
+
+<llms-only>
+## Common errors
+
+### No token found. Please set the FERN_TOKEN environment variable or run `fern login`.
+
+`fern generate --docs` needs an authenticated session to publish. Run [`fern login`](/learn/cli-api-reference/cli-reference/commands#fern-login) locally, or set `FERN_TOKEN` in your shell or CI environment. Use [`fern token`](/learn/cli-api-reference/cli-reference/commands#fern-token) to generate a CI-friendly token.
+
+### OpenAPI spec validation failed with N errors. Fix the errors above before generating docs.
+
+One or more [OpenAPI specs](/learn/docs/api-references/overview) referenced by the docs have fatal validation errors. The individual `<file>: <message>` lines above this message identify the exact problem — fix those in your spec, then re-run `fern generate --docs`.
+</llms-only>
+

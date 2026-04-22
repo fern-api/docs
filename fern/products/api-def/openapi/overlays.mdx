@@ -1,0 +1,195 @@
+---
+title: Overlays
+description: Use the OpenAPI Overlay Specification to customize your OpenAPI definition without modifying the original spec.
+---
+
+
+Overlays let you customize your OpenAPI specification without modifying the original file. This is useful when:
+
+- Your API specification is auto-generated from server code
+- You need different configurations for SDKs versus documentation
+- You want to add Fern configurations like pagination or SDK method names
+- You want to make bulk changes across many endpoints using JSONPath wildcards
+
+Overlays follow the [OpenAPI Overlay Specification](https://spec.openapis.org/overlay/v1.0.0.html) and are portable across the OpenAPI ecosystem.
+
+<Note>
+  Fern recommends using overlays instead of overrides for OpenAPI specs. 
+
+  [Overrides](/learn/api-definitions/openapi/overrides) are also fully supported. If overrides are working for your team, there's no need to switch. You can also use both together (overrides are applied first, then overlays).
+</Note>
+
+## Configure overlays
+
+To use overlays, create an `overlays` file in the same folder as your spec and reference it in `generators.yml`:
+
+```yaml title="generators.yml"
+api:
+  specs:
+    - openapi: openapi.json
+      overlays: overlays.yml
+```
+
+## Define the overlays file
+
+Each action in an overlay targets elements using [JSONPath](https://datatracker.ietf.org/doc/html/rfc9535) and applies an `update` or `remove` operation:
+
+```yaml title="openapi-overlays.yml"
+overlay: 1.0.0 # Required: Overlay Specification version
+info:
+  title: Customize Plant Store API # Required: Human-readable description of the overlay's purpose
+  version: 1.0.0 # Required: Version identifier for tracking changes to this overlay
+actions: # Required: Ordered list of changes to apply
+  - target: $.info # JSONPath expression selecting the element to modify
+    update: # Properties to merge with the targeted element
+      x-fern-sdk-group-name: plants
+  - target: $.paths['/plants/{plantId}'].get.parameters[?(@.name == 'plantId')]
+    update:
+      x-fern-parameter-name: id
+```
+
+<Warning>
+Fern requires parentheses around JSONPath filter expressions. Use `[?(@.name == 'plantId')]` instead of `[?@.name == 'plantId']`.
+</Warning>
+
+<AccordionGroup>
+<Accordion title="Modifying OpenAPI properties" toc={true}>
+
+Use `update` to change standard OpenAPI properties like descriptions, summaries, or other fields:
+
+```yaml title="openapi-overlays.yml"
+overlay: 1.0.0
+info:
+  title: Improve API documentation
+  version: 1.0.0
+actions:
+  - target: $.paths['/plants'].get
+    update:
+      summary: List all available plants
+      description: Returns a paginated list of plants in the store inventory.
+```
+
+</Accordion>
+<Accordion title="Customizing with Fern extensions" toc={true}>
+
+Use `update` to add [Fern extensions](/api-definitions/openapi/extensions/overview):
+
+```yaml title="openapi-overlays.yml"
+overlay: 1.0.0
+info:
+  title: Add Fern SDK customizations
+  version: 1.0.0
+actions:
+  # Add SDK group and method names
+  - target: $.paths['/plants'].get
+    update:
+      x-fern-sdk-group-name: plants
+      x-fern-sdk-method-name: list
+  - target: $.paths['/plants'].post
+    update:
+      x-fern-sdk-group-name: plants
+      x-fern-sdk-method-name: create
+  # Rename a parameter
+  - target: $.paths['/plants/{plantId}'].get.parameters[?(@.name == 'includeDetails')]
+    update:
+      x-fern-parameter-name: withDetails
+```
+
+</Accordion>
+<Accordion title="Removing elements" toc={true}>
+
+Use `remove: true` to delete elements from your specification:
+
+```yaml title="openapi-overlays.yml" {8}
+overlay: 1.0.0
+info:
+  title: Remove internal endpoints
+  version: 1.0.0
+actions:
+  - target: $.paths['/internal/debug']
+    description: Remove debug endpoint from public SDK
+    remove: true
+```
+
+</Accordion>
+</AccordionGroup>
+
+## Managing overlays across APIs
+
+Each spec in `generators.yml` accepts one overlay file. You can reference the same file across specs or use separate files for different configurations.
+
+<AccordionGroup>
+<Accordion title="Shared overlays across multiple specs">
+
+When multiple specs need the same customizations, point them to the same overlay file to avoid duplication:
+
+```yaml title="generators.yml"
+api:
+  specs:
+    - openapi: ./payments-api.yml
+      overlays: shared-overlays.yml       # Same overlay for both specs
+    - openapi: ./users-api.yml
+      overlays: shared-overlays.yml
+```
+
+If each spec needs unique customizations, create separate overlay files per spec:
+
+```yaml title="generators.yml"
+api:
+  specs:
+    - openapi: ./payments-api.yml
+      overlays: payments-overlays.yml
+    - openapi: ./users-api.yml
+      overlays: users-overlays.yml
+```
+
+</Accordion>
+<Accordion title="Separate overlays for SDKs and docs">
+
+Use different overlay files for SDK generation versus documentation by creating separate folders with their own `generators.yml`:
+
+<Files>
+  <Folder name="fern" defaultOpen>
+    <File name="fern.config.json" />
+    <File name="openapi.yml" />
+    <Folder name="docs" defaultOpen>
+      <File name="generators.yml" />
+      <File name="docs-overlays.yml" />
+    </Folder>
+    <Folder name="sdks" defaultOpen>
+      <File name="generators.yml" />
+      <File name="sdk-overlays.yml" />
+    </Folder>
+  </Folder>
+</Files>
+
+```yaml title="sdks/generators.yml"
+api:
+  specs:
+    - openapi: ../openapi.yml
+      overlays: sdk-overlays.yml
+```
+
+</Accordion>
+<Accordion title="Overlays for different environments">
+
+Configure different overlays for production versus internal APIs:
+
+```yaml title="generators.yml" {5, 11}
+groups:
+  production:
+    specs:
+      - openapi: openapi.yml
+        overlays: production-overlays.yml
+    generators:
+      ...
+  internal:
+    specs:
+      - openapi: openapi.yml
+        overlays: internal-overlays.yml
+    generators:
+      ...
+```
+
+</Accordion>
+</AccordionGroup>

@@ -1,0 +1,171 @@
+---
+title: Previews
+description: Set up preview environments for your self-hosted documentation using containers or static exports.
+availability: beta
+---
+
+
+<Markdown src="/snippets/enterprise-plan.mdx" />
+
+There are two ways to set up preview environments for your self-hosted docs:
+
+- **Container-based** — deploys the same self-hosted Docker container you use in production, giving you a full-fidelity preview with search, API Explorer, and authentication.
+- **Static export** — renders your docs to static HTML and assets that can be served from any object store (S3, GCS, R2), with no running containers required.
+
+Both approaches render content exactly as it would appear in production.
+
+## Choosing an approach
+
+For most teams, **static export** is the best starting point because of its minimal infrastructure and setup. Choose **container-based** if you need search, API Explorer, or authentication in your previews.
+
+| | Container-based | Static export <Badge intent="warning" minimal>Beta</Badge> |
+|---|---|---|
+| **Content rendering** | Identical to production | Identical to production |
+| **Search** | Yes | No |
+| **API Explorer (Try it)** | Yes | No |
+| **Authentication** | Yes | No |
+| **Infrastructure** | Requires container hosting, load balancer, DNS | Serves from any object store (S3, GCS, R2) |
+| **Scaling** | One container per preview | Thousands of previews with no servers |
+| **Cost** | Higher | Low |
+| **Cleanup** | Must tear down containers and resources | Simple — delete static files |
+
+## GitHub Actions workflows
+
+The following workflows can be added to your repository to automatically build and deploy preview environments on every pull request.
+
+<AccordionGroup>
+<Accordion title="Container-based preview workflow">
+
+This workflow builds the Docker image on each pull request and deploys it to your container hosting platform.
+
+```yaml title=".github/workflows/preview-docs-container.yml"
+name: preview-docs-container
+
+on:
+  pull_request:
+
+jobs:
+  preview-docs:
+    runs-on: ubuntu-latest
+    permissions: write-all
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build docs container
+        run: docker build -t self-hosted-docs:${{ github.sha }} .
+
+      - name: Push container to registry
+        run: |
+          docker tag self-hosted-docs:${{ github.sha }} ${{ secrets.REGISTRY }}/self-hosted-docs:${{ github.sha }}
+          docker push ${{ secrets.REGISTRY }}/self-hosted-docs:${{ github.sha }}
+
+      - name: Deploy preview
+        run: |
+          # Deploy the container to your hosting platform
+          # (e.g. ECS, Cloud Run, Kubernetes, etc.)
+          # and retrieve the preview URL
+          echo "Deploy self-hosted-docs:${{ github.sha }} to your platform"
+```
+
+</Accordion>
+<Accordion title="Static export preview workflow">
+
+This workflow builds the container, runs the static export, and uploads the output to S3. Adapt the upload step for your object store.
+
+```yaml title=".github/workflows/preview-docs-static.yml"
+name: preview-docs-static
+
+on:
+  pull_request:
+
+jobs:
+  preview-docs:
+    runs-on: ubuntu-latest
+    permissions: write-all
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build docs container
+        run: docker build -t self-hosted-docs .
+
+      - name: Start container
+        run: |
+          docker run -d \
+            --name docs-container \
+            -e WARMUP=true \
+            self-hosted-docs
+
+      - name: Wait for container to be healthy
+        run: |
+          echo "Waiting for container to be healthy..."
+          MAX_ATTEMPTS=60
+          ATTEMPT=0
+          while [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; do
+            ATTEMPT=$((ATTEMPT + 1))
+            if docker exec docs-container sh -c \
+              'TOKEN=$(cat /tmp/.cache-admin-token 2>/dev/null); \
+               curl -f -s --max-time 5 \
+               -H "Authorization: Bearer $TOKEN" \
+               http://localhost:3000/__cache/stats' > /dev/null 2>&1; then
+              echo "Container is healthy."
+              break
+            fi
+            echo "  Not ready yet... ($ATTEMPT/$MAX_ATTEMPTS)"
+            sleep 5
+          done
+          if [ "$ATTEMPT" -ge "$MAX_ATTEMPTS" ]; then
+            echo "Error: container did not become healthy."
+            exit 1
+          fi
+
+      - name: Export static site
+        run: |
+          docker exec docs-container /scripts/export.sh
+          docker cp docs-container:/tmp/fern-static-export.tar.gz ./export.tar.gz
+
+      - name: Extract static files
+        run: |
+          mkdir -p ./site
+          tar -xzf export.tar.gz -C ./site
+
+      - name: Upload to S3
+        uses: jakejarvis/s3-sync-action@v0.5.1
+        with:
+          args: --delete
+        env:
+          SOURCE_DIR: ./site
+          AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          DEST_DIR: pr-${{ github.event.pull_request.number }}
+
+      - name: Comment preview URL on PR
+        if: github.event_name == 'pull_request'
+        uses: thollander/actions-comment-pull-request@v3
+        with:
+          message: |
+            Preview: http://${{ secrets.AWS_S3_BUCKET }}.s3-website.${{ secrets.AWS_REGION }}.amazonaws.com/pr-${{ github.event.pull_request.number }}
+          pr-number: ${{ github.event.pull_request.number }}
+
+      - name: Stop container
+        if: always()
+        run: docker rm -f docs-container
+```
+
+</Accordion>
+</AccordionGroup>

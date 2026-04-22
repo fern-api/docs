@@ -1,0 +1,294 @@
+---
+title: Authentication
+description: Protect your self-hosted documentation with password or token-based authentication.
+---
+
+
+<Markdown src="/snippets/enterprise-plan.mdx" />
+
+Self-hosted Fern documentation supports authentication via environment variables set in your Dockerfile. When no auth environment variables are configured, your docs are fully public.
+
+Two authentication modes are available:
+
+- **Password authentication** - Simple shared-password protection
+- **Basic token verification** - JWT-based authentication with a custom login flow
+
+## Password authentication
+
+Password authentication protects your docs behind a simple password prompt. Users must enter the correct password to view the documentation.
+
+Add the following environment variables to your Dockerfile:
+
+```dockerfile
+FROM fernenterprise/fern-self-hosted:latest
+
+COPY fern/ /fern/
+
+ENV FERN_AUTH_TYPE="password"
+ENV FERN_AUTH_SECRET="<YOUR PASSWORD>"
+
+RUN fern-generate
+```
+
+Replace `<YOUR PASSWORD>` with the password users will enter to access the docs.
+
+When a user visits the documentation, they are redirected to a login page where they must enter the password. After entering the correct password, they can browse the docs freely.
+
+## Basic token verification
+
+Basic token verification uses JWTs (JSON Web Tokens) to authenticate users. This is useful when you want to integrate your docs with an existing authentication system, such as your own login portal.
+
+### How it works
+
+1. An unauthenticated user visits the docs and is redirected to your login page (`FERN_AUTH_REDIRECT`).
+2. Your login page authenticates the user (e.g., checking credentials against your database).
+3. After successful authentication, your server creates a signed JWT using the shared secret.
+4. Your server sends the user to the Fern callback endpoint (`/api/fern-docs/auth/jwt/callback`) with the JWT. This can be done via a **GET** redirect with the token as a query parameter, or via a **POST** request with the token in an `application/x-www-form-urlencoded` body.
+5. The Fern docs container verifies the JWT signature and issuer, sets a session cookie, and redirects the user to the docs.
+
+### Configuration
+
+Add the following environment variables to your Dockerfile:
+
+```dockerfile
+FROM fernenterprise/fern-self-hosted:latest
+
+COPY fern/ /fern/
+
+ENV FERN_AUTH_TYPE="basic_token_verification"
+ENV FERN_AUTH_SECRET="my-test-secret-at-least-32-chars-long"
+ENV FERN_AUTH_ISSUER="https://my-test-issuer"
+ENV FERN_AUTH_REDIRECT="https://your-login-page.com/login"
+
+RUN fern-generate
+```
+
+| Variable | Description |
+|---|---|
+| `FERN_AUTH_TYPE` | Must be `basic_token_verification` |
+| `FERN_AUTH_SECRET` | The shared secret used to sign and verify JWTs. Must be at least 32 characters long. |
+| `FERN_AUTH_ISSUER` | The issuer claim (`iss`) in the JWT. Must match between your signing server and the Fern container. |
+| `FERN_AUTH_REDIRECT` | The URL where unauthenticated users are redirected to log in. |
+
+### Building your login server
+
+Your login server is responsible for authenticating users and redirecting them back to the docs with a signed JWT.
+
+When the Fern container redirects an unauthenticated user, it appends the following query parameters to `FERN_AUTH_REDIRECT`:
+
+- `redirect_uri` - The callback URL on the Fern docs container (e.g., `https://docs.example.com/api/fern-docs/auth/jwt/callback`)
+- `state` - The page the user was trying to access
+
+Your server must:
+
+1. Authenticate the user.
+2. Create a JWT signed with the same `FERN_AUTH_SECRET` using the HS256 algorithm.
+3. Send the user to the `redirect_uri` with the JWT as `fern_token` and the original `state` as the return-to path. You can use either method:
+   - **GET redirect**: Append `fern_token` and `state` as query parameters.
+   - **POST form submission**: Submit `fern_token` and `state` as `application/x-www-form-urlencoded` fields. POST avoids exposing the token in URLs and server logs.
+
+The JWT payload must include the following claims:
+
+| Claim | Description |
+|---|---|
+| `fern` | An empty object `{}` (required by the Fern verifier) |
+| `iss` | The issuer, must match `FERN_AUTH_ISSUER` |
+| `iat` | Issued-at timestamp (seconds since epoch) |
+| `exp` | Expiration timestamp (seconds since epoch) |
+
+Here is an example Node.js (Express) server that signs a JWT and redirects to the callback:
+
+<Tabs>
+<Tab title="GET (query parameters)">
+```javascript
+const express = require("express");
+const crypto = require("crypto");
+
+const app = express();
+
+const SECRET = "my-test-secret-at-least-32-chars-long";
+const ISSUER = "https://my-test-issuer";
+
+function base64url(input) {
+  const buf = Buffer.isBuffer(input) ? input : Buffer.from(input, "utf8");
+  return buf.toString("base64").replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+}
+
+function createFernJWT(secret, issuer) {
+  const header = { alg: "HS256", typ: "JWT" };
+  const now = Math.floor(Date.now() / 1000);
+  const payload = {
+    fern: {},
+    iat: now,
+    exp: now + 30 * 24 * 60 * 60, // 30 days
+    iss: issuer,
+  };
+
+  const headerB64 = base64url(JSON.stringify(header));
+  const payloadB64 = base64url(JSON.stringify(payload));
+  const signature = crypto
+    .createHmac("sha256", secret)
+    .update(`${headerB64}.${payloadB64}`)
+    .digest();
+
+  return `${headerB64}.${payloadB64}.${base64url(signature)}`;
+}
+
+app.get("/login", (req, res) => {
+  const redirectUri = req.query.redirect_uri;
+  const state = req.query.state || "/";
+
+  // TODO: Add your own authentication logic here
+  // (e.g., check session, verify credentials, show a login form, etc.)
+
+  const token = createFernJWT(SECRET, ISSUER);
+
+  const callbackUrl = new URL(redirectUri);
+  callbackUrl.searchParams.set("fern_token", token);
+  callbackUrl.searchParams.set("state", state);
+
+  res.redirect(callbackUrl.toString());
+});
+
+app.listen(3001, () => {
+  console.log("Login server running on http://localhost:3001");
+});
+```
+</Tab>
+<Tab title="POST (form body)">
+```javascript
+const express = require("express");
+const crypto = require("crypto");
+
+const app = express();
+
+const SECRET = "my-test-secret-at-least-32-chars-long";
+const ISSUER = "https://my-test-issuer";
+
+function base64url(input) {
+  const buf = Buffer.isBuffer(input) ? input : Buffer.from(input, "utf8");
+  return buf.toString("base64").replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+}
+
+function createFernJWT(secret, issuer) {
+  const header = { alg: "HS256", typ: "JWT" };
+  const now = Math.floor(Date.now() / 1000);
+  const payload = {
+    fern: {},
+    iat: now,
+    exp: now + 30 * 24 * 60 * 60, // 30 days
+    iss: issuer,
+  };
+
+  const headerB64 = base64url(JSON.stringify(header));
+  const payloadB64 = base64url(JSON.stringify(payload));
+  const signature = crypto
+    .createHmac("sha256", secret)
+    .update(`${headerB64}.${payloadB64}`)
+    .digest();
+
+  return `${headerB64}.${payloadB64}.${base64url(signature)}`;
+}
+
+app.get("/login", (req, res) => {
+  const redirectUri = req.query.redirect_uri;
+  const state = req.query.state || "/";
+
+  // TODO: Add your own authentication logic here
+  // (e.g., check session, verify credentials, show a login form, etc.)
+
+  const token = createFernJWT(SECRET, ISSUER);
+
+  res.send(`
+    <html>
+      <body>
+        <form method="POST" action="${redirectUri}">
+          <input type="hidden" name="fern_token" value="${token}" />
+          <input type="hidden" name="state" value="${state}" />
+        </form>
+        <script>document.forms[0].submit();</script>
+      </body>
+    </html>
+  `);
+});
+
+app.listen(3001, () => {
+  console.log("Login server running on http://localhost:3001");
+});
+```
+</Tab>
+</Tabs>
+
+<Warning>
+The `FERN_AUTH_SECRET` in your login server must exactly match the secret set in the Dockerfile. If they differ, JWT verification will fail and users will not be able to log in.
+</Warning>
+
+### Testing with the built-in test login page
+
+The self-hosted container includes a built-in test login page that you can enable for development and testing. This lets you verify the authentication flow without building your own login server.
+
+Add the following environment variables to your Dockerfile:
+
+```dockerfile
+FROM fernenterprise/fern-self-hosted:latest
+
+COPY fern/ /fern/
+
+ENV FERN_AUTH_TYPE="basic_token_verification"
+ENV FERN_AUTH_SECRET="my-test-secret-at-least-32-chars-long"
+ENV FERN_AUTH_ISSUER="https://my-test-issuer"
+ENV FERN_AUTH_REDIRECT="http://localhost:3000/__test-login"
+ENV FERN_AUTH_TEST_LOGIN="true"
+
+RUN fern-generate
+```
+
+Setting `FERN_AUTH_TEST_LOGIN="true"` enables the `/__test-login` endpoint on the container. When `FERN_AUTH_REDIRECT` points to this endpoint, unauthenticated users see a test login page with a single "Login with Test" button. Clicking the button mints a valid JWT and completes the authentication flow.
+
+<Warning>
+The test login page is intended for development and testing only. Do not enable `FERN_AUTH_TEST_LOGIN` in production environments.
+</Warning>
+
+## Page-level access control
+
+By default, all pages require authentication when auth is enabled. Use `FERN_AUTH_ALLOWLIST` and `FERN_AUTH_DENYLIST` to control which pages require login. Both accept comma-separated regex patterns matched against page paths.
+
+| Variable | Description |
+|---|---|
+| `FERN_AUTH_ALLOWLIST` | Pages matching these patterns are publicly accessible without login. |
+| `FERN_AUTH_DENYLIST` | Pages matching these patterns require login. Takes precedence over the allowlist. |
+
+For example, to make all pages publicly accessible:
+
+```dockerfile
+ENV FERN_AUTH_ALLOWLIST="/(.*)"
+```
+
+To make only API Reference pages require login:
+
+```dockerfile
+ENV FERN_AUTH_DENYLIST="/api-reference/(.*)"
+```
+
+## API key injection
+
+You can enable [API key injection](/learn/docs/authentication/features/api-key-injection) in the API Explorer for self-hosted deployments. This shows a **Login** button in the API Explorer so users can authenticate and have their API keys auto-populated, without requiring login for the entire documentation site.
+
+Add `FERN_API_KEY_INJECTION_ENABLED` to your Dockerfile alongside the basic token verification variables:
+
+```dockerfile
+FROM fernenterprise/fern-self-hosted:latest
+
+COPY fern/ /fern/
+
+ENV FERN_AUTH_TYPE="basic_token_verification"
+ENV FERN_AUTH_SECRET="my-test-secret-at-least-32-chars-long"
+ENV FERN_AUTH_ISSUER="https://my-test-issuer"
+ENV FERN_AUTH_REDIRECT="https://your-login-page.com/login"
+ENV FERN_API_KEY_INJECTION_ENABLED="true"
+ENV FERN_AUTH_ALLOWLIST="/(.*)"
+
+RUN fern-generate
+```
+
+With `FERN_AUTH_ALLOWLIST="/(.*)"`, all doc pages are publicly accessible (no login wall), but the API Explorer still shows the **Login** button. When a user logs in, their JWT's `fern` payload is read and the API key is injected into the API Explorer. See [Autopopulate API keys](/learn/docs/authentication/features/api-key-injection) for the full `fern` payload reference.
