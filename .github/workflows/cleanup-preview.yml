@@ -1,0 +1,23 @@
+name: cleanup-preview
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  cleanup:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Fern CLI
+        uses: fern-api/setup-fern-cli@v1
+
+      - name: Delete preview deployment
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+        run: |
+          echo "Deleting preview for branch: ${{ github.head_ref }}"
+          fern docs preview delete --id "${{ github.head_ref }}" || echo "Preview deletion returned non-zero — it may already be gone"
