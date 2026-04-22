@@ -53,7 +53,7 @@ Keep the following principles in mind:
 - **Write for your audience** - Consider why users are reading your documentation and explain the use case clearly. Focus on clarity and completeness without being verbose. Add examples and code snippets when relevant.
 - **Help users get something done**. Don't try to sell users on the product, and avoid marketing language like "amazing features" or "the best solution."
 - **Avoid time-specific language**. Don't mention a product or feature was just released or is the newest form, as this will quickly lead to stale documentation.
-- **Write in clear, concise language**, using [active voice](https://developers.google.com/style/voice) whenever possible. Keep sentences and paragraphs short and to the point. Be conversational and friendly tone. Stay away from jargon as much as you can.
+- **Write in clear, concise language**, using [active voice](https://developers.google.com/style/voice) whenever possible. Keep sentences and paragraphs short and to the point. Use a conversational and friendly tone. Stay away from jargon as much as you can.
 - **Use [Fern’s documentation components](https://buildwithfern.com/learn/docs/writing-content/components/overview)** whenever you can.
 - **When editing an existing page** - Match the existing heading structure, tone, and level of detail to ensure your changes integrate as seamlessly as possible.
 - **Use diagrams when it makes sense** – Show, don't tell! Use [Mermaid](https://buildwithfern.com/learn/docs/writing-content/markdown-media#diagrams), a Markdown-like diagramming syntax, to illustrate a workflow. 
