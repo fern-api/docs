@@ -4,7 +4,7 @@ description: Set up GitLab CI/CD to automatically publish your Fern docs when ch
 ---
 
 
-Use GitLab CI/CD to automatically generate preview links on merge requests and publish your Fern docs when changes are merged to `main`.
+Use GitLab CI/CD to automatically generate preview links on merge requests, publish your Fern docs when changes are merged to `main`, and delete preview links after merge.
 
 <Info title="Prerequisites">
 - Node.js version 18 or higher
@@ -63,17 +63,18 @@ Save the generated token immediately — it won't be displayed after you leave t
 
 ## Add the CI/CD pipeline
 
-Create a `.gitlab-ci.yml` file in the root of your repository. This pipeline validates your API definition, posts preview links on merge requests, and publishes your docs when changes are merged to `main`.
+Create a `.gitlab-ci.yml` file in the root of your repository. This pipeline validates your API definition, posts a per-branch preview link on each merge request, publishes your docs when changes are merged to `main`, and deletes the merged branch's preview deployment.
 
 ```yaml .gitlab-ci.yml
 stages:
   - check
   - preview_docs
   - publish_docs
+  - cleanup_preview
 
 before_script:
   - apt-get update -y
-  - apt-get install -y curl
+  - apt-get install -y curl jq
   - curl -sL https://deb.nodesource.com/setup_current.x | bash -
   - apt-get install -y nodejs
   - npm install -g fern-api
@@ -82,7 +83,7 @@ check:
   stage: check
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
   script:
     - echo "Checking API is valid"
     - fern check
@@ -92,11 +93,11 @@ preview_docs:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
   script:
-    - echo "Generating preview..."
+    - echo "Generating preview for branch $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME..."
     - |
-      OUTPUT=$(fern generate --docs --preview) || true
+      OUTPUT=$(fern generate --docs --preview --id "$CI_MERGE_REQUEST_SOURCE_BRANCH_NAME" --force 2>&1) || true
       echo "$OUTPUT"
-      DEMO_URL=$(echo "$OUTPUT" | grep -oP -m1 '(https://[^\s]+-preview-[^\s]+)(?: )')
+      DEMO_URL=$(echo "$OUTPUT" | grep -oE -m1 '(https://[^[:space:]]+-preview-[^[:space:]]+) ' | tr -d ' ')
       echo "Preview URL: $DEMO_URL"
     - |
       if [ -z "$DEMO_URL" ]; then
@@ -112,10 +113,32 @@ preview_docs:
 publish_docs:
   stage: publish_docs
   rules:
-    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
   script:
     - echo "Publishing Docs"
     - fern generate --docs
+
+cleanup_preview:
+  stage: cleanup_preview
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+  script:
+    - echo "Looking up merged MR for commit $CI_COMMIT_SHA..."
+    - |
+      MR_INFO=$(curl -sf --header "PRIVATE-TOKEN: $REPO_TOKEN" \
+        "https://gitlab.com/api/v4/projects/$CI_PROJECT_ID/repository/commits/$CI_COMMIT_SHA/merge_requests") || {
+        echo "Failed to query MRs for commit — skipping cleanup"
+        exit 0
+      }
+      SOURCE_BRANCH=$(echo "$MR_INFO" | jq -r 'map(select(.state == "merged")) | .[0].source_branch // empty')
+
+      if [ -z "$SOURCE_BRANCH" ]; then
+        echo "No merged MR found for this commit (likely a direct push to main) — skipping cleanup"
+        exit 0
+      fi
+
+      echo "Deleting preview for branch: $SOURCE_BRANCH"
+      fern docs preview delete --id "$SOURCE_BRANCH" || echo "Preview deletion returned non-zero — it may already be gone"
 ```
 
-Commit and push the `.gitlab-ci.yml` file to your repository. The pipeline runs automatically when changes are merged to `main`.
+Commit and push the `.gitlab-ci.yml` file to your repository. The pipeline runs automatically on merge requests and when changes are merged to your default branch.
