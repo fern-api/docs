@@ -56,11 +56,11 @@ Keep the following principles in mind:
 - **Write in clear, concise language**, using [active voice](https://developers.google.com/style/voice) whenever possible. Keep sentences and paragraphs short and to the point. Use a conversational and friendly tone. Stay away from jargon as much as you can.
 - **Use [Fern’s documentation components](https://buildwithfern.com/learn/docs/writing-content/components/overview)** whenever you can.
 - **When editing an existing page** - Match the existing heading structure, tone, and level of detail to ensure your changes integrate as seamlessly as possible.
-- **Use diagrams when it makes sense** – Show, don't tell! Use [Mermaid](https://buildwithfern.com/learn/docs/writing-content/markdown-media#diagrams), a Markdown-like diagramming syntax, to illustrate a workflow. 
-- [**Use sentence case**](https://developers.google.com/style/capitalization) for page and section headings. 
+- **Use diagrams when it makes sense** – Show, don't tell! Use [Mermaid](https://buildwithfern.com/learn/docs/writing-content/markdown-media#diagrams), a Markdown-like diagramming syntax, to illustrate a workflow.
+- [**Use sentence case**](https://developers.google.com/style/capitalization) for page and section headings.
 
 > "Break any of these rules sooner than say anything outright barbarous."
-> 
+>
 > —George Orwell, "Politics and the English Language"
 
 Our style guide is influenced by [Google's developer documentation style guide](https://developers.google.com/style) and Microsoft's [writing style guide](https://learn.microsoft.com/en-us/style-guide/welcome/).
@@ -115,7 +115,7 @@ To catch issues earlier in your workflow, set up Vale to run automatically on yo
 ### Getting changes reviewed
 
 If you want to **add a new page or make a large structural change**:
-- [File an issue in GitHub](https://github.com/fern-api/docs/issues) and assign [@devalog](https://github.com/devalog). We'll review your issue to make sure your proposed page fits with Fern's overall documentation strategy and isn't duplicating any ongoing work. 
+- [File an issue in GitHub](https://github.com/fern-api/docs/issues) and assign [@devalog](https://github.com/devalog). We'll review your issue to make sure your proposed page fits with Fern's overall documentation strategy and isn't duplicating any ongoing work.
 
 For **all other changes**:
 -  Submit a PR directly with your suggested changes. A Fern docs member will review and confirm.
