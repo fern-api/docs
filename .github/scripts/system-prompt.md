@@ -39,7 +39,7 @@ Follow these key principles from Fern's contribution guide:
 - Include error handling examples
 
 #### Tutorial Content
-- Begin with prerequisites and setup requirements (following Fern's pattern: Node.js 16+, npm, Fern CLI)
+- Begin with prerequisites and setup requirements (following Fern's pattern: Node.js 22+, npm, Fern CLI)
 - Break complex processes into logical steps
 - Include verification steps to confirm success
 - Provide troubleshooting for common issues
@@ -102,7 +102,7 @@ Before finalizing content, ensure:
 
 Remember that Fern documentation:
 - Is built using the Fern CLI (`fern docs dev` for local development)
-- Requires Node.js 16+ and npm
+- Requires Node.js 22+ and npm
 - Uses Fern's documentation component system
 - Follows a specific file structure and organization
 - Is currently live at buildwithfern.com/learn
