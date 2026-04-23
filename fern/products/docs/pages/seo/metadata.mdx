@@ -92,11 +92,11 @@ The image displayed when your docs are shared on LinkedIn, Slack, Discord, and o
 </ParamField>
 
 <ParamField path="metadata.og:image:width" type="number" required={false} toc={true}>
-  The width of your Open Graph image in pixels.
+  The width of your Open Graph image in pixels. Only applied when `og:image` is set.
 </ParamField>
 
 <ParamField path="metadata.og:image:height" type="number" required={false} toc={true}>
-  The height of your Open Graph image in pixels.
+  The height of your Open Graph image in pixels. Only applied when `og:image` is set.
 </ParamField>
 
 <ParamField path="metadata.og:logo" type="string" required={false} toc={true}>
@@ -105,26 +105,18 @@ The image displayed when your docs are shared on LinkedIn, Slack, Discord, and o
 
 ### Dynamic OG images <Availability type="beta" /> [#dynamic-og-images]
 
-Instead of using a single static image for all pages, you can enable dynamic OG image generation. When enabled, Fern automatically generates a unique `og:image` for each page that doesn't have one [set in frontmatter](#open-graph).
+Instead of using a single static image for all pages, you can enable dynamic OG image generation. When enabled, Fern automatically generates a unique `og:image` for each page that doesn't have one [set in frontmatter](#open-graph). The `og:dynamic:*` sub-settings and `og:background-image` below are only read when `og:dynamic: true` — they are ignored otherwise. `fern check` surfaces warnings for conflicting settings so you can resolve them locally.
 
 You can optionally provide a custom background image (`og:background-image`) for dynamically generated OG images.
 
 ```yaml docs.yml
 metadata:
   og:dynamic: true
-  og:background-image: ./images/og-background.png # optional
-  og:dynamic:text-color: "#1a1a1a" # optional
-  og:dynamic:background-color: "#ffffff" # optional
-  og:dynamic:logo-color: dark # optional, dark | light
-  og:dynamic:show-logo: true # optional
-  og:dynamic:show-section: true # optional
-  og:dynamic:show-description: true # optional
-  og:dynamic:show-url: true # optional
-  og:dynamic:show-gradient: true # optional
+  og:background-image: ./images/og-background.png
 ```
 
 <ParamField path="metadata.og:dynamic" type="boolean" required={false} default={false} toc={true}>
-  When `true`, enables dynamic OG image generation for pages that don't have a custom `og:image` set.
+  When `true`, enables dynamic OG image generation for pages that don't have a custom `og:image` set. Any site-wide `og:image` and `twitter:image` still apply to the homepage; every other page uses the dynamically generated image.
 </ParamField>
 
 <ParamField path="metadata.og:background-image" type="string" required={false} toc={true}>
@@ -132,7 +124,7 @@ metadata:
 </ParamField>
 
 <ParamField path="metadata.og:dynamic:text-color" type="string" required={false} toc={true}>
-  Override the text color for dynamically generated OG images. Accepts any valid CSS color value (e.g., `"#1a1a1a"`). By default, Fern auto-detects the text color from your site's theme. Use this when the auto-detected color doesn't contrast well with your background.
+  Override the text color for dynamically generated OG images. Accepts any valid CSS color value (e.g., `"#1a1a1a"`). By default, Fern auto-detects the text color from your site's theme. Use this when the auto-detected color doesn't contrast well with your background. Must differ from `og:dynamic:background-color` so the text remains visible.
 </ParamField>
 
 <ParamField path="metadata.og:dynamic:background-color" type="string" required={false} toc={true}>
@@ -140,7 +132,7 @@ metadata:
 </ParamField>
 
 <ParamField path="metadata.og:dynamic:logo-color" type="enum" required={false} default="dark" toc={true}>
-  Choose which logo variant to render in dynamically generated OG images. Accepts `dark` or `light`, matching the corresponding entry under the top-level [`logo:` setting](/learn/docs/getting-started/global-configuration#logo-configuration) in your `docs.yml`. Defaults to `dark`. If your `docs.yml` only defines one logo variant, that variant is used regardless of this setting.
+  Choose which logo variant to render in dynamically generated OG images. Accepts `dark` or `light`, matching the corresponding entry under the top-level [`logo:` setting](/learn/docs/getting-started/global-configuration#logo-configuration) in your `docs.yml`. If your `docs.yml` only defines one logo variant, that variant is used regardless of this setting. Has no effect when `og:dynamic:show-logo: false`.
 </ParamField>
 
 <ParamField path="metadata.og:dynamic:show-logo" type="boolean" required={false} default={true} toc={true}>
@@ -162,16 +154,6 @@ metadata:
 <ParamField path="metadata.og:dynamic:show-gradient" type="boolean" required={false} default={true} toc={true}>
   Toggle visibility of the accent gradient overlay in dynamically generated OG images. The gradient uses your accent color. Defaults to `true` when `og:dynamic` is enabled.
 </ParamField>
-
-#### Conflicts and precedence
-
-When `og:dynamic: true`, the following interactions apply. `fern check` surfaces warnings for each conflict so you can resolve them locally.
-
-- `og:image` and `twitter:image` only apply to the homepage. Every other page uses the dynamically generated image.
-- `og:dynamic:*` sub-settings and `og:background-image` are only read when `og:dynamic: true`. If dynamic generation is off, they are ignored.
-- `og:dynamic:logo-color` has no effect when `og:dynamic:show-logo: false`.
-- `og:image:width` and `og:image:height` are only used alongside `og:image`. Setting them without `og:image` is a no-op.
-- `og:dynamic:text-color` must differ from `og:dynamic:background-color`, otherwise the text becomes invisible.
 
 ### Twitter / X
 
