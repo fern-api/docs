@@ -305,3 +305,37 @@ jobs:
 </CodeBlock>
 
 </Accordion>
+
+<Accordion title="Automatically delete previews when a PR is merged">
+
+Preview deployments don't expire on their own. To clean them up automatically after a PR is merged, add this workflow alongside the preview workflow above. It calls [`fern docs preview delete`](/learn/cli-api-reference/cli-reference/commands#fern-docs-preview-delete) with the PR's branch name as the `--id`, matching the identifier used when the preview was generated.
+
+<CodeBlock title = ".github/workflows/cleanup-preview.yml">
+```yaml
+name: cleanup-preview
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  cleanup:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Fern CLI
+        uses: fern-api/setup-fern-cli@v1
+
+      - name: Delete preview deployment
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+        run: |
+          echo "Deleting preview for branch: ${{ github.head_ref }}"
+          fern docs preview delete --id "${{ github.head_ref }}" || echo "Preview deletion returned non-zero — it may already be gone"
+```
+</CodeBlock>
+
+</Accordion>
