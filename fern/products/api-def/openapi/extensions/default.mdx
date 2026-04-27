@@ -4,7 +4,7 @@ headline: Default values (OpenAPI)
 description: Use `x-fern-default` to set client-side default values for path, header, and query parameters in generated SDKs.
 ---
 
-The `x-fern-default` extension lets you specify a client-side default value for a path, header, or query parameter. When present, the generated SDK makes the parameter optional and automatically sends the default value if the caller omits it. `x-fern-default` supports `string` and `boolean` values; other types (such as numbers) are ignored.
+The `x-fern-default` extension lets you specify a client-side default value for a path, header, or query parameter, including headers defined under [`x-fern-global-headers`](/learn/api-definitions/openapi/extensions/global-headers). When present, the generated SDK makes the parameter optional and automatically sends the default value if the caller omits it. `x-fern-default` supports `string` and `boolean` values; other types (such as numbers) are ignored.
 
 This is useful for pinning an API version header or a region path parameter while still allowing callers to override the value.
 
@@ -47,17 +47,6 @@ paths:
             type: string
 ```
 
-## Global headers
-
-`x-fern-default` also works inside [`x-fern-global-headers`](/learn/api-definitions/openapi/extensions/global-headers) entries. This is useful for pinning a version header across all endpoints while still allowing callers to override it:
-
-```yaml {4} title="openapi.yml"
-x-fern-global-headers:
-  - header: X-API-Version
-    name: version
-    x-fern-default: "2024-02-08"
-```
-
 ## Query parameters
 
 In the example below, the SDK sends `false` for `verbose` when the caller doesn't specify one.
@@ -73,5 +62,16 @@ paths:
           x-fern-default: false
           schema:
             type: boolean
+```
+
+## Global headers
+
+In the example below, the SDK sends `2024-02-08` for the `X-API-Version` global header when the caller doesn't specify one.
+
+```yaml {4} title="openapi.yml"
+x-fern-global-headers:
+  - header: X-API-Version
+    name: version
+    x-fern-default: "2024-02-08"
 ```
 
