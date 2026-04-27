@@ -1,0 +1,110 @@
+---
+title: Localization
+subtitle: Ship translated documentation with a language dropdown for your readers
+---
+
+<Note>
+  Localization is in alpha. Search results, Ask Fern responses, `fern check` error messages, and automated translation generation via GitHub Actions are still being developed.
+</Note>
+
+Fern supports multi-language documentation out of the box. When you run `fern generate --docs`, Fern detects your translations and renders a language dropdown so readers can switch between locales. See it in action on the [i18n example site](https://i18n.docs.buildwithfern.com/).
+
+## How it works
+
+Your default-language pages live in the `pages/` directory as usual. Translated versions live in a `translations/<lang>/pages/` folder, mirroring the same file paths. Fern matches each translation to its source page by path and renders both under the same URL with a language switcher.
+
+Key details:
+
+- A single site appears in the Fern dashboard — not one per language.
+- Sitemaps are generated per language (e.g., `sitemap-en.xml`, `sitemap-fr.xml`).
+- This works with the standard Fern project structure and will support multi-repo docs for enterprise customers.
+
+## Set up translations
+
+<Steps toc={true}>
+
+<Step title="Add a translations folder">
+
+Create a `translations` folder inside your `fern` directory. Inside it, create a subfolder for each language using its [ISO 639-1 language code](https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes) (e.g., `fr` for French, `ja` for Japanese). Mirror your `pages/` directory structure inside each language folder.
+
+<CodeBlock>
+```bash {5-11}
+fern/
+  ├─ fern.config.json
+  ├─ docs.yml
+  ├─ pages/
+  │   ├─ introduction.mdx
+  │   └─ getting-started.mdx
+  └─ translations/
+      ├─ fr/
+      │   └─ pages/
+      │       ├─ introduction.mdx
+      │       └─ getting-started.mdx
+      └─ ja/
+          └─ pages/
+              ├─ introduction.mdx
+              └─ getting-started.mdx
+```
+</CodeBlock>
+
+</Step>
+
+<Step title="Configure languages in docs.yml">
+
+Add a `translations` key to your `docs.yml` listing each supported language. The first entry is the default language.
+
+```yaml docs.yml {5-7}
+instances:
+  - url: your-org.docs.buildwithfern.com
+
+translations:
+  - lang: en
+  - lang: fr
+  - lang: ja
+```
+
+</Step>
+
+<Step title="Write your translation files">
+
+Each translated `.mdx` file should contain the same content as the source page, translated into the target language. You can optionally override the sidebar title using frontmatter:
+
+```mdx translations/fr/pages/introduction.mdx
+---
+sidebar-title: Introduction
+---
+
+# Introduction
+
+Bienvenue dans la documentation. Ce projet montre la prise en charge multilingue
+avec la fonctionnalité de traduction de Fern.
+```
+
+</Step>
+
+<Step title="Generate your docs">
+
+Run the standard generate command. Fern picks up the translations automatically:
+
+```bash
+fern generate --docs
+```
+
+Your site now includes a language dropdown. Readers can switch between languages, and each locale has its own sitemap entry.
+
+</Step>
+
+</Steps>
+
+## Example
+
+See the [i18n example site](https://i18n.docs.buildwithfern.com/) for a live demo, and the [example repository](https://github.com/fern-api/docs-examples/tree/main/i18n/fern) for the full source.
+
+## Current limitations
+
+Localization is in active development. The following features are not yet supported but are being worked on:
+
+- **Search**: Translated content is not yet indexed for search.
+- **Ask Fern**: AI responses do not yet account for translations (cited sources are being updated).
+- **`fern check`**: Validation error messages are not yet translated.
+- **Automated translation generation**: GitHub Actions to auto-generate translations from source pages are still in progress.
