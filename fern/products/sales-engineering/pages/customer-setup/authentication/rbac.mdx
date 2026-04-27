@@ -1,0 +1,77 @@
+---
+title: RBAC Configuration
+description: What Fern needs when a customer sets up role-based access control for their documentation.
+---
+
+When a customer wants to set up [RBAC](https://buildwithfern.com/learn/docs/building-and-customizing-your-docs/rbac) for their docs, you need to configure the authentication edge config in Vercel.
+
+## Edge config structure
+
+Add an entry to the `authentication` section of the [Vercel Edge Config store](https://vercel.com/buildwithfern/~/stores) under `fern-docs-config`:
+
+```json
+"example-site.docs.buildwithfern.com": {
+  "type": "basic_token_verification",
+  "secret": "{secret-key}",
+  "redirect": "https://example-rbac.ferndocs.app/redirect",
+  "issuer": "https://example-rbac.ferndocs.app"
+}
+```
+
+## Configuration fields
+
+| Field | Description |
+|-------|-------------|
+| `type` | Always `basic_token_verification` for JWT-based RBAC |
+| `secret` | Generated via `openssl rand -base64 32`, or provided by the customer |
+| `redirect` | Ask the customer for their redirect URL |
+| `issuer` | Ask the customer for the expected issuer value |
+
+## Steps
+
+<Steps>
+  <Step title="Generate a shared secret">
+    ```bash
+    openssl rand -base64 32
+    ```
+    Share with the customer, or accept their provided secret.
+  </Step>
+  <Step title="Collect redirect and issuer from the customer">
+    Ask the customer for both the redirect URL and the expected issuer value.
+  </Step>
+  <Step title="Add edge config entry">
+    Add the configuration to the `authentication` section in Vercel Edge Config.
+  </Step>
+  <Step title="Direct the customer to set up the fern_token cookie">
+    Refer them to the [Fern docs on auto-populating API keys](https://buildwithfern.com/learn/docs/api-references/api-explorer/auto-populate-api-keys#how-it-works).
+  </Step>
+</Steps>
+
+## Optional parameters
+
+Customers may also request these additional configuration options:
+
+```json
+"logout": "https://app.example.io/public/auth/signout",
+"denylist": [
+  "/platform",
+  "/platform/:path*",
+  "/connect",
+  "/connect/:path*"
+],
+"allowlist": [
+  "/",
+  "/:path*"
+],
+"anonymous": [
+  "/preview",
+  "/preview/:path*"
+]
+```
+
+| Parameter | Description |
+|-----------|-------------|
+| `logout` | URL to redirect to when the user logs out |
+| `denylist` | URL patterns that require authentication |
+| `allowlist` | URL patterns that are always accessible |
+| `anonymous` | URL patterns accessible without authentication |

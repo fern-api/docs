@@ -1,0 +1,55 @@
+---
+title: SSO with WorkOS
+description: How to set up SSO-authenticated login for customer docs using WorkOS.
+---
+
+Fern supports SSO through [WorkOS](https://dashboard.workos.com/). This allows customers to authenticate users via their enterprise identity provider.
+
+<Warning>
+The auth landing page branding is set to be Fern-oriented. Customization is not available through WorkOS. If the customer needs custom branding, use [JWT authentication](/learn/sales-engineering/customer-setup/authentication/jwt-auth) instead.
+</Warning>
+
+## Edge config structure
+
+```json
+"customer.docs.buildwithfern.com": {
+  "type": "sso",
+  "partner": "workos",
+  "organization": "customer-org-name"
+}
+```
+
+## Steps
+
+<Steps>
+  <Step title="Create a WorkOS organization">
+    Go to [WorkOS Dashboard](https://dashboard.workos.com/) and make sure you are in the **production** tab (not staging). Create a new organization. The org name should match the one used in the edge config.
+  </Step>
+  <Step title="Add email domains">
+    Add the email domains that should be automatically authenticated (e.g., the company email domains the client uses, like `elevenlabs.io` or `buildwithfern.com`).
+  </Step>
+  <Step title="Configure SSO (optional)">
+    If the customer wants full SSO:
+    1. In the **Authentication** section, configure the organization manually for SSO.
+    2. Invite the admin who will manage SSO for the organization.
+  </Step>
+  <Step title="Add redirect URI">
+    Add the following redirect URI in the **Redirects** section of WorkOS (left-side menu):
+    ```
+    https://{ORGNAME}.docs.buildwithfern.com/api/fern-docs/auth/sso/callback
+    ```
+  </Step>
+  <Step title="Add edge config in Vercel">
+    Navigate to Vercel Edge Config → `fern-docs-config` and add the entry under the `authentication` section. Follow the pattern used by the `fern-internal` setup.
+  </Step>
+  <Step title="Revalidate docs">
+    Trigger a revalidation by visiting:
+    ```
+    https://{customer-domain}/api/fern-docs/revalidate
+    ```
+  </Step>
+</Steps>
+
+## See also
+
+- [OAuth2 setup documentation](https://buildwithfern.com/learn/docs/authentication/set-up-oauth)

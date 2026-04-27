@@ -1,0 +1,44 @@
+---
+title: CLI Debugging
+description: A walkthrough of how to debug issues with the Fern CLI, using the readme importer bug as an example.
+---
+
+This guide walks through a real debugging session for the Fern CLI to illustrate the process. The example covers a bug with the `--readme` importer flag.
+
+## Debugging process
+
+<Steps>
+  <Step title="Start at the entrypoint">
+    Open `packages/cli/cli/src/cli.ts` as the main CLI entrypoint.
+  </Step>
+  <Step title="Search for the relevant flag or feature">
+    In this case, searching for `--readme` in `cli.ts` led to the `initializeWithReadme` function.
+  </Step>
+  <Step title="Add a log statement and build">
+    Ctrl-click the function to navigate to the source file (`packages/cli/init/src/initializeWithReadme.ts`), add a log statement to verify you're running the local CLI, then build:
+    ```bash
+    pnpm fern:build
+    ```
+  </Step>
+  <Step title="Test with a real customer repo">
+    Go into a customer repo (e.g., SimilarWeb). Change the version in `fern.config.json` to `*` so it uses the locally built CLI. Then run:
+    ```bash
+    FERN_NO_VERSION_REDIRECTION=true node /<path-to-fern-repo>/packages/cli/cli/dist/prod/cli.cjs <args>
+    ```
+    Verify your log statement appears.
+  </Step>
+  <Step title="Trace deeper into the code">
+    Follow the call chain to find the root cause. In this example:
+    - `initializeWithReadme.ts` → `runReadmeMigration.ts` → `ReadmeImporter.ts`
+    - Found a commented-out section called `downloadMarkdownPages` that looked suspicious.
+  </Step>
+  <Step title="Test the fix">
+    Uncomment or fix the relevant code, rebuild with `pnpm fern:build`, and re-run the CLI to verify the fix.
+  </Step>
+</Steps>
+
+## Tips
+
+- Always use `--log-level debug` when debugging customer issues for additional context.
+- Set `FERN_NO_VERSION_REDIRECTION=true` to ensure you're using your local build and not a published version.
+- Change `fern.config.json` version to `*` in the test repo to bypass version pinning.

@@ -1,0 +1,61 @@
+---
+title: API Key Injection for Demos
+description: How to set up API key injection for demo environments with pre-loaded API keys.
+---
+
+Demo auth allows you to set up a demo environment where the customer's API key is automatically injected. This requires configuration in **two** Vercel Edge Config objects.
+
+## Edge config structure
+
+### 1. `api-key-injection`
+
+```json
+"customer.ferndocs.com": {
+  "type": "basic_token_verification",
+  "secret": "{generated-secret}",
+  "redirect": "https://customer.ferndocs.com/api/fern-docs/auth/fern-token-demo",
+  "issuer": "https://buildwithfern.com"
+}
+```
+
+### 2. `api-key-injection-demo`
+
+You need to get the API key from the client and use the **same secret** for both config entries.
+
+```json
+"customer.ferndocs.com": {
+  "apiKey": "{customer-api-key}",
+  "secret": "{same-generated-secret}"
+}
+```
+
+## Key differences from standard JWT auth
+
+| Aspect | Standard JWT | Demo Auth |
+|--------|-------------|-----------|
+| Redirect path | `/api/fern-docs/auth/jwt/callback` | `/api/fern-docs/auth/fern-token-demo` |
+| Issuer | Customer's domain | `https://buildwithfern.com` |
+| Edge config keys | `api-key-injection` only | `api-key-injection` + `api-key-injection-demo` |
+| API key storage | Not stored by Fern | Stored in `api-key-injection-demo` |
+
+## Steps
+
+<Steps>
+  <Step title="Generate a shared secret">
+    ```bash
+    openssl rand -base64 32
+    ```
+  </Step>
+  <Step title="Get the customer's API key">
+    Request the API key from the client that should be pre-loaded in the demo environment.
+  </Step>
+  <Step title="Configure api-key-injection">
+    Add the first config block to the `api-key-injection` key in Vercel Edge Config. Note the redirect path uses `/api/fern-docs/auth/fern-token-demo`.
+  </Step>
+  <Step title="Configure api-key-injection-demo">
+    Add the second config block to `api-key-injection-demo` with the customer's API key and the **same secret** used in step 1.
+  </Step>
+  <Step title="Direct the customer to set up the fern_token cookie">
+    Refer them to the [Fern docs on auto-populating API keys](https://buildwithfern.com/learn/docs/api-references/api-explorer/auto-populate-api-keys#how-it-works).
+  </Step>
+</Steps>

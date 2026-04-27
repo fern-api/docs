@@ -1,0 +1,49 @@
+---
+title: JWT Authentication
+description: How to set up JWT-based API key injection for a customer's Fern documentation site.
+---
+
+Use JWT-based authentication to secure customer docs behind a token-verified login.
+
+## Edge config structure
+
+Add an entry to the `api-key-injection` key in the [Vercel Edge Config store](https://vercel.com/buildwithfern/~/stores) under `fern-docs-config`:
+
+```json
+"customer.docs.buildwithfern.com": {
+  "type": "basic_token_verification",
+  "secret": "{generated-secret}",
+  "redirect": "https://customer.docs.buildwithfern.com/api/fern-docs/auth/jwt/callback",
+  "issuer": "https://customer-domain.com"
+}
+```
+
+## Configuration fields
+
+| Field | Description |
+|-------|-------------|
+| `type` | Always `basic_token_verification` for JWT setup |
+| `secret` | A shared secret generated via `openssl rand -base64 32`. The customer can also provide their own secret. |
+| `redirect` | The customer URL appended with `/api/fern-docs/auth/jwt/callback` |
+| `issuer` | Ask the customer what the expected issuer should be — they need to ensure their Fern token is minted with this issuer. |
+
+## Steps
+
+<Steps>
+  <Step title="Generate a shared secret">
+    Run the following command to generate a secret:
+    ```bash
+    openssl rand -base64 32
+    ```
+    Share this secret with the customer. Alternatively, the customer can provide their own secret.
+  </Step>
+  <Step title="Add the edge config entry">
+    Add the JSON configuration above to the `api-key-injection` key in Vercel Edge Config, replacing the placeholder values.
+  </Step>
+  <Step title="Confirm the issuer">
+    Ask the customer what the expected issuer value should be. They must ensure their token is minted with this issuer.
+  </Step>
+  <Step title="Direct the customer to set up the fern_token cookie">
+    The customer needs to set up a `fern_token` cookie. Refer them to the [Fern docs on auto-populating API keys](https://buildwithfern.com/learn/docs/api-references/api-explorer/auto-populate-api-keys#how-it-works).
+  </Step>
+</Steps>

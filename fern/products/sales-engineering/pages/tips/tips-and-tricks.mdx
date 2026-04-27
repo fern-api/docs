@@ -1,0 +1,64 @@
+---
+title: Tips and Tricks
+description: Collected tips and tricks from experience working with Fern documentation and customer sites.
+---
+
+A collection of practical tips learned from working with Fern.
+
+## Content and configuration
+
+- To have a page without a slug, set `slug: /` in the frontmatter of that page's MDX file.
+- Only `.woff2` file extensions work for the typography config in `docs.yml`. TTF fonts are not supported.
+- The CSS `background-image` property cannot resolve local image paths. If you need to use it, upload the image to Fern's internal S3 bucket first.
+- Be sparse with the number of `<div>` tags in an MDX page (especially landing pages) to avoid the [FOUC](https://en.wikipedia.org/wiki/Flash_of_unstyled_content) problem. Adding a third nested `<div>` on custom landing pages causes noticeable FOUC.
+- If you want to use an image for the product switcher icon, use `image:` instead of `icon:` in the config.
+- `hidden: true` for tabs doesn't work in local preview. Use `fern generate --docs` instead.
+
+## CSS tips
+
+- Target tabs with this CSS selector: `div[role="tablist"] a { ... }`
+- Target child elements of an HTML element with `>`. Example: `a > span { ... }`
+- If you have a custom footer, always set `strategy: afterInteractive` for the JS. Otherwise, the footer may appear inconsistently and disappear on reload.
+
+## SDK configuration
+
+- If you encounter circular referencing errors with SDKs, add the following to your generators config:
+  ```yaml
+  settings:
+    title-as-schema-name: false
+    only-include-referenced-schemas: true
+  ```
+
+## Importing from ReadMe
+
+- ReadMe always exposes the OpenAPI spec if you append `/openapi` to the base URL.
+
+## Debugging and operations
+
+- Always use `--log-level debug` when debugging customer issues for additional context.
+- To clear the local docs preview cache, run:
+  ```bash
+  cd ~/.fern && rm -rf app-preview
+  ```
+  This is helpful when local preview fails due to caching issues.
+- To revalidate a customer's docs site, navigate to:
+  ```
+  https://{customer-domain}/api/fern-docs/revalidate
+  ```
+  This is useful for broken logos, images, or when Ask Fern's "Ask AI" search bar doesn't immediately appear.
+- To trigger Algolia indexing, visit:
+  ```
+  https://{customer-domain}/api/fern-docs/index/algolia
+  ```
+
+## Vercel and deployments
+
+- Feature flags are managed in the [Vercel Edge Config store](https://vercel.com/buildwithfern/~/stores) under `fern-docs-config`.
+- To preview `fern-platform` changes that are still in a PR, copy the preview link on `prod.ferndocs.com` and append: `api/fern-docs/preview?host={BASE_URL_OF_DOCS_SITE}`
+- To roll back a docs release, go to [prod.ferndocs.com production deployments](https://vercel.com/buildwithfern/prod.ferndocs.com/deployments?environment=production).
+
+## Customer communication
+
+- Direct customers to [https://github.com/fern-api/fern/issues](https://github.com/fern-api/fern/issues) for feature requests.
+- To spin up an incident, type `/incident` in any Slack channel.
+- If something strange is happening only on the domain you're working on, try publishing on a new domain to isolate the issue.
