@@ -18,13 +18,33 @@ Both buttons are enabled by default on sites with Ask Fern. For other clients (C
 
 ## Direct API access for AI agents
 
-AI agents can access your documentation directly via HTTP. Fern serves content as clean Markdown for token efficiency.
+AI agents can access your documentation directly via HTTP. Fern serves content as clean Markdown for token efficiency, available through four URL patterns:
 
-For authenticated sites, agents obtain a JWT via [`/api/fern-docs/get-jwt`](/learn/docs/fern-api-reference/get-jwt) with a Fern API key to access protected documentation content and search functionality.
+| URL pattern | Use case |
+| --- | --- |
+| `<page-url>.md` | Markdown for a single page |
+| `<page-url>` with `Accept: text/plain` | Same content, via content negotiation |
+| `/llms.txt` | Index of every page on the site |
+| `/llms-full.txt` | Full site contents in a single file |
 
-```bash Access protected content
+On public sites, agents can request these directly. On authenticated sites, agents must first exchange a [Fern token](/learn/cli-api/cli-reference/commands#fern-token) for a JWT, then send the JWT on every request.
+
+### Authenticated sites
+
+Exchange your Fern token for a [JWT](/learn/docs/fern-api-reference/get-jwt):
+
+```bash 1. Get a JWT
+curl https://docs.example.com/api/fern-docs/get-jwt \
+  -H "FERN_API_KEY: $FERN_TOKEN"
+# → { "fern_token": "eyJ...", "roles": [] }
+```
+
+Send the returned JWT as the `FERN_TOKEN` header on subsequent requests:
+
+```bash 2. Fetch protected content
 curl https://docs.example.com/platform/overview \
   -H 'Accept: text/plain' \
-  -H 'x-fern-host: docs.example.com' \
-  -H 'FERN_TOKEN: your-jwt-here'
+  -H "FERN_TOKEN: $JWT"
 ```
+
+JWTs are valid for 30 days — cache and refresh as needed.
