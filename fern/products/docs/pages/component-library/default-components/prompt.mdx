@@ -5,16 +5,29 @@ description: Display a copyable prompt with optional open-in actions for AI tool
 
 <Markdown src="/snippets/agent-directive.mdx"/>
 
-The `<Prompt>` component displays an AI prompt card with a title, a single-line prompt preview, a copy button, and optional "Open in" action buttons for AI tools. Add it to any page so readers can quickly copy the instructions or open them directly in Cursor, Claude, or ChatGPT.
+The `<Prompt>` component displays an AI prompt card with an icon, a single-line prompt preview, a copy button, and optional "Open in" action buttons for AI tools. Add it to any page so readers can copy the instructions or open them directly in Cursor, Claude, or ChatGPT.
 
 When a reader copies a prompt or opens it in an AI tool, the component sends the **original markdown** content — including formatting, links, and lists — so the AI tool receives a well-structured prompt rather than plain text.
 
 ## Usage
 
+<div className="highlight-frame">
+  <div className="highlight-frame-content">
+  <Prompt
+    title="Create a docs site"
+    actions={["cursor", "claude"]}
+  >
+  You are a **docs setup assistant**. Help the user create and publish a new docs site.
+
+  Follow the [Quickstart guide](https://buildwithfern.com/learn/docs/getting-started/quickstart) step by step.
+  </Prompt>
+  </div>
+</div>
+
 ```jsx Markdown
 <Prompt
   title="Create a docs site"
-  actions={["copy", "cursor", "claude"]}
+  actions={["cursor", "claude"]}
 >
 You are a **docs setup assistant**. Help the user create and publish a new docs site.
 
@@ -23,15 +36,25 @@ Follow the [Quickstart guide](https://buildwithfern.com/learn/docs/getting-start
 ```
 
 The component renders:
-- A **title** at the top left
-- **Action buttons** at the top right (first action as primary button, others in a dropdown)
-- A **prompt preview bar** below with a `>` chevron, the prompt text truncated to one line, and a copy button
+- An **icon** on the left of the prompt bar (defaults to a sparkle icon)
+- The **prompt text** truncated to a single line with ellipsis overflow
+- A **copy button** on the right (always present)
+- When a `title` is set: a header row with the title and action buttons above the prompt bar
+- When no `title` is set: action buttons appear inline in the prompt bar
 
 ## Variants
 
 ### Copy only (default)
 
-When no `actions` prop is provided (defaults to `["copy"]`), only the copy button in the prompt preview bar is shown — no "Open in" button appears.
+When no `actions` prop is provided, only the copy button appears — no "Open in" button is shown.
+
+<div className="highlight-frame">
+  <div className="highlight-frame-content">
+  <Prompt title="Generate a TypeScript SDK">
+  Generate a TypeScript SDK from my OpenAPI spec. Follow the [TypeScript SDK quickstart](https://buildwithfern.com/learn/sdks/generators/typescript/quickstart).
+  </Prompt>
+  </div>
+</div>
 
 ```jsx Markdown
 <Prompt title="Generate a TypeScript SDK">
@@ -41,12 +64,23 @@ Generate a TypeScript SDK from my OpenAPI spec. Follow the [TypeScript SDK quick
 
 ### Single open-in action
 
-When one open-in action is specified alongside `copy`, a single "Open in" button appears in the top right.
+When one action is specified, a single "Open in" button appears.
+
+<div className="highlight-frame">
+  <div className="highlight-frame-content">
+  <Prompt
+    title="Generate a TypeScript SDK"
+    actions={["cursor"]}
+  >
+  Generate a TypeScript SDK from my OpenAPI spec. Follow the [TypeScript SDK quickstart](https://buildwithfern.com/learn/sdks/generators/typescript/quickstart).
+  </Prompt>
+  </div>
+</div>
 
 ```jsx Markdown
 <Prompt
   title="Generate a TypeScript SDK"
-  actions={["copy", "cursor"]}
+  actions={["cursor"]}
 >
 Generate a TypeScript SDK from my OpenAPI spec. Follow the [TypeScript SDK quickstart](https://buildwithfern.com/learn/sdks/generators/typescript/quickstart).
 </Prompt>
@@ -54,25 +88,60 @@ Generate a TypeScript SDK from my OpenAPI spec. Follow the [TypeScript SDK quick
 
 ### Multiple open-in actions
 
-When multiple open-in actions are specified, the first one becomes the primary button and the rest are accessible via a dropdown arrow.
+When multiple actions are specified, the first one becomes the primary button and the rest are accessible via a dropdown arrow.
+
+<div className="highlight-frame">
+  <div className="highlight-frame-content">
+  <Prompt
+    title="Generate a TypeScript SDK"
+    actions={["cursor", "claude", "chatgpt"]}
+  >
+  Generate a TypeScript SDK from my OpenAPI spec. Follow the [TypeScript SDK quickstart](https://buildwithfern.com/learn/sdks/generators/typescript/quickstart).
+  </Prompt>
+  </div>
+</div>
 
 ```jsx Markdown
 <Prompt
   title="Generate a TypeScript SDK"
-  actions={["copy", "cursor", "claude", "chatgpt"]}
+  actions={["cursor", "claude", "chatgpt"]}
 >
 Generate a TypeScript SDK from my OpenAPI spec. Follow the [TypeScript SDK quickstart](https://buildwithfern.com/learn/sdks/generators/typescript/quickstart).
 </Prompt>
 ```
 
-## How it works
+### Custom icon
 
-The `<Prompt>` component automatically preserves the **original markdown** of its children. When a reader copies the prompt or opens it in an AI tool, they receive the raw markdown source — including bold, italic, links, and lists — rather than a lossy plain-text extraction.
+Use the `icon` prop to set a Font Awesome icon or image URL. When omitted, a sparkle icon is shown by default.
 
-This means you can write rich prompts with formatting and links, and the AI tool will see the full markdown context:
+<div className="highlight-frame">
+  <div className="highlight-frame-content">
+  <Prompt
+    title="Writing assistant"
+    icon="pencil"
+    actions={["cursor"]}
+  >
+  You are a **technical writing assistant**. Write documentation that's clear, accurate, and concise.
+  </Prompt>
+  </div>
+</div>
 
 ```jsx Markdown
-<Prompt title="Writing assistant" actions={["copy", "cursor"]}>
+<Prompt
+  title="Writing assistant"
+  icon="pencil"
+  actions={["cursor"]}
+>
+You are a **technical writing assistant**. Write documentation that's clear, accurate, and concise.
+</Prompt>
+```
+
+## How it works
+
+The `<Prompt>` component preserves the **original markdown** of its children at build time. When a reader copies the prompt or opens it in an AI tool, they receive the raw markdown source — including bold, italic, links, and lists — rather than a lossy plain-text extraction.
+
+```jsx Markdown
+<Prompt title="Writing assistant" actions={["cursor"]}>
 You are a **technical writing assistant**.
 
 - Use second-person voice ("you") and active verbs.
@@ -80,18 +149,22 @@ You are a **technical writing assistant**.
 </Prompt>
 ```
 
-The copied text will include the bold markers, list formatting, and link.
+The copied text includes the bold markers, list formatting, and link.
 
 ## Properties
 
 <ParamField path="title" type="string">
-  A title displayed at the top left of the prompt card.
+  A title displayed above the prompt bar.
 </ParamField>
 
-<ParamField path="actions" type="string[]" default='["copy"]'>
-  The action buttons to display. Available options: `copy`, `cursor`, `claude`, `chatgpt`. The `copy` action controls the copy button in the prompt preview bar. Open-in actions (`cursor`, `claude`, `chatgpt`) appear as buttons in the top right — the first one is the primary button, and any additional ones are accessible via a dropdown.
+<ParamField path="icon" type="string">
+  A [Font Awesome icon](/learn/docs/writing-content/components/icons) name or image URL displayed to the left of the prompt text. Defaults to a sparkle icon when omitted.
+</ParamField>
+
+<ParamField path="actions" type="string[]" default="[]">
+  The "Open in" action buttons to display. Available values: `cursor`, `claude`, `chatgpt`. The first action renders as the primary button. Additional actions are accessible via a dropdown. The copy button is always present regardless of this prop.
 </ParamField>
 
 <ParamField path="children" type="markdown" required={true}>
-  The prompt text in markdown. This content is shown as a single-line preview, copied to the clipboard, or sent to the selected AI tool with its original markdown formatting preserved (bold, italic, links, lists, etc.).
+  The prompt text in markdown. This content is shown as a single-line preview, copied to the clipboard, or sent to the selected AI tool with its original markdown formatting preserved.
 </ParamField>
