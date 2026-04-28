@@ -1,0 +1,281 @@
+---
+title: 配置 SEO 元数据
+description: 通过页面级前置数据和站点级设置在 Fern 文档中配置 SEO 元数据。控制标题、描述、社交媒体预览和站点地图时间戳。
+sidebar-title: 配置 SEO 元数据
+max-toc-depth: 3
+---
+
+当您想要自定义页面在搜索结果或社交预览中的显示方式时，您可以在[站点级别](#site-wide-defaults)设置默认值或在[单个页面](#page-level-overrides)上覆盖它们。
+
+Fern 会为您文档站点中的每个页面自动生成所有 SEO 元数据。搜索引擎和社交媒体预览无需任何配置即可开箱即用。
+
+当您确实想要自定义 SEO 设置时，您可以在[站点级别](#website-metadata)设置默认值或在[单个页面](#page-level-configuration)上覆盖它们。为了优化显示效果，请将标题控制在 50-60 个字符之间，描述控制在 150-160 个字符之间。
+
+<Note>
+    本页面上的元数据配置用于用户不可见的 SEO 和社交标签。对于可见的页脚链接，请参阅[页脚链接配置](/learn/docs/configuration/site-level-settings#footer-links-configuration)。
+</Note>
+
+## 工作原理
+
+Fern 按以下顺序查找元数据值：
+
+1. **页面前置数据** — 特定页面的自定义 SEO 值
+2. **站点级 `docs.yml`** — 所有页面的默认 SEO 值
+3. **自动默认值** — 从页面现有的 `title`、`description`、`subtitle` 或 `excerpt` 字段生成
+
+<Info title="示例">
+    `og:image` 是在社交媒体预览中显示的图片。如果您没有在页面的前置数据中设置 `og:image`，Fern 会使用 `docs.yml` 中的站点级 `og:image`。如果两者都未配置，则完全省略该标签。
+</Info>
+
+## 站点级默认值
+
+在 `docs.yml` 中为整个站点设置默认 SEO 元数据。除非被页面特定元数据覆盖，否则这些设置适用于所有页面。
+
+```yaml docs.yml
+metadata:
+  # 核心元数据
+  og:site_name: "Square Developer Documentation"
+  og:title: "Square Developer Platform | Payments, Commerce & Banking APIs"
+  og:description: "Build with Square's suite of APIs and SDKs. Accept payments, manage inventory, create loyalty programs, and access financial services."
+  og:url: "https://developer.squareup.com/docs"
+  og:locale: "en_US"
+  canonical-host: "developer.squareup.com"
+
+  # 社交图片
+  og:image: "https://developer.squareup.com/images/docs-social-card.png"
+  og:image:width: 1200
+  og:image:height: 630
+  og:logo: "https://developer.squareup.com/images/square-logo.png"
+
+  # Twitter / X
+  twitter:title: "Square Developer Platform Documentation"
+  twitter:description: "Integrate payments, point-of-sale, inventory, and financial services into your applications with Square's developer platform."
+  twitter:handle: "@SquareDev"
+  twitter:image: "https://developer.squareup.com/images/twitter-card.png"
+  twitter:site: "@Square"
+  twitter:card: "summary_large_image"
+```
+
+### 核心元数据
+
+搜索引擎使用的身份和描述性字段，在社交平台之间共享。为了优化显示效果，请将标题控制在 50-60 个字符之间，描述控制在 150-160 个字符之间。如果您的文档可以通过多个 URL 访问（例如，自定义域名和 `buildwithfern.com` 子域名），请设置 `canonical-host` 来告诉搜索引擎哪个 URL 是权威的。
+
+<ParamField path="metadata.og:site_name" type="string" required={false} toc={true}>
+  用于 Open Graph 标签的网站名称。
+</ParamField>
+
+<ParamField path="metadata.og:title" type="string" required={false} toc={true}>
+  在社交媒体预览中显示的标题。
+</ParamField>
+
+<ParamField path="metadata.og:description" type="string" required={false} toc={true}>
+  在社交媒体预览中显示的描述。
+</ParamField>
+
+<ParamField path="metadata.og:url" type="string" required={false} toc={true}>
+  文档的规范 URL。
+</ParamField>
+
+<ParamField path="metadata.og:locale" type="string" required={false} toc={true}>
+  内容的语言环境（例如，`en_US`）。
+</ParamField>
+
+<ParamField path="metadata.canonical-host" type="string" required={false} toc={true}>
+  文档网站的主机。用于设置元数据标签和站点地图等文档的规范 URL。默认为 `instances` 中定义的 URL。
+</ParamField>
+
+### 社交图片
+
+当您的文档在 LinkedIn、Slack、Discord 和其他平台上分享时显示的图片。使用 1200x630px 的图片以在各平台上获得最佳显示效果 — 这是标准的 Open Graph 尺寸，在大多数预览中都能正确渲染。避免在图片中嵌入文本，因为它在某些平台上可能会被裁剪。
+
+<ParamField path="metadata.og:image" type="string" required={false} toc={true}>
+  在社交媒体预览中显示的图片。推荐尺寸为 1200x630 像素。
+</ParamField>
+
+<ParamField path="metadata.og:image:width" type="number" required={false} toc={true}>
+  Open Graph 图片的宽度（像素）。
+</ParamField>
+
+<ParamField path="metadata.og:image:height" type="number" required={false} toc={true}>
+  Open Graph 图片的高度（像素）。
+</ParamField>
+
+<ParamField path="metadata.og:logo" type="string" required={false} toc={true}>
+  公司 logo 的 URL。
+</ParamField>
+
+### 动态 OG 图片 <Availability type="beta" /> [#dynamic-og-images]
+
+您可以启用动态 OG 图片生成，而不是为所有页面使用单一静态图片。启用后，Fern 会自动为没有在[前置数据中设置](#open-graph)图片的每个页面生成唯一的 `og:image`。
+
+您可以选择为动态生成的 OG 图片提供自定义背景图片（`og:background-image`）。
+
+```yaml docs.yml
+metadata:
+  og:dynamic: true
+  og:background-image: ./images/og-background.png # 可选
+```
+
+<ParamField path="metadata.og:dynamic" type="boolean" required={false} default={false} toc={true}>
+  当为 `true` 时，为没有设置自定义 `og:image` 的页面启用动态 OG 图片生成。
+</ParamField>
+
+<ParamField path="metadata.og:background-image" type="string" required={false} toc={true}>
+  动态生成的 OG 图片的自定义背景图片。可以是 URL 或相对文件路径。相对路径从设置此属性的 YAML 文件位置解析（例如，`docs.yml`）。设置后，此图片将用作背景而不是纯色。
+</ParamField>
+
+### Twitter / X
+
+控制您的文档在 X 上分享时如何在 Twitter Card 预览中显示。
+
+<ParamField path="metadata.twitter:title" type="string" required={false} toc={true}>
+  在 Twitter Card 预览中显示的标题。
+</ParamField>
+
+<ParamField path="metadata.twitter:description" type="string" required={false} toc={true}>
+  在 Twitter Card 预览中显示的描述。
+</ParamField>
+
+<ParamField path="metadata.twitter:handle" type="string" required={false} toc={true}>
+  您公司的 Twitter 账号。
+</ParamField>
+
+<ParamField path="metadata.twitter:image" type="string" required={false} toc={true}>
+  在 Twitter Card 预览中显示的图片。
+</ParamField>
+
+<ParamField path="metadata.twitter:site" type="string" required={false} toc={true}>
+  您网站的 Twitter 账号。
+</ParamField>
+
+<ParamField path="metadata.twitter:card" type="string" required={false} toc={true}>
+  Twitter Card 类型。选项有 `summary`、`summary_large_image`、`app` 或 `player`。
+</ParamField>
+
+## 页面级覆盖
+
+在页面的前置数据中配置 SEO 元数据，以控制单个页面在搜索结果和社交分享中的显示方式。这些设置会覆盖站点级默认值。
+
+<Info>
+  只有记录的 SEO 字段会作为元标签添加到 HTML `<head>` 中。自定义前置数据字段不会自动出现在页面元数据中。要添加自定义元数据，请使用[自定义 JavaScript](/learn/docs/customization/custom-css-js#custom-javascript)。
+</Info>
+
+<CodeBlock title="plantstore-quickstart.mdx">
+```mdx
+---
+title: PlantStore API Quick Start
+headline: "Get Started with PlantStore API | Developer Documentation"
+keywords: plants, garden, nursery
+canonical-url: https://docs.plantstore.dev/welcome
+og:image: https://plantstore.dev/images/api-docs-banner.png
+og:image:width: 1200
+og:image:height: 630
+twitter:card: summary_large_image
+twitter:site: "@PlantStoreAPI"
+noindex: false
+nofollow: false
+---
+```
+</CodeBlock>
+
+### 基本元数据
+
+搜索引擎使用的页面标题、URL 和关键字字段。当您需要为搜索引擎提供与显示的页面标题不同的标题时，请使用 `headline`。
+
+<ParamField path="headline" type="string" required={false} toc={true}>
+  设置后，文档头部的 `<title />` 标签将使用此值而不是 `title` 属性。例如，您的 `title` 可能是"快速入门"（显示在侧边栏和 H1 中），而 `headline` 可以是"快速入门 | PlantStore API 文档"来为搜索引擎提供更多上下文。如果未设置，Fern 使用 `title` 并附加您的站点名称。
+</ParamField>
+
+<ParamField path="canonical-url" type="string" required={false} toc={true}>
+  覆盖此页面的规范 URL。必须是包含协议的完整 URL（例如，`https://buildwithfern.com/learn/docs/content/frontmatter`）。
+</ParamField>
+
+<ParamField path="keywords" type="string" required={false} toc={true}>
+  与页面相关的逗号分隔关键字（例如，`plants, garden, nursery`）。只接受逗号分隔的字符串，不接受数组。
+</ParamField>
+
+### Open Graph
+
+控制此页面在 LinkedIn、Slack、Discord 和其他支持 Open Graph 的平台上分享时的显示方式。为了优化显示效果，请将标题控制在 50-60 个字符之间，描述控制在 150-160 个字符之间。
+
+<ParamField path="og:site_name" type="string" required={false} toc={true}>
+  您的网站在内容分享时应显示的名称。
+</ParamField>
+
+<ParamField path="og:title" type="string" required={false} toc={true}>
+  您的页面在内容分享时应显示的标题。
+</ParamField>
+
+<ParamField path="og:description" type="string" required={false} toc={true}>
+  您的页面在内容分享时应显示的描述。
+</ParamField>
+
+<ParamField path="og:url" type="string" required={false} toc={true}>
+  您页面的 URL。
+</ParamField>
+
+<ParamField path="og:image" type="string" required={false} toc={true}>
+  内容分享时显示的图片 URL。
+</ParamField>
+
+<ParamField path="og:image:width" type="number" required={false} toc={true}>
+  图片的宽度（像素）。
+</ParamField>
+
+<ParamField path="og:image:height" type="number" required={false} toc={true}>
+  图片的高度（像素）。
+</ParamField>
+
+<ParamField path="og:locale" type="string" required={false} toc={true}>
+  页面的语言环境，通常格式为 `language_TERRITORY`（例如，`en_US`）。
+</ParamField>
+
+<ParamField path="og:logo" type="string" required={false} toc={true}>
+  内容分享时显示的 logo 图片 URL。
+</ParamField>
+
+### Twitter / X
+
+控制此页面在 X 上分享时如何在 Twitter Card 预览中显示。
+
+<ParamField path="twitter:title" type="string" required={false} toc={true}>
+  您的页面在推文中应显示的标题。
+</ParamField>
+
+<ParamField path="twitter:description" type="string" required={false} toc={true}>
+  您的页面在推文中应显示的描述。
+</ParamField>
+
+<ParamField path="twitter:handle" type="string" required={false} toc={true}>
+  页面创建者或站点的 Twitter 账号。
+</ParamField>
+
+<ParamField path="twitter:image" type="string" required={false} toc={true}>
+  在推文中显示的图片 URL。
+</ParamField>
+
+<ParamField path="twitter:site" type="string" required={false} toc={true}>
+  您网站的 Twitter 账号。
+</ParamField>
+
+<ParamField path="twitter:url" type="string" required={false} toc={true}>
+  您页面的 URL。
+</ParamField>
+
+<ParamField path="twitter:card" type="string" required={false} toc={true}>
+  在 Twitter 上分享时使用的卡片类型。选项：`summary`、`summary_large_image`、`app`、`player`。
+</ParamField>
+
+### 索引设置
+
+控制搜索引擎是否索引此页面或跟踪其链接。这些是不同的：`noindex` 完全从搜索结果中删除页面，而 `nofollow` 保持页面在结果中，但告诉搜索引擎不要通过其链接传递排名权重。
+
+对于您希望在侧边栏中可见但从搜索结果中排除的页面使用 `noindex` — 例如，早期访问文档。要同时从侧边栏和搜索结果中隐藏页面，请在 `docs.yml` 中使用 `hidden: true`，这会自动处理两者 — 详见[隐藏内容](/learn/docs/customization/hiding-content)。谨慎使用 `nofollow` — 在文档中很少需要。
+
+<ParamField path="noindex" type="boolean" required={false} default={false} toc={true}>
+  如果为 `true`，页面不会被搜索引擎索引，并且会从 [`llms.txt`](/learn/docs/ai-features/llms-txt) 端点中排除。
+</ParamField>
+
+<ParamField path="nofollow" type="boolean" required={false} default={false} toc={true}>
+  如果为 `true`，搜索引擎不会跟踪页面上的任何链接。
+</ParamField>

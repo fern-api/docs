@@ -1,0 +1,101 @@
+---
+title: 搜索配置
+description: 使用 Algolia DocSearch 为您的 Fern 文档配置搜索。了解搜索过滤器如何工作、结果排名机制，以及如何与 Algolia 集成。
+sidebar-title: 搜索配置
+---
+
+Fern 使用 [Algolia DocSearch](https://docsearch.algolia.com/) 为您的文档提供搜索功能。
+DocSearch 专为文档站点设计，帮助用户找到所需内容。
+
+## 搜索工作原理
+
+DocSearch 扫描您的 Fern 站点内容并构建索引以生成搜索结果。
+它包含内置的下拉过滤器，这些过滤器会根据您站点的配置动态显示，让用户精细化搜索：
+
+- **产品：** 将结果限定为文档中的特定产品（适用于有多个[产品](/learn/docs/configuration/products)的站点）
+- **版本：** 按文档版本过滤结果（适用于使用[版本文档](/learn/docs/configuration/versions)的站点）
+- **内容类型：** 按指南、更新日志条目或 API 端点过滤结果
+- **API 类型：** 按协议（HTTP、webhooks、WebSockets 或 gRPC）过滤 API 结果
+- **HTTP 方法：** 按 HTTP 方法（`GET`、`POST`、`PUT`、`DELETE` 等）过滤 API 结果
+- **状态码：** 按 HTTP 状态码过滤 API 结果
+- **可用性：** 按可用性状态过滤 API 结果，包括稳定版、测试版和已弃用
+
+<Frame caption="Fern 自己的文档站点显示产品、内容类型和 HTTP 方法过滤器。其他过滤器（如版本）不会出现，因为此站点不使用版本文档。">
+  <video
+    src="search.mp4"
+    autoPlay
+    loop
+    playsInline
+    muted
+  >
+  </video>
+</Frame>
+
+Fern 可以将搜索范围限定为用户当前的上下文。对于具有多个产品或版本的站点，请在您的 `docs.yml` 中设置 [`default-search-filters: true`](/learn/docs/configuration/site-level-settings#settingsdefault-search-filters)，以将结果过滤到用户当前的产品和版本（用户仍可以移除这些过滤器来扩大搜索范围）。对于具有[本地化文档](/learn/docs/localization/overview)的站点，搜索会自动限定为读者的活动语言。
+
+如果您正在使用 [Ask Fern](/learn/docs/ai-features/ask-fern/overview)（AI 搜索），搜索框也会作为您站点的聊天窗口。
+
+<Note>
+    具有 `nofollow` 或 `noindex` [frontmatter](/learn/docs/configuration/page-level-settings#indexing-properties) 的页面将从 Algolia DocSearch 索引中排除，不会出现在搜索结果中。
+</Note>
+
+## 结果排名机制
+
+Fern 配置 Algolia 的排名以优先考虑高信号属性（如标题和关键字）中的匹配，而不是正文文本，然后应用时效性、版本和页面位置的平分决胜机制。
+
+<AccordionGroup>
+  <Accordion title="属性权重">
+    Algolia 根据包含匹配文本的属性对结果进行排名。前面列出的属性权重高于后面列出的属性。Fern 按优先级顺序配置以下可搜索属性：
+
+    | 优先级 | 属性 | 描述 |
+    | --- | --- | --- |
+    | 1 | 关键字 | 在页面 frontmatter 中设置的[关键字](/learn/docs/configuration/page-level-settings#document-properties)。使用这些来为查询显示页面而无需更改其内容。 |
+    | 2 | 页面标题 | 在 frontmatter 或 `docs.yml` 中设置的[标题](/learn/docs/configuration/page-level-settings#title) |
+    | 3 | 标题层次结构（h1–h6） | 页面内的[标题](/learn/docs/writing-content/markdown-basics#page-header)，从 h1（最高）到 h6（最低） |
+    | 4 | 端点路径 | API 端点路径（例如 `/plants/{plantId}`） |
+    | 5 | 端点路径替代项 | 端点路径的替代表示形式 |
+    | 6 | 参数名称 | API 参数的名称 |
+    | 7 | 元数据属性 | 可用性、API 类型、HTTP 方法、内容类型、响应类型、状态码和参数类型 |
+    | 8 | 面包屑 | 页面的导航面包屑路径 |
+    | 9 | 描述 | 页面的[元描述](/learn/docs/configuration/page-level-settings#meta-description) |
+    | 10 | 正文内容 | 页面的完整正文文本 |
+    | 11 | 代码片段 | 嵌入页面中的[代码块](/learn/docs/writing-content/components/code-blocks) |
+
+    所有属性都使用 `unordered` 匹配，这意味着查询词在属性内的位置不会影响排名。例如，页面标题末尾的匹配与开头的匹配排名相同。
+  </Accordion>
+  <Accordion title="平分决胜">
+    当多个结果具有相同的文本相关性评分时，Fern 应用自定义排名规则作为平分决胜：
+
+    1. **日期（降序）：** 较新的内容排名更高。这主要影响带有时间戳的更新日志条目。
+    2. **版本索引（升序）：** 默认版本的内容排名高于较旧版本的内容。这可以防止版本文档中的重复结果。
+    3. **页面位置（升序）：** 靠近页面顶部的内容排名高于较远位置的内容。例如，页面顶部附近的标题匹配优于同一页面下方的部分匹配。
+
+    此外，Fern 通过规范路径名去重结果，因此每个页面在结果中最多出现一次。当存在重复项时，版本索引和页面位置平分决胜确定哪个记录代表该页面。
+  </Accordion>
+  <Accordion title="页面层次结构">
+    您的文档导航层次结构不会直接影响搜索排名。嵌套页面在文本相关性方面与顶级页面排名相同。但是，在单个页面内，标题深度确实重要：h1 标题中的匹配排名高于 h2，h2 高于 h3，依此类推。标题层次结构按记录存储，因此 Algolia 可以区分顶级部分中的匹配和子部分中的匹配。
+  </Accordion>
+  <Accordion title="空结果处理">
+    如果查询没有返回结果，Algolia 会逐步移除常见的文档术语来扩大搜索范围。当没有找到完全匹配时，以下词语被视为可选：`endpoint`、`api`、`guide`、`documentation`、`doc`、`parameter`、`webhook`、`websocket`、`http`、`code` 和 `snippet`。
+
+    例如，搜索 `webhook endpoint` 没有返回结果时，会单独重试 `webhook` 和 `endpoint`。
+  </Accordion>
+</AccordionGroup>
+
+## 与 Algolia 集成
+
+如果您需要将 Fern 的文档搜索集成到您自己的应用程序或仪表板中，您可以使用[独立搜索组件](/learn/docs/ai-features/ask-fern/search-widget)来嵌入一个现成的 React 组件，或者直接从 Fern 团队请求 Algolia 凭据以构建自定义集成。
+
+### 发起搜索请求
+
+一旦您拥有凭据，您就可以向 Algolia 的 API 发起请求来搜索您的文档。
+
+请联系 Fern 团队获取您的特定应用程序 ID 和索引名称。凭据是按客户提供的，以维护安全性。
+
+<Note>
+    **注意：** 请保护您的 Algolia 凭据安全，避免在客户端代码中暴露它们。考虑实施后端代理来发起 Algolia 请求。
+</Note>
+
+## 使用替代搜索
+
+您可以使用[自定义 JavaScript](/learn/docs/building-and-customizing-your-docs/custom-css-global-js#custom-javascript) 和您的 Algolia 凭据来覆盖 Fern 的搜索为您自己的解决方案。

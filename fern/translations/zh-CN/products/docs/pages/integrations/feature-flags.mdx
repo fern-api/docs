@@ -1,0 +1,120 @@
+---
+title: 特性标志
+subtitle: 使用 LaunchDarkly 控制文档可见性
+description: 了解如何在 Fern 文档中使用特性标志
+sidebar-title: 特性标志
+---
+
+
+<Markdown src="/snippets/team-plan.mdx"/>
+
+Fern 支持使用特性标志进行文档内容的条件渲染，由 [LaunchDarkly](https://app.launchdarkly.com/signup) 集成提供支持。根据不同发布阶段或用户群体的特性标志状态控制文档部分的可见性。
+
+## 使用场景
+
+文档中的特性标志特别适用于：
+
+- **区域内容**：基于地理位置显示内容（例如，欧盟 vs 美国端点）
+- **产品层级**：根据订阅级别显示功能
+- **Beta 功能**：允许特定用户查看 beta 文档
+- **分阶段发布**：逐步发布新功能的文档
+- **A/B 测试**：为不同用户群体测试不同的文档方法
+
+## 配置
+
+在 `docs.yml` 中配置特性标志：  
+
+```yaml
+navigation:
+  # 简单布尔标志
+  - page: Beta Features
+    feature-flag: beta-features
+
+  # 多个标志（如果任何标志为 true，内容将被显示）
+  - page: Advanced Features
+    feature:
+      - flag: feature-a
+      - flag: feature-b
+
+  # 可配置匹配
+  - section: Enterprise Features
+    feature-flag:
+      flag: release-stage
+      fallback-value: ga
+      match: beta
+```
+
+要了解更多关于 `fallbackValue` 和 `match` 的信息，请参阅 [LaunchDarkly 文档](https://launchdarkly.com/docs/guides/flags/testing-code#fallback-values)。
+
+## 在 MDX 中使用特性标志
+
+使用 `<Feature>` 组件进行条件渲染内容：
+
+```mdx
+<Feature flag="deployment-region" match="commercial" fallbackValue="commercial">
+  <table class="fern-table">
+    <tr>
+      <th>服务</th>
+      <th>端点</th>
+    </tr>
+    <tr>
+      <td>API Gateway</td>
+      <td><code>https://api.example.com</code></td>
+    </tr>
+  </table>
+</Feature>
+```
+
+### 组件属性
+
+<ParamField path="flag" type="string" required={true}>
+  要检查的特性标志名称
+</ParamField>
+
+<ParamField path="match" type="boolean | string" required={true}>
+  与特性标志值匹配的值
+</ParamField>
+
+<ParamField path="fallbackValue" type="boolean | string" required={false}>
+  如果特性标志未定义时的默认值  
+</ParamField>
+
+## 示例：完整配置
+
+```yaml
+# docs.yml
+title: API Documentation
+navigation:
+  - section: Features
+    feature-flag: features-enabled
+    layout:
+      - page: Basic Features
+      - page: Advanced Features
+        feature-flag: advanced-features
+      - page: Beta Features
+        feature:
+          - flag: beta-access
+          - flag: beta-opted-in
+
+  - section: Enterprise
+    feature-flag:
+      flag: customer-tier
+      match: enterprise
+      fallbackValue: standard
+```
+
+## 实时评估
+
+特性标志仅在客户端使用。当特性标志被评估为 false 时，信息仅在视觉上隐藏。
+
+如果您在 LaunchDarkly 控制台中开启特性标志，内容将立即显示。
+
+相反，如果您在 LaunchDarkly 控制台中关闭特性标志，内容将立即隐藏。
+
+## 服务端评估
+
+特性标志仅在客户端使用。希望请求服务端评估？[让我们知道](https://github.com/fern-api/fern/issues)，通过提交功能请求。
+
+## 其他特性标志提供商
+
+希望请求新的特性标志提供商？[让我们知道](https://github.com/fern-api/fern/issues)，通过提交功能请求。

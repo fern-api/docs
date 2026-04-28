@@ -1,0 +1,107 @@
+---
+title: 生成 REST API 参考文档
+description: 使用 Fern Docs 从 OpenAPI 规范或 Fern Definition 生成 REST API 参考文档。
+sidebar-title: 生成 REST API 参考文档
+---
+
+
+Fern 从 [OpenAPI 规范](/learn/api-definitions/openapi/overview) 或 [Fern Definition](/learn/api-definitions/ferndef/overview) 生成 REST API 参考文档。一旦设置好 API 定义，将其添加到文档中只需要一行配置。
+
+<Tip>
+  Fern 还支持 [gRPC](/learn/docs/api-references/generate-grpc-ref)、[WebSocket](/learn/docs/api-references/generate-websocket-ref)（AsyncAPI 或 Fern Definition）、[OpenRPC](/learn/docs/api-references/generate-openrpc-ref) 和 [Webhook](/learn/docs/api-references/generate-webhook-ref) 参考文档。
+</Tip>
+
+## 配置
+
+<Steps>
+<Step title="设置项目结构">
+
+对于 **OpenAPI/AsyncAPI**：将规范文件添加到 `/fern` 目录，并创建一个在 `api.specs` 部分引用它的 `generators.yml`
+
+对于 **Fern Definition**：添加包含 API 定义文件的 `definition/` 目录（Fern 会自动检测）
+
+```yaml generators.yml
+api:
+  specs:
+    - openapi: "./openapi.yml"
+```
+
+
+</Step>
+<Step title="将 API 参考文档添加到导航">
+
+在 `docs.yml` 的导航中添加 `- api: API Reference`：
+
+```yml docs.yml
+navigation:
+  - api: API Reference
+```
+
+Fern 将自动从您的 API 定义中填充端点、类型和代码片段。请求和响应示例使用 [AI 生成](/learn/docs/ai-features/ai-examples)，显示真实数据而非占位符值。
+</Step>
+<Step title="自定义布局">
+
+有关配置选项和布局自定义的完整列表，请参见[自定义 API 参考文档布局](/learn/docs/api-references/customize-api-reference-layout)。
+
+</Step>
+</Steps>
+
+### 包含多个 API 参考文档
+
+要在文档中包含多个不同的 API 定义，请使用 `api-name` 属性。`api-name` 对应包含 API 定义的文件夹名称。
+
+这适用于 OpenAPI 和 Fern Definition 格式的任意组合。例如：
+
+<Files>
+  <Folder name="fern" defaultOpen>
+    <File name="fern.config.json" />
+    <File name="docs.yml" />
+    <Folder name="plant-api" defaultOpen>
+      <File name="openapi.yml" comment="OpenAPI spec" />
+      <File name="generators.yml" comment="References the OpenAPI spec" />
+    </Folder>
+    <Folder name="garden-api" defaultOpen>
+      <Folder name="definition" defaultOpen>
+        <File name="api.yml" />
+      </Folder>
+    </Folder>
+  </Folder>
+</Files>
+
+<Tabs>
+<Tab title="平铺布局">
+对于不使用标签页的简单设置，您可以直接在导航中包含多个 API 参考文档：
+
+```yaml title="docs.yml"
+navigation:
+  - api: Plant Store
+    api-name: plant-api   # 匹配包含 API 定义的文件夹名称
+  - api: Garden
+    api-name: garden-api  # 匹配包含 API 定义的文件夹名称
+```
+</Tab>
+<Tab title="标签页布局">
+使用标签页时，每个 API 参考文档必须放置在标签页的 `layout` 内：
+
+```yaml title="docs.yml" {12, 17}
+tabs:
+  plant-api:
+    display-name: Plant Store API
+    icon: leaf
+  garden-api:
+    display-name: Garden API
+    icon: tree
+navigation:
+  - tab: plant-api  # 引用上面定义的标签页
+    layout:
+      - api: Plant Store API
+        api-name: plant-api  # 匹配包含 API 定义的文件夹名称
+        skip-slug: true
+  - tab: garden-api  # 引用上面定义的标签页
+    layout:
+      - api: Garden API
+        api-name: garden-api  # 匹配包含 API 定义的文件夹名称
+        skip-slug: true
+```
+</Tab>
+</Tabs>

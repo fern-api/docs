@@ -1,0 +1,91 @@
+---
+title: '端点响应代码片段'
+description: '引用API文档中的端点响应'
+sidebar-title: '端点响应代码片段'
+---
+
+
+使用 `<EndpointResponseSnippet>` 组件来引用API文档中的端点响应。
+
+## 用法
+
+<div className="highlight-frame">
+<EndpointResponseSnippet endpoint="POST /chat/{domain}" />
+</div>
+
+```jsx Markdown
+<EndpointResponseSnippet endpoint="POST /chat/{domain}" />
+```
+
+## 引用特定示例
+
+<Steps>
+  ### 在规格中设置示例名称
+  
+  <AccordionGroup>
+    <Accordion title="OpenAPI">
+      ```yaml openapi.yml {13}
+      paths:
+        /pet/{petId}:
+          put:
+            summary: Get a pet 
+            operationId: pets_get
+            responses: 
+              '200': 
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/Pet'
+                    examples:
+                      ExampleWithMarkley:
+                        summary: This is an example of a Pet
+                        value: 
+                          name: Markley
+                          id: 44
+      ```
+    </Accordion>
+    <Accordion title="Fern定义">
+    ```yaml pets.yml {11}
+    service:
+      auth: true
+      base-path: ""
+      endpoints:
+        update:
+          docs: Get a pet
+          method: GET
+          path: /pet/{petId}
+          response: Pet
+          examples:
+            - name: ExampleWithMarkley
+              docs: This is an example of a Pet
+              response:
+                body: 
+                  name: Markley
+                  id: 44
+    ```
+    </Accordion>
+  </AccordionGroup>
+
+  ### 直接引用示例
+
+  ```jsx Markdown {3}
+    <EndpointResponseSnippet 
+      endpoint="GET /pet/{petId}" 
+      example="ExampleWithMarkley"
+    />
+  ```
+</Steps>
+
+## 属性
+
+<ParamField path="endpoint" type="string" required={true}>
+  要显示的端点，格式为 `METHOD /path`（例如，`POST /chat/{domain}`）。如果你的API使用[命名空间](/learn/api-definitions/overview/project-structure#combined-sdks-from-multiple-apis)，请在前面加上命名空间和 `::`（例如，`payments::POST /chat/{domain}`）。
+</ParamField>
+
+<ParamField path="example" type="string" required={false}>
+  要显示的特定示例的名称。如果示例包含 `summary` 或 `docs` 字段，使用该值。
+</ParamField>
+
+<ParamField path="highlight" type="number | number[]" required={false}>
+  要在代码片段中高亮显示的行号。接受单个数字、数字数组或范围（例如，`{[1-3, 5]}`）。
+</ParamField>

@@ -1,0 +1,127 @@
+---
+title: 在 API Reference 中编写 Markdown 内容
+description: 在 API 文档中编写丰富的 Markdown 内容。为端点添加描述，创建摘要页面，并自定义您的 API Reference 布局。
+sidebar-title: 编写 Markdown 内容
+---
+
+
+Fern Docs 允许您在 API Reference 文档中编写 Markdown 内容。此功能对于为 API 端点提供额外的上下文、示例或说明非常有用。
+
+## 为端点添加 Markdown 内容
+
+您可以使用 `description` 字段（OpenAPI）或 `docs` 字段（Fern Definition）在 API 定义中包含 Markdown 内容。这包括标注、代码块和[其他组件](/learn/docs/writing-content/components/overview)。
+
+您还可以使用 `<Footer>` 组件添加内容，该内容将在 API Reference 页面底部、响应部分下方呈现。`<Footer>` 组件内的内容可以包含任何 Markdown 内容或组件，例如链接、标注或代码块。
+
+<CodeBlocks>
+<CodeBlock title="OpenAPI">
+```yaml
+paths:
+  /pets:
+    get:
+      summary: List all pets
+      description: |
+        获取系统中所有宠物的列表。
+
+        <Note>此端点需要身份验证。</Note>
+
+        <Footer>
+        ## 相关端点
+
+        - [创建宠物](/api-reference/pets/create)
+        - [更新宠物](/api-reference/pets/update)
+        </Footer>
+```
+</CodeBlock>
+<CodeBlock title="Fern Definition">
+```yaml 
+service:
+  endpoints:
+    list:
+      path: /pets
+      docs: |
+        获取系统中所有宠物的列表。
+
+        <Note>此端点需要身份验证。</Note>
+
+        <Footer>
+        ## 相关端点
+
+        - [创建宠物](/api-reference/pets/create)
+        - [更新宠物](/api-reference/pets/update)
+        </Footer>
+```
+</CodeBlock>
+</CodeBlocks>
+
+## API 链接语法
+
+<Markdown src="/products/docs/snippets/api-link-syntax.mdx" />
+
+以下是 `api:` 链接语法在 API 定义中的使用示例：
+
+<CodeBlocks>
+<CodeBlock title="OpenAPI">
+```yaml
+paths:
+  /orders:
+    post:
+      summary: Create an order
+      description: |
+        创建一个新订单。要列出所有订单，
+        请使用 [列出订单](api:GET/v2/orders)。
+```
+</CodeBlock>
+<CodeBlock title="Fern Definition">
+```yaml
+service:
+  endpoints:
+    create:
+      path: /orders
+      docs: |
+        创建一个新订单。要列出所有订单，
+        请使用 [列出订单](api:GET/v2/orders)。
+```
+</CodeBlock>
+</CodeBlocks>
+
+## 添加摘要页面
+
+您还可以创建一个 Markdown 页面来提供 API Reference 的概述。此页面可以包含有关您的 API 的一般信息，例如身份验证要求、速率限制或其他重要详细信息。
+
+要添加摘要页面，请在 `fern/` 文件夹中创建一个 Markdown 文件并在 `docs.yml` 文件中链接到它：
+
+```yaml title="docs.yml"
+navigation:
+  - api: API Reference
+    summary: ./pages/api-summary.mdx
+```
+
+通过包含 `summary` 字段，`API Reference` 部分标题将链接到 `api-summary.mdx` 页面。
+
+## 在端点之间添加 Markdown 内容
+
+您还可以在 API Reference 的端点之间包含 Markdown 内容。此内容可以提供适用于多个端点的上下文或说明。
+
+此功能要求您在 `docs.yml` 文件中使用 `layout` 字段，这在[自定义您的 API Reference](/learn/docs/api-references/customize-api-reference-layout) 指南中有描述。
+
+要在端点之间添加 Markdown 内容，请在 `fern/` 文件夹中创建一个 Markdown 文件并在 `docs.yml` 文件中链接到它：
+
+```yaml title="docs.yml"
+navigation:
+  - api: API Reference
+    layout:
+      - pet:
+          - page: Pet CRUD
+            path: ./pages/pet-crud.mdx
+          - addPet
+          - updatePet
+          - deletePet
+          - page: Pet Search
+            path: ./pages/pet-search.mdx
+          - findPets
+          - findPetsByStatus
+          - findPetsByTags
+          - findPetsByType
+          - findPetsByBreed
+```

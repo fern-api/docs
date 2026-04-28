@@ -1,0 +1,108 @@
+---
+title: 本地化
+subtitle: 从单一源文件发布多语言文档
+sidebar-title: 本地化
+---
+
+Fern 让您能够从一组源文件发布多语言文档。读者可以从标题中的下拉菜单切换语言，[搜索](/learn/docs/customization/search)会限定在当前激活的语言范围内，每个区域设置都有自己的 URL，便于搜索引擎单独索引。
+
+您可以像往常一样维护默认语言页面。当您运行 `fern generate --docs` 时，Fern 会在构建过程中自动将它们翻译成每种配置的语言，因此您的网站会在每次重建时都包含最新的翻译。
+
+<Frame caption="在 [i18n 示例网站](https://i18n.docs.buildwithfern.com/) 上查看实时效果（[源码](https://github.com/fern-api/docs-examples/tree/main/i18n/fern)）。">
+  <video
+    src="i18n.mp4"
+    autoPlay
+    loop
+    playsInline
+    muted
+  >
+  </video>
+</Frame>
+
+<Note>
+  本地化功能目前处于 alpha 阶段并在积极开发中。自动翻译、Ask Fern 和翻译后的 `fern check` 错误提示仍在开发中。
+
+  如果您有兴趣为您的文档实现本地化，请[联系我们](mailto:support@buildwithfern.com)。
+</Note>
+
+
+<Accordion title="抢先体验设置">
+
+下面的手动设置目前可以正常工作。一旦本地化功能正式发布，大部分步骤将会自动为您处理。
+
+<Steps>
+
+<Step title="添加翻译文件夹">
+
+在您的 `fern` 目录下创建一个 `translations` 文件夹，为每种语言创建一个使用其 [ISO 639-1 代码](https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes)的子文件夹（例如 `fr`、`ja`）。在每个语言文件夹中镜像您的 `pages/` 结构。
+
+<Files>
+  <Folder name="fern" defaultOpen>
+    <File name="fern.config.json" />
+    <File name="docs.yml" />
+    <Folder name="pages" defaultOpen>
+      <File name="introduction.mdx" />
+      <File name="getting-started.mdx" />
+    </Folder>
+    <Folder name="translations" defaultOpen highlighted>
+      <Folder name="fr" defaultOpen>
+        <Folder name="pages" defaultOpen>
+          <File name="introduction.mdx" />
+          <File name="getting-started.mdx" />
+        </Folder>
+      </Folder>
+      <Folder name="ja" defaultOpen>
+        <Folder name="pages" defaultOpen>
+          <File name="introduction.mdx" />
+          <File name="getting-started.mdx" />
+        </Folder>
+      </Folder>
+    </Folder>
+  </Folder>
+</Files>
+
+</Step>
+
+<Step title="在 `docs.yml` 中声明语言">
+
+添加一个 `translations` 键，列出每种支持的语言。第一个条目是默认语言。
+
+```yaml docs.yml {4-7}
+instances:
+  - url: your-org.docs.buildwithfern.com
+
+translations:
+  - lang: en
+  - lang: fr
+  - lang: ja
+```
+
+</Step>
+
+<Step title="添加您的翻译内容">
+
+每个翻译后的 `.mdx` 文件都对应其源页面的内容。使用 `sidebar-title` 前言字段来覆盖每种语言的侧边栏条目：
+
+```mdx translations/fr/pages/introduction.mdx
+---
+sidebar-title: Introduction
+---
+
+Bienvenue dans la documentation.
+```
+
+</Step>
+
+<Step title="生成您的文档">
+
+```bash
+fern generate --docs
+```
+
+当您重新生成文档时，Fern 会获取翻译，渲染语言切换器，并为每个区域设置生成站点地图条目。您也可以使用 `fern docs dev` 在本地预览翻译。
+
+</Step>
+
+</Steps>
+
+</Accordion>

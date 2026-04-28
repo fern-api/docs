@@ -1,0 +1,133 @@
+---
+title: 自助服务设置
+description: 使用 Dashboard 中的引导式自助服务工作流程创建新的 Fern 文档站点。
+sidebar-title: 自助服务设置
+---
+
+
+[自助服务工作流程](https://dashboard.buildwithfern.com/get-started)会引导您通过几个步骤创建新的 Fern Docs 站点。如果您正在寻找已经设置的现有站点，请改为[搜索您的组织](https://dashboard.buildwithfern.com/get-started/search)。
+
+<Note>
+更喜欢使用 CLI 手动设置？请参阅[快速开始](/learn/docs/getting-started/quickstart)。
+</Note>
+
+## 创建的内容
+
+当您完成自助服务工作流程时，Fern 会将您的文档发布到全新的站点，并创建一个包含站点配置（`docs.yml`）、Markdown 页面和任何 API 规范的 GitHub 仓库。您的仓库包含一个预填充的 `CLAUDE.md` 文件，其中包含 [llms-full.txt 格式](/learn/docs/ai/llms-txt)的 Fern 文档，为 AI 编程助手提供使用 Fern 的上下文。
+
+设置过程还会创建和配置：
+
+- **组织**：使用您的组织 ID 创建组织，您将成为成员。
+- **Fern token**：在您的仓库 GitHub secrets 中创建 `FERN_TOKEN`，用于在您的 CI/CD 工作流程中验证 [Fern CLI](/learn/cli-api-reference/cli-reference/overview)，范围限定于您的组织。
+- **GitHub Action**：一个工作流程，每当您向主分支推送更改时运行 [`fern generate --docs`](/learn/cli-api-reference/cli-reference/commands#fern-generate---docs)，自动重新构建和发布您的文档。
+
+设置后，您拥有此仓库的完全所有权。向主分支推送更改以触发文档的自动重新构建和发布，或通过 [Fern Dashboard](https://dashboard.buildwithfern.com) 管理设置。
+
+## 设置步骤
+
+<Steps>
+<Step title="输入您的组织名称">
+为您的组织选择一个唯一标识符。这将用于您的文档 URL 和在 Dashboard 中标识您的项目。
+
+<Frame>
+![Enter organization name](./images/org-name.png)
+</Frame>
+</Step>
+<Step title="上传您的 API 规范（可选）">
+上传 OpenAPI 规范以生成 API 参考文档。如果您没有规范或想稍后添加，可以跳过此步骤。
+
+<Frame>
+![Upload API spec](./images/api-spec.png)
+</Frame>
+</Step>
+<Step title="配置您的品牌">
+输入现有网站 URL（如您的营销网站或博客），以便 Fern 可以自动匹配您的品牌风格。或者，手动选择主色调并上传徽标。
+
+<Frame>
+![Configure branding](./images/marketing-site.png)
+</Frame>
+</Step>
+<Step title="您的站点已上线！">
+Fern 将您的文档发布到您可以立即访问的在线 URL。添加您的 GitHub 账户作为协作者以获得仓库的所有权。从那时起，您可以像任何其他 Git 仓库一样编辑文件、推送更改和打开拉取请求。每次推送到主分支都会触发 GitHub Action 自动重新构建和发布您的文档。您还可以在 [Dashboard](/learn/dashboard/getting-started/overview) 中管理您的站点设置。
+<Frame>
+![Site published success screen](./images/site-published.png)
+</Frame>
+</Step>
+</Steps>
+
+## 后续步骤
+
+开始编写内容并自定义您的站点：
+
+<CardGroup cols={3}>
+<Card
+    title="Fern Docs 的工作原理"
+    icon="regular circle-info"
+    href="/learn/docs/getting-started/how-it-works"
+>
+    了解为您的站点提供支持的内容和部署工作流程。
+</Card>
+<Card
+    title="编写您的文档"
+    icon="regular pen-to-square"
+    href="/learn/docs/writing-content/markdown-basics"
+>
+    学习 Markdown 基础知识并使用组件创建丰富的文档。
+</Card>
+<Card
+    title="配置您的站点"
+    icon="regular sliders"
+    href="/learn/docs/configuration/site-level-settings"
+>
+    在您的 `docs.yml` 文件中设置颜色、排版、导航等。
+</Card>
+</CardGroup>
+
+## 监控构建
+
+每当您向主分支推送更改时，您的文档会自动重新构建。要检查构建状态，请转到 GitHub 仓库中的 **Actions** 选项卡。每个工作流运行都显示构建是否成功，以及任何错误或警告。
+
+### 故障排除
+
+<AccordionGroup>
+<Accordion title="Fern token 问题">
+
+如果您的文档构建因身份验证错误而失败，`FERN_TOKEN` 可能没有正确设置。要解决此问题：
+
+1. 如果还没有安装 Fern CLI：
+   ```bash
+   npm install -g fern-api
+   ```
+
+2. 如果需要，将自己添加为仓库的协作者，然后在本地克隆它。
+
+3. 从 Fern 项目目录中运行以下命令生成新令牌：
+   ```bash
+   fern token
+   ```
+   这会生成一个范围限定于您组织的令牌（如 `fern.config.json` 中定义）。
+
+4. 复制令牌并将其添加为名为 `FERN_TOKEN` 的[仓库密钥](https://docs.github.com/en/actions/security-guides/using-secrets-in-github-actions#creating-secrets-for-a-repository)。
+
+5. 转到仓库中的 **Actions** 选项卡并重新运行失败的工作流程。
+</Accordion>
+<Accordion title="API 规范错误">
+
+如果您的构建因解析 API 规范问题而失败，您可以在本地进行故障排除：
+
+1. 如果还没有在本地克隆您的文档仓库。
+
+2. 安装 Fern CLI：
+   ```bash
+   npm install -g fern-api
+   ```
+
+3. 运行以下命令查看包含行号的详细验证错误：
+   ```bash
+   fern check --from-openapi
+   ```
+   此命令直接从您的 OpenAPI 规范打印验证错误，包括错误发生的行号。
+
+解决 API 规范中的错误后，提交并推送更改以触发新的构建。
+</Accordion>
+</AccordionGroup>

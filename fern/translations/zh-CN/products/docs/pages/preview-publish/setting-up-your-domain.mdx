@@ -1,0 +1,232 @@
+---
+title: 配置自定义域名
+description: 了解如何设置您的 Fern 生成的文档站点以使用自定义子域名或子路径。
+sidebar-title: 配置自定义域名
+---
+
+您可以配置以下任何一种自定义域名类型：
+- **子域名**：`docs.mydomain.com`
+- **子路径**：`mydomain.com/docs`
+- **根域名**：`mydomain.com`
+
+Fern 推荐[使用 Fern Dashboard 设置自定义域名](/learn/dashboard/configuration/custom-domains)。Dashboard 会根据您的域名类型自动提供正确的 DNS 记录。如果您更喜欢手动配置域名，请按照此页面上的说明操作。
+
+## 手动设置
+
+展开下面与您的域名类型匹配的部分：
+
+<AccordionGroup>
+<Accordion title="子域名">
+
+要在像 `docs.mydomain.com` 这样的子域名上托管您的文档，您需要在 DNS 设置中创建一个 CNAME 记录。
+
+<Steps>
+<Step title="在 `docs.yml` 中更新域名">
+
+添加您的 `custom-domain` 并将更改合并到 `main` 分支。[这是一个示例](https://github.com/octoml/fern-config/blob/389b67679953856ba0716537981a6d749635556f/fern/docs.yml#L1-L3)。
+
+```yaml docs.yml
+instances:
+ - url: example.docs.buildwithfern.com
+   custom-domain: docs.mydomain.com
+```
+</Step>
+
+<Step title="联系 Fern">
+
+通过您的专用 Slack 频道或[邮件](mailto:support@buildwithfern.com)联系 Fern 以接收：
+- 您站点的唯一 CNAME 值
+- 用于验证您域名的 TXT 记录
+</Step>
+
+<Step title="创建 DNS 记录">
+
+登录到您的域名注册商仪表板，并导航到您域名的 DNS 设置。添加以下记录：
+
+<CodeBlock title="CNAME 记录（子域名）">
+```
+Type    Name    Value
+CNAME   docs    b7278b3c9357963d.vercel-dns-013.com
+```
+</CodeBlock>
+
+<CodeBlock title="TXT 记录（域名验证）">
+```
+Type    Name    Value
+TXT     @       [Fern 提供的 TXT 记录值]
+```
+</CodeBlock>
+
+将 `docs` 替换为您想要使用的任何子域名。
+
+<Warning title="Cloudflare 用户">
+  如果您使用 Cloudflare，您应该确保记录没有被代理。
+</Warning>
+</Step>
+
+<Step title="验证设置">
+
+一旦 Fern 完成您的设置，您就能够在 `docs.mydomain.com` 访问您的文档。SSL 将自动为您的域名配置，但可能需要几分钟时间才能在全球范围内传播。
+
+<Tip>检查您是否可以从移动设备或无痕浏览器访问您的新文档站点。</Tip>
+</Step>
+
+</Steps>
+</Accordion>
+
+<Accordion title="子路径">
+
+<Markdown src="/snippets/team-plan.mdx"/>
+
+要在像 `mydomain.com/docs` 这样的子路径上托管您的文档，您需要编辑您的 `docs.yml` 配置，然后获取特定提供商的子路径设置说明。常见的提供商包括 Cloudflare、AWS Route53 和 Cloudfront、Netlify 和 Vercel。
+
+<Steps>
+<Step title="在 `docs.yml` 中配置 `url`">
+
+将子路径追加到 `url` 的末尾。此示例使用 `docs` 作为子路径，但您可以使用任何您喜欢的词，如 `reference` 或 `developer`。
+
+<CodeBlock title="docs.yml">
+```yaml
+instances:
+  - url: example.docs.buildwithfern.com/docs
+```
+</CodeBlock>
+</Step>
+
+<Step title="配置 `custom-domain`">
+
+在 `url` 下方，添加一个 `custom-domain` 键：
+
+<CodeBlock title="docs.yml">
+```yaml
+instances:
+  - url: example.docs.buildwithfern.com/docs
+    custom-domain: mydomain.com/docs
+```
+</CodeBlock>
+
+[这是一个示例。](https://github.com/fern-api/fern/blob/7d8631c6119787a8aaccb4ba49837e73c985db28/fern/docs.yml#L1-L3)
+</Step>
+
+<Step title="联系 Fern">
+
+通过您的专用 Slack 频道或[邮件](mailto:support@buildwithfern.com)联系 Fern 来设置您的自定义子路径。
+</Step>
+
+<Step title="验证设置">
+
+一旦 Fern 完成您的设置，您就能够在 `mydomain.com/docs` 访问您的文档。DNS 更改可能需要几分钟时间才能在全球范围内传播。尝试从移动设备或无痕浏览器访问您的新文档站点以确认一切正常工作。
+
+<Warning title="nginx 的 HTTP/2 传输错误">
+如果您看到页面加载不完整或 HTTP/2 传输错误，nginx 缺乏原生 [Brotli](https://github.com/google/brotli) 支持可能是原因。Fern 的 CDN 默认提供 Brotli 压缩响应，而 nginx 在代理上游时无法解码。
+
+将此指令添加到您的 nginx 配置中以仅请求支持的编码：
+
+```nginx
+proxy_set_header Accept-Encoding "gzip,deflate";
+```
+</Warning>
+</Step>
+
+</Steps>
+
+</Accordion>
+<Accordion title="根域名">
+
+要在像 `mydomain.com` 这样的根域名上托管您的文档，您需要编辑您的 `docs.yml` 配置，然后获取特定提供商的域名设置说明。常见的提供商包括 Cloudflare、AWS Route53 和 Cloudfront、Netlify 和 Vercel。
+
+<Steps>
+<Step title="在 `docs.yml` 中配置 `url`">
+
+<CodeBlock title="docs.yml">
+```yaml
+instances:
+  - url: example.docs.buildwithfern.com
+    custom-domain: www.mydomain.com
+```
+</CodeBlock>
+
+[这是一个示例。](https://github.com/dannysheridan/katiedanny/blob/2fcf5769e2994af29e31d00904e04788b188a18b/fern/docs.yml#L3-L5)
+</Step>
+
+<Step title="联系 Fern">
+
+通过您的专用 Slack 频道或[邮件](mailto:support@buildwithfern.com)联系 Fern 以接收：
+- 您站点的唯一 CNAME 值
+- 用于验证您域名的 TXT 记录
+</Step>
+
+<Step title="配置您的 DNS 设置">
+
+您需要为根域名配置以下 DNS 记录。
+
+<CodeBlock title="CNAME 记录（WWW 子域名）">
+```
+Type    Name    Value
+CNAME   www     b7278b3c9357963d.vercel-dns-013.com
+```
+</CodeBlock>
+
+<CodeBlock title="A 记录（Apex 域名）">
+```
+Type    Name    Value
+A       @       76.76.21.21
+```
+</CodeBlock>
+
+<CodeBlock title="TXT 记录（域名验证）">
+```
+Type    Name    Value
+TXT     @       [Fern 提供的 TXT 记录值]
+```
+</CodeBlock>
+
+这会将 `mydomain.com` 重定向到 `www.mydomain.com`。
+
+添加这些记录后，Fern 将配置 SSL 证书。
+</Step>
+
+<Step title="验证设置">
+
+一旦 Fern 完成您的设置，您就能够在 `mydomain.com` 访问您的文档。SSL 将自动为您的域名配置，但可能需要几分钟时间才能在全球范围内传播。
+
+<Tip>检查您是否可以从移动设备或无痕浏览器访问您的新文档站点。</Tip>
+</Step>
+
+</Steps>
+</Accordion>
+</AccordionGroup> 
+
+<llms-only>
+### Common errors
+
+Errors below are surfaced by `fern check` and `fern generate --docs` when validating the `instances[].url` values in `docs.yml`.
+
+#### Invalid URL format: "X". Expected format: \<subdomain\>.docs.buildwithfern.com
+
+The `url` is missing a subdomain or uses an unexpected shape. Use `<your-org>.docs.buildwithfern.com` (for example, `plantstore.docs.buildwithfern.com`). Don't include `https://`.
+
+#### Invalid domain in URL "X". The URL must end with one of: docs.buildwithfern.com, docs.dev.buildwithfern.com
+
+The `url` doesn't end with a supported Fern domain. Update the `url` to end with `docs.buildwithfern.com`. Configure your vanity domain with [`custom-domain`](#multiple-custom-domains).
+
+#### Invalid URL "X". A subdomain is required before docs.buildwithfern.com
+
+The `url` is set to the bare domain. Add a subdomain prefix such as `<your-org>.docs.buildwithfern.com`.
+</llms-only>
+
+### 多个自定义域名
+
+要从多个自定义域名提供您的文档服务（例如，用于合作伙伴或白标部署），请为每个域名（子域名、子路径或根域名）遵循上述步骤，然后在您的 `docs.yml` 中配置一个数组：
+
+```yaml docs.yml
+instances:
+  - url: example.docs.buildwithfern.com
+    custom-domain:
+      - www.mydomain.com
+      - partner.otherdomain.com
+```
+
+<Info>
+在您的 `docs.yml` 中配置多个域名后，通过您的专用 Slack 频道或[邮件](mailto:support@buildwithfern.com)联系 Fern 以完成设置。您将收到每个域名的 DNS 配置详细信息。
+</Info>

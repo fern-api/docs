@@ -1,0 +1,144 @@
+---
+title: 使用 GitLab 托管
+description: 设置 GitLab CI/CD 以在更改合并到主分支时自动发布你的 Fern 文档。
+sidebar-title: 使用 GitLab 托管
+---
+
+使用 GitLab CI/CD 可以在合并请求时自动生成预览链接，在更改合并到 `main` 分支时发布你的 Fern 文档，并在合并后删除预览链接。
+
+<Info title="前提条件">
+- Node.js 版本 22 或更高
+- [Fern CLI](/learn/cli-api-reference/cli-reference/overview#install-fern-cli) 已在本地安装
+- 包含 `fern` 文件夹的 Fern 项目（[快速开始](/learn/docs/getting-started/quickstart)）
+</Info>
+
+## 将 Fern token 添加到 GitLab
+
+<Steps>
+### 生成 Fern token
+
+在包含 `fern` 文件夹的目录中，从终端运行 [`fern token`](/learn/cli-api-reference/cli-reference/commands#fern-token)。这会生成一个组织范围的 token，用于在 CI/CD 中验证 Fern CLI。
+
+```bash
+fern token
+```
+
+复制 token 输出 — 你将在下一步中将其添加到 GitLab。
+
+### 将 Fern token 添加为 CI/CD 变量
+
+1. 登录 [GitLab](https://gitlab.com/users/sign_in) 并导航到你的 Fern 文档仓库。
+2. 转到 **Settings** > **CI/CD**。
+3. 滚动到 **Variables** 部分，选择 **Expand**，然后点击 **Add variable**。
+4. 将键设置为 `FERN_TOKEN`，将你在上一步中生成的 token 粘贴为值，_取消选择_ **Protect variable**，然后点击 **Save changes**。
+
+</Steps>
+
+## 将项目访问 token 添加到 GitLab
+
+要在合并请求上发布预览链接，你需要一个 GitLab 项目访问 token。
+
+<Steps>
+### 创建项目访问 token
+
+1. 在你的 GitLab 仓库中，转到 **Settings** > **Access Tokens**。
+2. 点击 **Add new token** 并配置以下内容：
+   - **Token name**：描述性名称（例如，`fern-preview`）
+   - **Expiration date**：根据需要设置（过期后需要重新生成）
+   - **Role**：Reporter
+   - **Scopes**：api
+3. 点击 **Create project access token** 并复制 token。
+
+<Note title='保存你的 token'>
+立即保存生成的 token — 离开页面后将不会再显示。
+</Note>
+
+### 将项目访问 token 添加为 CI/CD 变量
+
+1. 转到 **Settings** > **CI/CD**。
+2. 滚动到 **Variables** 部分，选择 **Expand**，然后点击 **Add variable**。
+3. 将键设置为 `REPO_TOKEN`，将项目访问 token 粘贴为值，_取消选择_ **Protect variable**，然后点击 **Save changes**。
+
+</Steps>
+
+## 添加 CI/CD 流水线
+
+在你的仓库根目录中创建一个 `.gitlab-ci.yml` 文件。这个流水线验证你的 API 定义，在每个合并请求上发布按分支的预览链接，在更改合并到 `main` 时发布你的文档，并删除已合并分支的预览部署。
+
+```yaml .gitlab-ci.yml
+stages:
+  - check
+  - preview_docs
+  - publish_docs
+  - cleanup_preview
+
+before_script:
+  - apt-get update -y
+  - apt-get install -y curl jq
+  - curl -sL https://deb.nodesource.com/setup_current.x | bash -
+  - apt-get install -y nodejs
+  - npm install -g fern-api
+
+check:
+  stage: check
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+  script:
+    - echo "Checking API is valid"
+    - fern check
+
+preview_docs:
+  stage: preview_docs
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  script:
+    - echo "Generating preview for branch $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME..."
+    - |
+      OUTPUT=$(fern generate --docs --preview --id "$CI_MERGE_REQUEST_SOURCE_BRANCH_NAME" --force 2>&1) || true
+      echo "$OUTPUT"
+      DEMO_URL=$(echo "$OUTPUT" | grep -oE -m1 '(https://[^[:space:]]+-preview-[^[:space:]]+) ' | tr -d ' ')
+      echo "Preview URL: $DEMO_URL"
+    - |
+      if [ -z "$DEMO_URL" ]; then
+        echo "No preview URL found"
+        exit 1
+      fi
+      curl --location --request POST \
+        --header "PRIVATE-TOKEN: $REPO_TOKEN" \
+        --header "Content-Type: application/json" \
+        --url "https://gitlab.com/api/v4/projects/$CI_MERGE_REQUEST_PROJECT_ID/merge_requests/$CI_MERGE_REQUEST_IID/notes" \
+        --data-raw "{ \"body\": \"Preview your docs [here]($DEMO_URL)\" }"
+
+publish_docs:
+  stage: publish_docs
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+  script:
+    - echo "Publishing Docs"
+    - fern generate --docs
+
+cleanup_preview:
+  stage: cleanup_preview
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+  script:
+    - echo "Looking up merged MR for commit $CI_COMMIT_SHA..."
+    - |
+      MR_INFO=$(curl -sf --header "PRIVATE-TOKEN: $REPO_TOKEN" \
+        "https://gitlab.com/api/v4/projects/$CI_PROJECT_ID/repository/commits/$CI_COMMIT_SHA/merge_requests") || {
+        echo "Failed to query MRs for commit — skipping cleanup"
+        exit 0
+      }
+      SOURCE_BRANCH=$(echo "$MR_INFO" | jq -r 'map(select(.state == "merged")) | .[0].source_branch // empty')
+
+      if [ -z "$SOURCE_BRANCH" ]; then
+        echo "No merged MR found for this commit (likely a direct push to main) — skipping cleanup"
+        exit 0
+      fi
+
+      echo "Deleting preview for branch: $SOURCE_BRANCH"
+      fern docs preview delete --id "$SOURCE_BRANCH" || echo "Preview deletion returned non-zero — it may already be gone"
+```
+
+提交并推送 `.gitlab-ci.yml` 文件到你的仓库。流水线会在合并请求时以及更改合并到默认分支时自动运行。

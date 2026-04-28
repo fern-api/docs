@@ -1,0 +1,78 @@
+---
+title: 生成 gRPC API 参考文档
+description: 使用 Fern Docs 从协议缓冲区（Protocol Buffer，.proto）文件生成 gRPC API 参考文档。
+sidebar-title: 生成 gRPC API 参考文档
+---
+
+Fern 从您的[协议缓冲区（`.proto`）文件](/learn/api-definitions/grpc/overview)生成 gRPC API 参考文档。将您的 `.proto` 文件添加到 Fern 项目中，Fern 将服务、RPC、消息和类型渲染为交互式参考文档。
+
+## 配置
+
+<Steps>
+<Step title="设置项目结构">
+
+将您的 `.proto` 文件添加到 `/fern` 目录，并创建引用它们的 `generators.yml`：
+
+```yaml generators.yml
+api:
+  specs:
+    - proto:
+        root: ./proto
+        target: proto/service/v1/service.proto
+```
+
+</Step>
+<Step title="将 gRPC 参考添加到导航中">
+
+在 `docs.yml` 的导航中添加 `- api: API Reference`：
+
+```yml docs.yml
+navigation:
+  - api: API Reference
+```
+
+Fern 将自动从您的 `.proto` 文件填充服务、RPC、消息类型和枚举。
+</Step>
+<Step title="自定义布局">
+
+有关配置选项和布局自定义的完整列表，请参阅[自定义 API 参考布局](/learn/docs/api-references/customize-api-reference-layout)。
+
+</Step>
+</Steps>
+
+### 包含多个 gRPC 参考
+
+要在文档中包含多个 gRPC 定义，请使用 `api-name` 属性。`api-name` 对应包含您的 gRPC 定义的文件夹名称。
+
+<Files>
+  <Folder name="fern" defaultOpen>
+    <File name="fern.config.json" />
+    <File name="docs.yml" />
+    <Folder name="user-api" defaultOpen>
+      <Folder name="proto" defaultOpen>
+        <File name="user_service.proto" comment="User gRPC service" />
+      </Folder>
+      <File name="generators.yml" />
+    </Folder>
+    <Folder name="billing-api" defaultOpen>
+      <Folder name="proto" defaultOpen>
+        <File name="billing_service.proto" comment="Billing gRPC service" />
+      </Folder>
+      <File name="generators.yml" />
+    </Folder>
+  </Folder>
+</Files>
+
+```yaml title="docs.yml"
+navigation:
+  - api: User API
+    api-name: user-api
+  - api: Billing API
+    api-name: billing-api
+```
+
+### 配置属性
+
+<ParamField path="api.specs[].proto" required>
+  您的 gRPC 规范文件的路径。如果您的项目公开多个 API，您可以包含多个 gRPC 规范。
+</ParamField>

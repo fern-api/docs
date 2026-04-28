@@ -1,0 +1,60 @@
+---
+title: 附加内容源
+description: 通过 FAQ、支持工单、博客和其他来源的内容扩展 Ask Fern 的知识库。
+sidebar-title: 附加内容源
+---
+
+通过添加内部 FAQ、支持工单、博客文章和知识库文章等附加内容源，扩展 Ask Fern 的知识库，使其超越核心文档。当 Ask Fern 引用自定义来源的内容时，它会包含相关的 URL 作为引用。
+
+## 公开可访问的内容
+
+对于在网络上公开可访问的内容——如营销网站、博客文章或外部知识库——Ask Fern 可以自动抓取和索引。有两种设置方法：
+
+### `docs.yml` 配置
+
+最简单的方法是在 `docs.yml` 配置中的 `ai-search.datasources` 下直接添加 URL：
+
+```yaml docs.yml
+ai-search:
+  datasources:
+    - url: https://example.com/additional-docs
+      title: 附加文档
+    - url: https://blog.example.com
+      title: 公司博客
+```
+
+每个数据源需要一个 `url`，并接受一个可选的 `title`，帮助用户了解引用内容的来源。
+
+### Websites API
+
+如需更精确地控制抓取内容，请使用 [Websites API](/learn/docs/ai-features/ask-fern/api-reference/website/index-website)。这让您可以应用过滤器来定位特定的子域或 URL 路径：
+
+| 过滤器 | 描述 | 示例 |
+| --- | --- | --- |
+| `domain_filter` | 将抓取限制到特定子域 | `help.example.com` 只会抓取该子域上的页面，不会抓取 `www.example.com` 或 `docs.example.com` |
+| `path_filter` | 将抓取限制到网站的特定部分 | `/getting-started` 只会抓取路径中包含 `/getting-started` 的 URL，如 `docs.example.com/getting-started`，但不会抓取 `docs.example.com/api-reference` |
+
+以下是使用 `path_filter` 的示例：
+
+```json Example wordWrap
+{
+    "base_url": "https://docs.example.com",
+    "path_filter": "/getting-started"
+}
+```
+
+API 返回一个 `job_id` 来跟踪抓取进度。当被引用时，Ask Fern 会引用找到内容的原始 URL。
+
+## 非公开可访问的内容
+
+对于不公开可访问的内容，如内部文档、支持工单摘要或专有知识库文章，请使用 [Documents API](/learn/docs/ai-features/ask-fern/api-reference/document/create-document) 直接上传 markdown 内容。这让您可以精确控制索引的内容。
+
+```json Example wordWrap
+{
+    "document": "蕨类植物是原产于世界热带和亚热带地区的植物。它们的特征是具有叶状体，这是大型的叶状结构，通常在森林的林下层中发现。",
+    "title": "什么是蕨类植物？",
+    "url": "https://en.wikipedia.org/wiki/Fern"
+}
+```
+
+URL 仅用于引用——Ask Fern 不会抓取它。您在 `document` 字段中提供完整内容。
