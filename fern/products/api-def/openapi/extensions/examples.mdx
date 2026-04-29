@@ -1,0 +1,73 @@
+---
+title: Request + response examples
+headline: Request + response examples (OpenAPI)
+description: Configure OpenAPI request and response examples with x-fern-examples. Associate path parameters, query parameters, and responses in your API definition.
+og:title: OpenAPI request + response examples
+---
+
+
+<Note>
+Fern generates realistic examples automatically using [AI-generated examples](/learn/docs/ai-features/ai-examples), enabled by default. Use `x-fern-examples` to manually define specific example values. Manual examples take priority over AI-generated ones. You can also [disable AI examples entirely](/learn/docs/configuration/site-level-settings#ai-examplesenabled).
+</Note>
+
+Use `x-fern-examples` when you need to associate specific request and response pairs or define multiple named examples for an endpoint. While OpenAPI has several example fields, it provides no way to link a request with its corresponding response. If you need your examples to work with non-Fern OpenAPI tools, use [`fern api enrich`](/learn/cli-api-reference/cli-reference/commands#fern-api-enrich) to convert `x-fern-examples` into native OpenAPI example fields.
+
+`x-fern-examples` is an array where each element can contain `path-parameters`, `query-parameters`, `request`, and `response` values that are all associated. Optionally, add a `name` field to provide a descriptive label for each example.
+
+If you [defined global headers via the `x-fern-global-headers` extension](/api-definitions/openapi/extensions/global-headers), you must include the headers in your examples. 
+
+```yaml title="openapi.yml" {4-21}
+paths:
+  /users/{userId}:
+    get:
+      x-fern-examples:
+        - name: Headers example # Optional descriptive label
+          headers:
+            custom_api_key: "capi_12345" # header defined using x-global-header extension
+            userpool_id: "pool_67890"    # header defined using x-global-header extension
+        - name: Get user 1234
+          path-parameters:
+            userId: user-1234
+          response:
+            body:
+              name: Foo
+              ssn: 1234
+        - path-parameters:
+            userId: user-4567
+          response:
+            body:
+              name: Foo
+              ssn: 4567
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        name:
+          type: string
+        ssn:
+          type: integer
+```
+
+### Code samples
+
+Fern generators automatically add SDK code samples. If you'd like to specify custom code samples for your example, use `code-samples`.
+
+```yaml title="openapi.yml" {11-16}
+paths:
+  /users/{userId}:
+    get:
+      x-fern-examples:
+        - path-parameters:
+            userId: user-1234
+          response:
+            body:
+              name: Foo
+              ssn: 1234
+          code-samples:
+            - sdk: typescript
+              code: |
+                import { UserClient } from "...";
+
+                client.users.get("user-1234")
+```

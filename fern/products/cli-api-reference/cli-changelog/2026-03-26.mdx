@@ -1,0 +1,39 @@
+## 4.46.4
+**`(fix):`** Fix OAuth client-credentials auth from generators.yml being converted to
+bearer token instead of proper OAuth in the new OpenAPI parser. The
+`convertApiAuth` in `ir-utils` had a TODO stub that fell back to bearer auth
+for OAuth schemes. A post-processing step in `OpenAPIConverter` now resolves
+OAuth endpoint references after paths are converted, constructing the full
+`AuthScheme.oauth` with resolved endpoint and property references.
+
+
+## 4.46.3
+**`(fix):`** Fix OpenAPI-to-Fern conversion producing malformed discriminated union
+definitions when `x-fern-discriminator-context` is set. The context
+value was placed as a sibling of `discriminant` instead of being nested
+inside it, so the information was silently lost during IR generation.
+This caused generated SDKs to always use the default discriminator context
+of `data` and never use the alternate `protocol` which is used in SSE when
+the SSE envelope's event field is the discriminant.
+
+
+## 4.46.2
+**`(fix):`** Fix Go SDK auto-versioning returning incorrect versions for modules with
+major version >= 2. The Go module proxy treats `github.com/owner/repo` and
+`github.com/owner/repo/v2` as separate modules, but `getGoPackageName()`
+only constructed the base path without the `/vN` suffix. This caused the
+version resolver to find ancient v0.x versions instead of the current v2.x+
+versions, producing wrong `sdkVersion` values in `.fern/metadata.json` and
+incorrect module paths in generated code. The Go proxy lookup now probes
+`/v2` through `/v10` in parallel to discover the highest published major
+version.
+
+
+## 4.46.0
+**`(feat):`** Add `check.rules` to `docs.yml` to configure severities for selected docs
+validation rules, including OpenAPI example validation, broken links,
+non-component refs, local refs, circular redirects, and docs endpoint checks.
+Deprecate the `--broken-links` and `--strict-broken-links` CLI flags in favor
+of configuring broken link behavior in `docs.yml`.
+
+

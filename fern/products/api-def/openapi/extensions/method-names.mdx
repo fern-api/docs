@@ -1,0 +1,57 @@
+---
+title: Customize SDK method names
+headline: Customize SDK method names (OpenAPI)
+description: Use `x-fern-sdk-method-name` and `x-fern-sdk-group-name` to finetune SDK naming.
+---
+
+
+Use the `x-fern-sdk-group-name` and `x-fern-sdk-method-name` extensions to control how endpoints are organized in your SDK.
+
+<Note title="Fern automatically parses `operationId`">
+  If no extensions are present, Fern uses your operation ID to generate SDK method names. Format operation IDs as `{tag_name}_{operation_name}` (example: `users_get`) to automatically generate methods like `users.get()`. If the operation ID doesn't start with a tag, Fern uses it directly as the method name.
+</Note>
+
+In the example below, Fern will generate a
+method called `client.users.create()` for the `POST /users` endpoint.
+
+```yaml title="openapi.yaml" {4-5}
+paths:
+  /users:
+    post:
+      x-fern-sdk-group-name: users
+      x-fern-sdk-method-name: create
+```
+
+### Top level methods
+
+If you omit the `x-fern-sdk-group-name` extension, the generated SDK method
+will live at the root of the client rather than nested under a resource group.
+In the example below, Fern will generate a method called `client.send()`:
+
+```yaml title="openapi.yaml" {4}
+paths:
+  /send:
+    post:
+      x-fern-sdk-method-name: send
+```
+
+### Multiple levels of nesting
+
+<Note>
+See how merge.dev uses nested groups [here](https://github.com/merge-api/merge-node-client?tab=readme-ov-file#create-link-token).
+</Note>
+
+If you add more than one `x-fern-sdk-group-name` extension, then the generated SDK will nest group names.
+The generated SDK method preserves the order of group names.
+
+In the example below, Fern will generate a method called `client.users.notifications.send()`:
+
+```yaml title="openapi.yaml"
+paths:
+  /users/notifications:
+    post:
+      x-fern-sdk-group-name:
+        - users
+        - notifications
+      x-fern-sdk-method-name: send
+```

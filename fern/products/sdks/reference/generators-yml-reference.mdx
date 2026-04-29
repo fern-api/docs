@@ -4,7 +4,6 @@ description: Complete generators.yml configuration reference for Fern SDK genera
 max-toc-depth: 3
 ---
 
-<Markdown src="/snippets/agent-directive.mdx"/>
 
 The `generators.yml` file serves two purposes: it declares your API definition (required for OpenAPI/AsyncAPI), and configures SDK generation, including which languages to generate, where to publish them, and how to customize each SDK.
 
@@ -484,16 +483,22 @@ Generator settings for a specific group.
 
 ```yaml title="generators.yml"
 groups:
-  typescript-sdk: # User-defined name
+  typescript-sdk:
     audiences: ["external"]
     generators:
       - name: fernapi/fern-typescript-sdk
-        version: 0.9.0
+        version: <Markdown src="/snippets/version-number-ts.mdx"/>
         smart-casing: true
+  python-sdk: # Self-hosted with custom registry
+    generators:
+      - image:
+          name: fern-python-sdk
+          registry: ghcr.io/your-org
+        version: <Markdown src="/snippets/version-number-python.mdx"/>
 ```
 
 <ParamField path="name" type="string" required={true}>
-The Fern generator package name (e.g., fernapi/fern-typescript-sdk)
+The Fern generator package name (e.g., `fernapi/fern-typescript-sdk`). Mutually exclusive with `image`.
 </ParamField>
 
 <ParamField path="version" type="string" required={true}>
@@ -505,6 +510,20 @@ Enables intelligent case conversion that preserves numbers and common programmin
 - Numbers stay intact (e.g., `v2` instead of `v_2`, `getUsersV2` instead of `getUsersV_2`)
 - Initialisms are preserved (e.g., `CustomerID` instead of `CustomerId`)
 - Acronyms remain correct (e.g., `HTTPSConnection` stays `HTTPSConnection`)
+</ParamField>
+
+<ParamField path="image" type="object" required={false} toc={true}>
+Use `image` instead of `name` to pull the generator from a [custom container registry](/learn/sdks/deep-dives/self-hosted#custom-container-registry) during [self-hosted generation](/learn/sdks/deep-dives/self-hosted) (remote generation doesn't support custom registries). Mutually exclusive with `name`.
+
+The CLI constructs the full image reference as `{registry}/{name}:{version}` when pulling. For example, with `registry: ghcr.io/your-org`, `name: fern-python-sdk`, and `version: 4.0.0`, the CLI pulls `ghcr.io/your-org/fern-python-sdk:4.0.0`.
+</ParamField>
+
+<ParamField path="image.name" type="string" required={true}>
+A recognized Fern generator name (e.g., `fern-python-sdk`). Required for IR version resolution.
+</ParamField>
+
+<ParamField path="image.registry" type="string" required={true}>
+The container registry hostname and optional namespace (e.g., `ghcr.io/your-org`). The CLI constructs the full image reference as `{registry}/{name}:{version}` when pulling. For example, with `registry: ghcr.io/your-org`, `name: fern-python-sdk`, and `version: 4.0.0`, the CLI pulls `ghcr.io/your-org/fern-python-sdk:4.0.0`.
 </ParamField>
 
 #### `config`
@@ -523,23 +542,23 @@ groups:
 ```
 
 <CardGroup cols={3}>
-<Card title="TypeScript" href="/sdks/generators/typescript/configuration">
+<Card title="TypeScript" icon={<img src="../images/icons/ts-light.svg" alt="TypeScript" className="h-6 w-6" noZoom />} href="/sdks/generators/typescript/configuration">
 </Card>
-<Card title="Python" href="/sdks/generators/python/configuration">
+<Card title="Python" icon={<img src="../images/icons/python-light.svg" alt="Python" className="h-6 w-6" noZoom />} href="/sdks/generators/python/configuration">
 </Card>
-<Card title="Go" href="/sdks/generators/go/configuration">
+<Card title="Go" icon={<img src="../images/icons/go-light.svg" alt="Go" className="h-6 w-6" noZoom />} href="/sdks/generators/go/configuration">
 </Card>
-<Card title="Java" href="/sdks/generators/java/configuration">
+<Card title="Java" icon={<img src="../images/icons/java-light.svg" alt="Java" className="h-6 w-6" noZoom />} href="/sdks/generators/java/configuration">
 </Card>
-<Card title=".NET" href="/sdks/generators/csharp/configuration">
+<Card title=".NET" icon={<img src="../images/icons/csharp-light.svg" alt=".NET" className="h-6 w-6" noZoom />} href="/sdks/generators/csharp/configuration">
 </Card>
-<Card title="PHP" href="/sdks/generators/php/configuration">
+<Card title="PHP" icon={<img src="../images/icons/php-light.svg" alt="PHP" className="h-6 w-6" noZoom />} href="/sdks/generators/php/configuration">
 </Card>
-<Card title="Ruby" href="/sdks/generators/ruby/configuration">
+<Card title="Ruby" icon={<img src="../images/icons/ruby-light.svg" alt="Ruby" className="h-6 w-6" noZoom />} href="/sdks/generators/ruby/configuration">
 </Card>
-<Card title="Swift" href="/sdks/generators/swift/configuration">
+<Card title="Swift" icon={<img src="../images/icons/swift-light.svg" alt="Swift" className="h-6 w-6" noZoom />} href="/sdks/generators/swift/configuration">
 </Card>
-<Card title="Rust" href="/sdks/generators/rust/configuration">
+<Card title="Rust" icon={<img src="../images/icons/rust-light.svg" alt="Rust" className="h-6 w-6" noZoom />} href="/sdks/generators/rust/configuration">
 </Card>
 </CardGroup>
 
@@ -809,7 +828,7 @@ Designate the `mode` to specify how Fern handles your code changes. For cloud ge
 <Note>Make sure the [Fern GitHub app](https://github.com/apps/fern-api) is installed on your destination repository (not required for self-hosted generation)</Note>
 
 <AccordionGroup>
-<Accordion title="Release (recommended)">
+<Accordion title="Release (default)">
 
 Fern generates your code, commits it to main, and tags a new release.
 
@@ -843,7 +862,7 @@ Software license for the generated SDK.
 Specify which teams and users should review generated code. See [reviewers configuration](#reviewers-1).
 </ParamField>
 </Accordion>
-<Accordion title="Pull request">
+<Accordion title="Pull request (recommended)">
 
 Fern generates your code, commits to a new branch, and opens a PR for review. To publish, you must merge the PR and tag a GitHub release. 
 

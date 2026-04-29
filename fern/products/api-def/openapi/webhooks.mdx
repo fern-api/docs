@@ -1,0 +1,191 @@
+---
+title: Webhooks
+description: Learn how to define webhooks using OpenAPI 3.1 native support or Fern's extensions. Generate webhook docs and SDK verification utilities.
+max-toc-depth: 3
+---
+
+
+Fern supports two methods for defining webhooks in your OpenAPI specification:
+
+1. Using OpenAPI 3.1's native webhook support (recommended)
+2. Using Fern's `x-fern-webhook` extension
+
+## OpenAPI 3.1 webhooks
+
+For OpenAPI 3.1 specifications, use the `webhooks` top-level field to define your webhook operations. Each webhook requires an `operationId` to be properly processed by Fern.
+
+```yaml openapi.yml {4, 7-8, 42-48}
+webhooks:
+  newPlant:
+    post:
+      operationId: newPlantWebhook # Defines webhook
+      summary: New Plant Added
+      description: Information about a new plant that was added to the store
+      tags:
+        - Plants # Creates dedicated page
+      requestBody:
+        description: The plant data when a new plant is added
+        content:
+          application/json:
+            schema:
+              description: The Webhook payload for when a new plant is added to the store
+              properties:
+                triggerType:
+                  description: The type of event that triggered the request
+                  type: string
+                  example: "new_plant"
+                payload:
+                  type: object
+                  description: The payload of data sent from the plant store
+                  properties:
+                    plantId:
+                      type: string
+                      description: The unique identifier for the plant
+                      example: "64f1a2b3c5d6e7f8a9b0c1d2"
+                    name:
+                      type: string
+                      description: The name of the plant
+                      example: "Monstera Deliciosa"
+                    price:
+                      type: number
+                      format: float
+                      description: The price of the plant in dollars
+                      example: 29.99
+                    addedAt:
+                      type: string
+                      format: date-time
+                      description: The timestamp when the plant was added
+                      example: "2024-01-15T10:30:00.000Z"
+              example: # Full payload example for docs
+                triggerType: "new_plant"
+                payload:
+                  plantId: "64f1a2b3c5d6e7f8a9b0c1d2"
+                  name: "Monstera Deliciosa"
+                  price: 29.99
+                  addedAt: "2024-01-15T10:30:00.000Z"
+      responses:
+        '200':
+          description: Return a 200 status to indicate that the data was received successfully
+```
+
+## Fern webhook extension
+
+For OpenAPI 3.0, use the `x-fern-webhook: true` extension to define webhooks. Fern will treat the `requestBody` as the webhook payload.
+
+```yaml openapi.yml {6-8, 23-25}
+paths: 
+  /payment/updated/: 
+    post: 
+      summary: Payment Initiated
+      operationId: initiatePayment
+      tags:
+        - Payments # Creates dedicated page
+      x-fern-webhook: true # Defines webhooks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                amount:
+                  type: number
+                  example: 99.99
+                currency:
+                  $ref: '#/components/schemas/Currency'
+              required:
+                - amount
+                - currency
+              example: # Full payload example for docs
+                amount: 99.99
+                currency: "USD"
+```
+
+<Info> 
+The path that you choose when defining a webhook can be arbitrary. Since webhooks 
+can be sent to any server, Fern just ignores the path.
+</Info>
+
+## Generate webhook reference
+
+Fern Docs can automatically generate your webhook reference documentation from your definition. Set this up in your `docs.yml` file. 
+
+Your webhook reference can be a single documentation page:
+
+```yml docs.yml
+navigation:
+  - api: Webhook Reference # Display name for this page
+    api-name: webhooks-v1 # Name of webhook definition directory
+```
+
+Or you can configure individual documentation pages per webhook event:
+
+```yaml title="docs.yml"
+navigation:
+  - subpackage_plants.newPlantWebhook # subpackage_{tag}.{webhook-event-name}
+```
+
+For more information on how to configure your webhook reference in `docs.yml`, see [Generate your webhook reference](/docs/api-references/generate-webhook-ref).
+
+## SDK signature verification
+
+Use the `x-fern-webhook-signature` extension to configure webhook signature verification. When configured, Fern generates SDK utilities that allow users to verify webhook signatures and ensure events originate from your API.
+
+Configuration can be set at the **document level** (applies to all webhook endpoints) or **per-endpoint** (overrides the document-level default). Both levels accept the same configuration options.
+
+Fern supports two verification methods: **HMAC** (symmetric key verification using shared secrets) and **Asymmetric** (public key verification using RSA, ECDSA, or Ed25519 keys).
+
+<Tabs>
+<Tab title="Document-level">
+```yaml title="openapi.yml"
+x-fern-webhook-signature:
+  type: hmac
+  header: x-webhook-signature
+  algorithm: sha256
+  encoding: hex
+
+paths:
+  /webhooks/payment:
+    post:
+      x-fern-webhook: true
+      # Inherits document-level signature config
+
+  /webhooks/order:
+    post:
+      x-fern-webhook: true
+      # Inherits document-level signature config
+```
+</Tab>
+<Tab title="Per-endpoint override">
+```yaml title="openapi.yml"
+x-fern-webhook-signature:
+  type: hmac
+  header: x-webhook-signature
+  algorithm: sha256
+  encoding: hex
+
+paths:
+  /webhooks/payment:
+    post:
+      x-fern-webhook: true
+      # Inherits document-level config
+
+  /webhooks/refund:
+    post:
+      x-fern-webhook: true
+      x-fern-webhook-signature:
+        # Override with asymmetric
+        type: asymmetric
+        header: x-refund-signature
+        asymmetric-algorithm: rsa-sha256
+        encoding: base64
+        jwks-url: https://api.example.com/.well-known/jwks.json
+```
+</Tab>
+</Tabs>
+
+### Configuration options
+
+<Markdown src="/products/api-def/snippets/webhook-signature-config-options.mdx"/>
+
+
+

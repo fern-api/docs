@@ -3,9 +3,38 @@ title: Overview of SEO & GEO
 description: Understand Fern's built-in features for search engine optimization (SEO) and generative engine optimization (GEO) to maximize the reach and discoverability of your documentation.
 ---
 
+
 Fern optimizes your documentation for both traditional search engines and AI-powered tools out of the box. SEO ensures your pages rank well in Google, Bing, and other search engines, while GEO (Generative Engine Optimization) ensures AI tools like ChatGPT, Claude, and Cursor can efficiently consume and reference your content.
 
-Out of the box, Fern generates meta tags, social previews, canonical URLs, and clean slugs for every page — including AI-optimized content via [`llms.txt`](/learn/docs/ai-features/llms-txt). When you want more control, you can customize:
+## What Fern handles automatically
+
+Without any configuration, Fern generates meta tags, social previews, canonical URLs, clean slugs, and AI-optimized content via [`llms.txt`](/learn/docs/ai-features/llms-txt) for every page.
+
+Fern also generates a `sitemap.xml` for your documentation site that follows [Google's sitemap best practices](https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap). Each page entry includes a `<lastmod>` timestamp that updates only when the page's content actually changes. Trivial formatting differences like whitespace or capitalization are ignored. These timestamps are invisible to readers and used exclusively by search engines to prioritize crawling recently updated pages.
+
+<Info>
+  Sitemap timestamps are separate from the [`last-updated` frontmatter field](/learn/docs/configuration/page-level-settings#last-updated), which displays a visible date in the page footer for readers.
+</Info>
+
+<llms-only>
+### Sitemap implementation details
+
+Fern tracks content changes using two internal tables: one for URL slugs and one for markdown source files. Multiple source files (e.g., changelog entries) can map to a single slug.
+
+On each publish, the system:
+1. Resolves each page to its URL slug from the navigation tree.
+2. Computes a SHA-256 hash of each page's normalized markdown content.
+3. Compares hashes against stored values — only changed or new pages are upserted, and stale entries are cleaned up.
+4. Changelog entries map to their parent changelog page's slug since they render on a single page with hash fragments.
+
+Normalization strips whitespace, copyright symbols, and capitalization before hashing to avoid false-positive change detection from trivial formatting differences.
+
+The sitemap route fetches stored slug data, builds a URL-to-timestamp lookup, and adds the timestamp to each sitemap XML entry. If no data exists for a domain yet, the sitemap omits timestamps gracefully rather than failing.
+</llms-only>
+
+## Customize your SEO
+
+When you want more control, you can configure:
 
 <CardGroup cols={3}>
   <Card title="SEO metadata" icon="fa-duotone fa-tags" href="/learn/docs/seo/setting-seo-metadata">

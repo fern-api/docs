@@ -1,0 +1,145 @@
+---
+title: Webhooks in the Fern Definition 
+description: Learn how to define webhooks in the Fern Definition
+max-toc-depth: 3
+---
+
+
+In Fern, you can specify webhooks in your API definition. The webhooks will be included 
+in both the generated SDKs and the API documentation.
+
+## Webhook definition
+
+Each webhook defines:
+
+1. **Method**: The HTTP Method that the webhook will use (either `GET` or `POST`)
+2. **Headers**: The headers that the webhook will send
+3. **Payload**: The schema of the webhook payload
+
+<CodeBlock title='webhooks.yml'>
+  ```yaml {2-10}
+  webhooks: 
+    paymentNotification: 
+      display-name: Payment Notification
+      docs: Receive a notification when a payment changes status
+      method: POST 
+      headers: 
+        X-Signature-Primary: 
+          type: string 
+          docs: An HMAC signature of the payload
+      payload: PaymentNotificationPayload
+  
+  types: 
+    PaymentNotificationPayload: 
+      discriminant: notificationType
+      union: 
+        queued: QueuedPaymentNotification
+        processing: ProcessingPaymentNotification
+        completed: CompletedPaymentNotification
+  ```
+</CodeBlock>
+
+### Inlined payloads
+
+You can inline the schema of the payload by doing the following: 
+
+<CodeBlock title='webhooks.yml'>
+  ```yaml
+  webhooks: 
+    paymentNotification: 
+      display-name: Payment Notification
+      docs: Receive a notification when a payment changes status
+      method: POST 
+      headers: 
+        X-Signature-Primary: 
+          type: string 
+          docs: An HMAC signature of the payload
+      payload:
+        name: PaymentNotificationPayload
+        properties: 
+          id:
+            type: string
+            docs: The notification id
+          amount: double
+          currency: Currency
+  ```
+</CodeBlock>
+
+## Generate webhook reference
+
+Fern Docs can automatically generate your webhook reference documentation from your definition. Set this up in your `docs.yml` file. 
+
+Your webhook reference can be a single documentation page:
+
+```yml docs.yml
+navigation:
+  - api: Webhook Reference # Display name for this page
+    api-name: webhooks-v1 # Directory containing webhook definition
+```
+
+Or you can configure individual documentation pages per webhook event:
+
+```yaml title="docs.yml"
+navigation:
+  - subpackage_api.newPlantWebhook # Format: subpackage_{name-of-api}.{webhook-event-name}
+```
+
+For more information on how to configure your webhook reference in `docs.yml`, see [Generate your webhook reference](/docs/api-references/generate-webhook-ref).
+
+## SDK signature verification
+
+You can configure webhook signature verification directly in your Fern Definition using the `webhook-signature` block. When configured, Fern generates SDK utilities that allow users to verify webhook signatures and ensure events originate from your API.
+
+Configuration can be set at the **document level** (applies to all webhooks) or **per-webhook** (overrides the document-level default). Both levels accept the same configuration options.
+
+Fern supports two verification methods: **HMAC** (symmetric key verification using shared secrets) and **Asymmetric** (public key verification using RSA, ECDSA, or Ed25519 keys).
+
+<Tabs>
+<Tab title="Document-level">
+```yaml title="api.yml"
+webhook-signature:
+  type: hmac
+  header: x-webhook-signature
+  algorithm: sha256
+  encoding: hex
+
+webhooks:
+  userCreated:
+    method: POST
+    payload: UserCreatedPayload
+    # Inherits document-level signature config
+
+  orderCompleted:
+    method: POST
+    payload: OrderCompletedPayload
+    # Inherits document-level signature config
+```
+</Tab>
+<Tab title="Per-webhook override">
+```yaml title="api.yml"
+webhook-signature:
+  type: hmac
+  header: x-webhook-signature
+  algorithm: sha256
+  encoding: hex
+
+webhooks:
+  paymentNotification:
+    method: POST
+    payload: PaymentNotificationPayload
+    signature:
+      # Override: use asymmetric instead of HMAC
+      type: asymmetric
+      header: x-payment-signature
+      asymmetric-algorithm: rsa-sha256
+      encoding: base64
+      jwks-url: https://api.example.com/.well-known/jwks.json
+```
+</Tab>
+</Tabs>
+
+### Configuration options
+
+<Markdown src="/products/api-def/snippets/webhook-signature-config-options.mdx"/>
+
+

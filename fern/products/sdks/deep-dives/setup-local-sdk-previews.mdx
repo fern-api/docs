@@ -1,0 +1,96 @@
+---
+title: Set up local SDK previews
+description: Learn how to set up local SDK previews with Fern's --preview flag. Test generated SDK code locally before publishing to iterate quickly.
+---
+
+
+Once you configure your SDK, you can use the `--preview` flag to test generated
+SDK code locally before publishing. This allows quick iteration on your SDK
+as you develop:
+
+```bash
+# Preview all SDKs
+fern generate --preview
+
+# Preview SDK for a specific language
+fern generate --group <language>-sdk --preview
+
+```
+
+`--preview` generates your SDK code into a local `.preview/` folder within your
+`fern` folder. No changes are published to package managers or GitHub. 
+
+<Tip>
+  `--preview` preserves any custom code you added to your SDK.
+</Tip>
+
+## Example usage
+
+Here's an example of how you can preview a Python SDK. 
+
+<Steps>
+### Generator configuration
+```yaml title="generators.yml" {4}
+api: 
+  path: ./path/to/openapi.yml
+groups:
+  python-sdk:
+    generators:
+      - name: fernapi/fern-python-sdk
+        version: <Markdown src="/snippets/version-number-python.mdx"/>
+        output:
+          location: pypi
+          package-name: imdb
+          token: ${PYPI_TOKEN}
+        github:
+          repository: imdb/imdb-python
+        config:
+          client_class_name: imdb
+```
+
+### Invoke the Fern CLI
+
+```shell
+fern generate --group python-sdk --preview
+```
+
+### Preview your SDK
+
+The resulting folder structure will look like this:
+
+<Tabs>
+<Tab title="OpenAPI">
+<Files>
+  <Folder name="fern" defaultOpen>
+    <File name="fern.config.json" />
+    <Folder name=".preview" defaultOpen highlighted>
+      <Folder name="fern-python-sdk" defaultOpen highlighted>
+        <File name="..." highlighted />
+      </Folder>
+    </Folder>
+    <File name="generators.yml" />
+    <Folder name="openapi" defaultOpen>
+      <File name="openapi.yml" />
+    </Folder>
+  </Folder>
+</Files>
+</Tab>
+<Tab title="Fern Definition">
+<Files>
+  <Folder name="fern" defaultOpen>
+    <File name="fern.config.json" />
+    <Folder name=".preview" defaultOpen highlighted>
+      <Folder name="fern-python-sdk" defaultOpen highlighted>
+        <File name="..." highlighted />
+      </Folder>
+    </Folder>
+    <File name="generators.yml" />
+    <Folder name="definition" defaultOpen>
+      <File name="api.yml" />
+      <File name="imdb.yml" />
+    </Folder>
+  </Folder>
+</Files>
+</Tab>
+</Tabs>
+</Steps>

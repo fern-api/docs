@@ -1,0 +1,84 @@
+---
+title: Server names and URL templating
+headline: Server names and URL templating (OpenAPI)
+description: Learn how to use x-fern-server-name, x-fern-default-url, and URL template variables in your OpenAPI specification for better SDK generation.
+---
+
+Fern supports several extensions for configuring the `servers` block in your OpenAPI specification. Use `x-fern-server-name` to give servers human-readable names, then combine it with URL template variables and `x-fern-default-url` to support dynamic base URLs in generated SDKs.
+
+## `x-fern-server-name`
+
+Use `x-fern-server-name` to give each server entry a human-readable name. Fern uses this name in the generated environments enum.
+
+The `x-fern-server-name` extension is used to name your servers.
+
+```yaml title="openapi.yml"
+servers:
+  - url: https://api.example.com
+    x-fern-server-name: Production
+  - url: https://sandbox.example.com
+    x-fern-server-name: Sandbox
+```
+
+In a generated TypeScript SDK, you'd see:
+
+```typescript title="environment.ts"
+export const ExampleEnvironment = {
+  Production: "https://api.example.com",
+  Sandbox: "https://sandbox.example.com",
+} as const;
+
+export type ExampleEnvironment = typeof ExampleEnvironment.Production;
+```
+
+### Multiple base URLs
+
+Different endpoints can target different servers. Add a `servers` block directly on an endpoint to override the top-level server for that path. Use `x-fern-server-name` to give each endpoint-level server a distinct name so Fern can group them correctly.
+
+```yaml title="openapi.yml"
+paths:
+  /auth/token:
+    post:
+      servers:
+        - url: https://auth.example.com
+          x-fern-server-name: Auth
+```
+
+When Fern detects multiple named servers, the generated SDK client resolves each endpoint to the correct base URL automatically.
+
+`x-fern-server-name` is also used alongside URL template variables, as shown below.
+
+## URL templating and `x-fern-default-url`
+
+<Note>URL template variables and `x-fern-default-url` are currently supported for Python and Java SDK generation only.</Note>
+
+For APIs deployed across multiple regions, environments, or custom domains, you can define variable placeholders in the server `url` using `{variable}` syntax. Fern reads these variables and exposes them as configurable parameters in the generated SDK, so users can customize the base URL at runtime.
+
+Since a templated URL like `https://api.{region}.example.com/v1` isn't valid on its own, use `x-fern-default-url` to provide a concrete fallback. This way, SDK users who don't need to customize variables get a working client out of the box.
+
+```yaml title="openapi.yml"
+servers:
+  - url: https://api.{region}.{environment}.example.com/v1
+    description: Regional API server
+    x-fern-server-name: Default
+    x-fern-default-url: https://api.example.com/v1
+    variables:
+      region:
+        default: us-east-1
+        enum:
+          - us-east-1
+          - us-west-2
+          - eu-west-1
+      environment:
+        default: prod
+        enum:
+          - prod
+          - staging
+          - dev
+```
+
+Each variable is defined under the `variables` map and supports the following fields:
+
+- `default` — The fallback value used when the SDK user doesn't provide one. This field is required by the OpenAPI specification.
+- `enum` — An optional list of allowed values. When provided, Fern generates the variable as a typed enum in the SDK rather than an open string.
+

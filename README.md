@@ -7,8 +7,8 @@ Welcome to the Fern documentation! This repository contains the source code for 
 ### Prerequisites
 
 Before you begin, make sure you have the following installed:
-- [Node.js](https://nodejs.org/) (version 16 or higher)
-- [npm](https://www.npmjs.com/) (comes with Node.js)
+- [Node.js](https://nodejs.org/) (version 22 or higher)
+- [npm](https://www.npmjs.com/) version 10.0.0 or higher (comes with Node.js 22)
 
 ### Installation
 
@@ -19,7 +19,7 @@ Before you begin, make sure you have the following installed:
 
 2. **Clone this repository:**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/fern-api/docs.git
    cd docs
    ```
 
@@ -53,7 +53,7 @@ Keep the following principles in mind:
 - **Write for your audience** - Consider why users are reading your documentation and explain the use case clearly. Focus on clarity and completeness without being verbose. Add examples and code snippets when relevant.
 - **Help users get something done**. Don't try to sell users on the product, and avoid marketing language like "amazing features" or "the best solution."
 - **Avoid time-specific language**. Don't mention a product or feature was just released or is the newest form, as this will quickly lead to stale documentation.
-- **Write in clear, concise language**, using [active voice](https://developers.google.com/style/voice) whenever possible. Keep sentences and paragraphs short and to the point. Be conversational and friendly tone. Stay away from jargon as much as you can.
+- **Write in clear, concise language**, using [active voice](https://developers.google.com/style/voice) whenever possible. Keep sentences and paragraphs short and to the point. Use a conversational and friendly tone. Stay away from jargon as much as you can.
 - **Use [Fern’s documentation components](https://buildwithfern.com/learn/docs/writing-content/components/overview)** whenever you can.
 - **When editing an existing page** - Match the existing heading structure, tone, and level of detail to ensure your changes integrate as seamlessly as possible.
 - **Use diagrams when it makes sense** – Show, don't tell! Use [Mermaid](https://buildwithfern.com/learn/docs/writing-content/markdown-media#diagrams), a Markdown-like diagramming syntax, to illustrate a workflow. 
@@ -115,9 +115,9 @@ To catch issues earlier in your workflow, set up Vale to run automatically on yo
 ### Getting changes reviewed
 
 If you want to **add a new page or make a large structural change**:
-- [File an issue in GitHub](https://github.com/fern-api/docs/issues) and assign [@devalog](https://github.com/devalog), [@kgowru](https://github.com/kgowru), or [@dsinghvi](https://github.com/dsinghvi). We'll review your issue to make sure your proposed page fits with Fern's overall documentation strategy and isn't duplicating any ongoing work. 
+- [File an issue in GitHub](https://github.com/fern-api/docs/issues) and assign [@devalog](https://github.com/devalog). We'll review your issue to make sure your proposed page fits with Fern's overall documentation strategy and isn't duplicating any ongoing work. 
 
 For **all other changes**:
 -  Submit a PR directly with your suggested changes. A Fern docs member will review and confirm.
 
-If you see something that is wrong or outdated in the documentation but don't know how to fix it, [file an issue](https://github.com/fern-api/docs/issues) or reach out to [@devalog](https://github.com/devalog), [@kgowru](https://github.com/kgowru), or [@dsinghvi](https://github.com/dsinghvi).
+If you see something that is wrong or outdated in the documentation but don't know how to fix it, [file an issue](https://github.com/fern-api/docs/issues) or reach out to [@devalog](https://github.com/devalog).

@@ -1,0 +1,86 @@
+---
+title: "`llms.txt` and `llms-full.txt`"
+description: Fern automatically generates llms.txt and llms-full.txt Markdown files so AI tools can discover and index your documentation.
+---
+
+[`llms.txt`](https://llmstxt.org/) is a standard for exposing website content to AI developer tools. Fern implements this standard, automatically generating and maintaining `llms.txt` and `llms-full.txt` Markdown files so AI tools can discover and index your documentation.
+
+Fern also serves [clean Markdown instead of HTML](https://developer.mozilla.org/en-US/docs/Web/HTTP/Content_negotiation) on any page URL when the request includes an `Accept: text/markdown` header, ensuring agents only receive the content they need. Together, these features reduce token consumption by 90%+.
+
+<Frame>
+  <img
+    src="./llms-txt.png"
+    alt="Example of using llms.txt"
+    className="rounded-lg border border-gray-200 dark:border-gray-700"
+  />
+</Frame>
+
+## Generated files
+
+Fern generates two files for LLMs:
+
+- **`llms.txt`** contains a lightweight summary of your documentation site with each page distilled into a one-sentence description and URL. For sites with API endpoints, it also links to your [OpenAPI specification](/learn/docs/developer-tools/openapi-spec) as a standalone, machine-readable file so AI tools can parse your full API schema directly. For sites with WebSocket channels, it also links to your [AsyncAPI specification](/learn/docs/developer-tools/asyncapi-spec).
+
+- **`llms-full.txt`** contains complete documentation content including the full text of all pages. For API documentation, this includes your complete API Reference with resolved OpenAPI specifications and SDK code examples for enabled languages.
+
+Both files are available at any level of your documentation hierarchy (`/llms.txt`, `/llms-full.txt`, `/docs/llms.txt`, `/docs/ai-features/llms-full.txt`, etc.).
+
+Examples: [Eleven Labs llms.txt](https://elevenlabs.io/docs/llms.txt), [Cash App llms-full.txt](https://developers.cash.app/llms-full.txt).
+
+## Page descriptions
+
+Both files include page descriptions pulled from [frontmatter](/learn/docs/configuration/page-level-settings). Fern uses the `description` field if present, otherwise falls back to `subtitle`.
+
+```mdx title="Frontmatter"
+---
+title: Fern Docs
+subtitle: Build beautiful documentation websites with Fern.
+---
+```
+
+The output format depends on whether you're requesting an individual page or a section:
+<Tabs>
+<Tab title="Individual pages">
+
+Both `llms.txt` and `llms-full.txt` return the same format:
+
+```txt title=".../page/llms.txt and .../page/llms-full.txt"
+# Fern Docs
+
+> Build beautiful documentation websites with Fern.
+```
+</Tab>
+<Tab title="Section">
+
+The two files differ:
+
+<CodeBlocks>
+```txt title=".../section/llms.txt"
+- [Fern Docs](https://example.com/docs): Build beautiful documentation websites with Fern.
+```
+
+```txt title=".../section/llms-full.txt"
+# Fern Docs
+
+> Build beautiful documentation websites with Fern.
+```
+</CodeBlocks>
+</Tab>
+</Tabs>
+
+## Learn more
+
+<CardGroup cols={3}>
+  <Anchor id="custom-files">
+    <Card title="Customize LLM output" icon="sliders" href="/learn/docs/ai-features/customize-llm-output">
+      Exclude pages, filter content with tags, or serve your own custom files.
+    </Card>
+  </Anchor>
+  <Card title="Agent directives" icon="compass" href="/learn/docs/ai-features/agent-directives">
+    Configure the default directive prepended to every page served to AI agents.
+  </Card>
+  <Card title="Analytics and integration" icon="chart-line" href="/learn/docs/ai-features/llms-txt-analytics">
+    Track LLM traffic and surface `llms.txt` endpoints to readers.
+  </Card>
+</CardGroup>
+

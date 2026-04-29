@@ -1,0 +1,112 @@
+---
+title: Ruby configuration
+description: Configuration options for the Fern Ruby SDK.
+---
+
+
+You can customize the behavior of the Ruby SDK generator in `generators.yml`:
+
+```yaml {6-14} title="generators.yml"
+groups:
+  ruby-sdk:
+    generators:
+      - name: fernapi/fern-ruby-sdk
+        version: <Markdown src="/snippets/version-number-ruby.mdx"/>
+        config:
+          moduleName: YourModuleName
+          enableWireTests: true
+          extraDependencies:
+            faraday: "~> 2.0"
+            oj: "~> 3.0"
+          extraDevDependencies:
+            rspec: "~> 3.0"
+            webmock: "~> 3.0"
+```
+
+<ParamField path="clientModuleName" type="string" required={false} toc={true}>
+Custom name for the client module. This allows you to customize the module name that wraps the generated client class.
+</ParamField>
+
+<ParamField path="customPagerName" type="string" required={false} toc={true}>
+Custom name for the pager class used in paginated endpoints. By default, the generator creates a standard pager class, but you can customize its name to match your SDK's naming conventions.
+</ParamField>
+
+<ParamField path="customReadmeSections" type="array of objects" required={false} toc={true}>
+Add custom sections to the generated README file. Each section requires a title and content.
+
+```yaml
+config:
+  customReadmeSections:
+    - title: "Custom integration"
+      content: "Instructions for custom integration..."
+    - title: "Advanced usage"
+      content: "Advanced usage examples for {{ packageName }}"
+```
+
+The content supports template variables like `{{ packageName }}` that are replaced with actual values during generation.
+</ParamField>
+
+<ParamField path="enableWireTests" type="boolean" default="false" required={false} toc={true}>
+When enabled, generates [mock server (wire) tests](/sdks/deep-dives/testing#mock-server-tests) to verify that the SDK sends and receives HTTP requests as expected.
+</ParamField>
+
+<ParamField path="extraDependencies" type="object" required={false} toc={true}>
+<Markdown src="/snippets/pro-plan.mdx"/>
+
+Specify additional dependencies to include in the generated SDK's gemspec. This is useful when you need to add custom gems that your SDK depends on.
+</ParamField>
+
+<ParamField path="extraDevDependencies" type="object" required={false} toc={true}>
+<Markdown src="/snippets/pro-plan.mdx"/>
+
+Specify additional development dependencies to include in the generated SDK's Gemfile. These are dependencies used for development and testing but not required by end users.
+</ParamField>
+
+<ParamField path="maxRetries" type="number" required={false} toc={true}>
+The default number of retries for failed requests. When not set, the generated SDK uses its own built-in default. SDK users can still override this per-request via request options.
+</ParamField>
+
+<ParamField path="moduleName" type="string" required={false} toc={true}>
+Custom module name for the generated SDK. This sets the top-level Ruby module that wraps all generated code. By default, the module name is derived from the package name in your publish configuration or your organization name.
+
+```yaml
+config:
+  moduleName: MyCustomModule
+```
+
+This generates code like:
+
+```ruby
+module MyCustomModule
+  class Client
+    # ...
+  end
+end
+```
+</ParamField>
+
+<ParamField path="offsetSemantics" type="'item-index' | 'page-index'" required={false} toc={true}>
+Controls how the offset parameter is interpreted for [auto-paginated](/learn/sdks/deep-dives/auto-pagination) endpoints.
+
+*    `item-index`: The offset counts individual items (e.g., offset 20 skips the first 20 items).
+*    `page-index`: The offset counts pages (e.g., offset 3 skips to page 3).
+</ParamField>
+
+<ParamField path="omitFernHeaders" type="boolean" default="false" required={false} toc={true}>
+When enabled, the generated SDK omits the `X-Fern-Language`, `X-Fern-SDK-Name`, and `X-Fern-SDK-Version` headers from HTTP requests.
+</ParamField>
+
+<ParamField path="requirePaths" type="array of strings" required={false} toc={true}>
+<Markdown src="/snippets/pro-plan.mdx"/>
+
+Paths to files that will be auto-loaded when the gem is required. This is useful for including custom integrations or extensions that should be loaded automatically.
+
+```yaml
+config:
+  requirePaths:
+    - custom_integration
+    - sentry_integration
+```
+
+This will load `lib/<gem>/custom_integration.rb` and `lib/<gem>/sentry_integration.rb` when the gem is required.
+</ParamField>
