@@ -11,7 +11,7 @@ Fern offers two ways to preview documentation changes:
 
 <Info title="Prerequisites">
 Install the following:
-- Node.js version 18 or higher
+- Node.js version 22 or higher
 - [The Fern CLI](/learn/cli-api-reference/cli-reference/overview#install-fern-cli)
 </Info>
 
@@ -47,6 +47,31 @@ Some features are disabled in local development:
 - SEO (favicon, auto-generated meta tags, etc.)
 - Authentication
 </Note>
+
+<llms-only>
+### Common errors
+
+#### No docs.yml file found. Please make sure your project has one.
+
+`fern docs dev` and `fern generate --docs` must be run from a directory that contains a [`fern/` folder](/learn/docs/getting-started/project-structure) with a `docs.yml` inside. Change into your project directory, or add a `docs.yml`.
+
+#### Broken link to /some/path (resolved path: ...)
+
+`fern check` reports this when a link in a Markdown page doesn't resolve to a real page, anchor, or file in your docs.
+
+- For [internal pages](/learn/docs/writing-content/markdown-basics#link-format), use the published URL path from your `docs.yml` config (for example, `/learn/docs/configuration/navigation`) — not a relative path or on-disk file path.
+- For [images and other assets](/learn/docs/writing-content/markdown-media), use a path relative to the Markdown file.
+
+Broken internal links fail by default. Use [`fern generate --docs --no-strict-broken-links`](/learn/cli-api-reference/cli-reference/commands#fern-generate) to downgrade the failure to a warning while you fix them.
+
+#### Invalid URL: /some/path
+
+A Markdown link or `<img src>` uses a value that isn't a valid URL. Check for typos, unescaped characters, or missing protocols on external links.
+
+#### Path ./pages/foo.mdx does not exist
+
+A [`path:`](/learn/docs/configuration/navigation) in `docs.yml` points to a file that isn't on disk. Fix the path or create the missing file. Paths are relative to the YAML file that defines them.
+</llms-only>
 
 ## Preview links
 
@@ -280,3 +305,35 @@ jobs:
 </CodeBlock>
 
 </Accordion>
+
+#### Clean up preview links when PRs merge
+
+To clean up preview links automatically after a PR is merged, add this workflow alongside the one above. It calls [`fern docs preview delete`](/learn/cli-api-reference/cli-reference/commands#fern-docs-preview-delete) with the PR's branch name as the `--id`, matching the identifier used when the preview was generated.
+
+<CodeBlock title = ".github/workflows/cleanup-preview.yml">
+```yaml
+name: Clean up preview links
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  cleanup:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Fern CLI
+        uses: fern-api/setup-fern-cli@v1
+
+      - name: Delete preview deployment
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+        run: |
+          echo "Deleting preview for branch: ${{ github.head_ref }}"
+          fern docs preview delete --id "${{ github.head_ref }}" || echo "Preview deletion returned non-zero — it may already be gone"
+```
+</CodeBlock>

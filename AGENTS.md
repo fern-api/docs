@@ -183,7 +183,9 @@ Use when content is useful to a human browsing the site but adds noise for an ag
 ### Rules
 
 - Don't overuse — most content should be visible to both audiences. Only tag content where the human and agent needs clearly diverge.
-- Keep `<llms-only>` blocks concise and actionable. If it's longer than a few sentences, it's probably regular content that should be visible to everyone.
+- Length depends on shape, not a fixed limit:
+  - **Inline blocks** (interleaved with mixed-audience content — e.g., the programmatic equivalent of a UI step, a prerequisite note, or a cross-reference) should stay short, usually a few sentences. If an inline block grows long, it's probably regular content that belongs to both audiences.
+  - **Standalone sections** that are entirely agent-oriented (troubleshooting / common errors, architecture overviews, CI recipes) can be longer. Wrap the whole section — heading and body — inside the tag so the human TOC stays clean, and keep the block self-contained rather than referring back to surrounding prose.
 - Tutorials are a common use case: the human version might walk through a UI with screenshots, while an `<llms-only>` block can add the equivalent curl command or config snippet that an agent can execute directly.
 
 ### Example to follow
