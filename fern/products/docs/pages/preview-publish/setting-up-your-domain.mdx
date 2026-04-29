@@ -1,6 +1,6 @@
 ---
 title: Bring your custom domain
-description: Learn how to set up your Fern-generated documentation site to use a custom subdomain or subpath.
+description: Learn how to set up your Fern-generated documentation site to use a custom subdomain, subpath, or reverse proxy.
 ---
 
 
@@ -10,6 +10,8 @@ You can configure any of the following custom domain types:
 - **Root domain**: `mydomain.com`
 
 Fern recommends [using the Fern Dashboard to set up custom domains](/learn/dashboard/configuration/custom-domains). The Dashboard automatically provides the correct DNS records based on your domain type. If you prefer to configure your domain manually, follow the instructions on this page. 
+
+You can also serve Fern docs through a [reverse proxy](#reverse-proxy) if you need more control over request routing.
 
 ## Manual setup
 
@@ -196,6 +198,86 @@ Once Fern has completed your setup, you'll be able to access your documentation 
 </Steps>
 </Accordion>
 </AccordionGroup> 
+
+## Reverse proxy
+
+Instead of pointing DNS records directly at Fern, you can route traffic through a reverse proxy. The proxy forwards each request to `https://app.buildwithfern.com` with an `x-fern-host` header that tells Fern which docs site to serve.
+
+This approach is useful when you want to:
+- Serve docs from a domain or subpath that you fully control
+- Add custom middleware logic (authentication, redirects, header injection)
+- Avoid changing your domain's DNS nameservers
+
+### Cloudflare Workers
+
+[Cloudflare Workers](https://developers.cloudflare.com/workers/) run at the edge and can proxy requests to Fern with minimal latency.
+
+<Steps>
+<Step title="Update `docs.yml`">
+
+Set the `custom-domain` to the domain where your Worker will be reachable:
+
+```yaml docs.yml
+instances:
+  - url: example.docs.buildwithfern.com
+    custom-domain: docs.mydomain.com
+```
+</Step>
+
+<Step title="Create a Cloudflare Worker">
+
+In the [Cloudflare dashboard](https://dash.cloudflare.com/), go to **Workers & Pages > Create** and create a new Worker. Replace the default code with:
+
+```javascript worker.js
+export default {
+  async fetch(request) {
+    const url = new URL(request.url);
+
+    const headers = new Headers(request.headers);
+    headers.set("x-fern-host", "docs.mydomain.com");
+
+    const target = new URL("https://app.buildwithfern.com" + url.pathname + url.search);
+
+    const response = await fetch(target.toString(), {
+      method: request.method,
+      headers,
+      body: request.body,
+      redirect: "manual",
+    });
+
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
+    });
+  },
+};
+```
+
+Replace `docs.mydomain.com` with your actual domain.
+
+Click **Save and deploy**.
+</Step>
+
+<Step title="Add a custom domain to the Worker">
+
+In your Worker's **Settings > Domains & Routes**, click **Add** and select **Custom domain**. Enter the domain you configured in `docs.yml` (for example, `docs.mydomain.com`).
+
+Cloudflare automatically provisions an SSL certificate and creates the necessary DNS records for this domain.
+
+<Info>
+Your domain must be on Cloudflare (nameservers pointed to Cloudflare) to use Worker custom domains. If your domain is managed elsewhere, use a [Worker route](https://developers.cloudflare.com/workers/configuration/routing/routes/) with a Cloudflare-proxied DNS record instead.
+</Info>
+</Step>
+
+<Step title="Verify the setup">
+
+Visit your custom domain in a browser. You should see your Fern documentation site. Confirm that:
+- Pages load and navigation works
+- The API Reference renders correctly
+- Search returns results
+</Step>
+</Steps>
 
 <llms-only>
 ### Common errors
