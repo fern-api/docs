@@ -1,0 +1,188 @@
+---
+title: Webhooks
+description: 了解如何使用 OpenAPI 3.1 原生支持或 Fern 的扩展定义 webhooks。生成 webhook 文档和 SDK 验证工具。
+sidebar-title: Webhooks
+max-toc-depth: 3
+---
+
+
+Fern 支持两种在 OpenAPI 规范中定义 webhooks 的方法：
+
+1. 使用 OpenAPI 3.1 的原生 webhook 支持（推荐）
+2. 使用 Fern 的 `x-fern-webhook` 扩展
+
+## OpenAPI 3.1 webhooks
+
+对于 OpenAPI 3.1 规范，使用 `webhooks` 顶级字段来定义您的 webhook 操作。每个 webhook 都需要一个 `operationId` 才能被 Fern 正确处理。
+
+```yaml openapi.yml {4, 7-8, 42-48}
+webhooks:
+  newPlant:
+    post:
+      operationId: newPlantWebhook # Defines webhook
+      summary: New Plant Added
+      description: Information about a new plant that was added to the store
+      tags:
+        - Plants # Creates dedicated page
+      requestBody:
+        description: The plant data when a new plant is added
+        content:
+          application/json:
+            schema:
+              description: The Webhook payload for when a new plant is added to the store
+              properties:
+                triggerType:
+                  description: The type of event that triggered the request
+                  type: string
+                  example: "new_plant"
+                payload:
+                  type: object
+                  description: The payload of data sent from the plant store
+                  properties:
+                    plantId:
+                      type: string
+                      description: The unique identifier for the plant
+                      example: "64f1a2b3c5d6e7f8a9b0c1d2"
+                    name:
+                      type: string
+                      description: The name of the plant
+                      example: "Monstera Deliciosa"
+                    price:
+                      type: number
+                      format: float
+                      description: The price of the plant in dollars
+                      example: 29.99
+                    addedAt:
+                      type: string
+                      format: date-time
+                      description: The timestamp when the plant was added
+                      example: "2024-01-15T10:30:00.000Z"
+              example: # Full payload example for docs
+                triggerType: "new_plant"
+                payload:
+                  plantId: "64f1a2b3c5d6e7f8a9b0c1d2"
+                  name: "Monstera Deliciosa"
+                  price: 29.99
+                  addedAt: "2024-01-15T10:30:00.000Z"
+      responses:
+        '200':
+          description: Return a 200 status to indicate that the data was received successfully
+```
+
+## Fern webhook 扩展
+
+对于 OpenAPI 3.0，使用 `x-fern-webhook: true` 扩展来定义 webhooks。Fern 会将 `requestBody` 视为 webhook 负载。
+
+```yaml openapi.yml {6-8, 23-25}
+paths: 
+  /payment/updated/: 
+    post: 
+      summary: Payment Initiated
+      operationId: initiatePayment
+      tags:
+        - Payments # Creates dedicated page
+      x-fern-webhook: true # Defines webhooks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                amount:
+                  type: number
+                  example: 99.99
+                currency:
+                  $ref: '#/components/schemas/Currency'
+              required:
+                - amount
+                - currency
+              example: # Full payload example for docs
+                amount: 99.99
+                currency: "USD"
+```
+
+<Info> 
+定义 webhook 时选择的路径可以是任意的。由于 webhooks 可以发送到任何服务器，Fern 会忽略路径。
+</Info>
+
+## 生成 webhook 参考
+
+Fern Docs 可以从您的定义中自动生成 webhook 参考文档。在您的 `docs.yml` 文件中进行设置。
+
+您的 webhook 参考可以是单个文档页面：
+
+```yml docs.yml
+navigation:
+  - api: Webhook Reference # Display name for this page
+    api-name: webhooks-v1 # Name of webhook definition directory
+```
+
+或者您可以为每个 webhook 事件配置单独的文档页面：
+
+```yaml title="docs.yml"
+navigation:
+  - subpackage_plants.newPlantWebhook # subpackage_{tag}.{webhook-event-name}
+```
+
+有关如何在 `docs.yml` 中配置 webhook 参考的更多信息，请参阅[生成 webhook 参考](/docs/api-references/generate-webhook-ref)。
+
+## SDK 签名验证
+
+使用 `x-fern-webhook-signature` 扩展来配置 webhook 签名验证。配置后，Fern 会生成 SDK 工具，允许用户验证 webhook 签名并确保事件来自您的 API。
+
+配置可以在**文档级别**（适用于所有 webhook 端点）或**每个端点**（覆盖文档级别的默认设置）设置。两个级别都接受相同的配置选项。
+
+Fern 支持两种验证方法：**HMAC**（使用共享密钥的对称密钥验证）和**非对称**（使用 RSA、ECDSA 或 Ed25519 密钥的公钥验证）。
+
+<Tabs>
+<Tab title="文档级别">
+```yaml title="openapi.yml"
+x-fern-webhook-signature:
+  type: hmac
+  header: x-webhook-signature
+  algorithm: sha256
+  encoding: hex
+
+paths:
+  /webhooks/payment:
+    post:
+      x-fern-webhook: true
+      # Inherits document-level signature config
+
+  /webhooks/order:
+    post:
+      x-fern-webhook: true
+      # Inherits document-level signature config
+```
+</Tab>
+<Tab title="每端点覆盖">
+```yaml title="openapi.yml"
+x-fern-webhook-signature:
+  type: hmac
+  header: x-webhook-signature
+  algorithm: sha256
+  encoding: hex
+
+paths:
+  /webhooks/payment:
+    post:
+      x-fern-webhook: true
+      # Inherits document-level config
+
+  /webhooks/refund:
+    post:
+      x-fern-webhook: true
+      x-fern-webhook-signature:
+        # Override with asymmetric
+        type: asymmetric
+        header: x-refund-signature
+        asymmetric-algorithm: rsa-sha256
+        encoding: base64
+        jwks-url: https://api.example.com/.well-known/jwks.json
+```
+</Tab>
+</Tabs>
+
+### 配置选项
+
+<Markdown src="/products/api-def/snippets/webhook-signature-config-options.mdx"/>

@@ -1,0 +1,51 @@
+---
+title: 重试行为
+sidebar-title: 重试行为
+headline: 重试行为 (OpenAPI)
+description: 使用 x-fern-retries 扩展控制 API 重试逻辑。配置端点级别的重试行为，并为支付处理和订单创建禁用重试。
+---
+
+
+<Callout intent="info">
+  `x-fern-retries` 扩展仅在 Python SDK 中受支持。
+</Callout>
+
+`x-fern-retries` 扩展在您的 OpenAPI 规范中为每个端点配置重试行为，覆盖 SDK 用户配置的任何重试设置。使用它可以为非幂等操作（如支付处理或订单创建）禁用重试。
+
+要为特定端点禁用重试，请设置 `disabled: true`。
+
+```yaml title="openapi.yml" {4-5,15-16}
+paths:
+  /plants/{plantId}:
+    get:
+      x-fern-retries:
+        disabled: true
+      operationId: get_plant
+      parameters:
+        - name: plantId
+          in: path
+          required: true
+          schema:
+            type: string
+  /plants:
+    post:
+      x-fern-retries:
+        disabled: true
+      operationId: create_plant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                species:
+                  type: string
+      responses:
+        '201':
+          description: Plant created successfully
+```
+
+当在端点级别禁用重试时，生成的 SDK 不会重试对该端点的失败请求，无论 SDK 用户的自定义配置如何。

@@ -1,0 +1,74 @@
+---
+title: 多部分文件上传
+subtitle: 使用 `multipart/form-data` 内容类型记录端点
+sidebar-title: 多部分文件上传
+---
+
+多部分请求将一个或多个数据集组合到单个请求体中，通过边界分隔。
+您通常使用这些请求进行文件上传，以及在单个请求中传输多种类型的数据
+（例如，文件和 JSON 对象一起传输）。
+
+```yml title="openapi.yml" maxLines=0 {12-24}
+paths:
+  /upload:
+    post:
+      summary: Upload a file
+      description: Upload a file using multipart/form-data encoding
+      operationId: uploadFile
+      tags:
+        - file
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: The file to upload
+                description:
+                  type: string
+                  description: A description of the file (optional)
+              required:
+                - file
+      responses:
+        "200":
+          description: Successful upload
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  fileId:
+                    type: string
+```
+
+任何使用 `multipart/form-data` 内容类型定义的请求体都将被视为多部分请求。在给定的多部分请求中，具有 `format:binary` 的字符串参数将表示任意文件。
+
+## 文件数组
+
+如果您的端点支持文件数组，那么您的请求体必须使用数组类型。
+
+```yml openapi.yml {12-17}
+paths:
+  /upload:
+    post:
+      summary: Upload multiple files
+      operationId: uploadFiles
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                  description: An array of files to upload
+```

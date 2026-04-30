@@ -1,0 +1,117 @@
+---
+title: 服务器
+description: 配置服务器 URL 和协议以帮助用户连接到您的事件驱动 API。
+subtitle: 定义服务器 URL 和协议以帮助用户连接到您的事件驱动 API。
+sidebar-title: 服务器
+---
+
+AsyncAPI 允许您在 `servers` 键下指定一个或多个服务器配置。
+
+```yml asyncapi.yml 
+
+servers: 
+  production:
+    host: api.yourcompany.com
+    protocol: wss
+    description: Production WebSocket server
+  staging:
+    host: staging.api.yourcompany.com
+    protocol: wss
+    description: Staging WebSocket server
+```
+
+指定服务器对 SDK 和文档都很有价值：
+- 对于 SDK，您的用户在客户端实例化时无需手动指定服务器 URL
+- 对于文档，您的 API 游乐场将自动连接到正确的服务器
+
+## 协议支持
+
+AsyncAPI 支持各种用于事件驱动通信的协议：
+
+```yml asyncapi.yml {4,8,12}
+servers: 
+  websocket-server:
+    host: ws.api.yourcompany.com
+    protocol: ws
+    description: WebSocket server for real-time communication
+  mqtt-server:
+    host: mqtt.yourcompany.com
+    protocol: mqtt
+    description: MQTT broker for IoT devices
+  kafka-server:
+    host: kafka.yourcompany.com
+    protocol: kafka
+    description: Kafka cluster for event streaming
+```
+
+## 命名您的服务器
+
+我们建议为您的服务器提供描述性名称，以明确每个服务器的用途：
+
+```yml asyncapi.yml 
+servers: 
+  production:
+    host: api.yourcompany.com
+    protocol: wss
+    description: Production WebSocket server
+  staging:
+    host: staging.api.yourcompany.com
+    protocol: wss
+    description: Staging environment for testing
+  development:
+    host: localhost:8080
+    protocol: ws
+    description: Local development server
+```
+
+## 服务器变量
+
+您可以在服务器配置中使用变量来使其更加灵活：
+
+```yml asyncapi.yml {3-10}
+servers:
+  production:
+    host: '{environment}.api.yourcompany.com'
+    protocol: wss
+    variables:
+      environment:
+        default: prod
+        enum:
+          - prod
+          - staging
+        description: Environment name
+```
+
+## 不同通道使用多种协议
+
+如果您有使用不同协议的不同通道，您可以在服务器配置中指定这一点：
+
+```yml asyncapi.yml {2-14, 17-21}
+servers:
+  websocket-server:
+    host: ws.api.yourcompany.com
+    protocol: wss
+    description: WebSocket server for real-time notifications
+  mqtt-server:
+    host: mqtt.api.yourcompany.com
+    protocol: mqtt
+    description: MQTT broker for IoT device communication
+  kafka-server:
+    host: kafka.api.yourcompany.com
+    protocol: kafka
+    description: Kafka for high-throughput event streaming
+
+channels:
+  user/notifications:
+    servers:
+      - websocket-server
+    address: user/notifications
+    description: Real-time user notifications via WebSocket
+  device/telemetry:
+    servers:
+      - mqtt-server
+    address: device/telemetry
+    description: IoT device telemetry via MQTT
+```
+
+这允许不同的通道使用最适合其用例的协议。

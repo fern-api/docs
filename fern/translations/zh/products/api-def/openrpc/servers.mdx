@@ -1,0 +1,196 @@
+---
+title: 服务器
+description: 为您的 JSON-RPC API 配置服务器 URL 和传输协议
+subtitle: 为您的 JSON-RPC API 定义服务器 URL 和传输机制
+sidebar-title: 服务器
+---
+
+
+OpenRPC 允许您指定一个或多个服务器配置，定义客户端如何连接到您的 JSON-RPC API。
+
+```yml openrpc.yml 
+servers:
+  - name: production
+    url: https://api.yourcompany.com/rpc
+    description: Production HTTP JSON-RPC server
+  - name: websocket
+    url: wss://api.yourcompany.com/rpc
+    description: Production WebSocket JSON-RPC server
+```
+
+指定服务器对于 SDK 和文档都很有价值：
+- 对于 SDK，您的用户无需在客户端实例化时手动指定服务器 URL
+- 对于文档，您的 API playground 将自动连接到正确的服务器
+
+## 传输协议
+
+JSON-RPC 可以通过各种传输协议使用：
+
+### HTTP/HTTPS 传输
+```yml openrpc.yml 
+servers:
+  - name: http-production
+    url: https://api.yourcompany.com/rpc
+    description: HTTPS JSON-RPC endpoint
+  - name: http-staging
+    url: https://staging-api.yourcompany.com/rpc
+    description: Staging HTTPS endpoint
+```
+
+### WebSocket 传输
+```yml openrpc.yml 
+servers:
+  - name: websocket-production
+    url: wss://api.yourcompany.com/rpc
+    description: WebSocket JSON-RPC for real-time communication
+  - name: websocket-dev
+    url: ws://localhost:8080/rpc
+    description: Development WebSocket server
+```
+
+### TCP 传输
+```yml openrpc.yml 
+servers:
+  - name: tcp-production
+    url: tcp://api.yourcompany.com:9090
+    description: TCP JSON-RPC server for high-performance applications
+```
+
+## 服务器变量
+
+使用变量使您的服务器配置更加灵活：
+
+```yml openrpc.yml {3-12}
+servers:
+  - name: production
+    url: https://{environment}.api.yourcompany.com/rpc
+    description: Production JSON-RPC server
+    variables:
+      environment:
+        default: prod
+        enum:
+          - prod
+          - staging
+          - dev
+        description: Environment name
+```
+
+## 多环境配置
+
+配置不同的环境并提供适当的描述：
+
+```yml openrpc.yml 
+servers:
+  - name: production
+    url: https://api.yourcompany.com/rpc
+    description: Production environment - high availability, rate limited
+  - name: staging
+    url: https://staging-api.yourcompany.com/rpc
+    description: Staging environment - for testing new features
+  - name: development
+    url: http://localhost:8080/rpc
+    description: Local development server
+  - name: sandbox
+    url: https://sandbox-api.yourcompany.com/rpc
+    description: Sandbox environment - safe for testing
+```
+
+## 服务器特定配置
+
+添加服务器特定的元数据和配置：
+
+```yml openrpc.yml {4-12}
+servers:
+  - name: production
+    url: https://api.yourcompany.com/rpc
+    description: Production JSON-RPC server
+    variables:
+      version:
+        default: v1
+        enum: [v1, v2]
+        description: API version
+    summary: High-performance production server
+    tags:
+      - name: production
+        description: Production environment
+```
+
+## 负载均衡和多个 URL
+
+为负载均衡配置多个服务器 URL：
+
+```yml openrpc.yml 
+servers:
+  - name: primary
+    url: https://api-primary.yourcompany.com/rpc
+    description: Primary production server
+  - name: secondary
+    url: https://api-secondary.yourcompany.com/rpc
+    description: Secondary production server (fallback)
+  - name: regional-us
+    url: https://us.api.yourcompany.com/rpc
+    description: US regional server
+  - name: regional-eu
+    url: https://eu.api.yourcompany.com/rpc
+    description: EU regional server
+```
+
+## WebSocket 特定配置
+
+配置带有连接参数的 WebSocket 服务器：
+
+```yml openrpc.yml {4-10}
+servers:
+  - name: websocket-main
+    url: wss://api.yourcompany.com/rpc
+    description: Main WebSocket JSON-RPC server
+    variables:
+      protocol:
+        default: "jsonrpc-2.0"
+        description: JSON-RPC protocol version
+      heartbeat:
+        default: "30"
+        description: Heartbeat interval in seconds
+```
+
+## 安全配置
+
+在服务器级别配置身份验证和安全性：
+
+```yml openrpc.yml {4-6}
+servers:
+  - name: secure-production
+    url: https://api.yourcompany.com/rpc
+    description: Secure production server with authentication
+    security:
+      - bearerAuth: []
+      - apiKeyAuth: []
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+```
+
+## 传输特定优化
+
+为特定用例配置服务器：
+
+```yml openrpc.yml 
+servers:
+  - name: bulk-operations
+    url: https://bulk.api.yourcompany.com/rpc
+    description: Optimized for batch requests and bulk operations
+  - name: real-time
+    url: wss://realtime.api.yourcompany.com/rpc
+    description: WebSocket server optimized for real-time notifications
+  - name: analytics
+    url: https://analytics.api.yourcompany.com/rpc
+    description: Dedicated server for analytics and reporting methods
+```
+
+服务器配置帮助客户端了解如何连接到您的 JSON-RPC API，以及哪种传输机制最适合他们的用例。

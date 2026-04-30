@@ -1,0 +1,151 @@
+---
+title: 分页
+headline: 分页 (OpenAPI)
+description: 使用 x-fern-pagination 扩展为列表端点配置自动分页
+sidebar-title: 分页
+---
+
+
+<Markdown src="/snippets/pro-plan.mdx"/>
+
+`x-fern-pagination` 扩展为 OpenAPI 规范中的列表端点配置自动分页。[Fern 生成的 SDK](/learn/sdks/deep-dives/auto-pagination) 提供简单的迭代器，可以自动处理分页，因此 SDK 用户可以遍历所有结果，而无需手动管理分页复杂性。
+
+要配置分页：
+
+1. 使用 `x-fern-pagination` 扩展注解所需的分页端点
+2. 指定分页方案（`offset`、`cursor`、`next_uri` 或 `next_path`）
+3. 使用点访问表示法指定 `results` 的位置
+
+<CodeBlocks>
+```yaml title="偏移分页" {5-7}
+paths:
+  /plants:
+    get:
+      operationId: list_plants
+      x-fern-pagination:
+        offset: $request.page_number
+        results: $response.results
+      parameters:
+        - name: page_number
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of plants
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Plant'
+```
+
+```yaml title="游标分页" {5-8}
+paths:
+  /plants:
+    get:
+      operationId: list_plants
+      x-fern-pagination:
+        cursor: $request.cursor
+        next_cursor: $response.next
+        results: $response.results
+      parameters:
+        - name: cursor
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of plants
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  next:
+                    type: string
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Plant'
+```
+
+```yaml title="URI 分页" {5-7}
+paths:
+  /plants:
+    get:
+      operationId: list_plants
+      x-fern-pagination:
+        next_uri: $response.next_page_url
+        results: $response.results
+      responses:
+        '200':
+          description: List of plants
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  next_page_url:
+                    type: string
+                    nullable: true
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Plant'
+```
+
+```yaml title="路径分页" {5-7}
+paths:
+  /plants:
+    get:
+      operationId: list_plants
+      x-fern-pagination:
+        next_path: $response.next_page_path
+        results: $response.results
+      responses:
+        '200':
+          description: List of plants
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  next_page_path:
+                    type: string
+                    nullable: true
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Plant'
+```
+</CodeBlocks>
+
+## 配置选项
+
+`x-fern-pagination` 扩展支持以下属性：
+
+<Markdown src="/products/api-def/snippets/pagination-properties.mdx"/>
+
+<Info title="查找 `results` 的位置">
+
+如果您的结果嵌套在响应对象中，请使用点访问表示法指定路径。例如，如果结果位于 `my_nested_object.inner_list` 中，`results` 路径将是 `$response.my_nested_object.inner_list`。
+
+```yaml {4, 7}
+MyResponseObject:
+  type: object
+  properties:
+    my_nested_object:
+      type: object
+      properties:
+        inner_list:
+          type: array
+          items:
+            $ref: '#/components/schemas/Plant'
+```
+
+</Info>

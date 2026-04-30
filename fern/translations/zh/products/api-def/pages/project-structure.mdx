@@ -1,0 +1,233 @@
+---
+title: 项目结构
+description: 描述 Fern 文件夹结构
+sidebar-title: 项目结构
+---
+
+配置 fern 从 `fern` 文件夹开始，该文件夹包含你的 API 定义、SDK 生成器和你的 CLI 版本。
+
+Fern 推荐使用多仓库结构，将你的 fern 文件夹放在源代码仓库中（包含你的 API 定义和生成配置），并[将每个生成的 SDK 放在其自己单独的仓库中](/sdks/overview/project-structure)。
+
+## 目录结构
+
+当你运行 `fern init`（对于 Fern Definition）或 `fern init --spec-type path/to/spec`（对于其他规范）时，你的 fern 文件夹将使用以下文件进行初始化：
+
+<Files>
+  <Folder name="fern" defaultOpen>
+    <File name="fern.config.json" comment="整个 Fern 项目的根级配置" />
+    <File name="generators.yml" comment="声明 API 并配置 SDK 生成" />
+    <Folder name="spec-folder" defaultOpen comment="definition、openapi、asyncapi 等">
+      <File name="spec-file.yml" comment="API 定义文件" />
+    </Folder>
+  </Folder>
+</Files>
+
+## 核心配置文件
+
+<Note> 
+  除了核心文件之外，你可以选择使用 [overlays (OpenAPI)](/learn/api-definitions/openapi/overlays) 或 [overrides](/learn/api-definitions/asyncapi/overrides) 文件来自定义你的 API 定义，而无需修改原始规范。
+</Note>
+
+### `fern.config.json`
+
+`fern.config.json` 文件存储你的组织名称和 Fern CLI 版本。固定版本可以提供确定性构建。
+
+```json title="fern.config.json"
+{
+  "organization": "plant-catalog",
+  "version": "<Markdown src="/snippets/version-number-cli.mdx"/>"
+}
+```
+
+<Info> 
+  当使用本地安装的 CLI 时，将 `version` 设置为 `"*"`。详细信息请参见[本地安装 Fern CLI](/cli-api-reference/cli-reference/overview#install-fern-cli-locally)。
+</Info>
+
+### `generators.yml`
+
+对于 OpenAPI/AsyncAPI，`generators.yml` 文件是必需的，用于声明你的 API 规范位置。这还启用了 [API 参考文档](/learn/docs/api-references/overview)。
+
+```yaml title="generators.yml"
+api:
+  specs:
+    - openapi: ./openapi/openapi.yml
+```
+
+**对于 Fern Definition**，不需要 `generators.yml` 来[生成 API 参考文档](/learn/docs/api-references/overview)。Fern 通过检查 `definition/` 目录自动检测你的 API。
+
+对于 SDK 生成，所有规范格式都需要 `generators.yml`。添加 `groups` 部分来配置要生成哪些 SDK。详细信息请参见 [SDKs 项目结构](/sdks/overview/project-structure#generatorsyml)。
+
+### API 定义文件
+
+对于 Fern Definition，你的 API 配置分为两个文件：`api.yml` 用于 API 范围的配置，单独的 `.yml` 文件用于你的实际端点和类型定义。有关更多信息，请参见[什么是 Fern Definition？](/api-definitions/ferndef/overview)。
+
+对于其他规范格式（[OpenAPI](/api-definitions/openapi/overview)、[AsyncAPI](/api-definitions/asyncapi/overview)、[OpenRPC](/api-definitions/openrpc/overview) 和 [gRPC](/api-definitions/grpc/overview)），你将拥有一个独立的规范文件。
+
+## 存储 API 定义的位置
+
+有三种常见的管理 API 定义的方式：
+
+- **直接提交到你的 Fern 仓库（推荐）。** 将你的 API 定义文件检入包含你的 Fern 配置的同一个仓库中。如果你不在其他地方维护定义，这是最简单的方法。
+- **从源代码仓库同步。** 将你的 API 定义存储在与你的 API 源代码相同的仓库中，并将更新同步到你的 Fern 仓库。你可以使用 [`fern api update`](/cli-api-reference/cli-reference/commands#fern-api-update) CLI 命令或 [sync-openapi GitHub Action](/learn/api-definitions/openapi/sync-your-open-api-specification) 来自动化这个过程。
+- **在公共 URL 托管。** 从可公开访问的端点提供定义，并在 `generators.yml` 中配置 [`origin`](/learn/sdks/reference/generators-yml#openapi) 字段，以便 Fern 可以获取它。当你希望有一个多个消费者可以引用的单一规范定义时，这很有用。
+
+## 多个 API
+
+Fern 支持两种处理多个 API 定义的方法。两种方法都需要一个 `apis` 文件夹 — 这个文件夹必须使用这个确切的名称。
+
+1. **为每个 API 生成单独的 SDK** - 每个 API 生成自己独立的 SDK 包集合（例如，`@company/user-api`、`@company/payments-api` 或版本化的如 `@company/sdk-v1`、`@company/sdk-v2`）
+2. **从多个 API 合并 SDK** - 多个 API 合并到一个 SDK 包中，并可选择使用命名空间（例如，`client.users`、`client.payments` 或版本化的如 `client.v1`、`client.v2`）
+
+### 为每个 API 生成单独的 SDK
+
+当每个 API 应该生成自己独立的 SDK 集合时使用这种方法。这适用于不同的 API（例如，`user-api` 和 `payments-api`）和版本化 API，你希望每个版本都可以独立安装（例如，`@company/sdk-v1`、`@company/sdk-v2`）。
+
+<Steps>
+<Step title="将每个 API 放在自己的目录中">
+将每个 API 或 API 版本放入 `fern/apis/` 的单独子文件夹中：
+<Tabs>
+<Tab title="多个不同的 API">
+<Files>
+  <Folder name="fern" defaultOpen>
+    <File name="fern.config.json" />
+    <Folder name="apis" defaultOpen>
+      <Folder name="user-api" defaultOpen highlighted>
+        <File name="generators.yml" comment="配置 user-api SDK" />
+        <File name="openapi.yml" />
+      </Folder>
+      <Folder name="payments-api" highlighted defaultOpen>
+        <File name="generators.yml" comment="配置 payments-api SDK" />
+        <File name="openapi.yml" />
+      </Folder>
+    </Folder>
+  </Folder>
+</Files>
+</Tab>
+<Tab title="多个版本化 API">
+<Files>
+  <Folder name="fern" defaultOpen>
+    <File name="fern.config.json" />
+    <Folder name="apis" defaultOpen>
+      <Folder name="v1" highlighted defaultOpen>
+        <File name="generators.yml" comment="配置 v1 SDK" />
+        <File name="openapi.yml" />
+      </Folder>
+      <Folder name="v2" highlighted defaultOpen>
+        <File name="generators.yml" comment="配置 v2 SDK" />
+        <File name="openapi.yml" />
+      </Folder>
+    </Folder>
+  </Folder>
+</Files>
+</Tab>
+</Tabs>
+</Step>
+
+<Step title="为每个 API 配置 generators.yml">
+每个 API 目录包含自己的 `generators.yml` 文件，引用同一文件夹中的规范：
+
+```yaml title="generators.yml"
+api:
+  specs:
+    - openapi: openapi.yml # 同一文件夹中的规范文件
+groups:
+  # SDK 生成器配置
+```
+</Step>
+</Steps>
+
+### 从多个 API 合并 SDK
+
+<Warning title="Pro 和企业版功能">
+    此功能仅适用于 [Pro 和企业版计划](https://buildwithfern.com/pricing)。在 Pro 计划中，你可以将最多五个 API 合并到单个 SDK 中，在企业版计划中可以合并无限个 API。要开始使用，请联系 support@buildwithfern.com。
+</Warning>
+
+当你想要将多个 API 合并到单个 SDK 包中，并可选择使用命名空间来组织它们时，使用这种方法。这适用于不同的 API 和版本化 API，但会增加包大小，因为所有 API 都捆绑在一起。
+
+对于版本化 API，命名空间让你可以在同一个包中访问不同版本，如 `client.v1` 和 `client.v2`。
+
+<Steps>
+<Step title="将每个 API 放在单独的子文件夹中">
+将每个 API 放入 `fern/apis/` 的单独子文件夹中：
+
+<Tabs>
+<Tab title="多个不同的 API">
+<Files>
+  <Folder name="fern" defaultOpen>
+    <File name="fern.config.json" />
+    <File name="generators.yml" highlighted comment="合并 SDK 的单一配置" />
+    <Folder name="apis" defaultOpen>
+      <Folder name="user-api">
+        <File name="openapi.yml" />
+      </Folder>
+      <Folder name="payments-api">
+        <File name="openapi.yml" />
+      </Folder>
+    </Folder>
+  </Folder>
+</Files>
+</Tab>
+<Tab title="多个版本化 API">
+<Files>
+  <Folder name="fern" defaultOpen>
+    <File name="fern.config.json" />
+    <File name="generators.yml" highlighted comment="合并 SDK 的单一配置" />
+    <Folder name="apis" defaultOpen>
+      <Folder name="v1">
+        <File name="openapi.yml" />
+      </Folder>
+      <Folder name="v2">
+        <File name="openapi.yml" />
+      </Folder>
+    </Folder>
+  </Folder>
+</Files>
+</Tab>
+</Tabs>
+</Step>
+
+<Step title="在单个 generators.yml 中列出所有 API">
+在单个 `generators.yml` 中列出所有 API：
+
+```yaml title="generators.yml"
+api:
+  specs:
+    - openapi: user-api/openapi.yml
+    - openapi: payments-api/openapi.yml
+groups:
+  # SDK 生成器配置
+```
+</Step>
+
+<Step title="添加命名空间（可选）">
+添加 [`namespace`](/learn/sdks/reference/generators-yml#namespace) 来处理 API 之间重叠的模式名称或组织不同的 API 版本：
+
+<Tabs>
+<Tab title="不同的 API">
+```yaml title="generators.yml" {4}
+api:
+  specs:
+    - openapi: apis/user-api/openapi.yml
+    - namespace: payments
+      openapi: apis/payments-api/openapi.yml
+groups:
+  # SDK 生成器配置
+```
+</Tab>
+<Tab title="版本化 API">
+在单个 `generators.yml` 中列出所有 API 版本并使用命名空间：
+
+```yaml title="generators.yml" {3, 5}
+api:
+  specs:
+    - namespace: v1
+      openapi: apis/v1/openapi.yml
+    - namespace: v2
+      openapi: apis/v2/openapi.yml
+groups:
+  # SDK 生成器配置
+```
+</Tab>
+</Tabs>
+</Step>
+</Steps>
