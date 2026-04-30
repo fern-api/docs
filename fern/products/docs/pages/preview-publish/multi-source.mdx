@@ -4,6 +4,8 @@ subtitle: Let multiple teams publish to the same docs site from their own reposi
 description: Learn how to set up multi-source documentation so independent teams can publish to shared domains with consistent branding using Fern.
 ---
 
+<Markdown src="/snippets/enterprise-plan.mdx" />
+
 Multi-source documentation lets multiple teams publish to the same custom domain from independent repositories. Each team owns its own `docs.yml` and content, while a shared [global theme](/learn/docs/customization/global-themes) keeps branding consistent across every sub-path. Search and AI behavior can be configured per domain in the [Fern Dashboard](https://dashboard.buildwithfern.com).
 
 This is useful when your organization has separate teams or products that each maintain their own documentation but need to present a unified site to end users, for example `docs.example.com/product-a` and `docs.example.com/product-b`.
@@ -98,10 +100,42 @@ Two search modes are available:
 
 </Steps>
 
-## Example
+## Example setup with a homepage and three teams
 
-An organization with two product teams might structure their multi-source setup as follows:
+A recommended pattern is to use four separate `fern/` projects — one for the homepage and one for each team. The homepage repository links out to each team's sub-path using cards or a product selector.
 
+<Tabs>
+<Tab title="Homepage">
+```yaml Homepage — docs.yml
+global-theme: acme-theme
+
+instances:
+  - url: acme.docs.buildwithfern.com
+    custom-domain: docs.acme.com
+    multi-source: true
+
+navigation:
+  - page: Home
+    path: ./pages/home.mdx
+```
+
+The homepage `home.mdx` can use cards to direct users to each team's docs:
+
+```jsx home.mdx
+<CardGroup>
+  <Card title="AI Performance" icon="fa-regular fa-gauge" href="https://docs.acme.com/aiperf">
+    Benchmarking and optimization tools.
+  </Card>
+  <Card title="AI Store" icon="fa-regular fa-store" href="https://docs.acme.com/aistore">
+    Model marketplace and deployment.
+  </Card>
+  <Card title="Dynamo" icon="fa-regular fa-bolt" href="https://docs.acme.com/dynamo">
+    Real-time inference engine.
+  </Card>
+</CardGroup>
+```
+</Tab>
+<Tab title="Team A">
 ```yaml Team A — docs.yml
 global-theme: acme-theme
 
@@ -116,7 +150,8 @@ navigation:
       - page: Overview
         path: ./pages/overview.mdx
 ```
-
+</Tab>
+<Tab title="Team B">
 ```yaml Team B — docs.yml
 global-theme: acme-theme
 
@@ -131,8 +166,26 @@ navigation:
       - page: Overview
         path: ./pages/overview.mdx
 ```
+</Tab>
+<Tab title="Team C">
+```yaml Team C — docs.yml
+global-theme: acme-theme
 
-Both teams share `acme-theme` for consistent branding. Each publishes independently to its own basepath on `docs.acme.com`.
+instances:
+  - url: acme-dynamo.docs.buildwithfern.com/dynamo
+    custom-domain: docs.acme.com/dynamo
+    multi-source: true
+
+navigation:
+  - section: Getting started
+    contents:
+      - page: Overview
+        path: ./pages/overview.mdx
+```
+</Tab>
+</Tabs>
+
+All four repositories share `acme-theme` for consistent branding. Each publishes independently — updating Team A's docs has no effect on the homepage or other teams.
 
 ## Properties
 
