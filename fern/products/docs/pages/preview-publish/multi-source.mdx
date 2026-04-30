@@ -6,27 +6,34 @@ description: Learn how to set up multi-source documentation so independent teams
 
 <Markdown src="/snippets/enterprise-plan.mdx" />
 
-Multi-source documentation lets multiple teams publish to the same custom domain from independent repositories. Each team owns its own `docs.yml` and content, while a shared [global theme](/learn/docs/customization/global-themes) keeps branding consistent across every sub-path. Search and AI behavior can be configured per domain in the [Fern Dashboard](https://dashboard.buildwithfern.com).
-
-This is useful when your organization has separate teams or products that each maintain their own documentation but need to present a unified site to end users, for example `docs.example.com/product-a` and `docs.example.com/product-b`.
+Multi-source documentation lets multiple teams publish to the same custom domain from independent repositories. Each repository has its own `docs.yml` and content, while a shared [global theme](/learn/docs/customization/global-themes) keeps branding consistent across every sub-path.
 
 ## How it works
 
-Each team's repository contains its own Fern project with a `docs.yml` that declares a unique basepath on the shared domain. When a team runs `fern generate --docs`, only that team's sub-path is updated — other sub-paths are unaffected.
+Each repository owns a unique basepath on the shared domain. Running `fern generate --docs` in one repository updates only its sub-path — every other sub-path is untouched.
 
-Three features work together to make this possible:
+Three pieces of configuration make this work:
 
-1. **`multi-source` on instances** — tells the CLI to use basepath-aware publishing so multiple repositories can coexist under one domain.
-2. **[Global themes](/learn/docs/customization/global-themes)** — a central repository defines the shared look and feel (logo, colors, fonts, layout, CSS, JS). Child repositories reference the theme by name and inherit those settings automatically.
-3. **Dashboard multi-repo settings** — the [Fern Dashboard](https://dashboard.buildwithfern.com) lets you configure the default path and search behavior for the domain.
+1. **`multi-source: true`** set on the instance in each repository's `docs.yml`, with `url` and `custom-domain` ending in the same basepath.
+2. **[Global themes](/learn/docs/customization/global-themes)**, referenced by name in each `docs.yml`, deliver shared branding from a central source.
+3. **Multi-repo settings** in the [Fern Dashboard](https://dashboard.buildwithfern.com) control the domain's default path and search/Ask AI scope.
+
+For example, NVIDIA's docs are split across multiple independent repositories, each publishing to its own sub-path on `docs.nvidia.com`:
+
+- [docs.nvidia.com/nvcf](https://docs.nvidia.com/nvcf)
+- [docs.nvidia.com/brev](https://docs.nvidia.com/brev)
+- [docs.nvidia.com/aiperf](https://docs.nvidia.com/aiperf)
+- [docs.nvidia.com/nemo/curator](https://docs.nvidia.com/nemo/curator)
+
+Each sub-path is published independently, but end users see a single unified site. The root `docs.nvidia.com` itself is a separate site outside the Fern setup — multi-source covers only the sub-paths. A Fern-published landing page is optional ([example](#example-setup-with-a-homepage-and-three-teams)), and any combination of sub-paths works, including just two.
 
 ## Set up multi-source docs
 
 <Steps>
 
-<Step title="Create a control repository for your theme">
+<Step title="Create a control repository for the global theme">
 
-Pick one repository to own your organization's branding. Define your logo, colors, fonts, layout, and other site-level settings in its `docs.yml`, then export and upload the theme:
+The control repository is a dedicated Fern project whose only job is to house your global theme — the shared logo, colors, fonts, layout, and site-level settings that every team repository will inherit. Define those settings in its `docs.yml`, then export and upload the theme:
 
 ```bash
 fern docs theme export
@@ -37,12 +44,17 @@ See [Global themes](/learn/docs/customization/global-themes) for the full setup 
 
 </Step>
 
-<Step title="Configure each team's repository">
+<Step title="Configure each repository">
 
-In each team's `docs.yml`, set `multi-source: true` on the instance and reference the shared theme. Each repository should declare a unique basepath on the shared domain:
+Each sub-path has its own repository (typically owned by a different team), separate from the control repository in Step 1. In each repository's `docs.yml`:
+
+- Reference the global theme by name: `global-theme: my-org-theme`.
+- Declare an instance with `multi-source: true` and a unique basepath on the shared domain. That basepath must appear at the end of both `url` and `custom-domain`.
+
+For example, here are two repositories on the same shared domain — one at `/product-a`, one at `/product-b`:
 
 <Tabs>
-<Tab title="Team A">
+<Tab title="Product A repo">
 ```yaml docs.yml
 global-theme: my-org-theme
 
@@ -52,7 +64,7 @@ instances:
     multi-source: true
 ```
 </Tab>
-<Tab title="Team B">
+<Tab title="Product B repo">
 ```yaml docs.yml
 global-theme: my-org-theme
 
@@ -64,32 +76,30 @@ instances:
 </Tab>
 </Tabs>
 
-<Warning>
-When `multi-source: true` is set, the `url` and `custom-domain` must share the same basepath. For example, if your `custom-domain` is `docs.example.com/product-a`, your `url` must also end in `/product-a`.
-</Warning>
-
 </Step>
 
 <Step title="Publish from each repository">
 
-Each team publishes independently:
+Each repository publishes independently:
 
 ```bash
 fern generate --docs
 ```
 
-Only the sub-path owned by that repository is updated. Other teams' content is unaffected.
+Only the sub-path owned by that repository is updated. Every other sub-path is unaffected.
 
 </Step>
 
 <Step title="Configure domain settings in the Dashboard">
 
-Open the [Fern Dashboard](https://dashboard.buildwithfern.com) and navigate to the multi-repo settings for your domain. Here you can configure:
+Open the [Fern Dashboard](https://dashboard.buildwithfern.com) and select your top-level domain (e.g., `docs.example.com`) — these settings apply to the whole domain, not per sub-path. In the **Settings** tab, navigate to the **Multi-repo settings** card and configure:
 
-- **Default path** — where users are redirected when they visit the root of your domain (e.g., `docs.example.com` redirects to `docs.example.com/docs`).
+- **Default path** *(optional)* — sets where users land when they visit the bare root of your domain. Set this when a Fern-managed page should serve as the root: for example, if your homepage lives at the `/home` sub-path, set the default path to `/home` so `docs.example.com` redirects to `docs.example.com/home`. Skip this if the root isn't Fern-managed, like NVIDIA's `docs.nvidia.com` (a separate marketing site outside the Fern setup).
 - **Search / Ask AI behavior** — controls how [Ask Fern](/learn/docs/ai-features/ask-fern/overview) and search work across sub-paths.
 
-![Multi-source settings in the Fern Dashboard](./images/multi-repo-settings.png)
+<Frame>
+![Multi-source settings in the Fern Dashboard](./images/multi-repo.png)
+</Frame>
 
 Two search modes are available:
 
@@ -100,9 +110,11 @@ Two search modes are available:
 
 </Steps>
 
-## Example setup with a homepage and three teams
+## Example: Homepage and three sub-paths
 
-A recommended pattern is to use four separate `fern/` projects — one for the homepage and one for each team. The homepage repository links out to each team's sub-path using cards or a product selector.
+This is the alternative shape to NVIDIA's setup: a Fern-managed homepage that serves as the root, with three product teams each on their own sub-path. Use this pattern when the root should be a landing page or product selector instead of pointing somewhere outside Fern.
+
+The setup uses four `fern/` projects — a homepage at `/home` plus one per team at `/seeds`, `/greenhouses`, and `/nursery`. All four share the same global theme (`plantstore-theme`) and set `multi-source: true`; they differ only in their basepath:
 
 <Tabs>
 <Tab title="Homepage">
@@ -110,8 +122,8 @@ A recommended pattern is to use four separate `fern/` projects — one for the h
 global-theme: plantstore-theme
 
 instances:
-  - url: plantstore.docs.buildwithfern.com
-    custom-domain: docs.plantstore.com
+  - url: plantstore.docs.buildwithfern.com/home
+    custom-domain: docs.plantstore.com/home
     multi-source: true
 
 navigation:
@@ -184,8 +196,6 @@ navigation:
 ```
 </Tab>
 </Tabs>
-
-All four repositories share `plantstore-theme` for consistent branding. Each publishes independently — updating the Seeds team's docs has no effect on the homepage or other teams.
 
 ## Properties
 
