@@ -1,0 +1,616 @@
+---
+title: TypeScript 配置
+description: 使用 Fern 配置 TypeScript SDK 生成。自定义命名空间、启用序列化层、管理依赖项和控制文件输出。
+sidebar-title: TypeScript 配置
+---
+
+
+您可以在 `generators.yml` 中自定义 TypeScript SDK 生成器的行为：
+
+```yml {6-9} title="generators.yml"
+groups:
+  ts-sdk:
+    generators:
+      - name: fernapi/fern-typescript-sdk
+        version: <Markdown src="/snippets/version-number-ts.mdx"/>
+        config:
+          namespaceExport: AcmePayments
+          noSerdeLayer: false
+          generateSubpackageExports: true
+```
+
+<ParamField path="allowExtraFields" type="boolean" toc={true}>
+允许对象模式中未定义的字段。这仅适用于序列化。
+
+更多信息请参见 [TypeScript 序列化层](/sdks/generators/typescript/serde-layer)。
+</ParamField>
+
+<ParamField path="defaultTimeoutInSeconds" type="number | 'infinity'" toc={true}>
+网络请求的默认超时时间。在生成的客户端中，可以在请求级别覆盖此设置。
+</ParamField>
+
+<ParamField path="enableInlineTypes" type="boolean" default="true" toc={true}>
+启用后，内联模式将在 TypeScript 中生成为嵌套类型。
+这会产生更清晰的类型名称和更直观的开发者体验。
+
+`enableInlineTypes: false`：
+
+```typescript
+// MyRootType.ts
+import * as MySdk from "...";
+
+export interface MyRootType {
+  foo: MySdk.MyRootTypeFoo;
+}
+
+// MyRootTypeFoo.ts
+import * as MySdk from "...";
+
+export interface MyRootTypeFoo {
+  bar: MySdk.MyRootTypeFooBar;
+}
+
+// MyRootTypeFooBar.ts
+import * as MySdk from "...";
+
+export interface MyRootTypeFooBar {}
+```
+`enableInlineTypes: true`：
+
+```typescript
+// MyRootType.ts
+import * as MySdk from "...";
+
+export interface MyRootType {
+  foo: MyRootType.Foo;
+}
+
+export namespace MyRootType {
+  export interface Foo {
+    bar: Foo.Bar;
+  }
+
+  export namespace Foo {
+    export interface Bar {}
+  }
+}
+```
+
+现在用户可以按如下方式获取深度嵌套的 `Bar` 类型：
+
+```typescript
+import { MyRootType } from MySdk;
+
+const bar: MyRootType.Foo.Bar = {};
+```
+</ParamField>
+
+<ParamField path="extraDependencies" type="object" default="{}" toc={true}>
+
+<Markdown src="/snippets/pro-plan.mdx"/>
+
+  在生成的 `package.json` 中指定额外的依赖项。当您向 SDK 添加需要额外依赖项的自定义代码时，这很有用。
+
+```yaml
+# generators.yml
+config:
+  extraDependencies:
+    lodash: "3.0.2"
+```
+
+</ParamField>
+
+<ParamField path="extraDevDependencies" type="object" default="{}" toc={true}>
+
+<Markdown src="/snippets/pro-plan.mdx"/>
+
+  在生成的 `package.json` 中指定额外的开发依赖项。
+
+```yaml
+# generators.yml
+config:
+  extraDevDependencies:
+    jest: "29.0.7"
+```
+
+<Note>仅在发布到 Github 时适用。</Note>
+</ParamField>
+
+<ParamField path="extraPeerDependencies" type="object" toc={true}>
+在生成的 `package.json` 中指定额外的对等依赖项：
+
+```yaml
+# generators.yml
+config:
+  extraPeerDependencies:
+    react: ">=16.8.0 <19.0.0"
+    "react-dom": ">=16.8.0 <19.0.0"
+```
+</ParamField>
+
+<ParamField path="extraPeerDependenciesMeta" type="object" toc={true}>
+在生成的 `package.json` 中指定额外的对等依赖项元字段：
+
+```yaml
+# generators.yml
+config:
+  extraPeerDependencies:
+    react: ">=16.8.0 <19.0.0"
+    "react-dom": ">=16.8.0 <19.0.0"
+```
+</ParamField>
+
+<ParamField path="fetchSupport" type="'node-fetch' | 'native'" toc={true}>
+选择是否要包含 `node-fetch` 以支持 Node.js 18 之前的版本，或选择 `native` 来使用 Node.js 18 及更高版本中可用的原生 `fetch` API。
+</ParamField>
+
+<ParamField path="fileResponseType" type="'stream' | 'binary-response'" toc={true}>
+更改为二进制 HTTP 响应返回给用户的响应类型：
+
+*    `stream`：返回流。请参见 `streamType`，它控制返回的流类型。
+*    `binary-response`：返回 `BinaryResponse` 类型，允许用户选择如何使用二进制 HTTP 响应。
+以下是用户与 `BinaryResponse` 交互的方式：
+
+```typescript
+const response = await client.getFile(...);
+const stream = response.stream();
+// const arrayBuffer = await response.arrayBuffer();
+// const blob = await response.blob();
+// const bytes = await response.bytes();
+const bodyUsed = response.bodyUsed;
+```
+</ParamField>
+
+<ParamField path="formDataSupport" type="'Node16' | 'Node18'" toc={true}>
+选择是否要支持 Node.js 16 及以上版本（`Node16`），或 Node.js 18 及以上版本（`Node18`）。
+
+*    `Node16` 使用多个依赖项来支持多部分表单，包括 `form-data`、`formdata-node` 和 `form-data-encoder`。
+*    `Node18` 使用原生 FormData API，并接受更广泛的文件上传类型，如 `Buffer`、`File`、`Blob`、`Readable`、`ReadableStream`、`ArrayBuffer` 和 `Uint8Array`
+</ParamField>
+
+<ParamField path="generateSubpackageExports" type="boolean" default="false" toc={true}>
+生成子包导出，允许用户直接导入单个客户端，而不是导入整个 SDK。这使 JavaScript 打包器能够摇树优化未使用的代码，显著减少打包大小。
+
+```typescript
+import { BarClient } from '@acme/sdk/foo/bar';
+// 仅导入 Bar 子包
+
+const client = new BarClient({...});
+```
+
+启用此选项时，子包导出也会在生成的 `README.md` 中记录。
+</ParamField>
+
+<ParamField path="includeContentHeadersOnFileDownloadResponse" type="boolean" toc={true}>
+
+包含二进制响应中的内容类型和内容长度。用户将收到以下类型的对象：
+
+```typescript
+{
+    data: <BINARY_RESPONSE_TYPE>;
+    contentLengthInBytes?: number;
+    contentType?: string;
+}
+```
+
+`<BINARY_RESPONSE_TYPE>` 是 `core.BinaryResponse` 或流，取决于 `fileResponseType` 设置。
+</ParamField>
+
+<ParamField path="includeCredentialsOnCrossOriginRequests" type="boolean" default="false" toc={true}>
+  启用后，在进行网络请求时会将 [`withCredentials`](https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/withCredentials) 设置为 `true`。
+</ParamField>
+
+<ParamField path="includeOtherInUnionTypes" type="boolean" toc={true}>
+</ParamField>
+
+<ParamField path="includeUtilsOnUnionMembers" type="boolean" toc={true}>
+</ParamField>
+
+<ParamField path="inlineFileProperties" type="boolean" default="true" toc={true}>
+将文件上传属性生成为内联请求属性（而不是位置参数）。
+
+`inlineFileProperties: false`：
+
+```typescript
+/**
+  * @param {File | fs.ReadStream} file
+  * @param {File[] | fs.ReadStream[]} fileList
+  * @param {File | fs.ReadStream | undefined} maybeFile
+  * @param {File[] | fs.ReadStream[] | undefined} maybeFileList
+  * @param {Acme.MyRequest} request
+  * @param {Service.RequestOptions} requestOptions - Request-specific configuration.
+  *
+  * @example
+  *     await client.service.post(fs.createReadStream("/path/to/your/file"), [fs.createReadStream("/path/to/your/file")], fs.createReadStream("/path/to/your/file"), [fs.createReadStream("/path/to/your/file")], {})
+  */
+public async post(
+    file: File | fs.ReadStream,
+    fileList: File[] | fs.ReadStream[],
+    maybeFile: File | fs.ReadStream | undefined,
+    maybeFileList: File[] | fs.ReadStream[] | undefined,
+    request: Acme.MyRequest,
+    requestOptions?: Acme.RequestOptions
+): Promise<void> {
+  ...
+}
+```
+
+`inlineFileProperties: true`：
+
+```typescript
+/**
+  * @param {Acme.MyRequest} request
+  * @param {Service.RequestOptions} requestOptions - Request-specific configuration.
+  *
+  * @example
+  *     await client.service.post({
+  *        file: fs.createReadStream("/path/to/your/file"),
+  *        fileList: [fs.createReadStream("/path/to/your/file")]
+  *     })
+  */
+public async post(
+    request: Acme.MyRequest,
+    requestOptions?: Service.RequestOptions
+): Promise<void> {
+  ...
+}
+```
+
+</ParamField>
+
+<ParamField path="inlinePathParameters" type="boolean" default="true" toc={true}>
+将路径参数内联到请求类型中。
+
+`inlinePathParameters: false`：
+
+```typescript
+await service.getFoo("pathParamValue", { id: "SOME_ID" });
+```
+
+`inlinePathParameters: true`：
+```typescript
+await service.getFoo({ pathParamName: "pathParamValue", id: "SOME_ID" });
+```
+
+</ParamField>
+
+<ParamField path="namespaceExport" type="string" toc={true}>
+自定义生成的 SDK 中导出的命名空间和客户端类名。必须使用 PascalCase。
+
+默认情况下，名称来源于 API 定义中定义的组织和 API 名称：
+	
+```typescript
+import { AcmeApi, AcmeApiClient } from "@acme/node";
+```
+
+设置 namespaceExport 会覆盖这些默认名称：
+
+```yaml title="generators.yml"
+config:
+  namespaceExport: AcmePayments
+```
+
+```typescript
+import { AcmePayments, AcmePaymentsClient } from "@acme/node";
+```
+
+</ParamField>
+
+<ParamField path="naming" type="string | object" toc={true}>
+自定义命名空间导出和类/类型名称。接受字符串简写或完整对象。
+
+**字符串简写** — 设置命名空间并通过 PascalCase 派生所有类名：
+
+```yaml title="generators.yml"
+config:
+  naming: acme
+```
+
+```typescript
+import { acme, AcmeClient } from "acme";
+```
+
+**对象形式** — 覆盖单个名称：
+
+```yaml title="generators.yml"
+config:
+  naming:
+    namespace: acme
+    client: AcmeSdkClient
+    error: AcmeSdkError
+    environment: AcmeSdkEnvironment
+```
+
+```typescript
+import { acme, AcmeSdkClient } from "acme";
+```
+
+| 字段 | 类型 | 描述 |
+| --- | --- | --- |
+| `namespace` | `string` | 命名空间导出名称。等同于 `namespaceExport`。 |
+| `client` | `string` | 客户端类名称（默认：`${PascalCase(namespace)}Client`）。 |
+| `error` | `string` | 通用 API 错误类名称（默认：`${PascalCase(namespace)}Error`）。 |
+| `timeoutError` | `string` | 超时错误类名称（默认：`${PascalCase(namespace)}TimeoutError`）。 |
+| `environment` | `string` | 环境枚举名称（默认：`${PascalCase(namespace)}Environment`）。 |
+| `environmentUrls` | `string` | 环境 URL 类型名称（默认：`${PascalCase(namespace)}EnvironmentUrls`）。 |
+| `version` | `string` | 版本枚举名称（默认：`${PascalCase(namespace)}Version`）。 |
+
+`namespaceExport` 仍然支持向后兼容，但 `naming.namespace` 优先级更高。
+</ParamField>
+
+<ParamField path="neverThrowErrors" type="boolean" default="false" toc={true}>
+  启用后，当从服务器接收到非 200 响应时，客户端不会抛出错误。相反，响应会被包装在 [`ApiResponse`](https://github.com/fern-api/fern/blob/main/seed/ts-sdk/alias/src/core/fetcher/APIResponse.ts) 中。
+
+  ```typescript
+  const response = await client.callEndpoint(...);
+  if (response.ok) {
+    console.log(response.body)
+  } else {
+    console.error(respons.error)
+  }
+  ```
+</ParamField>
+
+<ParamField path="noOptionalProperties" type="boolean" default="false" toc={true}>
+  默认情况下，Fern 的 `optional<>` 属性将转换为可选的 TypeScript 属性：
+
+	```yaml {4}
+	Person:
+	  properties:
+	    name: string
+	    age: optional<integer>
+	```
+
+	```typescript {3}
+	interface Person {
+	  name: string;
+	  age?: number;
+	}
+	```
+
+	启用 `noOptionalProperties` 后，生成的属性永远不是可选的。相反，类型使用 `| undefined` 生成。因此，用户必须显式地将属性设置为值或 `undefined`。
+
+	```typescript {3}
+	interface Person {
+	  name: string;
+	  age: number | undefined;
+	}
+	```
+</ParamField>
+
+<ParamField path="noSerdeLayer" type="boolean" default="true" toc={true}>
+控制是否为序列化/反序列化启用序列化层。
+
+当 `noSerdeLayer: false` 时，生成的客户端包含自定义序列化代码，将属性名称转换为 camelCase，在运行时验证请求/响应，并支持复杂类型。
+
+关于何时启用此选项的详细指导，请参见 [TypeScript 序列化层](/sdks/generators/typescript/serde-layer)。
+</ParamField>
+
+<ParamField path="offsetSemantics" type="'item-index' | 'page-index'" default="item-index" toc={true}>
+控制如何为[自动分页](/learn/sdks/deep-dives/auto-pagination)端点解释偏移参数。
+
+*    `item-index`：偏移计算单个项目（例如，偏移 20 跳过前 20 个项目）。
+*    `page-index`：偏移计算页面（例如，偏移 3 跳到第 3 页）。
+</ParamField>
+
+<ParamField path="omitFernHeaders" type="boolean" default="false" toc={true}>
+启用后，生成的 SDK 在 HTTP 请求中省略 `X-Fern-Language`、`X-Fern-SDK-Name` 和 `X-Fern-SDK-Version` 标头。默认情况下会包含这些标头，以帮助 API 提供商识别 SDK 流量。
+</ParamField>
+
+<ParamField path="outputSourceFiles" type="boolean" default="true" toc={true}>
+  控制生成文件的输出格式：
+  - **当为 `true`（默认）时**：输出原始 TypeScript `.ts` 文件
+  - **当为 `false` 时**：运行 TypeScript 编译器并输出编译的 `.js` 文件和 `.d.ts` 声明文件
+
+  <Note>此选项仅在使用本地文件系统输出时适用。当发布到 GitHub 或 npm 时，此设置被忽略，文件始终会被编译。</Note>
+</ParamField>
+
+<ParamField path="packageJson" type="object" toc={true}>
+当您在 `packageJson` 中指定对象时，它将被合并到 `package.json` 文件中。这是自定义 SDK package.json 的推荐方式。
+
+```yaml
+# generators.yml
+config:
+  packageJson:
+    description: The SDK for Acme Corp's API.
+    author:
+      name: Acme Corp
+      url: https://developer.acmecorp.com
+      email: developers@acmecorp.com
+    bugs:
+      url: https://developer.acmecorp.com
+      email: developers@acmecorp.com
+```
+
+您也可以使用 `packageJson.exports` 来注册自定义子路径导出（例如 `import { myHelper } from "@acme/sdk/helper"`）。生成器只为您的 API 定义自动生成导出条目，因此需要手动添加自定义文件——否则 Node.js 无法解析子路径导入。有关详细信息，请参见[添加自定义代码](/sdks/generators/typescript/custom-code)。
+</ParamField>
+
+<ParamField path="package-name" type="string" default="null" required={false} toc={true}>
+
+指定用户将从中导入生成的客户端的 TypeScript 包名称。
+  
+例如，设置 `package-name: "my_custom_package"` 使用户能够使用
+`my_custom_package import Client` 来导入您的客户端。
+
+</ParamField>
+
+<ParamField path="packagePath" type="string" toc={true}>
+指定生成的 SDK 源文件应放置的路径。
+</ParamField>
+
+<ParamField path="publishToJsr" type="boolean" toc={true}>
+将您的 SDK 发布到 [JSR](https://jsr.io/)。启用后，生成器将生成 `jsr.json` 以及用于发布到 JSR 的 GitHub 工作流。
+</ParamField>
+
+<ParamField path="retainOriginalCasing" type="boolean" default="false" toc={true}>
+  启用后，生成代码中的属性名称保留其在 API 定义中的原始大小写，而不是转换为 camelCase。
+
+	```yaml
+	# generators.yml
+	config:
+	  retainOriginalCasing: true
+	```
+
+	**使用 OpenAPI 输入的示例：**
+	```yaml {7, 9}
+	# OpenAPI schema
+	components:
+	  schemas:
+	    User:
+	      type: object
+	      properties:
+	        user_id:
+	          type: string
+	        display_name:
+	          type: string
+	```
+
+	使用 `retainOriginalCasing: true` 生成的 TypeScript：
+	```typescript {2-3}
+	export interface User {
+	  user_id: string;
+	  display_name: string;
+	}
+	```
+
+	使用默认设置（`retainOriginalCasing: false`）生成的 TypeScript：
+	```typescript {2-3}
+	export interface User {
+	  userId: string;
+	  displayName: string;
+	}
+	```
+
+</ParamField>
+
+<ParamField path="generateWebSocketClients" type="boolean" toc={true}>
+	从您的 AsyncAPI 规范生成 WebSocket 客户端。
+
+	之前名为 `shouldGenerateWebsocketClients`，该名称仍作为已弃用的别名被接受。
+</ParamField>
+
+<ParamField path="skipResponseValidation" type="boolean" default="false" toc={true}>
+ 默认情况下，如果服务器响应与预期类型不匹配（基于 Fern 定义中响应的建模方式），客户端将抛出错误。
+
+如果 `skipResponseValidation` 设置为 `true`，则客户端永远不会因为响应格式错误而抛出错误。相反，客户端将使用 `console.warn` 记录问题并返回数据（转换为预期的响应类型）。
+
+<Warning>响应验证仅在启用序列化层（`noSerdeLayer: false`）时发生。序列化层默认被禁用（`noSerdeLayer: true`）。</Warning>
+
+</ParamField>
+
+<ParamField path="streamType" type="'wrapper' | 'web'" toc={true}>
+更改生成的 SDK 中使用的流类型。
+
+*    `wrapper`：流使用具有多个底层实现的包装器，以支持 Node.js 18 之前的版本。
+*    `web`：流使用 Web 标准 `ReadableStream`。
+
+默认值是 `web`。
+</ParamField>
+
+<ParamField path="treatUnknownAsAny" type="boolean" default="false" toc={true}>
+  启用 `treatUnknownAsAny` 后，[来自 Fern 的未知类型将在 TypeScript 中使用 `any` 而不是 `unknown` 类型生成](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-0.html#new-unknown-top-type)。
+</ParamField>
+
+<ParamField path="useBigInt" type="boolean" default="false" toc={true}>
+当 `useBigInt` 设置为 `true` 时，将使用自定义的 JSON 序列化器和反序列化器来保持 `bigint` 的精度，而不是使用原生的 `JSON.stringify` 和 `JSON.parse` 函数，后者会将 `bigint` 转换为数字而丢失精度。
+
+当将 `useBigInt` 与我们的序列化层（`noSerdeLayer: false`）结合使用时，在 OpenAPI/Fern 规范中标记为 `long` 和 `bigint` 的请求和响应属性都将始终是 `bigint`。
+但是，当禁用序列化层（`noSerdeLayer: true`）时，它们将被类型化为 `number | bigint`。更多信息请参见 [TypeScript 序列化层](/sdks/generators/typescript/serde-layer)。
+
+以下是结合 `useBigInt` 和 `noSerdeLayer` 与下面的 Fern 定义时生成的类型的概述：
+
+*Fern 定义*：
+
+```yaml
+types:
+  ObjectWithOptionalField:
+    properties:
+      longProp: long
+      bigIntProp: bigint
+```
+
+*TypeScript 输出*：
+
+```typescript
+// useBigInt: true
+// noSerdeLayer: false
+interface ObjectWithLongAndBigInt {
+  longProp: bigint;
+  bigIntProp: bigint;
+}
+
+// useBigInt: true
+// noSerdeLayer: true
+interface ObjectWithLongAndBigInt {
+  longProp: bigint | number;
+  bigIntProp: bigint | number;
+}
+
+// useBigInt: false
+// noSerdeLayer: false
+interface ObjectWithLongAndBigInt {
+  longProp: number;
+  bigIntProp: string;
+}
+
+// useBigInt: false
+// noSerdeLayer: true
+interface ObjectWithLongAndBigInt {
+  longProp: number;
+  bigIntProp: string;
+}
+```
+</ParamField>
+
+<ParamField path="useBrandedStringAliases" type="boolean" default="false" toc={true}>
+
+	当 `useBrandedStringAliases` 被禁用（默认值）时，字符串别名生成为
+	普通的 TypeScript 别名：
+
+	```typescript
+	// generated code
+
+	export type MyString = string;
+
+	export type OtherString = string;
+	```
+  启用 `useBrandedStringAliases` 后，字符串别名生成为品牌字符串。这使每个别名感觉像自己的类型，并改善了编译时安全性。
+
+	```yaml
+	# fern definition
+
+	types:
+		MyString: string
+		OtherString: string
+	```
+
+	```typescript
+	// generated code
+
+	export type MyString = string & { __MyString: void };
+	export const MyString = (value: string): MyString => value as MyString;
+
+	export type OtherString = string & { __OtherString: void };
+	export const OtherString = (value: string): OtherString => value as OtherString;
+	```
+
+	```typescript
+	// consuming the generated type
+
+	function printMyString(s: MyString): void {
+	  console.log("MyString: " + s);
+	}
+
+	// doesn't compile, "foo" is not assignable to MyString
+	printMyString("foo");
+
+	const otherString = OtherString("other-string");
+	// doesn't compile, otherString is not assignable to MyString
+	printMyString(otherString);
+
+	// compiles
+	const myString = MyString("my-string");
+	printMyString(myString);
+	```
+
+</ParamField>

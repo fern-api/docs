@@ -1,0 +1,148 @@
+---
+title: 添加自定义代码
+headline: 添加自定义代码 (TypeScript)
+description: 学习如何使用 Fern 向您的 TypeScript SDK 添加自定义逻辑、方法和依赖项。轻松扩展生成的客户端。
+sidebar-title: 添加自定义代码
+---
+
+本页面介绍如何向您的 TypeScript SDK 添加自定义逻辑、方法和依赖项。
+
+<Markdown src="/products/sdks/snippets/custom-code-callout.mdx"/>
+
+## 添加自定义逻辑
+
+开始添加自定义代码：
+
+<Steps>
+
+  ### 创建新文件并添加您的自定义逻辑
+
+  ```typescript title="src/helper.ts"
+  export function myHelper(): void {
+      return console.log("Hello world!");
+  }
+  ```
+
+  ### 将您的文件添加到 `.fernignore`
+
+  ```yaml {3} title=".fernignore"
+  # 指定不应被 Fern 修改的文件
+
+  src/helper.ts
+  ```
+
+  ### 使用 helper 函数
+
+  现在您的用户可以通过从 SDK 导入来使用 helper 函数。
+
+  ```typescript
+  import { myHelper } from "sdk/helper";
+
+  myHelper();
+  ```
+
+</Steps>
+
+<Accordion title="高级：自定义导入路径" toc={true}>
+
+默认情况下，TypeScript 生成器只为您的 API 定义在 `package.json` 中自动生成 `exports` 条目。如果您希望消费者通过专用子路径导入您的自定义文件（例如 `import { myHelper } from "@acme/sdk/helper"`），您必须在 `generators.yml` 中使用 [`packageJson.exports`](/sdks/generators/typescript/configuration#packagejson) 手动注册：
+
+```yaml {5-14} title="generators.yml"
+- name: fernapi/fern-typescript-sdk
+  version: <Markdown src="/snippets/version-number-ts.mdx"/>
+  config:
+    packageJson:
+      exports:
+        "./helper": # 消费者导入路径 — 不是源文件路径
+          types: "./dist/cjs/helper.d.ts"
+          import:
+            types: "./dist/esm/helper.d.mts"
+            default: "./dist/esm/helper.mjs"
+          require:
+            types: "./dist/cjs/helper.d.ts"
+            default: "./dist/cjs/helper.js"
+```
+
+导出键（例如，`"./helper"`）确定您的用户将使用的导入路径，无需与源文件路径匹配。这些条目会合并到生成的 `exports` 中，因此它们在重新生成时会持久存在。由于 Node.js [强制执行 `exports` 映射](https://nodejs.org/api/packages.html#package-entry-points)，在您在此处添加自定义文件之前，无法通过子路径导入它们。
+
+</Accordion>
+
+## 自定义 SDK 方法
+
+<Markdown src="/products/sdks/snippets/custom-sdk-methods-intro.mdx"/>
+
+<Note>
+  查看 Flatfile 在其 [TypeScript SDK](https://github.com/FlatFilers/flatfile-node) 中使用此流程的示例
+</Note>
+
+<Steps>
+  ### 导入并扩展生成的客户端
+
+  首先，从 `../client` 导入 Fern 生成的客户端并将其别名为 `FernClient`。
+  然后，扩展 `FernClient` 并添加您想要的任何方法。
+
+  ```typescript title="src/wrapper/MyClient.ts"
+  import { MyClient as FernClient } from "../client"; // 为 Fern 生成的客户端设置别名
+
+  export class MyClient extends FernClient { // 扩展 Fern 生成的客户端
+
+    public myHelper(): void {
+      console.log("Hello world!");
+    }
+
+  }
+  ```
+
+  <Note>
+  查看 Flatfile 在其 [FlatfileClient](https://github.com/FlatFilers/flatfile-node/blob/main/src/wrapper/FlatfileClient.ts) 中的示例
+</Note>
+
+  ### 导出扩展的客户端
+
+  更新您的 `index.ts` 文件以导出**扩展的客户端**而不是生成的客户端。
+
+    ```typescript title="src/index.ts"
+    export { MyClient } from "src/wrapper/MyClient"; // 而不是 "src/client"
+    ```
+
+  <Note>
+  查看 Flatfile 的示例 [index.ts](https://github.com/FlatFilers/flatfile-node/blob/main/src/index.ts)
+</Note>
+
+  ### 更新 `.fernignore`
+
+  将 `wrapper` 目录和 `index.ts` 都添加到 `.fernignore`。
+
+    ```diff title=".fernignore"
+    + src/wrapper
+    + src/index.ts
+    ```
+
+    <Note>
+  查看 Flatfile 的示例 [.fernignore](https://github.com/FlatFilers/flatfile-node/blob/main/.fernignore)
+</Note>
+
+  ### 使用方法
+
+  <Markdown src="/products/sdks/snippets/consume-method.mdx"/>
+
+  ```typescript
+  client.myHelper()
+  ```
+</Steps>
+
+## 自定义依赖项
+
+<Markdown src="/snippets/pro-plan.mdx"/>
+
+要添加您的自定义代码所需的包，请在您的 `generators.yml` 中使用 [`extraDependencies`](/sdks/generators/typescript/configuration#extraDependencies) 和 [`extraDevDependencies`](/sdks/generators/typescript/configuration#extraDevDependencies) 选项。
+
+  ```yaml {4-7} title="generators.yml"
+  - name: fernapi/fern-typescript-sdk
+    version: <Markdown src="/snippets/version-number-ts.mdx"/>
+    config:
+      extraDependencies:
+        lodash-es: '1.0.0'
+      extraDevDependencies:
+        "@types/lodash-es": '1.0.0'
+  ```

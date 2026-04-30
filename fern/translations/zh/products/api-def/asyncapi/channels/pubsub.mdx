@@ -1,0 +1,106 @@
+---
+title: 发布/订阅操作
+description: 为事件驱动的 API 定义 AsyncAPI 发布/订阅操作。包含消息示例和双向通道的分步教程。
+sidebar-title: 发布/订阅操作
+---
+
+AsyncAPI 中的操作定义在 `operations` 键下，通道定义在 `channels` 键下。以下是定义发布和订阅操作的示例：
+
+```yml title="asyncapi.yml" maxLines=0 {2-22}
+channels:
+  user/notifications:
+    address: user/notifications
+    messages:
+      UserNotification:
+        $ref: '#/components/messages/UserNotification'
+
+operations:
+  onUserNotification:
+    action: receive
+    channel:
+      $ref: '#/channels/user~1notifications'
+    summary: Receive user notifications
+    description: Subscribe to user notification events
+  sendUserNotification:
+    action: send
+    channel:
+      $ref: '#/channels/user~1notifications'
+    summary: Send user notification
+    description: Publish a user notification event
+```
+
+## 消息示例
+
+您可以通过在消息定义中使用 `examples` 键来提供消息示例：
+
+```yaml title="asyncapi.yml" {8-15}
+components:
+  messages:
+    UserNotification:
+      name: UserNotification
+      title: User Notification
+      summary: Notification sent to a user
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/Notification'
+      examples:
+        - name: EmailNotification
+          summary: Example email notification
+          payload:
+            userId: "123e4567-e89b-12d3-a456-426614174000"
+            type: "email"
+            message: "Welcome to our service!"
+            priority: "medium"
+```
+
+## 发布操作
+
+发布操作表示您的服务发送到通道的消息：
+
+```yml title="asyncapi.yml" {2-8}
+operations:
+  publishOrderStatus:
+    action: send
+    channel:
+      $ref: '#/channels/order~1status'
+    summary: Publish order status update
+    description: Send order status updates to subscribers
+    message:
+      $ref: '#/components/messages/OrderStatus'
+```
+
+## 订阅操作
+
+订阅操作表示您的服务从通道接收的消息：
+
+```yml title="asyncapi.yml" {2-8}
+operations:
+  subscribeToUserSignups:
+    action: receive
+    channel:
+      $ref: '#/channels/user~1signup'
+    summary: Subscribe to user signups
+    description: Receive notifications when users sign up
+    message:
+      $ref: '#/components/messages/UserSignup'
+```
+
+## 双向通信
+
+您可以为同一个通道定义发布和订阅操作，以启用双向通信：
+
+```yml title="asyncapi.yml" {2-15}
+operations:
+  sendChatMessage:
+    action: send
+    channel:
+      $ref: '#/channels/chat~1room'
+    summary: Send chat message
+    description: Send a message to a chat room
+  receiveChatMessage:
+    action: receive
+    channel:
+      $ref: '#/channels/chat~1room'
+    summary: Receive chat message
+    description: Receive messages from a chat room
+```

@@ -1,0 +1,219 @@
+---
+title: .NET 兼容性
+description: 了解 Fern 生成的 SDK 支持的 .NET Framework 版本（net462、net472、net48）和 Unity 兼容性。
+sidebar-title: .NET 兼容性
+---
+
+Fern 生成的 .NET SDK 支持现代 .NET 版本、.NET Framework 版本和 Unity。
+
+由于这些 SDK 使用现代 C# 特性构建，即使在针对较旧的 .NET Framework 目标时，您也需要以下条件：
+- 现代编译器（Visual Studio 2022 或 .NET SDK）
+- 相应的 .NET Framework 开发者包或引用程序集
+
+## 支持的框架
+
+Fern .NET SDK 支持[所有官方支持的 .NET 版本](https://dotnet.microsoft.com/en-us/platform/support/policy/dotnet-framework)，除了 net35。
+
+| 框架 | 目标框架标识符 (TFM) |
+|--------|----------|
+| .NET 9 | net9.0 |
+| .NET 8 | net8.0 |
+| .NET Framework 4.8.1 | net481 |
+| .NET Framework 4.8 | net48 |
+| .NET Framework 4.7.2 | net472 |
+| .NET Framework 4.7.1 | net471 |
+| .NET Framework 4.7 | net47 |
+| .NET Framework 4.6.2 | net462 |
+
+<Note>
+  C# 语言版本由您的编译器决定，而目标框架决定可用的运行时和基类库 API。Fern SDK 使用现代 C# 特性，但编译为较旧的框架版本。
+</Note>
+
+<AccordionGroup>
+<Accordion title="IDE 兼容性">
+所有主要 IDE 在针对 `net462`、`net472` 和 `net48` 版本时都支持 Fern 生成的 SDK：
+
+- **Visual Studio 2022**（推荐）- 开箱即用。在项目中设置 `<LangVersion>` 并安装相应的[开发者包](#developer-packs)。
+- **Visual Studio 2019** - 原生支持 C# 9。对于更新的 C# 版本，添加 `Microsoft.Net.Compilers.Toolset` 包。
+- **Rider** - 使用 Roslyn。设置 `<LangVersion>` 并确保引用程序集可用。
+- **VS Code** - 通过 OmniSharp 和 .NET SDK 构建工作。
+- **Unity** - 使用 Unity 自己的 C# 编译器。请参阅[在 Unity 中使用 SDK](#using-sdks-with-unity)。
+
+<Info>
+您可以通过 `Microsoft.Net.Compilers.Toolset` 包在任何环境中"自带编译器"。
+</Info>
+</Accordion>
+<Accordion title="编译器兼容性">
+
+使用 Visual Studio 2022+ 或 .NET SDK 附带的 **Roslyn 编译器**（`csc`）。通过 `<LangVersion>` 设置您的 C# 版本为 `latest`、`preview` 或特定版本（最低 `9`）。
+
+Fern 的 .NET SDK 不支持传统的 Mono 编译器（`mcs`、`gmcs`）或 Roslyn 之前的 `csc.exe` 编译器。即使在 Mono 上构建也请使用 Roslyn。
+
+<Info title="在 Mono 上构建">
+
+使用 .NET SDK（`dotnet`）与 `Microsoft.NETFramework.ReferenceAssemblies` 包在非 Windows 系统上提供 `net48` 引用。通过 `dotnet build` 或 Mono 的 MSBuild 使用 Roslyn。
+
+```bash title="macOS/Linux"
+dotnet build -c Release
+```
+</Info>
+</Accordion>
+<Accordion title="开发者包">
+
+- [.NET Framework 4.6.2 开发者包](https://dotnet.microsoft.com/en-us/download/dotnet-framework/net462)
+- [.NET Framework 4.7.2 开发者包](https://dotnet.microsoft.com/en-us/download/dotnet-framework/net472)
+- [.NET Framework 4.8 开发者包](https://dotnet.microsoft.com/en-us/download/dotnet-framework/net48)
+</Accordion>
+</AccordionGroup>
+
+## 在 Unity 中使用 SDK
+
+Unity 控制自己的 C# 编译器和 .NET 配置文件，这会影响您如何使用 Fern 的 .NET SDK。
+
+<AccordionGroup>
+<Accordion title="C# 语言版本">
+Unity 使用 Roslyn 编译项目，通常支持 C# 9（因 Unity 版本而异）。您无法通过更改包来强制 Unity 使用更新的 C# 编译器，因为 Unity 在编辑器内部控制编译器。
+</Accordion>
+<Accordion title="API 兼容性级别">
+在 Unity 中配置：`Edit → Project Settings → Player → Other Settings → Api Compatibility Level`
+
+- **.NET Standard 2.1**（推荐用于跨平台插件）
+- **.NET Framework 4.x**（Unity 的"4.x 等效"配置文件）
+
+</Accordion>
+<Accordion title="必需的程序集">
+
+Unity 不支持 NuGet 包，因此您必须手动下载这些程序集并将其添加到您的 Unity 项目：
+
+| 程序集 | NuGet 包 |
+|----------|---------------|
+| Microsoft.Bcl.AsyncInterfaces | [10.0.0-preview.6.25358.103](https://www.nuget.org/packages/Microsoft.Bcl.AsyncInterfaces/10.0.0-preview.6.25358.103) |
+| OneOf | [3.0.271](https://www.nuget.org/packages/OneOf/3.0.271) |
+| OneOf.Extended | [3.0.271](https://www.nuget.org/packages/OneOf.Extended/3.0.271) |
+| System.Buffers | [4.6.1](https://www.nuget.org/packages/System.Buffers/4.6.1) |
+| System.IO.Pipelines | [10.0.0-preview.6.25358.103](https://www.nuget.org/packages/System.IO.Pipelines/10.0.0-preview.6.25358.103) |
+| System.Memory | [4.6.3](https://www.nuget.org/packages/System.Memory/4.6.3) |
+| System.Runtime.CompilerServices.Unsafe | [6.1.2](https://www.nuget.org/packages/System.Runtime.CompilerServices.Unsafe/6.1.2) |
+| System.Text.Encodings.Web | [10.0.0-preview.6.25358.103](https://www.nuget.org/packages/System.Text.Encodings.Web/10.0.0-preview.6.25358.103) |
+| System.Text.Json | [10.0.0-preview.6.25358.103](https://www.nuget.org/packages/System.Text.Json/10.0.0-preview.6.25358.103) |
+| System.Threading.Tasks.Extensions | [4.6.3](https://www.nuget.org/packages/System.Threading.Tasks.Extensions/4.6.3) |
+| portable.system.datetimeonly | [9.0.0](https://www.nuget.org/packages/portable.system.datetimeonly/9.0.0) |
+
+</Accordion>
+</AccordionGroup>
+
+## 项目配置示例
+
+尽可能使用 SDK 样式项目，因为它们提供现代编译器和更简单的多目标支持。如果您有经典项目格式，请考虑转换为 SDK 样式。[传统项目部分](#legacy-projects)涵盖了无法转换的传统设置。
+
+<Note title="在 macOS/Linux 上构建">
+  在 macOS/Linux 上为 `net48` 构建时，您不会有 Windows 目标包。添加引用程序集包：
+
+  ```xml title="YourProject.csproj"
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+  ```
+  这提供了 `net48` 引用程序集，以便 Roslyn 可以在任何平台上为 `net48` 编译。您仍然需要 Mono 或 Wine 来执行结果。
+</Note>
+
+<AccordionGroup>
+<Accordion title="SDK 样式项目（推荐）">
+
+使用现代 C# 针对 `net48`
+
+<Steps>
+<Step title="配置您的项目">
+
+<Info title="前提条件（Windows）">
+    安装 [.NET Framework 4.8 开发者包](#developer-packs)，以便编译器可以使用 `net48` 引用程序集。
+</Info>
+
+```xml title="YourProject.csproj"
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- 目标 .NET Framework 4.8 -->
+    <TargetFramework>net48</TargetFramework>
+
+    <!-- 使用现代 C# 版本 -->
+    <LangVersion>latest</LangVersion>
+
+    <!-- 可选，但推荐用于更好的警告 -->
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+</Project>
+```
+</Step>
+
+<Step title="构建您的项目">
+```bash
+dotnet build -c Release
+```
+</Step>
+
+<Step title="多目标（可选）">
+要支持多个框架，使用 `<TargetFrameworks>`：
+{/* <!-- vale off --> */}
+```xml title="YourProject.csproj"
+<TargetFrameworks>net48;net8.0</TargetFrameworks>
+```
+{/* <!-- vale on --> */}
+</Step>
+</Steps>
+</Accordion>
+<Accordion title="传统项目">
+
+对于较旧的 MSBuild/Visual Studio 版本、Visual Studio 2019 或传统的 `packages.config` 设置，添加现代 Roslyn 工具集并针对旧框架。
+
+<Steps>
+<Step title="安装目标包">
+   安装相应的 [.NET Framework 开发者包](#developer-packs)，以便 Visual Studio 可以找到引用程序集。
+</Step>
+
+<Step title="设置语言版本">
+   ```xml title="YourProject.csproj"
+   <PropertyGroup>
+  <!-- 解锁现代 C# -->
+  <LangVersion>latest</LangVersion>
+</PropertyGroup>
+   ```
+   或使用特定版本：`9`、`10`、`11`、`12` 或 `preview`。
+</Step>
+<Step title="添加现代编译器">
+
+   ```xml title="YourProject.csproj"
+    <ItemGroup>
+    <PackageReference Include="Microsoft.Net.Compilers.Toolset" Version="x.y.z">
+        <!-- 保持私有： -->
+        <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    </ItemGroup>
+   ```
+   这确保您的构建使用现代的 `csc.exe`，即使您的 IDE/MSBuild 较旧。
+
+</Step>
+</Steps>
+</Accordion>
+</AccordionGroup>
+
+## 故障排除
+
+<AccordionGroup>
+<Accordion title="找不到类型或命名空间 IsExternalInit">
+  在您的项目中添加一个小垫片或引用一个辅助包。
+</Accordion>
+<Accordion title="找不到 .NETFramework,Version=v4.8 的引用程序集">
+  - Windows：安装 [.NET Framework 4.8 开发者包](#developer-packs)。
+  - 跨平台/CI：将 `Microsoft.NETFramework.ReferenceAssemblies` 添加到项目中（作为 `PrivateAssets=all`）。
+</Accordion>
+<Accordion title="VS 2019 无法解析较新的语法">
+  将 `Microsoft.Net.Compilers.Toolset` 添加到项目中，或迁移到 VS 2022+。
+</Accordion>
+<Accordion title="CS0619：不支持具有必需成员的类型的构造函数">
+这个错误发生在较旧的 Visual Studio 版本中使用 `required` 关键字时。请按照[传统项目](#legacy-projects)的说明添加现代编译器。
+
+<Note>
+  某些版本的 Visual Studio 可能在 IDE 中显示此错误，但在使用包提供的编译器时成功编译项目。
+</Note>
+</Accordion>
+</AccordionGroup>

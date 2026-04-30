@@ -1,0 +1,270 @@
+---
+title: 发布到 crates.io
+description: 如何将 Fern Rust SDK 发布到 crates.io。
+sidebar-title: 发布到 crates.io
+---
+
+
+将您的公共 Fern Rust SDK 发布到 [crates.io
+注册表](https://crates.io/)。按照本页面的步骤操作后，
+您将在 crates.io 上发布一个版本化的 crate。
+
+<Info>
+	本页面假设您已经：
+
+	* 初始化了 `fern` 文件夹，为您的 Rust SDK 创建了 GitHub 仓库，并在 `generators.yml` 中配置了 Rust 生成器组。请参阅 [生成 SDK (Rust)](/learn/sdks/generators/rust/quickstart)。
+</Info>
+
+<Frame>
+  <img src="assets/published-crate.png" alt="在 crates.io 上发布的版本化包" />
+</Frame>
+
+## 配置 `generators.yml`
+
+<Steps>
+
+  <Step title="配置 `output` 位置">
+
+  在 `generators.yml` 中将输出位置从 `local-file-system`（默认值）更改为 `crates`，以指示 Fern 应该直接将您的 crate 发布到 crates.io 注册表：
+
+    ```yaml title="generators.yml" {6-7}
+    groups: 
+      rust-sdk:
+        generators:
+          - name: fernapi/fern-rust-sdk
+            version: <Markdown src="/snippets/version-number-rust.mdx"/>
+            output:
+              location: crates
+
+    ```
+  </Step>
+
+  <Step title="添加唯一的 crate 名称">
+
+     您的 crate 名称在 crates.io 注册表中必须是唯一的，否则发布 SDK 将失败。如果您还没有更新 crate 名称，请立即更新：
+
+
+```yaml title="generators.yml" {8}
+groups: 
+  rust-sdk:
+    generators:
+      - name: fernapi/fern-rust-sdk
+        version: <Markdown src="/snippets/version-number-rust.mdx"/>
+        output:
+          location: crates
+          package-name: your-crate-name
+```
+    
+  </Step>
+
+  <Step title="配置 `clientClassName`">
+
+     `clientClassName` 选项控制生成的客户端结构体名称。这是用户实例化您的 SDK 客户端时将使用的名称。
+
+
+```yaml title="generators.yml" {9-10}
+groups: 
+  rust-sdk:
+    generators:
+      - name: fernapi/fern-rust-sdk
+        version: <Markdown src="/snippets/version-number-rust.mdx"/>
+        output:
+          location: crates
+          package-name: your-crate-name
+        config:
+          clientClassName: YourClientName # 必须使用帕斯卡命名法
+```
+    
+  </Step>
+
+  <Step title="添加仓库位置">
+
+  在 `generators.yml` 中添加您的 GitHub 仓库路径： 
+
+```yaml title="generators.yml" {11-12}
+groups: 
+  rust-sdk:
+    generators:
+      - name: fernapi/fern-rust-sdk
+        version: <Markdown src="/snippets/version-number-rust.mdx"/>
+        output:
+          location: crates
+          package-name: your-crate-name
+        config:
+          clientClassName: YourClientName
+        github: 
+          repository: your-org/your-rust-sdk
+```
+  
+  </Step>
+</Steps>
+
+## 设置 crates.io 发布身份验证
+
+<Steps>
+
+  <Step title="登录 crates.io">
+
+  使用您的 GitHub 账户登录 [crates.io](https://crates.io/)。
+
+  </Step>
+
+  <Step title="导航到账户设置">
+
+  1. 点击右上角的头像。
+  1. 选择 **Account Settings**。
+  1. 进入 **API Tokens** 部分。
+
+  </Step>
+
+  <Step title="创建新的 API token">
+
+  1. 点击 **New Token**。
+  1. 为您的 token 命名（例如，"Fern SDK Publishing"）。
+  1. 在 **Scopes** 下，选择 **publish-new** 来发布新 crate，选择 **publish-update** 来更新现有 crate。
+  1. 点击 **Generate Token**。
+
+  <Frame>
+  <img src="assets/api-token.png" alt="在 crates.io 上创建新的 API token" />
+</Frame>
+
+  <Warning>请立即保存您的新 token。离开页面后将不会再次显示。</Warning>
+
+  </Step>
+
+  <Step title="配置 crates.io 身份验证 token">
+
+  在 `generators.yml` 中添加 `token: ${CRATES_IO_API_KEY}`，告诉 Fern 在发布到 crates.io 时使用 `CRATES_IO_API_KEY` 环境变量进行身份验证。
+
+```yaml title="generators.yml" {9}
+groups: 
+  rust-sdk:
+    generators:
+      - name: fernapi/fern-rust-sdk
+        version: <Markdown src="/snippets/version-number-rust.mdx"/>
+        output:
+          location: crates
+          package-name: your-crate-name
+          token: ${CRATES_IO_API_KEY}
+        config:
+          clientClassName: YourClientName
+        github: 
+          repository: your-org/your-rust-sdk
+```
+  </Step>
+
+</Steps>
+
+
+## 发布您的 SDK
+
+决定您希望如何将 SDK 发布到 crates.io。您可以使用 GitHub 工作流进行自动化发布，或通过 CLI 直接发布。
+
+<AccordionGroup>
+<Accordion title="通过 GitHub 工作流发布（推荐）">
+
+通过 [GitHub Actions](https://docs.github.com/en/actions/get-started/quickstart) 设置发布工作流，这样您就可以直接从源仓库触发新的 SDK 发布。 
+
+<Steps>
+
+<Step title="设置身份验证">
+
+在 GitHub 中打开您的源仓库。点击仓库中的 **Settings** 选项卡。然后，在 **Security** 部分下，打开 **Secrets and variables** > **Actions**。 
+
+您也可以使用 URL `https://github.com/<your-repo>/settings/secrets/actions`。
+
+</Step>
+<Step title="为您的 crates.io token 添加密钥">
+
+1. 选择 **New repository secret**。 
+1. 将您的密钥命名为 `CRATES_IO_API_KEY`。
+1. 添加您在上面生成的对应 token。
+1. 点击 **Add secret**。 
+
+</Step>
+<Step title="为您的 Fern token 添加密钥">
+
+1. 选择 **New repository secret**。 
+1. 将您的密钥命名为 `FERN_TOKEN`。
+1. 添加您的 Fern token。如果您还没有，可以通过
+  运行 `fern token` 来生成一个。默认情况下，`fern_token` 是为
+  `fern.config.json` 中列出的组织生成的。
+1. 点击 **Add secret**。 
+
+</Step>
+
+<Step title="设置新工作流">
+
+设置一个可以从 GitHub UI 手动触发的 CI 工作流。在您的仓库中，导航到 **Actions**。选择 **New workflow**，然后选择 **Set up workflow yourself**。添加类似以下的工作流： 
+
+  ```yaml title=".github/workflows/publish.yml" maxLines=0
+name: Publish Rust SDK
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "The version of the Rust SDK that you would like to release"
+        required: true
+        type: string
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install Fern CLI
+        run: npm install -g fern-api
+
+      - name: Release Rust SDK
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+          CRATES_IO_API_KEY: ${{ secrets.CRATES_IO_API_KEY }}
+        run: |
+          fern generate --group rust-sdk --version ${{ inputs.version }} --log-level debug
+  ```
+
+</Step>
+
+  <Step title="重新生成并发布您的 SDK"> 
+
+    导航到 **Actions** 选项卡，选择您刚创建的工作流，指定版本号，然后点击 **Run workflow**。这将重新生成您的 SDK。 
+  
+    <Markdown src="/products/sdks/snippets/release-sdk.mdx"/>
+
+    工作流完成后，您可以通过登录 crates.io，导航到 **Dashboard**，并在 **My Crates** 下查看您的新发布。
+  
+  </Step>
+</Steps>
+
+</Accordion>
+<Accordion title="通过 CLI 和环境变量发布">
+<Steps>
+ 
+  <Step title="设置 crates.io 环境变量">
+
+  在本地计算机上设置 `CRATES_IO_API_KEY` 环境变量：
+
+  ```bash
+  export CRATES_IO_API_KEY=your-actual-rust-token
+  ```
+
+  </Step>
+
+  <Step title="重新生成并发布您的 SDK">
+
+  重新生成您的 SDK，指定版本：
+
+  ```bash
+  fern generate --group rust-sdk --version <version>
+  ```
+  <Markdown src="/products/sdks/snippets/release-sdk.mdx"/>
+
+  工作流完成后，您可以通过登录 crates.io，导航到 **Dashboard**，并在 **My Crates** 下查看您的新发布。
+    </Step>
+
+</Steps>
+</Accordion>
+</AccordionGroup>

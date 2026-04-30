@@ -1,0 +1,150 @@
+---
+title: Java 配置
+description: 为 Fern 自定义 Java SDK 生成器的客户端名称、包前缀、构建器模式和 Maven 发布选项。
+sidebar-title: Java 配置
+---
+
+您可以在 `generators.yml` 中自定义 Java SDK 生成器的行为：
+
+```yaml {7-9} title="generators.yml"
+groups:
+  java-sdk:
+    generators:
+      - name: fernapi/fern-java-sdk
+        version: <Markdown src="/snippets/version-number-java.mdx"/>
+        config:
+          client-class-name: YourApiClient
+```
+
+<ParamField path="base-api-exception-class-name" type="string" required={false} toc={true}>
+自定义基础 API 异常类的名称，所有 API 特定异常都将继承此类。这允许您定义自定义的基础异常类名称，以便更好地与现有的错误处理模式集成。
+</ParamField>
+
+<ParamField path="base-exception-class-name" type="string" required={false} toc={true}>
+指定所有生成的异常都将继承的基础异常类的名称。这为所有 SDK 异常提供了一个公共父类，使异常处理模式保持一致。
+</ParamField>
+
+<ParamField path="client-class-name" type="string" default="<Organization>ApiClient" required={false} toc={true}>
+
+提供的字符串将用作客户端类名称。
+</ParamField>
+
+<ParamField path="collapse-optional-nullable" type="boolean" default="false" required={false} toc={true}>
+启用时，为合并补丁请求字段生成 `OptionalNullable<T>` 类型，以区分三种状态：缺失（字段未提供）、null（字段显式设置为 null）和存在（字段有非 null 值）。这使得能够正确处理 JSON Merge Patch 语义，其中省略字段、将其设置为 null 和提供值具有不同的含义。
+</ParamField>
+
+<ParamField path="custom-dependencies" type="List<string>" required={false} toc={true}>
+
+<Markdown src="/snippets/pro-plan.mdx"/>
+
+示例：
+
+    ```yaml
+    custom-dependencies:
+    - "implementation com.foo:bar:0.0.0"
+    - "testImplementation com.foo:bar:0.0.0"
+    - "api com.foo:bar:0.0.0"
+    ```
+
+</ParamField>
+
+<ParamField path="disable-required-property-builder-checks" type="boolean" default="false" required={false} toc={true}>
+启用时，禁用构建器模式中对必需属性的验证检查。这移除了确保在构建对象之前设置所有必需字段的编译时检查，提供更多灵活性但安全性较低。
+</ParamField>
+
+<ParamField path="enable-extensible-builders" type="boolean" default="false" required={false} toc={true}>
+
+启用时，生成支持通过继承进行自定义的可扩展构建器类。这允许您[添加自定义代码](/learn/sdks/generators/java/custom-code#adding-custom-client-configuration)，通过额外功能扩展生成的构建器。
+</ParamField>
+
+<ParamField path="enable-forward-compatible-enums" type="boolean" default="false" required={false} toc={true}>
+启用时，生成能够优雅处理未知值的枚举类。这允许 SDK 处理可能添加到 API 中的新枚举值，而不会破坏现有客户端代码，提高前向兼容性。
+</ParamField>
+
+<ParamField path="enable-inline-types" type="boolean" default="false" required={false} toc={true}>
+启用时，为嵌套模式生成内联类型，而不是创建单独的类。这会生成更清洁的类型定义，其中嵌套对象在其父类型内定义，减少生成的文件数量。
+</ParamField>
+
+<ParamField path="enable-public-constructors" type="boolean" default="false" required={false} toc={true}>
+
+启用时，为模型类型生成公共构造函数。
+</ParamField>
+
+<ParamField path="enable-wire-tests" type="boolean" default="false" required={false} toc={true}>
+启用时，生成[模拟服务器（wire）测试](/sdks/deep-dives/testing#mock-server-tests)以验证 SDK 是否按预期发送和接收 HTTP 请求。
+</ParamField>
+
+<ParamField path="generate-unknown-as-json-node" type="boolean" default="false" required={false} toc={true}>
+启用时，将未知或无类型属性生成为结构化 JSON 对象，而不是原始 Object 类型。这提供了更好的类型安全性和对动态 JSON 内容的更容易操作，同时保持对未知数据结构的灵活性。
+</ParamField>
+
+<ParamField path="inline-file-properties" type="boolean" default="false" required={false} toc={true}>
+控制文件上传属性是否生成为内联请求属性，而不是单独的方法参数。启用时，文件字段成为请求对象的一部分，而不是作为单独的函数参数传递。
+</ParamField>
+
+<ParamField path="inline-path-parameters" type="boolean" default="false" required={false} toc={true}>
+启用时，路径参数作为请求对象的属性包含，而不是作为单独的方法参数传递。这创建了一个更统一的请求结构，其中所有参数都组合在一起。
+</ParamField>
+
+<ParamField path="json-include" type="'non-empty' | 'non-absent'" default="non-absent" required={false} toc={true}>
+控制可选字段的 Jackson JSON 序列化行为。使用 'non-empty' 排除 null 和空值，或使用 'non-absent' 仅排除 null 值，同时保留空集合和字符串。
+</ParamField>
+
+<ParamField path="package-layout" type="'nested' | 'flat'" default="nested" required={false} toc={true}>
+确定生成的 Java 包的组织方式。选择 'nested' 以获得反映您 API 组织的分层包结构，或选择 'flat' 以获得更简单的结构，嵌套包较少。
+</ParamField>
+
+<ParamField path="package-prefix" type="string" required={false} toc={true}>
+默认情况下，生成的 SDK 将使用包前缀 `com.{orgName}.api`，其中 `{orgName}` 是您的 Fern 组织名称（在 `fern.config.json` 中定义）。
+要覆盖此设置，您可以在 `generators.yml` 配置中指定 `package-prefix` 字段。
+```
+config: 
+  package-prefix: my.new.package
+```
+</ParamField>
+
+<ParamField path="publish-to" type="'central' | 'ossrh'" required={false} toc={true}>
+Maven 包的发布目标。使用 `central` 发布到 Maven Central Portal，或使用 `ossrh` 发布到传统的 Nexus Repository。
+</ParamField>
+
+<ParamField path="use-local-date-for-dates" type="boolean" default="false" required={false} toc={true}>
+启用时，为 Fern 日期类型生成 `java.time.LocalDate` 而不是 `String`。这提供了更好的类型安全性，并为日期值启用编译时验证，同时保持相同的字符串连线格式用于 API 通信。
+</ParamField>
+
+<ParamField path="wrapped-aliases" type="boolean" default="false" required={false} toc={true}>
+  启用时，为每个别名生成包装器类型以提高类型安全性。
+例如，如果您有别名 `ResourceId: string`，那么如果此设置为 true，生成器将生成 `ResourceId.java` 文件。如果为 false，它将仅将其视为 `java.util.String`。
+</ParamField>
+
+## 发布元数据配置选项
+
+如果您想自定义发布元数据在 `build.gradle` 文件中的显示方式，请在 `generators.yml` 中更新 `metadata` 字段。
+
+```yml {4-9}
+    generators:
+      - name: fernapi/fern-java-sdk
+        version: 2.7.0
+        metadata:
+          author: "AuthorName"
+          email: "example@email.com"
+          package-description: "Your site description here"
+          reference-url: "https://example.com"
+          license: "MIT"
+
+```
+
+<ParamField path="author" type="string" required={false} toc={true}>
+指定将出现在生成的包元数据和构建配置文件中的作者姓名。
+</ParamField>
+<ParamField path="email" type="string" required={false} toc={true}>
+设置包作者的联系电子邮件地址，该地址将包含在生成的包元数据中。
+</ParamField>
+<ParamField path="license" type="'MIT' | 'Apache-2.0' | { custom: 'Custom License Name' }" required={false} toc={true}>
+定义生成的 SDK 的软件许可证。从标准许可证如 'MIT' 或 'Apache-2.0' 中选择，或指定自定义许可证名称。
+</ParamField>
+<ParamField path="package-description" type="string" required={false} toc={true}>
+提供将出现在包元数据和文档中的 SDK 包描述。这有助于用户了解 SDK 的用途和目的。
+</ParamField>
+<ParamField path="reference-url" type="string" required={false} toc={true}>
+设置将包含在包元数据中的参考 URL（通常是 API 文档或项目网站），供用户查找其他信息。
+</ParamField>

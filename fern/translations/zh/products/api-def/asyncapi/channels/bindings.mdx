@@ -1,0 +1,215 @@
+---
+title: Message Bindings
+subtitle: 为 WebSocket、MQTT、Kafka 和其他协议配置协议特定设置
+sidebar-title: Message Bindings
+---
+
+AsyncAPI 中的绑定允许您为服务器、通道、操作和消息指定协议特定信息。这使您能够为不同的消息协议提供详细配置。
+
+```yml title="asyncapi.yml" {6-12}
+channels:
+  user/notifications:
+    address: user/notifications
+    messages:
+      UserNotification:
+        $ref: '#/components/messages/UserNotification'
+    bindings:
+      ws:
+        method: GET
+        query:
+          type: object
+          properties:
+            token:
+              type: string
+              description: Authentication token
+```
+
+## WebSocket 绑定
+
+为实时通信配置 WebSocket 特定设置：
+
+```yml title="asyncapi.yml" {4-10}
+channels:
+  chat/room:
+    address: chat/room/{roomId}
+    bindings:
+      ws:
+        method: GET
+        headers:
+          type: object
+          properties:
+            Authorization:
+              type: string
+        query:
+          type: object
+          properties:
+            userId:
+              type: string
+            roomId:
+              type: string
+
+operations:
+  sendMessage:
+    action: send
+    channel:
+      $ref: '#/channels/chat~1room'
+    bindings:
+      ws:
+        type: request
+        method: message
+```
+
+## MQTT 绑定
+
+为 IoT 和消息应用程序配置 MQTT 特定设置：
+
+```yml title="asyncapi.yml" {4-8}
+channels:
+  device/telemetry:
+    address: device/{deviceId}/telemetry
+    bindings:
+      mqtt:
+        qos: 1
+        retain: true
+        messageExpiryInterval: 3600
+        
+servers:
+  mqtt-broker:
+    host: mqtt.example.com
+    protocol: mqtt
+    bindings:
+      mqtt:
+        clientId: device-client
+        cleanSession: false
+        keepAlive: 60
+        will:
+          topic: device/status
+          payload: "offline"
+          qos: 1
+          retain: true
+```
+
+## Kafka 绑定
+
+为高吞吐量事件流配置 Kafka 特定设置：
+
+```yml title="asyncapi.yml" {4-12}
+channels:
+  user.events:
+    address: user.events
+    bindings:
+      kafka:
+        topic: user.events
+        partitions: 10
+        replicas: 3
+        topicConfiguration:
+          cleanup.policy: ["delete"]
+          retention.ms: 604800000
+          segment.ms: 86400000
+
+operations:
+  publishUserEvent:
+    action: send
+    channel:
+      $ref: '#/channels/user.events'
+    bindings:
+      kafka:
+        groupId: user-event-processors
+        key:
+          type: string
+          description: User ID for partitioning
+```
+
+## 服务器绑定
+
+配置协议特定的服务器设置：
+
+```yml title="asyncapi.yml" {6-16}
+servers:
+  websocket-server:
+    host: ws.example.com
+    protocol: wss
+    description: WebSocket server with SSL
+    bindings:
+      ws:
+        headers:
+          type: object
+          properties:
+            X-API-Version:
+              type: string
+              const: "v1"
+        
+  kafka-cluster:
+    host: kafka.example.com:9092
+    protocol: kafka
+    bindings:
+      kafka:
+        schemaRegistryUrl: https://schema-registry.example.com
+        schemaRegistryVendor: confluent
+```
+
+## 消息绑定
+
+配置特定协议如何处理消息：
+
+```yml title="asyncapi.yml" {8-15}
+components:
+  messages:
+    OrderEvent:
+      name: OrderEvent
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/Order'
+      bindings:
+        kafka:
+          key:
+            type: string
+            description: Order ID for consistent partitioning
+          headers:
+            type: object
+            properties:
+              eventType:
+                type: string
+                enum: [created, updated, cancelled]
+        mqtt:
+          qos: 2
+          retain: false
+```
+
+## HTTP 绑定
+
+用于基于 HTTP 的协议，如 Server-Sent Events：
+
+```yml title="asyncapi.yml" {4-8}
+channels:
+  events/stream:
+    address: /events/stream
+    bindings:
+      http:
+        type: response
+        method: GET
+        query:
+          type: object
+          properties:
+            lastEventId:
+              type: string
+              description: Last received event ID for resumption
+
+operations:
+  streamEvents:
+    action: send
+    channel:
+      $ref: '#/channels/events~1stream'
+    bindings:
+      http:
+        type: response
+        statusCode: 200
+        headers:
+          type: object
+          properties:
+            Content-Type:
+              type: string
+              const: text/event-stream
+```
+
+绑定提供了灵活性，可以利用协议特定功能，同时在不同传输机制之间维护统一的 API 规范。

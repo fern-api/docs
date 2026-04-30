@@ -1,0 +1,331 @@
+---
+title: 发布到 PyPI
+description: 如何将 Fern Python SDK 发布到 PyPI。
+sidebar-title: 发布到 PyPI
+---
+
+将您面向公众的 Fern Python SDK 发布到 [PyPI 注册表](https://pypi.org/)。按照本页面的步骤操作后，您将在 PyPI 上发布一个版本化的包。
+
+<Frame>
+	<img src="assets/pypi-package.png" alt="发布在 PyPI 上的版本化包" />
+</Frame>
+
+<Info>
+	本页面假设您已具备：
+
+	* 已初始化的 `fern` 文件夹、Python SDK 的 GitHub 代码库，以及 `generators.yml` 中的 Python 生成器组。参见 [生成 SDK (Python)](/learn/sdks/generators/python/quickstart)。
+</Info>
+
+## 配置 SDK 包设置
+
+您需要更新 `generators.yml` 文件来配置包名称、输出位置和客户端命名以用于 PyPI 发布。您的 `generators.yml` [应位于您的源代码库中](/sdks/overview/project-structure)（或本地机器上），而不是包含 Python SDK 代码的代码库中。
+
+<Steps>
+
+	  <Step title="配置 `output` 位置">
+
+		在 Python SDK 的 `group` 中，将输出位置从 `local-file-system`（默认值）更改为 `pypi`，以指示 Fern 应直接将您的包发布到 PyPI 注册表：
+
+	    ```yaml title="generators.yml" {6-7}
+	    groups: 
+	      python-sdk:
+	        generators:
+	          - name: fernapi/fern-python-sdk
+	            version: <Markdown src="/snippets/version-number-python.mdx"/>
+	            output:
+	              location: pypi
+
+	    ```
+	  </Step>
+
+	  <Step title="添加唯一的包名称">
+
+	     您的包名称在 PyPI 代码库中必须是唯一的，否则将您的 SDK 发布到 PyPI 将失败。
+
+
+```yaml title="generators.yml" {8}
+groups: 
+  python-sdk:
+    generators:
+      - name: fernapi/fern-python-sdk
+        version: <Markdown src="/snippets/version-number-python.mdx"/>
+        output:
+          location: pypi
+          package-name: your-package-name
+```
+	    
+	  </Step>
+
+	<Step title="配置 `client-class-name`">
+
+	     `client-class-name` 选项控制生成的客户端的名称。这是客户使用的导入 SDK 的名称（`import { your-client-name } from 'your-package-name';`）。
+
+
+```yaml title="generators.yml" {9-10}
+groups: 
+  python-sdk:
+    generators:
+      - name: fernapi/fern-python-sdk
+        version: <Markdown src="/snippets/version-number-python.mdx"/>
+        output:
+          location: pypi
+          package-name: your-package-name
+        config:
+          client_class_name: YourClientName # 必须是 PascalCase
+```
+	    
+	  </Step>
+
+	<Step title="添加 PyPI 元数据（可选）">
+
+	您可以为您的 PyPI 包添加发布元数据，以提高可发现性并向用户提供额外信息。此元数据显示在您包的 PyPI 页面上，包括用于 PyPI 搜索和发现的 `keywords`、用于包文档的 `documentation-link` 以及用于项目主页的 `homepage-link`。
+	
+	您还可以在[单个 SDK 级别](/learn/sdks/reference/generators-yml#metadata-2)或[全局为所有 SDK](/learn/sdks/reference/generators-yml#metadata) 添加 SDK 的常规元数据（描述、联系邮箱、作者、许可证等）。
+
+
+```yaml title="generators.yml" {9, 13}
+groups: 
+  python-sdk:
+    generators:
+      - name: fernapi/fern-python-sdk
+        version: <Markdown src="/snippets/version-number-python.mdx"/>
+        output:
+          location: pypi
+          package-name: your-package-name
+          metadata: # 发布元数据
+            keywords: ["api", "sdk", "client"]
+            documentation-link: "https://docs.yourcompany.com"
+            homepage-link: "https://yourcompany.com"
+        metadata: # 常规 SDK 元数据
+          license: MIT
+        config:
+          client_class_name: YourClientName
+```
+	    
+	  </Step>
+  </Steps>
+
+## 生成 PyPI 令牌
+
+<Steps>
+
+	<Step title="登录 PyPI">
+
+	登录 [PyPI](https://pypi.org/) 或创建新账户。
+
+	</Step>
+
+	<Step title="导航到账户设置">
+
+	1.    点击您的个人资料图片。
+	1.    选择**账户设置**。
+	1.    向下滚动到 **API 令牌**。
+
+	</Step>
+
+	<Step title="添加新令牌">
+
+	1.    点击 **Add API Token**
+  	1.    为您的令牌命名并将范围设置为相关项目。
+    1.    点击 **Create token**
+
+	<Frame>
+	<img src="assets/new-api-token.png" alt="创建新的 API 令牌" />
+	</Frame>
+
+    <Warning>保存您的新令牌 — 离开页面后将不会再显示。</Warning>
+
+	</Step>
+
+</Steps>
+
+## 配置 PyPI 发布
+
+<Steps>
+<Step title="添加代码库位置">
+
+在 `generators.yml` 中添加您的 GitHub 代码库路径：
+
+```yaml title="generators.yml" {11-12}
+groups: 
+  python-sdk:
+    generators:
+      - name: fernapi/fern-python-sdk
+        version: <Markdown src="/snippets/version-number-python.mdx"/>
+        output:
+          location: pypi
+          package-name: your-package-name
+        config:
+          client_class_name: YourClientName
+        github: 
+          repository: your-org/company-python
+```
+	  
+</Step>
+<Step title="配置 PyPI 身份验证令牌">
+
+在 `generators.yml` 中添加 `token: ${PYPI_TOKEN}`。
+
+```yaml {9} title="generators.yml"
+groups: 
+  python-sdk:
+    generators:
+      - name: fernapi/fern-python-sdk
+        version: <Markdown src="/snippets/version-number-python.mdx"/>
+        output:
+          location: pypi
+          package-name: your-package-name
+          token: ${PYPI_TOKEN}
+        config:
+          client_class_name: YourClientName
+        github: 
+          repository: your-org/company-python
+```
+</Step>
+<Step title="选择您的发布模式">
+
+<Markdown src="/products/sdks/snippets/github-publishing-mode.mdx"/>
+
+```yaml title="generators.yml" {14}
+groups: 
+  python-sdk:
+	generators:
+	  - name: fernapi/fern-python-sdk
+		version: <Markdown src="/snippets/version-number-python.mdx"/>
+		output:
+		  location: npm
+		  package-name: name-of-your-package
+		  token: ${PYPI_TOKEN}
+		config:
+		  namespaceExport: YourClientName
+		github: 
+		  repository: your-org/your-repository
+		  mode: push
+		  branch: your-branch-name # mode: push 时必需
+```
+
+</Step>
+</Steps>
+
+## 发布您的 SDK
+
+决定您希望如何将 SDK 发布到 PyPI。您可以使用 GitHub 工作流程进行自动化发布，或直接通过 CLI 发布。
+
+<AccordionGroup>
+<Accordion title="通过 GitHub 工作流程发布（推荐）">
+
+通过 [GitHub Actions](https://docs.github.com/en/actions/get-started/quickstart) 设置发布工作流程，这样您可以直接从源代码库触发新的 SDK 发布。
+
+<Steps>
+
+<Step title="设置身份验证">
+
+在 GitHub 中打开您的 Fern 代码库。点击代码库中的**设置**选项卡。然后，在**安全**部分下，打开**密钥和变量** > **Actions**。
+
+<Frame>
+<img src="assets/github-secret.png" alt="添加 GitHub 代码库密钥" />
+</Frame>
+
+您也可以使用 URL `https://github.com/<your-repo>/settings/secrets/actions`。
+
+</Step>
+<Step title="为您的 PyPI 令牌添加密钥">
+
+1. 选择**新建代码库密钥**。
+1. 将密钥命名为 `PYPI_TOKEN`。
+1. 添加您在上面生成的相应令牌。
+1. 点击**添加密钥**。
+
+<Frame>
+<img src="assets/pypi-token-secret.png" alt="PYPI_TOKEN 密钥" />
+</Frame>
+
+</Step>
+<Step title="为您的 Fern 令牌添加密钥">
+
+1. 选择**新建代码库密钥**。
+1. 将密钥命名为 `FERN_TOKEN`。
+1. 添加您的 Fern 令牌。如果您还没有，请通过运行 `fern token` 生成一个。默认情况下，`fern_token` 为 `fern.config.json` 中列出的组织生成。
+1. 点击**添加密钥**。
+
+</Step>
+
+<Step title="设置新工作流程">
+
+设置一个可以从 GitHub UI 手动触发的 CI 工作流程。在您的代码库中，导航到 **Actions**。选择**新建工作流程**，然后**自己设置工作流程**。添加类似于这样的工作流程：
+
+	```yaml title=".github/workflows/publish.yml" maxLines=0
+	name: Publish Python SDK
+
+	on:
+	  workflow_dispatch:
+	    inputs:
+	      version:
+	        description: "您想要发布的 Python SDK 版本"
+	        required: true
+	        type: string
+
+	jobs:
+	  release:
+	    runs-on: ubuntu-latest
+	    steps:
+	      - name: Checkout repo
+	        uses: actions/checkout@v4
+
+	      - name: Install Fern CLI
+	        run: npm install -g fern-api
+
+	      - name: Release Python SDK
+	        env:
+	          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+	          PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
+	        run: |
+	          fern generate --group python-sdk --version ${{ inputs.version }} --log-level debug
+	```
+
+</Step>
+
+	<Step title="重新生成和发布您的 SDK"> 
+
+		导航到 **Actions** 选项卡，选择您刚创建的工作流程，指定版本号，然后点击**运行工作流程**。这将重新生成您的 SDK。
+
+		<Frame>
+			<img src="assets/python-sdk-release-action.png" alt="运行 Python 发布工作流程" />
+		</Frame>
+	
+		<Markdown src="/products/sdks/snippets/release-sdk.mdx"/>
+
+		工作流程完成后，您可以通过登录 PyPI 并导航到**您的项目**来查看您的新发布。
+	
+	</Step>
+</Steps>
+
+</Accordion>
+<Accordion title="通过 CLI 和环境变量发布">
+<Steps>
+ 
+	<Step title="设置 PyPI 环境变量">
+
+	在您的本地机器上设置 `PYPI_TOKEN` 环境变量：
+
+	```bash
+	export PYPI_TOKEN=your-actual-pypi-token
+	```
+
+	</Step>
+
+	<Step title="重新生成和发布您的 SDK">
+
+	重新生成您的 SDK，指定版本：
+
+	```bash
+	fern generate --group python-sdk --version <version>
+	```
+	<Markdown src="/products/sdks/snippets/release-sdk.mdx"/>
+
+	工作流程完成后，您可以通过登录 PyPI 并导航到**您的项目**来查看您的新发布。
+    </Step>
+
+</Steps>
+</Accordion>
+</AccordionGroup>

@@ -1,0 +1,260 @@
+---
+title: Fern vs. OpenAPI Generator
+description: Fern 生成的 SDK 与 OpenAPI Generator SDK 的详细比较
+sidebar-title: Fern vs. OpenAPI Generator
+---
+
+
+Fern 生成生产级 SDK，内置 OAuth token 刷新、分页、重试、类型错误处理和全面的文档。OpenAPI Generator 生成基本的 API 包装器，需要您自己实现这些功能。
+
+| 功能 | Fern | OpenAPI Generator |
+|------------|------|-------------------|
+| **文档** | 全面的 README + 端点文档 | 最小化（仅标题） |
+| **身份验证** | 自动 OAuth token 刷新 | 手动 token 管理 |
+| **分页** | 带 `for await` 的异步迭代器 | 手动游标处理 |
+| **错误处理** | 每个状态码的类型化错误类 | 通用的 `ResponseError` |
+| **弹性** | 内置重试、超时、中止信号 | 无（需要自定义代码） |
+
+## 文档和用户引导
+
+Fern SDK 包含全面的文档，涵盖安装、身份验证、类型、错误、分页和重试。OpenAPI Generator 提供最小化的文档。
+
+| 功能 | Fern | OpenAPI Generator |
+|---------|------|-------------------|
+| **README** | 涵盖安装、认证、类型、错误、分页、重试、超时、日志记录和运行时兼容性的全面指南 | 最小化（通常只有标题） |
+| **端点文档** | 为每个端点生成包含使用示例的 `reference.md` | 无 |
+| **代码示例** | 方法文档中的内联示例 | 无 |
+
+## 客户端人体工程学
+
+Fern 提供具有命名空间资源的单一统一客户端。OpenAPI Generator 为每个资源使用单独的 API 类。
+
+| 功能 | Fern | OpenAPI Generator |
+|---------|------|-------------------|
+| **客户端结构** | 具有命名空间资源的单一统一客户端 | 每个资源的单独 API 类 |
+| **方法命名** | 简洁、惯用的名称（`client.plant.add()`） | 冗长的名称（`plantApi.addPlant()`） |
+| **配置** | 在客户端构造函数中集中配置 | 传递给每个 API 类 |
+
+<Accordion title="代码示例">
+<br/>
+
+```typescript Fern
+const client = new PlantStoreClient({ clientId, clientSecret });
+await client.plant.add({ name: "Fern", status: "available" });
+await client.user.login();
+```
+
+```typescript OpenAPI Generator
+const config = new Configuration({ accessToken: async () => token });
+const plantApi = new PlantApi(config);
+const userApi = new UserApi(config);
+await plantApi.addPlant({ plant: { name: "Fern", status: "available" } });
+await userApi.loginUser({ username, password });
+```
+
+</Accordion>
+
+## 身份验证和 token 生命周期
+
+Fern 包含内置的 OAuth token 提供者，自动检索和刷新 token，并在过期前配置缓冲时间。OpenAPI Generator 需要手动 token 管理。
+
+| 功能 | Fern | OpenAPI Generator |
+|---------|------|-------------------|
+| **OAuth token 刷新** | 使用 `OAuthTokenProvider` 自动处理 | 需要手动实现 |
+| **Token 过期处理** | 内置过期前缓冲 | 开发者责任 |
+| **环境变量** | 自动回退到环境变量 | 手动配置 |
+
+## 分页
+
+Fern 为分页提供异步迭代器，支持 `for await`。OpenAPI Generator 返回原始响应，需要手动游标跟踪。
+
+| 功能 | Fern | OpenAPI Generator |
+|---------|------|-------------------|
+| **异步迭代器** | 内置 `for await` 支持 | 无 |
+| **页面导航** | `hasNextPage()` / `getNextPage()` 方法 | 手动游标跟踪 |
+| **底层响应** | 通过 `page.response` 访问 | 直接返回值 |
+
+<Accordion title="代码示例">
+<br/>
+
+```typescript Fern
+const pageableResponse = await client.plant.list();
+for await (const item of pageableResponse) {
+    console.log(item);
+}
+
+// 或手动迭代页面
+let page = await client.plant.list();
+while (page.hasNextPage()) {
+    page = await page.getNextPage();
+}
+```
+
+```typescript OpenAPI Generator
+let cursor: string | undefined;
+do {
+    const response = await plantApi.listPlants({ cursor });
+    for (const plant of response.plants) {
+        console.log(plant);
+    }
+    cursor = response.pagination?.nextCursor;
+} while (cursor);
+```
+
+</Accordion>
+
+## 错误处理
+
+Fern 为特定的 HTTP 状态码生成类型化错误类。OpenAPI Generator 使用通用的 `ResponseError` 类。
+
+| 功能 | Fern | OpenAPI Generator |
+|---------|------|-------------------|
+| **类型化错误** | `BadRequestError`、`NotFoundError`、`MethodNotAllowedError` | 通用的 `ResponseError` |
+| **错误体** | 解析并类型化 | 需要手动解析 |
+| **原始响应访问** | `err.rawResponse` | `err.response` |
+
+<Accordion title="代码示例">
+<br/>
+
+```typescript Fern
+try {
+    await client.plant.add({ name: "Fern", status: "available" });
+} catch (err) {
+    if (err instanceof PlantStore.BadRequestError) {
+        console.log("Invalid request:", err.body);
+    } else if (err instanceof PlantStore.NotFoundError) {
+        console.log("Plant not found");
+    } else if (err instanceof PlantStoreError) {
+        console.log("Status:", err.statusCode, "Body:", err.body);
+    }
+}
+```
+
+```typescript OpenAPI Generator
+try {
+    await plantApi.addPlant({ plant });
+} catch (err) {
+    if (err instanceof ResponseError) {
+        const body = await err.response.json();
+        if (err.response.status === 400) {
+            console.log("Invalid request:", body);
+        } else if (err.response.status === 404) {
+            console.log("Plant not found");
+        }
+    }
+}
+```
+
+</Accordion>
+
+## 弹性功能
+
+Fern 包含带指数退避的自动重试、可配置超时和请求取消。OpenAPI Generator 需要自定义实现这些功能。
+
+| 功能 | Fern | OpenAPI Generator |
+|---------|------|-------------------|
+| **自动重试** | 针对 408、429、5xx 的带抖动的指数退避 | 无 |
+| **Retry-After 头** | 自动遵守 | 手动实现 |
+| **可配置超时** | `timeoutInSeconds` 选项（默认 60s） | 无 |
+| **请求取消** | `abortSignal` 选项 | 可通过 `initOverrides` 实现 |
+| **最大重试次数** | 可按请求或全局配置 | 无 |
+
+<Accordion title="代码示例">
+<br/>
+
+```typescript Fern
+const response = await client.plant.add(
+    { name: "Fern", status: "available" },
+    {
+        maxRetries: 3,
+        timeoutInSeconds: 30,
+        abortSignal: controller.signal
+    }
+);
+```
+
+</Accordion>
+
+## 日志记录和可观测性
+
+Fern 包含可配置的日志记录，自动编辑认证头、token 和 API 密钥。OpenAPI Generator 没有内置日志记录。
+
+| 功能 | Fern | OpenAPI Generator |
+|---------|------|-------------------|
+| **内置日志记录** | 可配置级别（Debug/Info/Warn/Error） | 无 |
+| **自定义记录器** | 可插拔（winston、pino 等） | 无 |
+| **敏感数据编辑** | 自动处理认证头、token、API 密钥 | 无 |
+| **请求/响应日志记录** | Debug 级别，带编辑的 URL | 手动实现 |
+
+<Accordion title="代码示例">
+<br/>
+
+```typescript Fern
+const client = new PlantStoreClient({
+    clientId,
+    clientSecret,
+    logging: {
+        level: logging.LogLevel.Debug,
+        logger: new logging.ConsoleLogger(),
+        silent: false
+    }
+});
+```
+
+</Accordion>
+
+## 原始响应访问
+
+Fern 提供 `.withRawResponse()` 方法来访问 HTTP 响应详细信息。OpenAPI Generator 使用单独的 `*Raw()` 方法。
+
+| 功能 | Fern | OpenAPI Generator |
+|---------|------|-------------------|
+| **访问模式** | 使用 `.withRawResponse()` 的单一方法 | 单独的 `*Raw()` 方法 |
+| **头部访问** | `rawResponse.headers` | `response.raw.headers` |
+| **响应体** | `data` 属性 | `value()` 方法 |
+
+<Accordion title="代码示例">
+<br/>
+
+```typescript Fern
+const { data, rawResponse } = await client.plant.add({
+    name: "Fern",
+    status: "available"
+}).withRawResponse();
+
+console.log(rawResponse.headers);
+```
+
+```typescript OpenAPI Generator
+const response = await plantApi.addPlantRaw({ plant });
+const data = await response.value();
+console.log(response.raw.headers);
+```
+
+</Accordion>
+
+## 运行时兼容性和打包
+
+Fern 支持多个 JavaScript 运行时，具有 ESM/CJS 双重构建和自动运行时检测。OpenAPI Generator 提供 ESM/CJS 支持。
+
+| 功能 | Fern | OpenAPI Generator |
+|---------|------|-------------------|
+| **Node.js** | 18+ | 支持 |
+| **Deno** | v1.25+ | 不支持 |
+| **Bun** | 1.0+ | 不支持 |
+| **Cloudflare Workers** | 支持 | 不支持 |
+| **React Native** | 支持 | 不支持 |
+| **ESM/CJS 构建** | 具有正确导出的双重构建 | 基本的 ESM/CJS |
+| **子包导出** | 可摇树优化的导入 | 无 |
+| **运行时检测** | 自动 | 无 |
+
+## 测试和质量
+
+Fern SDK 包含启用了代码检查的单元和线路测试。OpenAPI Generator 不包含测试。
+
+| 功能 | Fern | OpenAPI Generator |
+|---------|------|-------------------|
+| **单元测试** | 是 | 无 |
+| **线路测试** | 是 | 无 |
+| **代码检查** | Biome（启用） | 禁用（`/* eslint-disable */`） |
+| **零依赖** | 是 | 是 |

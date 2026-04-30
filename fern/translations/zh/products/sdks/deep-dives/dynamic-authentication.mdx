@@ -1,0 +1,58 @@
+---
+title: 动态身份验证
+description: 在 Fern SDK 中实现动态身份验证，支持 JWT 签名、OAuth 令牌刷新和轮换 API 密钥。提供 TypeScript 和 Python 的语言特定指南。
+sidebar-title: 动态身份验证
+---
+
+
+您的 API 可能需要动态身份验证，即需要为每个请求生成或刷新凭据，例如签名短期 JWT 或轮换令牌。Fern 生成的 SDK 通过语言特定的方法支持此模式。
+
+## 语言特定指南
+
+每种语言都有其推荐的动态身份验证实现方法：
+
+<Cards>
+  <Card title="TypeScript" icon="fa-brands fa-js" href="/sdks/generators/typescript/dynamic-authentication">
+    使用自定义 fetcher 中间件在单个位置为所有请求注入身份验证逻辑。支持 JWT 签名、OAuth 令牌刷新等。
+  </Card>
+  <Card title="Python" icon="fa-brands fa-python" href="/sdks/generators/python/dynamic-authentication">
+    使用方法重写为每个 API 调用注入身份验证逻辑。支持 JWT 签名、OAuth 令牌刷新等。
+  </Card>
+</Cards>
+
+## 常见用例
+
+动态身份验证在以下几种场景中很有用：
+
+- **短期 JWT 签名**：生成和签名在短时间内过期（例如 15 秒）的 JWT，以增强安全性
+- **OAuth 令牌刷新**：在每个请求之前自动刷新过期的访问令牌
+- **HMAC（基于哈希的消息身份验证代码）签名**：基于请求内容使用 HMAC 签名对请求进行签名
+- **轮换 API 密钥**：基于速率限制或其他条件在多个 API 密钥之间切换
+- **基于时间的令牌**：生成包含时间戳或随机数的令牌以防止重放攻击
+
+## 重要注意事项
+
+在实现动态身份验证时，请牢记以下与语言无关的注意事项：
+
+### 安全性
+
+- **安全密钥存储**：永远不要硬编码私钥或机密；使用环境变量或安全密钥管理系统
+- **仅服务器端**：对于使用私钥进行 JWT 签名，确保仅在服务器端代码中执行，永远不要在浏览器环境中执行
+- **避免双重身份验证**：如果您的 API 在 Fern 定义中已经使用了 bearer token 身份验证，请注意不要覆盖现有的身份验证头
+
+### 性能
+
+- **令牌缓存**：缓存令牌以避免在每个请求上重新生成它们，在安全性（更短的令牌生命周期）和性能（较少的频繁重新生成）之间取得平衡
+- **宽限期**：在令牌过期前稍早刷新令牌，以避免令牌在请求处理期间过期的边缘情况
+- **并发性**：在多线程环境中缓存令牌时要注意竞争条件
+
+### 时间同步
+
+- **时钟漂移**：注意客户端和服务器之间可能的时钟漂移；考虑为令牌过期检查添加容差
+- **时间戳精度**：使用 Unix 时间戳（自纪元以来的秒数）用于 JWT 的 `iat` 和 `exp` 声明以符合标准
+
+## 另请参阅
+
+- [添加自定义代码](/sdks/overview/custom-code) - 了解更多关于扩展生成的 SDK
+- [TypeScript 自定义代码](/sdks/generators/typescript/custom-code) - TypeScript 特定的自定义指南
+- [Python 自定义代码](/sdks/generators/python/custom-code) - Python 特定的自定义指南

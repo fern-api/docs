@@ -1,0 +1,83 @@
+---
+title: Fern Autorelease
+sidebar-title: Fern Autorelease
+description: 使用 Fern Autorelease 自动化 SDK 发布。检测 API 规范变更，重新生成 SDK，确定版本升级，并发布到包注册表。
+---
+
+
+<Note title="抢先体验">
+Fern Autorelease 目前处于抢先体验阶段。[联系我们](https://buildwithfern.com/contact)以开始使用。
+</Note>
+
+Fern Autorelease 端到端自动化 SDK 发布。当您的 API 规范发生变更时，Autorelease 会重新生成 SDK，确定版本升级，并发布到包注册表。
+
+## 工作原理
+
+当 API 规范的变更被提交时，Autorelease 会：
+
+1. 为所有配置的语言重新生成 SDK
+2. 分析 API 差异并确定适当的[语义版本](https://semver.org/)升级
+3. 提交到仓库，标记发布，并发布包
+4. 自动更新变更日志
+
+如果发布失败，Autorelease 会暂停并通过 Slack（如果已配置）或 Fern Dashboard 发送警报，您可以在其中审查和重试。
+
+## 设置
+
+要启用 Autorelease，请将 `autorelease: true` 添加到您的 `generators.yml` 并确保 [Fern GitHub App](https://github.com/apps/fern-api) 已安装在您的 SDK 仓库上。发布会在规范仓库的提交时自动触发，并显示为提交状态检查。无需更改您的 CI/CD 设置。
+
+<Tabs>
+<Tab title="为所有生成器全局启用">
+
+```yaml generators.yml
+autorelease: true
+```
+</Tab>
+<Tab title="按生成器启用">
+
+```yaml generators.yml {6}
+groups:
+  python-sdk:
+    generators:
+      - name: fernapi/fern-python-sdk
+        version: <Markdown src="/snippets/version-number-python.mdx"/>
+        autorelease: true
+```
+</Tab>
+</Tabs>
+
+<Frame>
+  <img
+    src="./images/autorelease-commit-check.png"
+    alt="Autorelease commit status check"
+    className="rounded-lg border border-gray-200 dark:border-gray-700"
+  />
+</Frame>
+
+### 发布前审查发布
+
+[设置 `mode: pull-request`](/learn/sdks/reference/generators-yml#pull-request) 以在发布前审查发布。Autorelease 会为您开启一个拉取请求以供审查，而不是直接发布。
+
+```yaml generators.yml {8}
+groups: 
+  ts-sdk:
+    generators:
+      - name: fernapi/fern-typescript-sdk
+      ...
+        github: 
+          repository: your-org/your-repo-name
+          mode: pull-request
+```
+
+### 禁用 autorelease
+
+要在保持全局启用的情况下为特定生成器禁用 Autorelease，请在该生成器上设置 `autorelease: false`：
+
+```yaml generators.yml {6}
+groups:
+  internal-sdk:
+    generators:
+      - name: fernapi/fern-python-sdk
+        version: <Markdown src="/snippets/version-number-python.mdx"/>
+        autorelease: false
+```

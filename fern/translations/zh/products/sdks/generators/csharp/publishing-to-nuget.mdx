@@ -1,0 +1,296 @@
+---
+title: 发布到 NuGet
+description: 了解如何将 Fern 生成的 C#/.NET SDK 发布到 NuGet 注册表，包括逐步配置、API 密钥设置和自动化发布工作流。
+sidebar-title: 发布到 NuGet
+---
+
+
+将您的公开 Fern C#/.NET SDK 发布到 [NuGet
+注册表](https://www.nuget.org/)。按照本页面的步骤操作后，
+您将在 NuGet 上发布一个版本化的包。
+
+
+<Frame>
+	<img src="assets/dotnet-package.png" alt="在 NuGet 上发布的版本化包" />
+</Frame>
+
+<Info>
+	本页面假设您已有：
+
+	* 一个已初始化的 `fern` 文件夹、一个用于 C#/.NET SDK 的 GitHub 仓库，以及在 `generators.yml` 中的一个 C#/.NET 生成器组。参见 [生成 SDK (C#/.NET)](/learn/sdks/generators/csharp/quickstart)。
+</Info>
+
+## 配置 SDK 包设置
+
+您需要更新 `generators.yml` 文件来配置包名称、输出位置和客户端名称，以便 NuGet 发布。您的 `generators.yml` [应该放在您的源代码仓库中](/sdks/overview/project-structure)（或本地机器上），而不是包含 C#/.NET SDK 代码的仓库中。
+
+<Steps>
+<Step title="配置 `output` 位置">
+
+在您的 C#/.NET SDK 的 `group` 中，将输出位置从 `local-file-system`（默认值）更改为 `nuget`，以指示 Fern 应该直接将您的包发布到 npm 注册表：
+
+```yaml {6-7} title="generators.yml"
+groups: 
+  csharp-sdk:
+	generators:
+	  - name: fernapi/fern-csharp-sdk
+	    version: <Markdown src="/snippets/version-number-csharp.mdx"/>
+		output:
+		  location: nuget
+```
+</Step>
+<Step title="添加唯一的包名称">
+
+您的包名称在 NuGet 仓库中必须是唯一的，否则将您的 SDK 发布到 NuGet 将失败。
+
+```yaml {8} title="generators.yml"
+groups: 
+  csharp-sdk:
+	generators:
+	  - name: fernapi/fern-csharp-sdk
+		version: <Markdown src="/snippets/version-number-csharp.mdx"/>
+		output:
+		  location: nuget
+		  package-name: your-package-name
+```
+
+</Step>
+<Step title="配置 `client-class-name`">
+
+`client-class-name` 选项控制生成的客户端的名称。这是客户使用的导入您的 SDK 的名称（`import { your-client-name } from 'your-package-name';`）。
+
+```yaml {9-10} title="generators.yml"
+groups: 
+  csharp-sdk:
+    generators:
+      - name: fernapi/fern-csharp-sdk
+        version: <Markdown src="/snippets/version-number-csharp.mdx"/>
+        output:
+          location: nuget
+          package-name: your-package-name
+        config:
+          client_class_name: YourClientName # 必须是 PascalCase
+```
+</Step>
+</Steps>
+
+## 生成 NuGet API 密钥
+
+<Steps>
+
+<Step title="登录 NuGet">
+
+登录 [NuGet](https://nuget.org/) 或创建一个新账户。
+
+</Step>
+
+<Step title="添加新密钥">
+
+1. 点击您的个人资料图片。
+1. 选择 **API Keys**，然后 **Create**。
+1. 为您的密钥命名。
+1. 选择 **Push > Push new packages and package versions** 作为 **Select Scopes** 类型。
+1. 在 **Select Packages > Glob Patten** 下输入 `*`。
+		
+	<Tip title="替换现有的 NuGet 包">
+		如果您要覆盖现有包，可以选择相关包而不是输入 `*`。
+	</Tip>
+1. 点击 **Create**。
+
+<Frame>
+<img src="assets/new-api-key.png" alt="创建新的 API 密钥" />
+</Frame>
+
+<Warning>保存您的新密钥 - 离开页面后将不再显示。</Warning>
+
+</Step>
+
+</Steps>
+
+## 配置 NuGet 发布
+
+<Steps>
+<Step title="添加仓库位置">
+
+添加包含您的 C#/.NET SDK 的 GitHub 仓库路径：
+
+```yaml title="generators.yml" {11-12}
+groups: 
+  csharp-sdk:
+    generators:
+      - name: fernapi/fern-csharp-sdk
+        version: <Markdown src="/snippets/version-number-csharp.mdx"/>
+        output:
+          location: nuget
+          package-name: your-package-name
+        config:
+          client_class_name: YourClientName
+        github: 
+          repository: your-org/company-csharp
+```	  
+</Step>
+<Step title="配置 NuGet 身份验证密钥">
+
+将 `api-key: ${NUGET_API_KEY}` 添加到 `generators.yml`，告诉 Fern 在发布到 NuGet 注册表时使用 `NUGET_API_KEY` 环境变量进行身份验证。
+
+```yaml title="generators.yml" {9}
+groups: 
+  csharp-sdk:
+    generators:
+      - name: fernapi/fern-csharp-sdk
+        version: <Markdown src="/snippets/version-number-csharp.mdx"/>
+        output:
+          location: nuget
+          package-name: your-package-name
+          api-key: ${NUGET_API_KEY}
+        config:
+          client_class_name: YourClientName
+        github: 
+          repository: your-org/company-csharp
+```
+</Step>
+<Step title="选择您的发布模式">
+
+<Markdown src="/products/sdks/snippets/github-publishing-mode.mdx"/>
+
+```yaml title="generators.yml" {14}
+groups: 
+  csharp-sdk:
+    generators:
+      - name: fernapi/fern-csharp-sdk
+        version: <Markdown src="/snippets/version-number-csharp.mdx"/>
+        output:
+          location: nuget
+          package-name: your-package-name
+          api-key: ${NUGET_API_KEY}
+        config:
+          client_class_name: YourClientName
+        github: 
+          repository: your-org/company-csharp
+		  mode: push
+		  branch: your-branch-name # mode: push 时必需
+```
+
+</Step>
+</Steps>
+
+## 发布您的 SDK
+
+决定如何将您的 SDK 发布到 NuGet。您可以使用 GitHub 工作流进行自动化发布，或通过 CLI 直接发布。
+
+<AccordionGroup>
+
+<Accordion title="通过 GitHub 工作流发布">
+
+通过 [GitHub Actions](https://docs.github.com/en/actions/get-started/quickstart) 设置发布工作流，这样您就可以直接从源代码仓库触发新的 SDK 发布。
+
+<Steps>
+<Step title="设置身份验证">
+
+在 GitHub 中打开您的源代码仓库。点击 **Settings** 标签。然后，在 **Security** 部分下，打开 **Secrets and variables** > **Actions**。
+
+您也可以使用 URL `https://github.com/<your-repo>/settings/secrets/actions`。
+
+</Step>
+<Step title="为您的 NuGet API 密钥添加密钥">
+
+1. 选择 **New repository secret**。
+1. 将您的密钥命名为 `NUGET_API_KEY`。
+1. 添加您在上面生成的相应 API 密钥。
+1. 点击 **Add secret**。
+
+<Frame>
+<img src="assets/nuget-api-key-secret.png" alt="NUGET_API_KEY 密钥" />
+</Frame>
+
+</Step>
+<Step title="为您的 Fern Token 添加密钥">
+
+1. 选择 **New repository secret**。
+1. 将您的密钥命名为 `FERN_TOKEN`。
+1. 添加您的 Fern token。如果您还没有，可以通过运行 `fern token` 来生成一个。默认情况下，`fern_token` 是为 `fern.config.json` 中列出的组织生成的。
+1. 点击 **Add secret**。
+
+</Step>
+<Step title="设置新的工作流">
+
+设置一个可以从 GitHub UI 手动触发的 CI 工作流。在您的仓库中，导航到 **Actions**。选择 **New workflow**，然后 **Set up workflow yourself**。添加类似于这样的工作流：
+
+	```yaml title=".github/workflows/publish.yml" maxLines=0
+	name: Publish C#/.NET SDK
+
+	on:
+	  workflow_dispatch:
+	    inputs:
+	      version:
+	        description: "您想要发布的 C#/.NET SDK 的版本"
+	        required: true
+	        type: string
+
+	jobs:
+	  release:
+	    runs-on: ubuntu-latest
+	    steps:
+	      - name: Checkout repo
+	        uses: actions/checkout@v4
+
+	      - name: Install Fern CLI
+	        run: npm install -g fern-api
+
+	      - name: Release C#/.NET SDK
+	        env:
+	          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+	          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+	        run: |
+	          fern generate --group csharp-sdk --version ${{ inputs.version }} --log-level debug
+	```
+	<Note>
+		您也可以配置您的工作流为 `on: [push]` 执行。参见 Vapi 的 [npm 发布 GitHub Action](https://github.com/VapiAI/server-sdk-typescript/blob/main/.github/workflows/ci.yml) 作为示例。
+	</Note>
+</Step>
+
+<Step title="重新生成并发布您的 SDK"> 
+
+导航到 **Actions** 标签，选择您刚创建的工作流，指定一个版本号，然后点击 **Run workflow**。这将重新生成您的 SDK。
+
+<Frame>
+	<img src="assets/csharp-sdk-release-action.png" alt="运行 TS 发布工作流" />
+</Frame>
+
+<Markdown src="/products/sdks/snippets/release-sdk.mdx"/>
+
+工作流完成后，您可以通过登录 NuGet 并导航到 **Manage Packages** 来查看您的新发布。
+
+</Step>
+</Steps>
+</Accordion>
+
+<Accordion title="通过 CLI 和环境变量发布">
+<Steps>
+
+<Step title="设置 npm 环境变量">
+
+在本地机器上设置 `NUGET_API_KEY` 环境变量：
+
+```bash
+export NUGET_API_KEY=your-actual-nuget-api-key
+```
+
+</Step>
+<Step title="重新生成并发布您的 SDK">
+
+重新生成您的 SDK，指定版本：
+
+```bash
+fern generate --group csharp-sdk --version <version>
+```
+
+<Markdown src="/products/sdks/snippets/release-sdk.mdx"/>
+
+工作流完成后，您可以通过登录 NuGet 并导航到 **Manage Packages** 来查看您的新发布。
+
+</Step>
+
+</Steps>
+</Accordion>
+</AccordionGroup>

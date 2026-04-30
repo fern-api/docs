@@ -1,0 +1,110 @@
+---
+title: 配置幂等性头部
+description: 为支持请求重试的 SDK 配置幂等性头部
+sidebar-title: 配置幂等性头部
+---
+
+
+<Markdown src="/snippets/pro-plan.mdx"/>
+
+对于您已配置为幂等的端点，Fern 的 SDK 允许用户指定幂等性头部以进行安全的请求重试。通常这些头部包括 `Idempotency-Key`，但您也可以指定其他头部。
+
+## 生成的 SDK 行为
+
+生成的 SDK 仅为标记为幂等的端点暴露幂等性头部作为参数，确保用户明确知道哪些调用是幂等的。
+
+<CodeBlocks>
+  <CodeBlock title="TypeScript">
+    ```ts {5}
+    const response = await client.transactions.send({
+      amount: 100,
+      currency: "usd",
+    }, {
+      idempotencyKey: "64099353-b48b-4dcd-98b7-74df1cc57933"
+    });
+    ```
+  </CodeBlock>
+  <CodeBlock title="Python">
+    ```python {4}
+    response = client.transactions.send(
+      amount=100, 
+      currency="USD", {
+      idempotency_key="64099353-b48b-4dcd-98b7-74df1cc57933"
+    })
+    ```
+  </CodeBlock>
+  <CodeBlock title="Java">
+    ```java {7}
+    var response = client.transactions().send(
+      SendTransactionsRequest.builder()
+        .amount(100)
+        .currency(Currency.USD)
+        .build(),
+      IdempotentRequestOptions.builder()
+        .idempotencyKey("64099353-b48b-4dcd-98b7-74df1cc57933")
+        .build()
+    );
+    ```
+  </CodeBlock>
+  <CodeBlock title="Go">
+    ```go {7}
+    response, err := client.Transactions.Send(
+      ctx,
+      &SendTransactionsRequest{
+        Amount: 100,
+        Currency: Currency.USD,
+      },
+      option.WithIdempotencyKey("64099353-b48b-4dcd-98b7-74df1cc57933"),
+    )
+    ```
+  </CodeBlock>
+</CodeBlocks>
+
+## 设置幂等性头部
+
+配置您的 API 使用的幂等性头部，然后将个别端点标记为幂等：
+
+<Tabs>
+<Tab title="OpenAPI">
+
+```yaml title="openapi.yml" {2-4,10}
+x-fern-idempotency-headers:
+  - header: IDEMPOTENCY-KEY
+    name: idempotency_key
+
+paths:
+  /plants:
+    post:
+      x-fern-idempotent: true
+```
+
+</Tab>
+<Tab title="Fern Definition">
+
+```yaml title="api.yml"
+name: api
+auth: bearer
+idempotency-headers:
+  Idempotency-Key: string
+  Idempotency-Expiration: integer
+```
+
+```yaml title="service.yml"
+endpoints:
+  foo:
+    idempotent: true
+```
+
+</Tab>
+</Tabs>
+
+有关完整的配置详细信息，请参阅您的 API 定义格式的文档：
+
+<CardGroup cols={2}>
+  <Card title="OpenAPI" href="/learn/api-definitions/openapi/extensions/idempotency">
+    配置 `x-fern-idempotency-headers` 和 `x-fern-idempotent` 扩展。
+  </Card>
+  <Card title="Fern Definition" href="/learn/api-definitions/ferndef/api-yml/global-headers#idempotency-headers">
+    在 `api.yml` 中配置幂等性头部并将端点标记为幂等。
+  </Card>
+</CardGroup>

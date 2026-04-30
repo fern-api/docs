@@ -1,0 +1,145 @@
+---
+title: Go 配置
+description: Fern Go SDK 的配置选项。
+sidebar-title: Go 配置
+---
+
+您可以在 `generators.yml` 中自定义 Go SDK 生成器的行为：
+
+```yaml {6-7} title="generators.yml"
+groups:
+  go-sdk:
+    generators:
+      - name: fernapi/fern-go-sdk
+        version: <Markdown src="/snippets/version-number-go.mdx"/>
+        config:
+          packageName: acme
+        output:
+          location: local-file-system
+          path: ../generated/go
+```
+
+<ParamField path="alwaysSendRequiredProperties" type="boolean" required={false} toc={true}>
+启用后，确保所有必需的属性始终包含在 API 请求中，即使它们有默认值或在实现中是可选的。
+</ParamField>
+
+<ParamField path="clientConstructorName" type="string" required={false} toc={true}>
+自定义客户端构造函数的名称。这允许您为用户调用以创建客户端新实例的函数指定自定义名称。
+</ParamField>
+
+<ParamField path="clientName" type="string" required={false} toc={true}>
+指定生成的客户端结构体的名称。这决定了用户在生成的 Go SDK 中将与之交互的主要客户端类型名称。
+</ParamField>
+
+<ParamField path="exportedClientName" type="string" required={false} toc={true}>
+设置将在代码片段和文档示例中使用的导出客户端名称。这对于自定义客户端在生成的文档中的显示方式很有用。
+</ParamField>
+
+<ParamField path="enableWireTests" type="string" default="true" required={false} toc={true}>
+生成[模拟服务器（wire）测试](/sdks/deep-dives/testing#mock-server-tests)以验证 SDK 发送正确的 HTTP 请求并根据 API 规范正确处理响应。启用时，需要 Docker 作为运行时依赖来运行生成的测试。
+</ParamField>
+
+<ParamField path="importPath" type="string" required={false} toc={true}>
+如果您计划在项目中依赖生成的 Go SDK，而**不**将其作为单独的、已发布的 Go 模块来依赖，请使用此选项。
+
+<Note>如果您计划将生成的 Go SDK 作为单独的、已发布的 Go 模块分发，请使用 `module` 配置选项。</Note>
+
+您可以使用以下 `generators.yml` 配置将 Go SDK 代码生成到 `gen/go/api` 包中：
+
+```yaml {7-8}
+default-group: local
+groups:
+  local:
+    generators:
+      - name: fernapi/fern-go-sdk
+        version: 0.13.0
+        config:
+          importPath: github.com/<YOUR_ORGANIZATION>/<YOUR_REPOSITORY>/generated/go
+        output:
+          location: local-file-system
+          path: ../generated/go
+```
+<Info>您必须用 `go.mod` 路径中的相关元素更新 `<YOUR_ORGANIZATION>` 和 `<YOUR_REPOSITORY>` 占位符。在这种情况下，生成的 Go SDK 使用与您的 Go 模块其余部分相同的 `go.mod` 路径。</Info>
+
+</ParamField>
+
+<ParamField path="includeLegacyClientOptions" type="boolean" required={false} toc={true}>
+启用后，包含传统客户端选项以与较旧版本的 SDK 向后兼容。这对于在升级 SDK 版本时维护兼容性很有用。
+</ParamField>
+
+<ParamField path="inlineFileProperties" type="boolean" required={false} toc={true}>
+控制文件上传属性是否生成为内联请求属性而不是单独的参数。启用时，文件上传字段成为请求结构体的一部分，而不是作为单独的函数参数传递。
+</ParamField>
+
+<ParamField path="inlinePathParameters" type="boolean" required={false} toc={true}>
+启用后，路径参数内联到请求类型中，而不是作为单独的函数参数传递。这创建了一个更统一的请求结构，其中路径参数包含在请求对象中。
+</ParamField>
+
+<ParamField path="module" type="object" required={false} toc={true}>
+如果您计划将生成的 Go SDK 作为单独的、已发布的 Go 模块分发，请使用此选项。
+
+<Note>如果您只计划在自己的 Go 模块中使用生成的 SDK，请使用 `importPath` 配置选项。</Note>
+
+您可以使用以下 `generators.yml` 配置将 Go SDK 代码生成到单独的模块中（使用其自己的 `go.mod` 定义）：
+
+```yaml {7-9}
+default-group: local
+groups:
+  local:
+    generators:
+      - name: fernapi/fern-go-sdk
+        version: 0.13.0
+        config:
+          module:
+            path: github.com/<YOUR_ORGANIZATION>/<YOUR_REPOSITORY>
+        output:
+          location: local-file-system
+          path: ../generated/go
+```
+
+此配置将在目标输出位置与 Go SDK 代码的其余部分一起生成 `go.mod`。有了这个，生成的 Go SDK 中的 `import` 语句都从配置的模块路径解析。
+
+默认情况下，生成的 `go.mod` 将设置为 `1.13`。您可以通过指定 `version` 键来覆盖此行为：
+
+```yaml {10}
+default-group: local
+groups:
+  local:
+    generators:
+      - name: fernapi/fern-go-sdk
+        version: 0.13.0
+        config:
+          module:
+            path: github.com/<YOUR_ORGANIZATION>/<YOUR_REPOSITORY>
+            version: "1.19"
+        output:
+          location: local-file-system
+          path: ../generated/go
+```
+
+如果您想在本地依赖生成的 Go SDK（不将其作为单独的 Go 模块分发），并且您使用 `module` 配置选项，您需要修改项目的顶级 `go.mod` 以包含 [`replace`](https://go.dev/doc/modules/gomod-ref#replace) 语句：
+
+```go
+module github.com/your/module
+
+require "github.com/your/sdk" v0.0.0
+replace "github.com/your/sdk" v0.0.0 => "path/to/generated/sdk"
+```
+
+</ParamField>
+
+<ParamField path="packageLayout" type="'flat' | 'nested'" required={false} toc={true}>
+控制生成的包结构的组织方式。选择 'flat' 以获得具有较少嵌套目录的扁平包结构，或选择 'nested' 以获得镜像您的 API 结构的更分层的组织。
+</ParamField>
+
+<ParamField path="packageName" type="string" required={false} toc={true}>
+指定生成的 Go 代码的包名称。这决定了将出现在生成的 Go 文件顶部的包声明，并影响用户如何导入 SDK。
+</ParamField>
+
+<ParamField path="union" type="'v0' | 'v1'" required={false} toc={true}>
+控制联合类型生成策略。使用 'v0' 表示传统的联合实现，或使用 'v1' 表示更新、更健壮的联合处理方法，提供更好的类型安全和可判别联合支持。
+</ParamField>
+
+<ParamField path="useReaderForBytesRequest" type="boolean" required={false} toc={true}>
+启用后，使用 `io.Reader` 接口处理字节请求体，而不是字节切片。这对于大型负载更加内存高效，并遵循 Go 流式数据处理的最佳实践。
+</ParamField>
