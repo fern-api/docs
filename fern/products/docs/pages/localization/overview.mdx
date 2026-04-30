@@ -24,36 +24,61 @@ You maintain your default-language pages as usual. When you run `fern generate -
   [Reach out](mailto:support@buildwithfern.com) if you're interested in implementing localization for your docs.
 </Note>
 
+## Setup
 
-<Accordion title="Early access setup">
+Make sure you're on the latest Fern CLI:
 
-The manual setup below works today. Once localization is generally available, most of these steps will be handled for you.
+```bash
+fern upgrade
+```
 
 <Steps>
 
+<Step title="Declare languages in docs.yml">
+
+Add a `translations` key to your `docs.yml` listing each supported language. Mark one language as the default.
+
+```yaml docs.yml
+translations:
+  - lang: en
+    default: true
+  - lang: ja
+  - lang: zh
+```
+
+Use [ISO 639-1](https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes) language codes (e.g., `en`, `ja`, `zh`, `fr`, `es`, `de`).
+
+</Step>
+
 <Step title="Add a translations folder">
 
-Create a `translations` folder inside your `fern` directory, with a subfolder for each language using its [BCP 47 language tag](https://en.wikipedia.org/wiki/IETF_language_tag) (e.g., `fr-FR`, `ja-JP`). Mirror your `pages/` structure inside each language folder.
+Create a `translations` folder inside your `fern` directory, with a subfolder for each language code. This folder contains your translated content and navigation overrides.
 
 <Files>
   <Folder name="fern" defaultOpen>
     <File name="fern.config.json" />
     <File name="docs.yml" />
-    <Folder name="pages" defaultOpen>
-      <File name="introduction.mdx" />
-      <File name="getting-started.mdx" />
+    <Folder name="products" defaultOpen>
+      <Folder name="docs">
+        <File name="docs.yml" />
+      </Folder>
     </Folder>
     <Folder name="translations" defaultOpen highlighted>
-      <Folder name="fr-FR" defaultOpen>
-        <Folder name="pages" defaultOpen>
-          <File name="introduction.mdx" />
-          <File name="getting-started.mdx" />
+      <Folder name="ja" defaultOpen>
+        <Folder name="fern" defaultOpen>
+          <File name="docs.yml" />
+          <Folder name="products">
+            <Folder name="docs">
+              <File name="docs.yml" />
+            </Folder>
+          </Folder>
         </Folder>
-      </Folder>
-      <Folder name="ja-JP" defaultOpen>
-        <Folder name="pages" defaultOpen>
-          <File name="introduction.mdx" />
-          <File name="getting-started.mdx" />
+        <Folder name="products">
+          <Folder name="docs">
+            <Folder name="pages">
+              <File name="introduction.mdx" />
+            </Folder>
+          </Folder>
         </Folder>
       </Folder>
     </Folder>
@@ -62,37 +87,79 @@ Create a `translations` folder inside your `fern` directory, with a subfolder fo
 
 </Step>
 
-<Step title="Declare languages in `docs.yml`">
+<Step title="Translate your sidebar and tabs">
 
-Add a `translations` key listing each supported language. The first entry is the default.
+Create a navigation overlay file at `fern/translations/{locale}/fern/docs.yml` to translate the product switcher, navbar links, and other top-level fields. You only need to include the fields you want to override — everything else falls back to the default language.
 
-```yaml docs.yml {4-7}
-instances:
-  - url: your-org.docs.buildwithfern.com
+```yaml fern/translations/ja/fern/docs.yml
+products:
+  - display-name: ホーム
+    path: ./products/home/home.yml
+    subtitle: 開発者体験を向上させる製品
 
-translations:
-  - lang: en-US
-  - lang: fr-FR
-  - lang: ja-JP
+  - slug: sdks
+    display-name: SDK
+    path: ./products/sdks/sdks.yml
+    subtitle: 複数の言語でクライアントライブラリを生成
+
+  - slug: docs
+    display-name: ドキュメント
+    path: ./products/docs/docs.yml
+    subtitle: 美しいインタラクティブなドキュメントサイトを生成
 ```
+
+To translate section names and page names in the sidebar, create an overlay for each product file at `fern/translations/{locale}/fern/products/{product}/{product}.yml`:
+
+```yaml fern/translations/ja/fern/products/docs/docs.yml
+navigation:
+  - section: はじめに
+    contents:
+      - page: 概要
+      - page: 仕組み
+      - page: クイックスタート
+      - page: プロジェクト構成
+  - section: 設定
+    contents:
+      - page: 概要
+      - page: サイトレベルの設定
+        slug: site-level-settings
+      - section: ナビゲーション
+        contents:
+          - page: セクション、ページ、フォルダ
+            slug: navigation
+          - page: タブとタブバリアント
+            slug: tabs
+          - page: バージョン
+          - page: 製品
+```
+
+<Note>
+  Only include the fields you want to translate. The `slug` values must match the original — they're used to match entries, not translated. The `path` field can be omitted since it's inherited from the base file.
+</Note>
 
 </Step>
 
-<Step title="Add your translated content">
+<Step title="Translate page content">
 
-Each translated `.mdx` mirrors its source page's content. Use the `sidebar-title` frontmatter field to override the sidebar entry per language:
+Place translated `.mdx` files in `fern/translations/{locale}/products/` mirroring the original file structure. Use the `sidebar-title` frontmatter field to override the sidebar entry per language:
 
-```mdx translations/fr-FR/pages/introduction.mdx
+```mdx fern/translations/ja/products/docs/pages/getting-started/overview.mdx
 ---
-sidebar-title: Introduction
+sidebar-title: 概要
 ---
 
-Bienvenue dans la documentation.
+Fernドキュメントへようこそ。
 ```
 
 <Tip>
-  You only need to translate the files you want to localize. Anything missing from a language folder — pages, images, or other assets — falls back to the default-language version.
+  You only need to translate the files you want to localize. Any page missing from a language folder falls back to the default-language version automatically.
 </Tip>
+
+</Step>
+
+<Step title="Translate version files">
+
+If your docs use [versions](/learn/docs/config/versions), you can translate version display names and navigation the same way — create an overlay at `fern/translations/{locale}/fern/versions/{version}.yml`.
 
 </Step>
 
@@ -102,10 +169,60 @@ Bienvenue dans la documentation.
 fern generate --docs
 ```
 
-When you regenerate your docs, Fern picks up the translations, renders the language switcher, and emits a sitemap entry per locale. You can also preview translations locally with `fern docs dev`.
+Fern picks up the translations, renders the language switcher in the header, and emits a sitemap entry per locale. You can also preview translations locally with `fern docs dev`.
 
 </Step>
 
 </Steps>
 
-</Accordion>
+## How overlays work
+
+Translation overlay files use a **merge strategy** — they don't replace the base configuration, they override specific fields within it.
+
+| What you want to translate | Overlay file location |
+|---|---|
+| Product switcher names, navbar links | `fern/translations/{locale}/fern/docs.yml` |
+| Sidebar sections, page names, tabs | `fern/translations/{locale}/fern/products/{product}/{product}.yml` |
+| Version display names | `fern/translations/{locale}/fern/versions/{version}.yml` |
+| Page content | `fern/translations/{locale}/products/{product}/pages/...` |
+
+The overlay only needs to contain the fields you want to translate. For navigation overlays, entries are matched by their position in the list and by `slug` values — so keep the same ordering and slugs as the base file.
+
+## Example
+
+Here's a minimal example translating an English docs site into Japanese:
+
+```yaml fern/docs.yml {3-6}
+instances:
+  - url: your-org.docs.buildwithfern.com
+
+translations:
+  - lang: en
+    default: true
+  - lang: ja
+```
+
+```yaml fern/translations/ja/fern/docs.yml
+products:
+  - display-name: ドキュメント
+    path: ./products/docs/docs.yml
+    subtitle: ドキュメントサイトを生成
+```
+
+```yaml fern/translations/ja/fern/products/docs/docs.yml
+navigation:
+  - section: はじめに
+    contents:
+      - page: 概要
+      - page: クイックスタート
+```
+
+```mdx fern/translations/ja/products/docs/pages/getting-started/overview.mdx
+---
+sidebar-title: 概要
+---
+
+ドキュメントへようこそ。このガイドでは...
+```
+
+When a reader switches to Japanese, the sidebar shows translated section and page names, and translated page content is served where available. For any page without a translation file, the English version is shown.
