@@ -3,22 +3,22 @@ title: API catalog discovery
 description: Fern docs sites expose a standards-based API catalog endpoint so AI agents, MCP clients, and API catalog crawlers can discover your APIs automatically.
 ---
 
-Fern docs sites implement [RFC 9727](https://www.rfc-editor.org/rfc/rfc9727) to let AI agents, MCP clients, and API catalog crawlers discover your APIs without scraping HTML. Every docs site automatically serves a `/.well-known/api-catalog` endpoint and advertises it via a [`Link`](https://www.rfc-editor.org/rfc/rfc8288) response header on every page.
+Fern Docs sites implement [RFC 9727](https://www.rfc-editor.org/rfc/rfc9727) to let AI agents, MCP clients, and API catalog crawlers discover your APIs without scraping HTML. The catalog is generated from your visible [API Reference](/learn/docs/api-references/overview) navigation and advertised on every page via a [`Link`](https://www.rfc-editor.org/rfc/rfc8288) response header — no configuration required. References hidden via `hidden: true` (or with all endpoints hidden) are excluded.
 
-No configuration is required — the catalog is generated from your visible [API Reference](/learn/docs/api-references/overview) navigation.
+Your API catalog is available at `your-documentation-site.com/.well-known/api-catalog`. For example, this site's catalog is at [buildwithfern.com/learn/.well-known/api-catalog](https://buildwithfern.com/learn/.well-known/api-catalog):
 
-## How it works
-
-Every page response includes a `Link` header pointing to the catalog:
-
-```http
-Link: </.well-known/api-catalog>; rel="api-catalog"
+```bash
+curl -s https://buildwithfern.com/learn/.well-known/api-catalog | jq .
 ```
 
-A `GET` or `HEAD` request to `/.well-known/api-catalog` returns an [RFC 9264](https://www.rfc-editor.org/rfc/rfc9264) Linkset document (`application/linkset+json`) listing each visible API. Each entry contains:
+For sites with a basepath like `/docs`, the catalog lives under that basepath (e.g. `https://example.com/docs/.well-known/api-catalog`).
+
+## Response format
+
+The endpoint returns a [Linkset document](https://www.rfc-editor.org/rfc/rfc9264) listing each visible API. Each entry contains:
 
 - **`anchor`** — the URL of the human-readable API Reference page
-- **`service-desc`** — the machine-readable [OpenAPI spec](/learn/docs/developer-tools/openapi-spec) (`/openapi.yaml?api=<id>`)
+- **`service-desc`** — the machine-readable [OpenAPI spec](/learn/docs/developer-tools/openapi-spec)
 - **`service-doc`** — the same reference page as the anchor
 
 ```json title="Example response"
@@ -42,15 +42,3 @@ A `GET` or `HEAD` request to `/.well-known/api-catalog` returns an [RFC 9264](ht
   ]
 }
 ```
-
-Hidden API references (set with `hidden: true` or with all endpoints hidden) are excluded from the catalog.
-
-## Trying it out
-
-You can test the endpoint on any Fern docs site. For example, this site's catalog is at [buildwithfern.com/learn/.well-known/api-catalog](https://buildwithfern.com/learn/.well-known/api-catalog):
-
-```bash
-curl -s https://buildwithfern.com/learn/.well-known/api-catalog | jq .
-```
-
-For sites with a basepath like `/docs`, use `/.well-known/api-catalog` under that basepath (e.g. `https://example.com/docs/.well-known/api-catalog`).
