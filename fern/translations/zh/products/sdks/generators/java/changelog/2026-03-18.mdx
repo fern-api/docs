@@ -1,0 +1,89 @@
+## 4.0.0
+**`(feat):`** **WebSocket 用户的重大变更。** 仅 REST 的 SDK 不受影响 — 无需代码更改。
+
+全面重构生成的 WebSocket 客户端。生成的 API 围绕工厂 → 配置 → 连接生命周期进行重新构建，将客户端创建与连接参数分离：
+
+```java
+// 从服务树创建客户端 — 尚未指定连接参数
+V1WebSocketClient ws = client.listen().v1WebSocket();
+
+// 在连接前注册处理器
+ws.onListenV1Results(results ->
+    System.out.println(results.getChannel().getAlternatives()));
+ws.onError(error -> error.printStackTrace());
+
+// 使用特定于通道的选项连接（编译时强制要求必需参数）
+ws.connect(V1ConnectOptions.builder()
+    .model(ListenV1Model.NOVA3)
+    .encoding(ListenV1Encoding.LINEAR16)
+    .sampleRate(16000)
+    .build());
+
+// 流式传输音频并断开连接
+ws.sendMedia(audioBytes);
+ws.disconnect();
+```
+
+**查询参数从构造函数移至 `connect()` 方法**。工厂方法（`client.listen().v1WebSocket()`）现在不接受特定于通道的参数。所有查询参数通过构建器模式的 `ConnectOptions` 对象传递给 `connect()`，与 Python SDK 的设计保持一致。必需参数使用分阶段构建器，因此在编译时可以捕获缺失字段。
+
+**`AutoCloseable`** — 客户端实现 `AutoCloseable` 以支持 try-with-resources，在作用域退出时自动调用 `disconnect()`。
+
+**可配置重连** — `reconnectOptions(ReconnectOptions)` 让调用者在调用 `connect()` 前调整最大重试次数、退避延迟和队列大小。
+
+**通用 `onMessage(Consumer<String>)` 处理器** — 对每个传入的文本帧触发，携带原始 JSON 字符串，在特定类型分发之前执行。对日志记录或自定义路由很有用。
+
+**二进制 WebSocket 支持** — 定义二进制消息的通道现在生成类型化的发送和接收方法。二进制帧在断开连接时排队，重连时刷新，与文本行为匹配。
+
+**共享核心类型** — `DisconnectReason` 和 `WebSocketReadyState` 在核心包中生成一次，而不是在每个 WebSocket 客户端内部重复作为内部类。
+
+**线程安全** — 所有处理器字段现在都是 `volatile`，因此从主线程注册的处理器对 OkHttp 回调线程可见。之前只有 `readyState` 是 volatile 的。
+
+**`x-fern-sdk-method-name` 支持** — WebSocket 发送/接收方法在设置时使用 Fern 配置中的自定义方法名。
+
+还移除了已弃用的 `hasWebSocketInstance()` 方法，对无法识别的传入消息类型触发 `onError` 而不是静默丢弃。
+
+
+**`(fix):`** 修复 WebSocket `connect()` 在环境 URL 使用 `wss://` 或 `ws://` 方案时因 `NullPointerException` 而崩溃的问题。OkHttp 的 `HttpUrl.parse()` 只接受 `http`/`https`，因此客户端现在在解析前重写方案并对结果进行空值检查。
+
+
+**`(fix):`** 修复 WebSocket 客户端总是调用 `environment().getUrl()` 的问题，该方法在多 URL 环境类上不存在。生成器现在基于 IR 中通道的 `baseUrl` 字段解析正确的每个 URL 获取器（例如 `environment().getAgentURL()`），与 REST 端点已使用的模式匹配。
+
+
+**`(fix):`** 修复当 IR 中通道的 `auth` 字段为 false 时，WebSocket 客户端不发送认证标头的问题。之前，仅在 `websocketChannel.getAuth()` 为 true 时才应用标头。`connect()` 现在无条件地将 `clientOptions.headers()` 应用到升级请求，确保无论通道的认证配置如何，都始终发送承载令牌、API 密钥和自定义标头。
+
+
+**`(fix):`** 修复 WebSocket 消息序列化将每个出站消息包装在 `{"type": "...", "body": {...}}` 信封中，并期望传入消息使用相同格式的问题。消息现在直接序列化为扁平 JSON（区分联合已包含 `type` 字段），传入消息从根 JSON 对象反序列化，而不是提取嵌套的 `body` 子字段。
+
+
+**`(fix):`** 修复二进制文件上传端点（`application/octet-stream`）通过 Jackson 序列化请求体，使用 JSON 字符串转义破坏二进制数据的问题。这些端点现在通过 `InputStreamRequestBody` 发送原始字节。
+
+
+## 3.44.6
+**`(fix):`** 修复联合序列化中重复判别器键的问题。当区分联合变体使用 `@JsonUnwrapped` 且包装对象已包含判别属性（例如 "type"）时，序列化的 JSON 之前会包含该键两次。生成器现在在 `@JsonUnwrapped` 字段上添加字段级 `@JsonIgnoreProperties` 注解，设置 `allowSetters = true`，以在序列化期间抑制重复项，同时保留反序列化。
+
+
+## 3.44.5
+**`(fix):`** 修复整数值双精度浮点数的序列化问题。像 `24000.0` 这样的值现在在 JSON 输出中序列化为 `24000` 而不是 `24000.0`。这防止了当值恰好是整数时，为定义为 `type: number` 的字段拒绝 API 的情况。像 `3.14` 这样的非整数双精度值继续正常序列化。
+
+
+## 3.44.4
+**`(fix):`** 修复在分阶段构建器中具有必需字段的对象的动态代码片段编译错误。当端点示例省略必需属性时，代码片段生成器现在填充类型适当的默认值，而不是生成跳过强制构建器阶段的无效 `.builder().build()` 调用。
+
+
+**`(fix):`** 修复在为缺失的必需属性添加默认值时动态代码片段构建器排序问题。在注入默认值后，属性现在重新排序以匹配模式声明顺序，确保 Java 分阶段构建器方法调用遵循正确的序列。
+
+
+**`(fix):`** 修复当示例数据不匹配时，无区分联合变体匹配选择错误变体的问题。现在在匹配期间验证必需属性及其嵌套类型，因此具有不匹配枚举值或缺失必需字段的变体被正确拒绝。
+
+
+**`(fix):`** 修复生成的 README OptionalNullable 文档中硬编码的 `com.seed.api.core.OptionalNullable` 导入。导入现在使用正在生成的 SDK 的正确动态包名。
+
+
+**`(fix):`** 修复生成的 README 中错误的原始响应类型名称。"Access Raw Response Data" 部分现在使用正确的 `{BaseNamePrefix}HttpResponse` 类名（例如 `Auth0ApiHttpResponse`），而不是端点派生的名称（例如 `CreateHttpResponse`）。
+
+
+**`(fix):`** 修复生成的 README Usage 示例中缺失的环境 URL 变量。来自 OpenAPI 服务器 URL 模板的构建器参数（如 `tenantDomain`）现在与认证参数一起包含在 Usage 代码片段中。
+
+
+## 3.44.3
+**`(fix):`** 修复认证标头前缀缺失尾随空格的问题。

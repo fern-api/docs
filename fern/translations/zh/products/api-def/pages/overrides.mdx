@@ -1,0 +1,191 @@
+---
+title: 覆盖
+description: 使用单独的覆盖文件自定义您的 API 定义。
+sidebar-title: 覆盖
+---
+
+使用覆盖文件可以在不修改原始规范的情况下自定义您的 OpenAPI、AsyncAPI 或 OpenRPC 定义。这在以下情况下很有用：
+
+* 您的 API 规范是从服务器代码自动生成的
+* 您需要为 SDK 和文档配置不同的设置
+
+覆盖功能适用于 OpenAPI、AsyncAPI 和 OpenRPC 规范。对于 [Fern Definition](/api-definitions/ferndef/overview) 不需要覆盖，因为您可以直接编辑这些文件。
+
+<Warning>
+  对于 OpenAPI 规范，Fern 建议使用 [叠加层](/learn/api-definitions/openapi/overlays) 而不是覆盖。叠加层遵循官方 [OpenAPI 叠加层规范](https://spec.openapis.org/overlay/v1.0.0.html)，支持使用 JSONPath 通配符进行批量更改，并且在 OpenAPI 生态系统中具有可移植性。
+
+  覆盖功能也完全受支持。如果覆盖对您的团队有效，则无需切换。您也可以同时使用两者（首先应用覆盖，然后应用叠加层）。
+</Warning>
+
+## 实现覆盖
+
+<Steps>
+<Step title="创建覆盖文件">
+
+在包含您的 API 定义的文件夹中[创建一个 `overrides.yml` 文件](/cli-api-reference/cli-reference/commands#fern-write-overrides)：
+
+```bash {6}
+fern/
+  ├─ fern.config.json 
+  ├─ generators.yml
+  └─ spec-folder/
+    ├─ spec-file.yml # API 定义
+    └─ overrides.yml
+```
+
+<Note> 覆盖文件的格式独立于规范。例如，即使您的 OpenAPI 规范是 JSON 格式，您也可以用 yaml 编写覆盖。 </Note>
+
+</Step>
+<Step title="使用 Fern 扩展自定义您的规范">
+
+对于 OpenAPI、AsyncAPI 和 OpenRPC，您可以使用 [Fern 的扩展](/learn/api-definitions/asyncapi/overrides#definition-specific-extensions) 来应用自定义。
+
+```yml title="overrides.yml" {4-5}
+paths: 
+ /users: 
+   post: 
+    x-fern-sdk-group-name: users
+    x-fern-sdk-method-name: create
+```
+
+</Step>
+<Step title="在 generators.yml 中添加引用">
+
+```yaml title="generators.yml"
+api:
+  specs:
+    - openapi: spec-file.yml 
+      overrides: ./overrides.yml
+```
+
+您也可以指定[多个覆盖文件](#managing-overrides-across-apis)。
+
+</Step>
+<Step title="Fern 合并您的规范和覆盖">
+现在当您运行 `fern generate` 时，Fern 会将您的原始 API 规范与覆盖文件合并：
+
+<CodeGroup>
+```yml openapi.yml
+paths: 
+ /users: 
+   post: 
+    description: Create a User
+    operationId: users_post
+    requestBody: 
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/User'
+```
+```yml title="overrides.yml" {4-5}
+paths: 
+ /users: 
+   post: 
+    x-fern-sdk-group-name: users
+    x-fern-sdk-method-name: create
+```
+```yml title="合并后" {4-5}
+paths: 
+ /users/post: 
+  post: 
+    x-fern-sdk-group-name: users
+    x-fern-sdk-method-name: create      
+    description: Create a User
+    operationId: users_post
+    requestBody: 
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/User'   
+```
+</CodeGroup>
+</Step>
+</Steps>
+
+## 跨 API 管理覆盖
+
+`overrides` 字段接受单个路径或路径列表。当提供多个路径时，覆盖会按顺序依次应用，后面的文件对于冲突键会优先于前面的文件。
+
+<AccordionGroup>
+<Accordion title="多个规范间的共享覆盖">
+
+当您的项目有多个需要相同基础覆盖的规范时，使用共享基础文件并在其上分层应用特定规范的覆盖。这避免了在每个规范中重复常见的覆盖（例如，SDK 方法名称或身份验证扩展）：
+
+```yaml title="generators.yml"
+api:
+  specs:
+    - openapi: ./payments-api.yml
+      overrides:
+        - ./shared-overrides.yml       # 所有规范的通用覆盖
+        - ./payments-overrides.yml     # 支付特定的覆盖
+    - openapi: ./users-api.yml
+      overrides:
+        - ./shared-overrides.yml       # 相同的通用覆盖
+        - ./users-overrides.yml        # 用户特定的覆盖
+```
+
+</Accordion>
+<Accordion title="SDK 和文档的单独覆盖">
+
+当您需要为 SDK 生成和文档使用完全不同的覆盖时，使用带有各自 `generators.yml` 的单独文件夹。每个文件夹只引用与其关注点相关的覆盖：
+
+<Files>
+  <Folder name="fern" defaultOpen>
+    <File name="fern.config.json" />
+    <File name="openapi.yml" />
+    <Folder name="docs" defaultOpen>
+      <File name="generators.yml" />
+      <File name="docs-overrides.yml" />
+    </Folder>
+    <Folder name="sdks" defaultOpen>
+      <File name="generators.yml" />
+      <File name="sdk-overrides.yml" />
+    </Folder>
+  </Folder>
+</Files>
+
+```yaml title="sdks/generators.yml"
+api:
+  specs:
+    - openapi: ../openapi.yml
+      overrides: sdk-overrides.yml
+```
+
+如果 SDK 和文档覆盖共享一个通用基础，您可以在每个文件夹内使用多个覆盖文件来避免重复：
+
+```yaml title="sdks/generators.yml"
+api:
+  specs:
+    - openapi: ../openapi.yml
+      overrides:
+        - ../shared-overrides.yml      # SDK 和文档的通用覆盖
+        - sdk-overrides.yml            # SDK 特定的覆盖
+```
+
+</Accordion>
+<Accordion title="不同环境的覆盖">
+
+当您的公共和内部 API 共享相同的规范但需要不同的覆盖时，使用多个覆盖文件在公共基础上分层添加内部特定的内容。这在内部 API 是公共 API 超集时特别有用：
+
+```yaml title="generators.yml" {5, 12-13}
+groups:
+  public:
+    specs:
+      - openapi: openapi.yml
+        overrides: public-overrides.yml
+    generators:
+      ...
+  internal:
+    specs:
+      - openapi: openapi.yml
+        overrides:
+          - public-overrides.yml           # 基础：所有公共覆盖
+          - internal-overrides.yml         # 附加：仅内部覆盖
+    generators:
+      ...
+```
+
+这避免了在内部配置中重复公共覆盖。`internal-overrides.yml` 文件只需包含内部 API 特定的添加内容。
+
+</Accordion>
+</AccordionGroup>

@@ -1,0 +1,69 @@
+---
+title: "依赖其他 API"
+subtitle: 导入 API 定义以生成统一的 SDK
+sidebar-title: 依赖其他 API
+---
+
+Fern 允许您将其他 API 导入到您的 API 中。
+
+这在以下情况下通常很有用：
+
+- 您希望在您的 API 中重用另一个 API 的类型
+- 您希望将多个微服务的 API 合并到一个 SDK 中（类似于 AWS SDK）
+
+## 注册依赖的 API
+
+第一步是**注册**您要依赖的 API。为此，使用 `register` 命令：
+
+```
+$ fern register
+[some-dependency]: Uploading definition...
+[some-dependency]: Registered @fern/some-dependency:0.0.1
+```
+
+## 依赖已注册的 API
+
+要添加对另一个 API 的依赖，您必须添加一个 `dependencies.yml` 来声明您希望依赖的 API。
+
+<Files>
+  <Folder name="fern" defaultOpen>
+    <File name="fern.config.json" />
+    <File name="generators.yml" />
+    <File name="dependencies.yml" highlighted />
+    <Folder name="definition" defaultOpen>
+      <File name="api.yml" />
+      <File name="imdb.yml" />
+    </Folder>
+  </Folder>
+</Files>
+
+您的 `dependencies.yml` 包含您希望依赖的所有 API 列表：
+
+```yaml dependencies.yml 
+dependencies:
+   "@fern/some-dependency": "0.0.1"
+```
+
+接下来，您需要在您的 Fern 定义中创建一个文件夹来容纳依赖项。在文件夹内，创建一个特殊文件 `__package__.yml`，该文件指定您要添加的依赖项和版本。
+
+<Files>
+  <Folder name="fern" defaultOpen>
+    <File name="fern.config.json" />
+    <File name="generators.yml" />
+    <File name="dependencies.yml" />
+    <Folder name="definition" defaultOpen>
+      <File name="api.yml" />
+      <File name="imdb.yml" />
+      <Folder name="my-folder" defaultOpen highlighted>
+        <File name="__package__.yml" highlighted />
+      </Folder>
+    </Folder>
+  </Folder>
+</Files>
+
+```yaml __package__.yml
+export:
+  dependency: "@fern/some-dependency"
+```
+
+当您使用 `fern generate` 生成 SDK 时，`__package__.yml` 文件将有效地被您所依赖的 API 替换。

@@ -1,0 +1,20 @@
+## 5.5.6
+**`(fix):`** 当作为子包名称使用时，对 Python 保留关键字（如 `import`、`class`、`from`）进行转义。之前，以 Python 关键字命名的子包会生成损坏的 `__init__.py`（例如，`from .import.client import ImportClient`），导致解析失败。子包目录现在使用命名规范生成器的 `safe_name` 来生成（例如，`import_`），这与其他标识符已经处理保留关键字的方式保持一致。
+
+
+## 5.5.5
+**`(fix):`** 将生成的 `aiohttp` 可选依赖的下限从 `>=3.10.0,<4` 提升到 `>=3.13.4,<4`，并在 `aiohttp` 和 `httpx-aiohttp` 上添加 `python = ">=3.9"` 标记，以便 aiohttp extra 仅在 Python 3.9+ 上安装，同时仍允许 SDK 本身支持 Python 3.8。在依赖规范级别强制执行 GHSA-c427-h43c-vf67 (CVE-2026-34525) 的修补最低版本。
+
+
+## 5.5.4
+**`(fix):`** 将生成器产生的最低 Python 版本限制为 ^3.10。Python 3.8 在 2024 年 10 月达到 EOL，Python 3.9 在 2025 年 10 月达到 EOL；许多流行的 PyPI 包（例如 `requests` >=2.33）不再为这些版本发布 wheel，这会导致依赖解析固定较旧的已知漏洞版本（GHSA-gc5v-m9x4-r6x2 / CVE-2026-25645）。当 `pyproject_python_version` 指定允许低于 3.10 版本的范围时，生成器现在会记录警告并在生成的 `pyproject.toml` 中发出 `python = "^3.10"`。
+
+
+**`(fix):`** 将生成的 wire 测试套件使用的 `requests` / `types-requests` 依赖从 `^2.31.0` 升级到 `^2.33.0`，以获取 GHSA-gc5v-m9x4-r6x2（`requests.utils.extract_zipped_paths` 中不安全的临时文件重用）的修复。
+
+
+**`(chore):`** 在生成的 SDK 的开发依赖中添加防御性的 `urllib3` 固定，排除了 CVE-2024-37891 (GHSA-34jh-p97f-mpxf) 修复的易受攻击的 `>=2.0.0,<2.2.2` 范围。这防止了即使用户提供的 `extra_dependencies` 传递性地限制了 urllib3（例如，较旧的 boto3 固定其 botocore 要求 urllib3 < 2.1），`poetry lock` 也不会解析到易受攻击的 urllib3。
+
+
+## 5.5.3
+**`(chore):`** 对于针对 Python 3.9+ 的 SDK，将生成的 `pytest` 开发依赖从 `^8.2.0` 升级到 `^9.0.3`。这解决了 CVE-2025-71176 (GHSA-6w46-j5rx-g56g)，这是一个关于 UNIX 上不安全的 `/tmp/pytest-of-{user}` 处理的中等严重性问题。仍然支持 Python 3.8 的项目继续使用 `pytest ^7.4.0`，因为 pytest 9 需要 Python 3.9+。

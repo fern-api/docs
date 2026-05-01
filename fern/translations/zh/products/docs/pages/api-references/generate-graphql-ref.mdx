@@ -1,0 +1,84 @@
+---
+title: 生成 GraphQL 参考文档
+description: 使用 Fern Docs 从 GraphQL schema 生成 GraphQL API 参考文档。
+sidebar-title: 生成 GraphQL 参考
+availability: pre-release
+---
+
+<Warning>GraphQL API 参考文档没有积极维护。如果您有疑问，[请联系我们](https://buildwithfern.com/contact)。</Warning>
+
+Fern 从 [GraphQL schema](https://graphql.org/learn/schema/) 生成 API 参考文档。将您的 schema 文件添加到 Fern 项目中，Fern 会将查询、变更、订阅和类型渲染为交互式参考文档。
+
+## 配置
+
+<Steps>
+<Step title="设置项目结构">
+
+将您的 GraphQL schema 文件添加到 `/fern` 目录并创建引用它的 `generators.yml`：
+
+```yaml generators.yml
+api:
+  specs:
+    - graphql: plants.schema.graphql
+      name: Plants
+      origin: https://api.example.com/plants/graphql
+```
+
+</Step>
+<Step title="将 GraphQL 参考文档添加到导航">
+
+在 `docs.yml` 的导航中添加 `- api: API Reference`：
+
+```yml docs.yml
+navigation:
+  - api: API Reference
+```
+
+</Step>
+<Step title="自定义布局">
+
+有关配置选项和布局自定义的完整列表，请参阅[自定义 API 参考文档布局](/learn/docs/api-references/customize-api-reference-layout)。
+
+</Step>
+</Steps>
+
+### 包含多个 GraphQL 参考文档
+
+要在文档中包含多个 GraphQL 定义，请使用 `api-name` 属性。`api-name` 对应包含您 GraphQL schema 的文件夹名称。
+
+<Files>
+  <Folder name="fern" defaultOpen>
+    <File name="fern.config.json" />
+    <File name="docs.yml" />
+    <Folder name="plant-graphql" defaultOpen>
+      <File name="schema.graphql" comment="Plant GraphQL schema" />
+      <File name="generators.yml" />
+    </Folder>
+    <Folder name="garden-graphql" defaultOpen>
+      <File name="schema.graphql" comment="Garden GraphQL schema" />
+      <File name="generators.yml" />
+    </Folder>
+  </Folder>
+</Files>
+
+```yaml title="docs.yml"
+navigation:
+  - api: Plant GraphQL API
+    api-name: plant-graphql
+  - api: Garden GraphQL API
+    api-name: garden-graphql
+```
+
+### 配置属性
+
+<ParamField path="api.specs[].graphql" required>
+  您的 GraphQL schema 文件路径。如果您的项目暴露多个 GraphQL API，您可以包含多个 GraphQL 规范。
+</ParamField>
+
+<ParamField path="api.specs[].name">
+  此规范的操作在 API 参考文档侧边栏中显示的文件夹名称。使用此属性将相关的 GraphQL 操作分组在一起。
+</ParamField>
+
+<ParamField path="api.specs[].origin">
+  您的 GraphQL API 端点 URL。Fern 对此端点执行[内省](https://graphql.org/learn/introspection/)以获取 schema。设置后，[运行 `fern api update`](/learn/cli-api-reference/cli-reference/commands#fern-api-update) 会从此端点更新本地 schema。
+</ParamField>

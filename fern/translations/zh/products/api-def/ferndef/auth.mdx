@@ -1,0 +1,258 @@
+---
+title: 身份验证
+description: 在 Fern Definition 中配置 API 身份验证。为您的 API 端点设置 bearer token、基本身份验证、自定义头部和 OAuth。
+sidebar-title: 身份验证
+---
+
+身份验证方案的配置在 `api.yml` 文件中进行。所有 Fern 生成的 SDK 都支持直接配置和环境变量来配置身份验证凭据。
+
+```bash {5}
+fern/
+├─ fern.config.json # 根级别配置
+├─ generators.yml # 你正在使用的生成器
+└─ definition/
+  ├─ api.yml  # API 级别配置
+  └─ imdb.yml # 端点、类型和错误
+```
+
+要添加身份验证方案，请在 `auth-schemes` 部分下指定身份验证方法。
+
+```yaml api.yml {1-2}
+auth-schemes:
+  AuthScheme:                     
+    ...
+```
+
+<Note>
+要在所有端点中应用身份验证方案，请在 `api.yml` 文件的 `auth` 部分中引用 `auth-scheme`。
+```yaml api.yml {1}
+auth: AuthScheme                  
+auth-schemes:
+  AuthScheme:                     
+    ...
+```
+</Note>
+
+## Bearer 身份验证
+
+首先在 `api.yml` 中定义一个 `Bearer` 身份验证方案：
+
+```yaml api.yml
+auth: Bearer                  
+auth-schemes:
+  Bearer:                     
+    scheme: bearer
+```
+
+这将生成一个 SDK，用户需要提供一个名为 `token` 的必需参数。
+
+```ts index.ts
+const client = new Client({
+  token: "ey34..."
+})
+```
+
+如果你想控制变量命名和要扫描的环境变量，请使用以下配置：
+
+```yaml title="api.yml" {5-7}
+auth: Bearer                  
+auth-schemes:
+  Bearer:                     
+    scheme: bearer
+    token:
+      name: apiKey 
+      env: PLANTSTORE_API_KEY
+```
+
+生成的 SDK 会是这样：
+
+```ts index.ts
+
+// 使用 process.env.PLANTSTORE_API_KEY
+let client = new Client(); 
+
+// token 已被重命名为 apiKey
+client = new Client({
+  apiKey: "ey34..."
+})
+```
+
+## 基本身份验证
+
+首先在 `api.yml` 中定义一个 `Basic` 身份验证方案：
+
+```yaml api.yml
+auth: Basic                  
+auth-schemes:
+  Basic:                     
+    scheme: basic
+```
+
+这将生成一个 SDK，用户需要提供名为 `username` 和 `password` 的必需参数。
+
+```ts index.ts
+const client = new Client({
+  username: "joeschmoe"
+  password: "ey34..."
+})
+```
+
+如果你想控制变量命名和要扫描的环境变量，请使用以下配置：
+
+```yaml title="api.yml" {5-11}
+auth: Basic                  
+auth-schemes:
+  Basic:                     
+    scheme: basic
+    username:
+      name: clientId
+      env: PLANTSTORE_CLIENT_ID
+    password:
+      name: clientSecret
+      env: PLANTSTORE_CLIENT_SECRET
+```
+
+生成的 SDK 会是这样：
+
+```ts index.ts
+
+// 使用 process.env.PLANTSTORE_CLIENT_ID 和 process.env.PLANTSTORE_CLIENT_SECRET
+let client = new Client(); 
+
+// 参数已被重命名
+client = new Client({
+  clientId: "joeschmoe", 
+  clientSecret: "ey34..."
+})
+```
+
+## 自定义头部（例如 API 密钥）
+
+你也可以使用自定义头部创建自己的身份验证方案。
+
+```yaml title="api.yml" {3-5}
+auth: ApiKeyAuthScheme
+auth-schemes:
+  ApiKeyAuthScheme:
+    header: X-API-Key
+    type: string
+```
+
+这将生成一个 SDK，用户需要提供一个名为 `apiKey` 的必需参数。
+
+```ts index.ts
+const client = new Client({
+  xApiKey: "ey34..."
+})
+```
+
+如果你想控制变量命名和要扫描的环境变量，请使用以下配置：
+
+```yaml title="api.yml" {7-8}
+auth: ApiKeyAuthScheme
+auth-schemes:
+  ApiKeyAuthScheme:
+    header: X-API-Key
+    type: string
+    name: apiKey
+    env: PLANTSTORE_API_KEY
+```
+
+生成的 SDK 会是这样：
+
+```ts index.ts
+
+// 使用 process.env.PLANTSTORE_API_KEY
+let client = new Client(); 
+
+// 参数已被重命名
+client = new Client({
+  apiKey: "ey34..."
+})
+```
+
+## OAuth 客户端凭据
+
+<Markdown src="/snippets/team-or-pro-plan.mdx"/>
+
+如果你的 API 使用 OAuth，你可以在 `api.yml` 中指定 oauth 方案，并在单独的 `auth.yml` 文件中定义令牌检索端点（[示例](https://github.com/fern-api/fern/blob/3137938b70e058f3691ddef34d5c1cc29acc4b80/test-definitions/fern/apis/oauth-client-credentials/definition/api.yml)）。
+
+```yaml api.yml
+name: api
+
+imports:
+  auth: auth.yml
+
+auth: OAuthScheme
+auth-schemes:
+  OAuthScheme:
+    scheme: oauth
+    type: client-credentials
+    client-id-env: YOUR_CLIENT_ID
+    client-secret-env: YOUR_CLIENT_SECRET
+    get-token:
+      endpoint: auth.getTokenWithClientCredentials
+      request-properties:
+        client-id: $request.client_id         # 格式: parameter-name: $request.property_name
+        client-secret: $request.client_secret # 格式: parameter-name: $request.property_name            
+      response-properties:
+        access-token: $response.access_token  # 格式: parameter-name: $response.property_name
+        expires-in: $response.expires_in      # 格式: parameter-name: $response.property_name
+
+```
+
+`request-properties` 和 `response-properties` 将 OAuth 标准参数映射到在 `auth.yml` 中定义的实际端点的请求和响应字段名称。
+
+<Info>
+  如果设置了 `expires-in` 属性，生成的 OAuth 令牌提供程序将在令牌过期时自动刷新令牌。否则，假设访问令牌永久有效。
+</Info>
+
+相应的 `auth.yml` 文件（[示例](https://github.com/fern-api/fern/blob/3137938b70e058f3691ddef34d5c1cc29acc4b80/test-definitions/fern/apis/oauth-client-credentials/definition/auth.yml)）定义了令牌端点：
+
+```yaml title="auth.yml"
+types:
+  TokenResponse:
+    docs: |
+      OAuth 令牌响应。
+    properties:
+      access_token: string
+      expires_in: integer
+      refresh_token: optional<string>
+
+service:
+  auth: false
+  base-path: /
+  endpoints:
+    getTokenWithClientCredentials:
+      path: /token
+      method: POST
+      request:
+        name: GetTokenRequest
+        body:
+          properties:
+            client_id: string
+            client_secret: string
+            audience: literal<"https://api.example.com">
+            grant_type: literal<"client_credentials">
+            scope: optional<string>
+      response: TokenResponse
+```
+
+<Info>如果你的 OAuth 服务器托管在与主 API 不同的 URL 上，你可以使用[每个环境多个 URL](/api-definitions/ferndef/api-yml/environments#multiple-urls-per-environment) 为身份验证和 API 调用指定单独的基础 URL。</Info>
+
+有了这些，所有的 OAuth 逻辑都会在生成的 SDK 中自动处理。只要你配置了这些设置，你的客户端将自动检索访问令牌并根据需要刷新它。
+
+在使用文档 playground 时，可以选择设置 `token-header` 和 `token-prefix` 来自定义头部键名和头部值前缀，以匹配 API 身份验证方案的预期格式。
+
+例如，以下配置将产生头部 `Fern-Authorization: Fern-Bearer <token>`：
+
+```yaml api.yml {5-6}
+auth-schemes:
+  OAuthScheme:
+    scheme: oauth
+    type: client-credentials
+    token-header: Fern-Authorization
+    token-prefix: Fern-Bearer
+    get-token:
+      ...   
+```

@@ -1,0 +1,236 @@
+---
+title: Authentication
+subtitle: 为 JSON-RPC API 建模身份验证方案，包括 Bearer、Basic 和 API Key 身份验证
+sidebar-title: 身份验证
+---
+
+OpenRPC 中的身份验证可以在服务器级别或方法级别进行配置，具体取决于您的 JSON-RPC 实现。与 REST API 不同，JSON-RPC 通常通过传输层（HTTP 头）或在 JSON-RPC 请求负载中处理身份验证。
+
+## HTTP 传输身份验证
+
+当使用 HTTP 作为 JSON-RPC 的传输方式时，您可以使用标准的 HTTP 身份验证方案。
+
+### Bearer token 身份验证
+
+为基于 HTTP 的 JSON-RPC 配置 bearer token 身份验证：
+
+```yml title="openrpc.yml" {4-9}
+servers:
+  - name: production
+    url: https://api.example.com/rpc
+    description: Production JSON-RPC server
+    security:
+      - bearerAuth: []
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+```
+
+这会生成需要 token 的 SDK 方法：
+
+```typescript
+const client = new JSONRPCClient({
+  url: "https://api.example.com/rpc",
+  auth: {
+    bearer: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  }
+});
+
+// 调用 JSON-RPC 方法
+const result = await client.call("calculate.add", { a: 5, b: 3 });
+```
+
+### API Key 身份验证
+
+配置 API Key 身份验证：
+
+```yml title="openrpc.yml" {4-9}
+servers:
+  - name: production
+    url: https://api.example.com/rpc
+    description: Production JSON-RPC server
+    security:
+      - apiKeyAuth: []
+components:
+  securitySchemes:
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+```
+
+在 SDK 中的使用方式：
+
+```typescript
+const client = new JSONRPCClient({
+  url: "https://api.example.com/rpc",
+  auth: {
+    apiKey: "your-api-key-here"
+  }
+});
+```
+
+### Basic 身份验证
+
+配置 Basic 身份验证：
+
+```yml title="openrpc.yml" {4-9}
+servers:
+  - name: production
+    url: https://api.example.com/rpc
+    description: Production JSON-RPC server
+    security:
+      - basicAuth: []
+components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+```
+
+在 SDK 中的使用方式：
+
+```typescript
+const client = new JSONRPCClient({
+  url: "https://api.example.com/rpc",
+  auth: {
+    username: "user@example.com",
+    password: "password123"
+  }
+});
+```
+
+## 方法级别的身份验证
+
+一些 JSON-RPC 实现可能需要为特定方法使用不同的身份验证：
+
+```yml title="openrpc.yml" {6-7, 15-16}
+methods:
+  - name: public.getInfo
+    summary: Get public information
+    description: Publicly accessible method (no auth required)
+    params: []
+    result:
+      name: info
+      schema:
+        type: object
+  - name: user.getProfile
+    summary: Get user profile
+    description: Requires user authentication
+    security:
+      - bearerAuth: []
+    params:
+      - name: userId
+        schema:
+          type: string
+        required: true
+    result:
+      name: profile
+      schema:
+        $ref: '#/components/schemas/UserProfile'
+```
+
+## WebSocket 身份验证
+
+对于 WebSocket 传输，身份验证通常在连接建立过程中进行：
+
+```yml title="openrpc.yml" {4-8}
+servers:
+  - name: websocket
+    url: wss://api.example.com/rpc
+    description: WebSocket JSON-RPC server
+    variables:
+      token:
+        description: Authentication token for WebSocket connection
+        default: ""
+    security:
+      - wsAuth: []
+components:
+  securitySchemes:
+    wsAuth:
+      type: apiKey
+      in: query
+      name: token
+      description: Authentication token passed as query parameter
+```
+
+## 自定义身份验证参数
+
+对于在请求负载内处理身份验证的 JSON-RPC API：
+
+```yml title="openrpc.yml" {8-16}
+methods:
+  - name: auth.login
+    summary: Authenticate user
+    description: Login method that returns authentication token
+    params:
+      - name: credentials
+        schema:
+          type: object
+          properties:
+            username:
+              type: string
+            password:
+              type: string
+          required:
+            - username
+            - password
+    result:
+      name: authResult
+      schema:
+        type: object
+        properties:
+          token:
+            type: string
+          expiresIn:
+            type: integer
+          refreshToken:
+            type: string
+```
+
+## Fern 身份验证扩展
+
+使用 Fern 扩展来自定义身份验证行为：
+
+```yml title="openrpc.yml" {5-8}
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      x-fern-token:
+        name: authToken
+        env: AUTH_TOKEN
+```
+
+这允许用户通过环境变量或构造函数参数设置身份验证，使 SDK 更加灵活和安全。
+
+## 身份验证的错误处理
+
+为身份验证失败定义标准化的错误响应：
+
+```yml title="openrpc.yml" {2-12}
+components:
+  errors:
+    - code: -32001
+      message: Authentication required
+      data:
+        type: object
+        properties:
+          error:
+            type: string
+            const: "Authentication token is required"
+    - code: -32002
+      message: Invalid authentication
+      data:
+        type: object
+        properties:
+          error:
+            type: string
+            const: "Invalid or expired authentication token"
+```
+
+这些错误代码遵循 JSON-RPC 2.0 约定，同时为 API 消费者提供清晰的身份验证反馈。

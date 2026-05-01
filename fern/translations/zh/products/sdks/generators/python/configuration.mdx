@@ -1,0 +1,385 @@
+---
+title: Python 配置
+description: Fern Python SDK 的配置选项。
+sidebar-title: Python 配置
+---
+
+您可以在 `generators.yml` 中自定义 Python SDK 生成器的行为：
+
+```yaml {6-15} title="generators.yml"
+groups:
+  python-sdk:
+    generators:
+      - name: fernapi/fern-python
+        version: <Markdown src="/snippets/version-number-python.mdx"/>
+        config:
+          package_name: "your_package"
+          client_class_name: "YourClient" 
+          additional_init_exports:
+            - from: file_with_custom_function
+              imports:
+                - custom_function
+          pydantic_config:
+            skip_validation: true
+          environment_class_name: "AcmeEnvironment"
+```
+
+<ParamField path="additional_init_exports" type="array of objects" default="null" required={false} toc={true}>
+要从包的 `__init__.py` 文件中导出的其他模块或类。这允许您自定义用户导入包时可用的内容。
+
+每个对象都应指定要从哪个文件导入以及要导入的内容：
+```yaml
+config:
+  additional_init_exports:
+    - from: core.oauth_flow
+      imports:
+        - validate_token
+    - from: utils.helpers
+      imports:
+        - format_currency
+        - PhoneValidator
+```
+
+这使用户能够直接访问您的自定义函数：
+```python
+from my_package import validate_token, format_currency, PhoneValidator
+```
+</ParamField>
+<ParamField path="additional_init_exports[].from" type="string" required={true}>
+要导入的模块路径，使用 Python 点记法。省略 `.py` 扩展名并用点替换路径分隔符。
+
+例如，如果您要从文件 `core/oauth_flow.py` 导入，请将其指定为 `- from: core.oauth_flow`。
+</ParamField>
+<ParamField path="additional_init_exports[].imports" type="array of strings" required={true}>
+要从指定文件导入的类名、函数名或其他对象的列表。
+</ParamField>
+<ParamField path="client_class_name" type="string" default="null" required={false} toc={true}>
+生成的客户端类的名称。必须是 PascalCase。例如，设置 `client_class_name: "Acme"` 会生成用户可以使用 `from your_package import Acme` 导入的客户端。
+</ParamField>
+
+<ParamField path="default_bytes_stream_chunk_size" type="number" default="null" required={false} toc={true}>
+在 `iter_bytes` 或 `aiter_bytes` 结果中处理响应字节流时使用的块大小（如果有）：`for chunk in response.iter_bytes(chunk_size=<default_bytes_stream_chunk_size>):`
+</ParamField>
+
+<ParamField path="enable_wire_tests" type="bool" default="false" required={false} toc={true}>
+启用时，生成[模拟服务器（wire）测试](/sdks/deep-dives/testing#mock-server-tests)来验证 SDK 是否按预期发送和接收 HTTP 请求。
+</ParamField>
+
+<ParamField path="exclude_types_from_init_exports" type="boolean" default="false" required={false} toc={true}>
+启用时，从包的 `__init__.py` 文件的导出中排除类型定义，减少公共 API 表面。
+</ParamField>
+
+<ParamField path="environment_class_name" type="string" default="{ClientName}Environment" required={false} toc={true}>
+自定义生成的环境类/枚举的名称。默认情况下，环境类名为 `{ClientName}Environment`（例如，对于名为 `Acme` 的客户端，名称为 `AcmeEnvironment`）。
+</ParamField>
+
+<ParamField path="extra_dependencies" type="object" default="{}" required={false} toc={true}>
+
+  <Markdown src="/snippets/pro-plan.mdx"/>
+
+  如果您想向生成的 SDK 添加自定义依赖项，可以使用此配置指定它们。例如，要添加对 boto3 的依赖，您的配置如下所示：
+  ```yaml
+  config:
+    extra_dependencies:
+      boto3: 1.28.15
+  ```
+</ParamField>
+
+<ParamField path="extra_dev_dependencies" type="object" default="{}" required={false} toc={true}>
+
+<Markdown src="/snippets/pro-plan.mdx"/>
+
+指定要包含在生成的 SDK 设置配置中的其他开发依赖项。这些是用于开发和测试的依赖项，但不是最终用户所必需的。
+</ParamField>
+
+<ParamField path="extras" type="object" default="{}" required={false} toc={true}>
+定义用户可以使用 pip extras 与您的包一起安装的可选依赖组（例如，`pip install your-package[extra-name]`）。
+
+自定义 extras 在生成时与内置的 [`aiohttp` extra](/learn/sdks/generators/python/aiohttp-support) 合并，因此声明您自己的 extras 不会覆盖它。
+</ParamField>
+
+<ParamField path="flat_layout" type="bool" default="false" required={false} toc={true}>
+启用时，通过减少嵌套目录和模块来生成更扁平的包结构。
+</ParamField>
+
+<ParamField path="follow_redirects_by_default" type="bool" default="true" required={false} toc={true}>
+是否在 HTTP 请求中默认跟随重定向。
+</ParamField>
+
+<ParamField path="improved_imports" type="bool" default="true" required={false} toc={true}>
+通过删除嵌套的 `resources` 目录来改进 Python SDK 中导入的功能标志
+</ParamField>
+
+<ParamField path="import_paths" type="array of strings" default="null" required={false} toc={true}>
+加载 SDK 包时自动导入的文件路径。这对于运行自定义设置代码非常有用，例如 Sentry 集成、日志配置或遥测钩子，而无需修改生成的代码。
+
+每个条目都是相对于包根目录的模块名称（省略 `.py` 扩展名）。SDK 将在包初始化时尝试导入每个模块；缺失的文件将被跳过。
+
+```yaml
+config:
+  import_paths:
+    - sentry_integration
+    - custom_logging
+```
+
+<Note>
+  `import_paths` 中列出的文件也必须添加到 `.fernignore`，这样它们就不会在生成期间被覆盖。
+</Note>
+</ParamField>
+
+<ParamField path="include_legacy_wire_tests" type="bool" default="false" required={false} toc={true}>
+是否在生成的 SDK 中包含传统 wire 测试
+</ParamField>
+
+<ParamField path="include_union_utils" type="bool" default="false" required={false} toc={true}>
+启用时，生成用于处理联合类型的实用方法，包括工厂方法和访问者模式。
+</ParamField>
+
+<ParamField path="inline_path_params" type="bool" default="false" required={false} toc={true}>
+如果为 true，则将路径参数视为端点函数中的命名参数。
+</ParamField>
+
+<ParamField path="inline_request_params" type="bool" default="true" required={false} toc={true}>
+删除请求对象的使用，改为在可能的情况下在函数签名中使用参数的功能标志。
+</ParamField>
+
+<ParamField path="lazy_import" type="bool" default="true" required={false} toc={true}>
+启用客户端导入的延迟加载。启用时，模块和类仅在首次访问时导入，而不是在包初始化时导入。这减少了使用大型 API 的一小部分时的内存占用，但代价是首次访问客户端时的延迟损失。
+
+设置为 `false` 以恢复立即加载行为。
+</ParamField>
+
+<ParamField path="package_name" type="string" default="null" required={false} toc={true}>
+
+指定用户将从中导入生成的客户端的 Python 包名称。
+  
+例如，设置 `package_name: "my_custom_package"` 使用户能够使用 `my_custom_package import Client` 来导入您的客户端。
+
+</ParamField>
+
+<ParamField path="pyproject_python_version" type="string" default="^3.8" required={false} toc={true}>
+  <Warning>这会更改您声明的 python 依赖项，通常不应该经常这样做。这是在任何依赖项强制您更改版本要求时的最后手段。</Warning>
+</ParamField>
+
+<ParamField path="pyproject_toml" type="string" default="null" required={false} toc={true}>
+允许通过向配置添加 `pyproject_toml` 块来为包的 `pyproject.toml` 指定任意配置，您在此块中包含的任何内容都将按原样添加到 `pyproject.toml` 文件中。配置示例为：
+        ```yaml
+        config:
+          pyproject_toml: |
+            [tool.covcheck.group.unit.coverage]
+            branch = 26.0
+            line = 62.0
+            [tool.covcheck.group.service.coverage]
+            branch = 30.0
+            line = 67.0
+        ```
+</ParamField>
+
+<ParamField path="should_generate_websocket_clients" type="bool" default="false" required={false} toc={true}>
+启用 Python WebSocket 客户端生成的功能标志。
+</ParamField>
+
+<ParamField path="skip_formatting" type="bool" default="false" required={false} toc={true}>
+启用时，跳过对生成的 Python 代码进行代码格式化（如 black）。
+</ParamField>
+
+<ParamField path="timeout_in_seconds" type="number | 'infinity'" default="60" required={false} toc={true}>
+默认情况下，生成器生成一个在 60 秒后超时的客户端。您可以通过提供不同的数字或设置为 `infinity` 来自定义此值以取消超时。
+</ParamField>
+
+<ParamField path="use_api_name_in_package" type="bool" default="false" required={false} toc={true}>
+启用时，将 API 名称作为包结构和命名的一部分。
+</ParamField>
+
+<ParamField path="use_inheritance_for_extended_models" type="bool" default="true" required={false} toc={true}>
+当模型使用 Fern `extends` 关键字时，是否生成实现继承的 Pydantic 模型。
+</ParamField>
+
+<ParamField path="use_typeddict_requests" type="bool" default="false" required={false} toc={true}>
+是否为请求对象生成 `TypedDicts` 而不是 Pydantic 模型。
+</ParamField>
+
+<ParamField path="use_typeddict_requests_for_file_upload" type="bool" default="false" required={false} toc={true}>
+是否为文件上传请求对象生成 TypedDicts 而不是 Pydantic 模型。请注意，此标志仅因为 `use_typeddict_requests` 标志实现中的疏忽而引入；将来应该删除它。
+</ParamField>
+
+### client
+  
+`client` 块为生成的客户端类和文件结构提供高级配置。对于大多数用例，顶级 `client_class_name` 选项就足够了。当您需要自定义文件名或具有不同的内部和导出类名时，请使用 `client` 块。
+
+  ```yaml
+  config:
+    client:
+      filename: "my_client.py"
+      class_name: "MyClient"
+      exported_filename: "my_client.py"
+      exported_class_name: "MyClient"
+  ```
+
+<ParamField path="client.filename" type="string" default="client.py" required={false} toc={true}>
+生成的客户端文件的文件名。
+</ParamField>
+
+<ParamField path="client.class_name" type="string" default="null" required={false} toc={true}>
+生成的客户端类的名称。对于大多数用例，请改用顶级 `client_class_name` 选项。
+</ParamField>
+
+<ParamField path="client.exported_filename" type="string" default="client.py" required={false} toc={true}>
+将在代码片段中使用的导出客户端的文件名。
+</ParamField>
+
+<ParamField path="client.exported_class_name" type="string" default="null" required={false} toc={true}>
+将在代码片段中使用的导出客户端类的名称。
+</ParamField>
+
+### pydantic_config
+
+为您的 Python SDK 配置 Pydantic 模型生成设置。
+
+```yaml
+config:
+  pydantic_config:
+    enum_type: "literals"
+    extra_fields: "forbid"
+    frozen: true
+    include_union_utils: false
+    include_validators: true
+    orm_mode: false
+    positional_single_property_constructors: false
+    require_optional_fields: false
+    skip_formatting: false
+    skip_validation: true
+    smart_union: true
+    union_naming: "v0"
+    use_inheritance_for_extended_models: true
+    use_pydantic_field_aliases: false
+    use_provided_defaults: true
+    use_str_enums: true
+    use_typeddict_requests: false
+    wrapped_aliases: false
+```
+
+<ParamField path="enum_type" type="'literals' | 'forward_compatible_python_enums' | 'python_enums'" default="literals"  toc={true}>
+在生成的模型中使用的枚举类型：
+  - `literals`: 使用 Python Literal 类型，例如 `MyEnum = Literal["foo", "bar"]`
+  - `forward_compatible_python_enums`: 使用 Python Enum 类，带有 `MyEnum._UNKNOWN` 成员以实现前向兼容性。`MyEnum._UNKNOWN.value` 包含原始的未识别值。
+  - `python_enums`: 您的常规 Python 枚举类，在 API 中定义成员。
+</ParamField>
+
+<ParamField path="extra_fields" type="literal<'allow' | 'forbid' | 'ignore'>" default="allow"  toc={true}>
+如何处理模型模式中未定义的额外字段。
+</ParamField>
+
+<ParamField path="frozen" type="bool" default="true" toc={true}>
+Pydantic 模型是否应该被冻结（创建后不可变）。
+</ParamField>
+
+<ParamField path="include_union_utils" type="bool" default="false" toc={true}>
+启用时，生成器将输出包含访问联合实用程序的 Pydantic `__root__` 类。例如，对于以下联合类型：
+
+  ```
+  types:
+  Shape:
+    union:
+      circle: Circle
+      triangle: Triangle
+  ```
+  您将获得一个具有工厂和访问者的生成 `Shape` 类：
+  ```python
+  # 使用工厂实例化联合
+  Shape.factory.circle(Circle(...))
+  
+  # 访问联合中的每个案例
+  shape = get_shape()
+  shape.visit(
+    circle: lambda circle: do_something_with_circle(circle),
+    triangle: lambda triangle: do_something_with_triangle(triangle),
+  )
+  ```
+</ParamField>
+
+<ParamField path="include_validators" type="bool" default="false" toc={true}>
+在生成的 Pydantic 模型中包含自定义验证器。
+</ParamField>
+
+<ParamField path="orm_mode" type="bool" default="false" toc={true}>
+启用 Pydantic 模型的 ORM 模式以与 SQLAlchemy 等 ORM 一起工作。
+</ParamField>
+
+<ParamField path="positional_single_property_constructors" type="bool" default="false" toc={true}>
+启用时，为具有单个必需字段的模型生成自定义 `__init__` 方法，允许位置参数构造而不需要关键字参数。
+
+  ```python
+  # 没有 positional_single_property_constructors（默认）
+  wrapper = Wrapper(value="my_value")
+
+  # 启用 positional_single_property_constructors
+  wrapper = Wrapper("my_value")
+  ```
+
+  <Warning>
+  启用此选项可能会导致向后兼容性问题。如果模型稍后添加另一个必需字段，将不再生成位置 `__init__`，导致使用位置参数的现有代码出现运行时故障。使用关键字参数以获得长期稳定性。
+  </Warning>
+</ParamField>
+
+<ParamField path="package_name" type="string" required={false} toc={true}>
+生成的模型的自定义包名称。
+</ParamField>
+
+<ParamField path="require_optional_fields" type="bool" default="false" toc={true}>
+可选字段是否必须显式提供（不能省略）。
+</ParamField>
+
+<ParamField path="skip_formatting" type="bool" default="false" toc={true}>
+跳过生成的 Pydantic 模型的代码格式化。
+</ParamField>
+
+<ParamField path="skip_validation" type="bool" default="false" toc={true}>
+启用时，禁用 API 响应的 Pydantic 验证。这确保如果从 API 返回的模型与 Pydantic 模型不完全匹配，Pydantic 不会立即失败。
+
+这旨在增加灵活性，以防您的 SDK 落后于您的 API，但应谨慎使用，因为用户的类型提示仍将完全反映 Pydantic 模型。
+</ParamField>
+
+<ParamField path="smart_union" type="bool" default="true" toc={true}>
+在 Pydantic 模型中启用智能联合处理以获得更好的类型判别。
+</ParamField>
+
+<ParamField path="union_naming" type="'v0' | 'v1'" default="v0"  toc={true}>
+控制联合命名策略。如果您正在处理已经具有判别属性的判别联合成员（并且它们仅在一个联合中使用），您应该在 `generators.yml` 中优先选择全局 API 配置：
+  ```yaml
+  - name: fernapi/fern-python-sdk
+    version: 3.0.0-rc0
+    api:
+      settings:
+        unions: v1
+  ```
+</ParamField>
+
+<ParamField path="use_pydantic_field_aliases" type="bool" default="false" toc={true}>
+对于与线格式不同的属性名称使用 Pydantic 字段别名。
+</ParamField>
+
+<ParamField path="use_provided_defaults" type="bool" default="false" toc={true}>
+利用 API 规范中指定的默认值。
+</ParamField>
+
+<ParamField path="use_typeddict_requests" type="bool" default="false" toc={true}>
+为请求对象生成 TypedDicts 而不是 Pydantic 模型。
+</ParamField>
+
+<ParamField path="version" type="'v1' | 'v2' | 'both' | 'v1_on_v2'" default="both" toc={true}>
+默认情况下，生成器生成与 pydantic v1 和 v2 兼容的 pydantic 模型。但是您可以将其覆盖为：
+  - `v1`: 严格使用 Pydantic v1
+  - `v2`: 严格使用 Pydantic v2
+  - `both`: 保持与两个版本的兼容性
+  - `v1_on_v2`: 在 v2 上使用 Pydantic v1 兼容性层
+
+</ParamField>
+
+<ParamField path="wrapped_aliases" type="bool" default="false"  toc={true}>
+为 Pydantic 模型启用包装别名。仅在 Pydantic V1、V1_ON_V2 或 V2 中支持。
+</ParamField>
+
+<ParamField path="use_inheritance_for_extended_models" type="bool" default="true"  toc={true}>
+当模型使用 Fern `extends` 关键字时生成实现继承的 Pydantic 模型。
+</ParamField>

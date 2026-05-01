@@ -1,0 +1,348 @@
+---
+title: 发布到 Maven Central
+description: 了解如何将 Fern 生成的 Java SDK 发布到 Maven Central。完整指南涵盖身份验证、GPG 签名和自动化发布。
+sidebar-title: 发布到 Maven Central
+---
+
+
+将您的公开 Fern Java SDK 发布到 [Maven Central
+registry](https://central.sonatype.com/)。按照本页面的步骤操作后，您将在 Maven Central 上发布一个有版本号的包。
+
+<Info>
+	本页面假设您已经：
+
+	* 初始化了 `fern` 文件夹，为您的 Java SDK 创建了 GitHub 仓库，并在 `generators.yml` 中配置了 Java 生成器组。参见 [生成 SDK (Java)](/learn/sdks/generators/java/quickstart)。
+</Info>
+
+## 配置 Maven Central 发布
+
+您需要更新 `generators.yml` 文件来配置输出位置、目标仓库和发布模式。您的 `generators.yml` [应该位于您的源代码仓库中](/sdks/overview/project-structure)（或在您的本地机器上），而不是包含您的 Java SDK 代码的仓库中。
+
+<Steps>
+
+  <Step title="配置 `output` 位置">
+
+  在您的 Java SDK 的 `group` 中，将 `generators.yml` 中的输出位置从 `local-file-system`（默认值）更改为 `maven`，以指示 Fern 应该直接将您的包发布到 Maven Central 注册表。
+  
+  然后，添加 `publish-to: central` 来指示发布目标是新的 Maven Central Portal (Sonatype)。要发布到旧版 Nexus Repository，请使用 `publish-to: ossrh`。
+
+    ```yaml {6-9} title="generators.yml"
+    groups: 
+      java-sdk:
+        generators:
+          - name: fernapi/fern-java-sdk
+            version: <Markdown src="/snippets/version-number-java.mdx"/>
+            output:
+              location: maven
+            config:
+              publish-to: central
+    ```
+	  </Step>
+    
+	  <Step title="添加仓库位置">
+
+	  添加包含您的 Java SDK 的 GitHub 仓库路径：
+
+```yaml {10-11} title="generators.yml"
+groups: 
+  java-sdk:
+    generators:
+      - name: fernapi/fern-java-sdk
+        version: <Markdown src="/snippets/version-number-java.mdx"/>
+        output:
+          location: maven
+        config:
+          publish-to: central
+        github: 
+          repository: your-org/company-java
+```
+	  
+	  </Step>
+    <Step title="选择您的发布模式">
+
+<Markdown src="/products/sdks/snippets/github-publishing-mode.mdx"/>
+
+```yaml title="generators.yml" {12-13}
+groups: 
+  java-sdk:
+	generators:
+	  - name: fernapi/fern-java-sdk
+		version: <Markdown src="/snippets/version-number-java.mdx"/>
+		output:
+		  location: maven
+		config:
+		  publish-to: central
+		github: 
+		  repository: your-org/company-java
+		  mode: push
+		  branch: your-branch-name # mode: push 需要指定分支名称
+```
+
+</Step>
+  </Steps>
+
+## 设置 Maven Central 发布身份验证
+
+<Steps>
+
+	<Step title="登录 Maven Central">
+
+	登录 [Maven Central](https://central.sonatype.com/) 或创建新账户。
+
+	</Step>
+
+  <Step title="验证您的命名空间">
+
+	1. 点击您的用户名，然后选择 **View Namespaces**。点击 **Register New Namespace**。
+  1. 以反向域名格式输入您的公司网站或 GitHub 账户，并完成验证流程。
+
+	</Step>
+  <Step title="配置 Maven 坐标">
+
+      将您在 Maven Central 中刚刚验证的命名空间添加到 `coordinate` 字段中。这指定了您的 Java SDK 将如何在 Maven Central 仓库中发布和引用。
+
+      ```yaml {8} title="generators.yml"
+      groups: 
+        java-sdk:
+          generators:
+            - name: fernapi/fern-java-sdk
+              version: <Markdown src="/snippets/version-number-java.mdx"/>
+              output:
+                location: maven
+                coordinate: com.company:sdk-name # groupId:artifactId
+              config:
+                publish-to: central
+              github: 
+                repository: your-org/company-java
+      ```
+	    
+	  </Step>
+
+	<Step title="生成用户令牌">
+
+	1. 回到 Maven Central，点击您的用户名，然后选择 **View Account**
+  1. 点击 **Generate User Token**，然后点击 **Ok** 确认生成。这将使任何现有令牌失效。
+
+      <Warning>保存您的用户名和密码令牌——离开页面后将不会再显示它们。</Warning>
+
+	</Step>
+
+
+	<Step title="配置 Maven Central 身份验证令牌">
+
+	在 `generators.yml` 中添加 `username: ${MAVEN_USERNAME}` 和 `password: ${MAVEN_PASSWORD}`，告诉 Fern 在发布到 Maven Central 注册表时使用 `MAVEN_USERNAME` 和 `MAVEN_PASSWORD` 环境变量进行身份验证。
+
+```yaml {9-10} title="generators.yml"
+groups: 
+  java-sdk:
+    generators:
+      - name: fernapi/fern-java-sdk
+        version: <Markdown src="/snippets/version-number-java.mdx"/>
+        output:
+          location: maven
+          coordinate: com.company:sdk-name
+          username: ${MAVEN_USERNAME}
+          password: ${MAVEN_PASSWORD}
+        config:
+          publish-to: central
+        github: 
+          repository: your-org/company-java
+```
+	</Step>
+</Steps>
+
+## 生成 GPG 签名
+
+  接下来，通过生成或识别 GPG 密钥 ID、密码和私钥来设置代码签名凭据。Maven Central 要求所有制品都使用 PGP/GPG 密钥进行数字签名。
+
+<Info>如果您没有安装 gpg，可以从 [https://gnupg.org/download/index.html](https://gnupg.org/download/index.html) 下载二进制文件，或通过包管理器安装。</Info>
+<Steps>
+<Step title="查找您的密钥">
+    如果您已经有 GPG 密钥，可以列出您的密钥：
+
+        ```sh
+        gpg --list-secret-keys --keyid-format LONG
+        ```
+
+    如果您没有 GPG 密钥，可以生成一个新的：
+
+        ```sh
+        gpg --gen-key
+        ```
+        
+        系统将提示您创建新的用户名和密码短语。
+</Step>
+<Step title="导出您的密钥">
+
+导出您的密钥，以便稍后将其存储在环境变量中：
+
+    ```sh
+    gpg --export-secret-keys --armor YOUR_KEY_ID
+    ```
+
+    请确保将 `YOUR_KEY_ID` 替换为您要导出的密钥的密钥 ID。
+
+    <Info>更多信息可在 [Maven Central 的 GPG 验证页面](https://central.sonatype.org/publish/requirements/gpg/)上找到。</Info>
+</Step>
+<Step title="配置 GPG 签名">
+
+将上一步中的 `keyId`、`password` 和 `secretKey` 添加到 `generators.yml` 中：
+
+```yaml {11-14} title="generators.yml"
+groups: 
+  java-sdk:
+    generators:
+      - name: fernapi/fern-java-sdk
+        version: <Markdown src="/snippets/version-number-java.mdx"/>
+        output:
+          location: maven
+          coordinate: com.company:sdk-name
+          username: ${MAVEN_USERNAME}
+          password: ${MAVEN_PASSWORD}
+          signature:
+            keyId: ${MAVEN_SIGNATURE_SECRET_KEY_ID}
+            password: ${MAVEN_SIGNATURE_PASSWORD}
+            secretKey: ${MAVEN_SIGNATURE_SECRET_KEY}
+        config:
+          publish-to: central
+        github: 
+          repository: your-org/company-java
+```
+</Step>
+<Step title="将您的密钥上传到公钥服务器">
+
+最后，将您的密钥上传到公钥服务器，以便 Maven Central 可以访问签名：
+
+  ```bash
+  # 上传到多个密钥服务器
+  gpg --keyserver keyserver.ubuntu.com --send-keys YOUR_KEY_ID
+  gpg --keyserver keys.openpgp.org --send-keys YOUR_KEY_ID
+  gpg --keyserver pgp.mit.edu --send-keys YOUR_KEY_ID
+```
+</Step>
+</Steps>
+## 发布您的 SDK
+
+决定如何将您的 SDK 发布到 Maven Central。您可以使用 GitHub 工作流进行自动化发布，或直接通过 CLI 发布。
+
+<AccordionGroup>
+
+<Accordion title="通过 GitHub 工作流发布">
+
+通过 [GitHub Actions](https://docs.github.com/en/actions/get-started/quickstart) 设置发布工作流，以便您可以直接从源代码仓库触发新的 SDK 发布。
+
+<Steps>
+	<Step title="设置身份验证">
+
+	在 GitHub 中打开您的源代码仓库。点击 **Settings** 选项卡。然后，在 **Security** 部分下，打开 **Secrets and variables** > **Actions**。
+
+	您也可以使用 URL `https://github.com/<your-repo>/settings/secrets/actions`。
+
+	</Step>
+	<Step title="为您的 Fern Token 添加密钥">
+
+	1. 选择 **New repository secret**。
+	1. 将您的密钥命名为 `FERN_TOKEN`。
+    1. 添加您的 Fern 令牌。如果您还没有令牌，请运行 `fern token` 生成一个。默认情况下，`fern_token` 是为 `fern.config.json` 中列出的组织生成的。
+	1. 点击 **Add secret**。
+
+	</Step>
+  	<Step title="为 Maven Central 添加密钥">
+
+	通过为每个密钥选择 **New repository secret** 来添加以下仓库密钥：
+
+	1. `MAVEN_USERNAME` - 您的 Maven Central 用户名
+	1. `MAVEN_PASSWORD` - 您的 Maven Central 密码
+	1. `MAVEN_SIGNATURE_SECRET_KEY_ID` - 您的 GPG 密钥 ID
+	1. `MAVEN_SIGNATURE_PASSWORD` - 您的 GPG 密码短语
+	1. `MAVEN_SIGNATURE_SECRET_KEY` - 您的 GPG 私钥
+
+	</Step>
+	<Step title="设置新工作流">
+
+	设置一个可以从 GitHub UI 手动触发的 CI 工作流。在您的仓库中，导航到 **Actions**。选择 **New workflow**，然后选择 **Set up workflow yourself**。添加一个类似于以下的工作流：
+
+	```yaml title=".github/workflows/publish.yml" maxLines=0
+	name: Publish Java SDK
+
+	on:
+	  workflow_dispatch:
+	    inputs:
+	      version:
+	        description: "The version of the Java SDK that you would like to release"
+	        required: true
+	        type: string
+
+	jobs:
+	  release:
+	    runs-on: ubuntu-latest
+	    steps:
+	      - name: Checkout repo
+	        uses: actions/checkout@v4
+
+	      - name: Install Fern CLI
+	        run: npm install -g fern-api
+
+	      - name: Release Java SDK
+	        env:
+	          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+	          MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
+	          MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
+	          MAVEN_SIGNATURE_SECRET_KEY_ID: ${{ secrets.MAVEN_SIGNATURE_SECRET_KEY_ID }}
+	          MAVEN_SIGNATURE_PASSWORD: ${{ secrets.MAVEN_SIGNATURE_PASSWORD }}
+	          MAVEN_SIGNATURE_SECRET_KEY: ${{ secrets.MAVEN_SIGNATURE_SECRET_KEY }}
+	        run: |
+	          fern generate --group java-sdk --version ${{ inputs.version }} --log-level debug
+	```
+	<Note>
+		您也可以将工作流配置为在 `on: [push]` 时执行。
+	</Note>
+	</Step>
+
+	<Step title="重新生成并发布您的 SDK">
+
+		导航到 **Actions** 选项卡，选择您刚创建的工作流，指定版本号，然后点击 **Run workflow**。这将重新生成您的 SDK。
+
+		<Markdown src="/products/sdks/snippets/release-sdk.mdx"/>
+
+		工作流完成后，您可以通过登录 Maven Central 并导航到 **View Deployments** 来查看新发布的版本。
+	
+	</Step>
+
+</Steps>
+
+</Accordion>
+
+<Accordion title="通过 CLI 和环境变量发布">
+<Steps>
+
+<Step title="设置 Maven 环境变量">
+
+在本地机器上设置 Maven Central 环境变量：
+
+```bash
+export MAVEN_USERNAME=your-maven-username
+export MAVEN_PASSWORD=your-maven-password
+export MAVEN_SIGNATURE_SECRET_KEY_ID=your-gpg-key-id
+export MAVEN_SIGNATURE_PASSWORD=your-gpg-passphrase
+export MAVEN_SIGNATURE_SECRET_KEY=your-gpg-secret-key
+```
+
+</Step>
+<Step title="重新生成并发布您的 SDK">
+
+重新生成您的 SDK，指定版本：
+
+```bash
+fern generate --group java-sdk --version <version>
+```
+
+<Markdown src="/products/sdks/snippets/release-sdk.mdx"/>
+
+命令完成后，您可以通过登录 Maven Central 并导航到 **View Deployments** 来查看新发布的版本。
+
+</Step>
+
+</Steps>
+</Accordion>
+</AccordionGroup>

@@ -1,0 +1,272 @@
+---
+title: 身份验证
+description: '为 bearer、basic、API 密钥和 OAuth 等认证方案建模。'
+sidebar-title: 身份验证
+---
+
+Fern 支持两种配置身份验证的方式：
+
+- **在您的 OpenAPI 规范中**使用 `securitySchemes` — 标准方法，使身份验证配置具有可移植性，并与其他 OpenAPI 工具兼容。
+- **在 `generators.yml` 中**使用 `auth-schemes` — 用于自定义参数名称和环境变量，覆盖规范中定义的内容，或配置 OAuth（在 OpenAPI 中不可用）。
+
+您的身份验证配置适用于生成的 SDK 和 [API 浏览器](/learn/docs/api-references/api-explorer)。所有 SDK 都支持凭据的直接配置和环境变量。如果您在两个地方定义了相同的方案，`generators.yml` 优先。
+
+## 在您的规范中配置身份验证
+
+在 `components.securitySchemes` 中定义您的方案，然后使用 `security` 属性全局或按端点应用它们。
+
+```yml title="openapi.yml"
+# 定义方案
+components:
+  securitySchemes:
+    BearerAuth: # 用户定义的方案名称
+      type: http
+      scheme: bearer
+
+# 在所有端点中全局应用
+security:
+  - BearerAuth: []
+```
+
+生成的 SDK 用法：
+
+```ts index.ts
+const client = new Client({
+  token: "ey34..."
+});
+```
+
+<AccordionGroup>
+<Accordion title="Bearer">
+
+```yml title="openapi.yml"
+components:
+  securitySchemes:
+    BearerAuth: # 用户定义的方案名称
+      type: http
+      scheme: bearer
+```
+
+要自定义参数名称和环境变量，请添加 `x-fern-bearer`：
+
+```yaml title="openapi.yml"
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      x-fern-bearer:
+        name: apiKey
+        env: PLANTSTORE_API_KEY
+```
+
+</Accordion>
+<Accordion title="Basic">
+
+```yaml title="openapi.yml"
+components:
+  securitySchemes:
+    BasicAuth: # 用户定义的方案名称
+      type: http
+      scheme: basic
+```
+
+要自定义参数名称和环境变量，请添加 `x-fern-basic`：
+
+```yaml title="openapi.yml"
+components:
+  securitySchemes:
+    BasicAuth:
+      type: http
+      scheme: basic
+      x-fern-basic:
+        username:
+          name: clientId
+          env: PLANTSTORE_CLIENT_ID
+        password:
+          name: clientSecret
+          env: PLANTSTORE_CLIENT_SECRET
+```
+
+</Accordion>
+<Accordion title="API 密钥">
+
+```yml title="openapi.yml"
+components:
+  securitySchemes:
+    ApiKeyAuth: # 用户定义的方案名称
+      type: apiKey
+      in: header
+      name: X_API_KEY
+```
+
+要自定义参数名称和环境变量，请添加 `x-fern-header`：
+
+```yaml title="openapi.yml"
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X_API_KEY
+      x-fern-header:
+        name: apiToken
+        env: PLANTSTORE_API_KEY
+        prefix: "Token "
+```
+
+<Note>
+`prefix` 选项自动为 API 密钥添加字符串前缀，当您的 API 期望 `"Bearer abc123"` 或 `"Token abc123"` 等格式时很有用。
+</Note>
+
+</Accordion>
+</AccordionGroup>
+
+### 多种身份验证方案
+
+配置端点以支持多种身份验证方案或组合。在 `security` 部分中，多个顶级项是 OR 选项，而单个项中的方案用 AND 组合。
+
+```yaml title="openapi.yml"
+components:
+  securitySchemes:
+    bearerAuth: # 用户定义的方案名称
+      type: http
+      scheme: bearer
+    basicAuth: # 用户定义的方案名称
+      type: http
+      scheme: basic
+    apiKey: # 用户定义的方案名称
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+paths:
+  /plant/search/status:
+    get:
+      summary: 按状态搜索植物
+      security:
+        - bearerAuth: []           # 选项 1：仅 Bearer 令牌
+        - basicAuth: []            # 选项 2：基本身份验证和 API 密钥
+          apiKey: []
+```
+
+在此示例中，用户可以使用 Bearer 令牌或基本身份验证和 API 密钥一起进行身份验证。
+
+<Note>
+当使用 OAuth 客户端凭据与多种方案时，确保您的 OpenAPI 规范 `security` 部分中的方案名称与 `generators.yml` 中定义的名称匹配。
+</Note>
+
+## 在 `generators.yml` 中自定义或覆盖身份验证
+
+在 [`auth-schemes`](/learn/sdks/reference/generators-yml#auth-schemes) 中定义您的方案，然后使用 [`api.auth`](/learn/sdks/reference/generators-yml#auth) 将其作为所有端点的默认值应用：
+
+```yml title="generators.yml"
+# 定义方案
+auth-schemes:
+  BearerAuth: # 用户定义的方案名称
+    scheme: bearer
+    token:
+      name: apiKey
+      env: PLANTSTORE_API_KEY
+
+# 将其作为所有端点的默认值应用
+api:
+  auth: BearerAuth
+  specs:
+    - openapi: ./openapi.yml
+```
+<Note>
+有关完整的配置选项，请参阅 [`auth-schemes` 参考](/learn/sdks/reference/generators-yml#auth-schemes)。您还可以为[特定 SDK](/learn/sdks/reference/generators-yml#override-api-authentication-settings) 覆盖身份验证设置。
+</Note>
+
+生成的 SDK 用法：
+
+```ts index.ts
+// 使用 process.env.PLANTSTORE_API_KEY
+const client = new PlantStoreClient();
+
+// 或显式提供
+const client = new PlantStoreClient({
+  apiKey: "your-api-key"
+});
+```
+
+<AccordionGroup>
+<Accordion title="Bearer">
+
+```yaml title="generators.yml"
+auth-schemes:
+  BearerAuth: # 用户定义的方案名称
+    scheme: bearer
+    token:
+      name: apiKey
+      env: MY_API_KEY
+```
+
+</Accordion>
+<Accordion title="Basic">
+
+```yaml title="generators.yml"
+auth-schemes:
+  BasicAuth: # 用户定义的方案名称
+    scheme: basic
+    username:
+      name: clientId
+      env: MY_CLIENT_ID
+    password:
+      name: clientSecret
+      env: MY_CLIENT_SECRET
+```
+
+</Accordion>
+<Accordion title="API 密钥">
+
+```yaml title="generators.yml"
+auth-schemes:
+  ApiKeyAuth: # 用户定义的方案名称
+    header: X-API-Key
+    name: apiKey
+    env: MY_API_KEY
+    prefix: "Token "
+```
+
+</Accordion>
+<Accordion title="OAuth 客户端凭据">
+
+<Warning title="专业版和企业版功能">
+此功能在[专业版和企业版计划](https://buildwithfern.com/pricing)中提供。请联系 support@buildwithfern.com 开始使用。
+</Warning>
+
+```yaml title="generators.yml"
+auth-schemes:
+  OAuth: # 用户定义的方案名称
+    scheme: oauth
+    type: client-credentials
+    client-id-env: OAUTH_CLIENT_ID
+    client-secret-env: OAUTH_CLIENT_SECRET
+    get-token:
+      endpoint: "POST /oauth/token"
+      request-properties:
+        client-id: client_id
+        client-secret: client_secret
+      response-properties:
+        access-token: access_token
+        expires-in: expires_in
+        refresh-token: refresh_token
+    refresh-token:
+      endpoint: "POST /oauth/refresh"
+      request-properties:
+        refresh-token: refresh_token
+      response-properties:
+        access-token: access_token
+        expires-in: expires_in
+```
+
+`endpoint` 值引用您的 OpenAPI 规范中的路径。当返回 `expires-in` 时，SDK 会在令牌过期前自动刷新令牌。
+
+<Tip>
+如果您的 API 使用[命名空间](/learn/api-definitions/overview/project-structure#combined-sdks-from-multiple-apis)（多个 API 规范），请在端点前加上命名空间和 `::`。例如，`"payments::POST /oauth/token"`。
+</Tip>
+
+</Accordion>
+</AccordionGroup>

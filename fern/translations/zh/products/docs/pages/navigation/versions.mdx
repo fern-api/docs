@@ -1,0 +1,216 @@
+---
+title: 版本管理
+subtitle: 为多个文档版本添加下拉版本选择器
+sidebar-title: 版本
+---
+
+
+<Warning>
+  版本管理在[所有方案](https://buildwithfern.com/pricing#Docs)中均可使用：Hobby 最多 3 个版本，Team 最多 10 个版本，Enterprise 版本数量不限。如需更多信息，请联系 support@buildwithfern.com。
+</Warning>
+
+您的文档的每个版本都可以包含自己独特的选项卡、章节、页面和 API 参考。版本之间也可以共享内容。
+
+<Frame>
+![可用版本的下拉菜单](versions.png)
+</Frame>
+
+<Note>
+  要在单个页面内显示特定于版本的内容，请使用 [`<Versions>` 组件](/learn/docs/writing-content/components/versions)。您可以独立使用站点级版本管理和 `<Versions>` 组件，也可以同时使用两者。
+</Note>
+
+
+## 向文档添加版本
+
+<Steps toc={true}>
+<Step title="定义您的版本">
+
+在您的 `fern` 文件夹内创建一个 `versions` 文件夹。要指定每个版本的内容，请向 `versions` 文件夹添加一个 `.yml` 文件来定义该版本的导航结构。如果适用，请确保包含 `navigation` 和 `tabs` 属性。
+
+<CodeBlock>
+```bash {7-11}
+fern/
+  ├─ fern.config.json
+  ├─ generators.yml
+  ├─ docs.yml
+  ├─ pages/
+    ├─ ...
+  └─ versions/
+    ├─ latest/pages/...
+    ├─ latest.yml
+    ├─ v2/pages/...
+    └─ v2.yml
+```
+</CodeBlock>
+
+特定于版本的 `yml` 文件：
+
+<Markdown src="/products/docs/snippets/version-specific-yml-files.mdx" />
+
+<Note>您也可以有[多个产品，一些有版本，一些没有版本](/docs/configuration/products)。</Note>
+</Step>
+<Step title="添加您的版本配置">
+
+通过向 `versions` 列表添加项目并指定 `display-name` 和 `path`，在顶级 `docs.yml` 中定义版本。
+
+<CodeBlock title="docs.yml">
+```yaml
+versions: 
+  - display-name: Latest          # 在下拉菜单中显示
+    path: ./versions/latest.yml   # 版本文件的相对路径
+  - display-name: V2
+    path: ./versions/v2.yml
+```
+</CodeBlock>
+
+<Markdown src="/products/docs/snippets/default-version.mdx" />
+
+</Step>
+<Step title="指示可用性">
+
+<Markdown src="/products/docs/snippets/version-availability.mdx" />
+
+<CodeBlock title="docs.yml">
+```yaml {4}
+versions: 
+  - display-name: Latest          
+    path: ./versions/latest.yml   
+    availability: beta
+  - display-name: v2
+    path: ./versions/v2.yml
+    availability: stable
+```
+</CodeBlock>
+
+</Step>
+<Step title="从 docs.yml 中移除额外的导航">
+
+如果您的 `docs.yml` 文件包含 `navigation` 字段或 `tabs` 字段，请务必将其移除。这些字段现在应该属于特定于版本的 `.yml` 文件。
+</Step>
+</Steps>
+
+## 自定义版本行为
+
+这些可选设置让您控制版本在 URL 中的显示方式以及谁可以访问它们。
+
+<AccordionGroup>
+<Accordion title="更改版本别名" toc={true}>
+
+默认情况下，Fern 通过将 `display-name` 转换为小写并将空格替换为连字符来生成 URL 别名。例如，`display-name: v3 (Deprecated)` 的版本在 URL 路径中会得到别名 `v-3-deprecated`。
+
+要自定义版本的 URL 别名，请使用 `slug` 属性：
+
+<CodeBlock title="docs.yml">
+```yaml {7,11}
+versions:
+  - display-name: v4 (Latest)
+    path: ./versions/latest.yml
+    availability: stable
+  - display-name: v3 (Deprecated)
+    path: ./versions/v3.yml
+    slug: v3
+    availability: deprecated
+  - display-name: v2
+    path: ./versions/v2.yml
+    slug: v2
+    availability: deprecated
+```
+</CodeBlock>
+
+在这个例子中，设置 `slug: v3` 会产生像 `/docs/v3/getting-started` 这样的 URL。
+
+</Accordion>
+<Accordion title="添加实例受众" toc={true}>
+
+通过为版本打上受众标签，控制哪些版本显示在每个[文档实例](/docs/configuration/site-level-settings#instances-configuration)中。这使得可以为不同的用户群体（例如，内部开发者、beta 测试人员、公共客户）创建单独的站点。
+
+内容基于受众标签进行过滤：
+
+- **匹配**：具有与实例受众匹配的受众的内容会被包含
+- **不匹配**：具有不匹配受众的内容会被排除
+- **无受众**：没有受众标签的内容默认被包含
+
+在 `docs.yml` 中为实例和版本定义受众：
+
+<CodeBlock title="docs.yml">
+
+```yaml maxLines=10
+instances:
+  - url: internal.docs.buildwithfern.com
+    audiences:
+      - internal # 仅显示标记为 'internal' 的内容
+  - url: public.docs.buildwithfern.com
+    audiences:
+      - public # 仅显示标记为 'public' 的内容
+versions:
+  - display-name: v3
+    path: ./versions/v3.yml
+    audiences:
+      - public # 此版本仅显示在公共实例上
+  - display-name: v2 (Internal)
+    path: ./versions/v2.yml
+    audiences:
+      - internal # 此版本仅显示在内部实例上
+```
+</CodeBlock>
+
+</Accordion>
+<Accordion title="从导航中隐藏版本" toc={true}>
+
+您可以通过设置 `hidden: true` 从导航、搜索和索引中隐藏特定版本，同时保持它们可以通过直接 URL 访问。这对于弃用先前版本或维护仅限内部使用的版本而不完全删除它们很有用。
+
+<CodeBlock title="docs.yml">
+```yaml {8}
+versions:
+  - display-name: v3
+    path: ./versions/v3.yml
+  - display-name: v2
+    path: ./versions/v2.yml
+  - display-name: v1 (Legacy)
+    path: ./versions/v1.yml
+    hidden: true
+```
+</CodeBlock>
+
+<Info>默认版本（`versions` 列表中的第一个版本）不能被隐藏。</Info>
+
+</Accordion>
+<Accordion title="有条件地渲染内容">
+要根据当前版本在页面内有条件地渲染内容，请使用 [`<If>` 组件](/learn/docs/writing-content/components/if#by-version)。
+
+```jsx Markdown
+<If versions={["v2"]}>
+  此内容仅在版本 v2 中显示。
+</If>
+```
+</Accordion>
+</AccordionGroup>
+
+## 自定义版本样式
+
+使用自定义 CSS 来设置版本选择器的样式以匹配您的品牌。
+
+<AccordionGroup>
+<Accordion title="选择器样式" toc={true}>
+
+您可以通过定位 `fern-version-selector` CSS 类直接自定义版本选择器的外观。
+
+<Markdown src="/products/docs/snippets/common-selector-styling.mdx" />
+
+```css
+.fern-version-selector {
+  transform: translateY(1px);
+  border-radius: 1000px;
+  border: 1px solid var(--border);
+}
+```
+</Accordion>
+<Accordion title="下拉菜单样式" toc={true}>
+
+版本选择器的下拉菜单可以使用 `fern-version-selector-radio-group` CSS 类进行自定义。
+
+  <Frame>
+    <img src="webflow-version-selector.avif" alt="样式化版本选择器的示例" />
+  </Frame>
+</Accordion>
+</AccordionGroup>

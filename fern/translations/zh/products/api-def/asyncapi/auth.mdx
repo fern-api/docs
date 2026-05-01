@@ -1,0 +1,185 @@
+---
+title: 身份验证
+subtitle: 为事件驱动的 API 建模身份验证方案，如 Bearer、Basic 和 API Key。
+sidebar-title: 身份验证
+---
+
+
+身份验证方案的配置在 AsyncAPI 的 `components.securitySchemes` 部分中进行。
+
+```yml title="asyncapi.yml" {2-3}
+components: 
+  securitySchemes: 
+    ...
+```
+
+<Note>
+要在所有操作中应用安全方案，请在 AsyncAPI 规范的 `security` 部分引用 `securityScheme`。
+
+```yml title="asyncapi.yml" {3, 5-6}
+components: 
+  securitySchemes: 
+    AuthScheme:
+      ...
+security: 
+  - AuthScheme: []
+```
+</Note>
+
+## Bearer 安全方案
+
+首先在 `asyncapi.yml` 中定义一个 `bearer` 安全方案：
+
+```yml title="asyncapi.yml" {3-5}
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+```
+
+这将生成一个 SDK，用户需要提供一个名为 `token` 的必需参数。
+
+```ts index.ts
+const client = new Client({
+  token: "ey34..."
+})
+```
+
+如果你想控制变量命名和要扫描的环境变量，请使用以下配置：
+
+```yml title="asyncapi.yml" {4-6}
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      x-fern-token:
+        name: authToken
+        env: AUTH_TOKEN
+```
+
+## API Key 安全方案
+
+首先在 `asyncapi.yml` 中定义一个 `apiKey` 安全方案：
+
+```yml title="asyncapi.yml" {3-6}
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+```
+
+这将生成一个 SDK，用户需要提供一个名为 `apiKey` 的必需参数。
+
+```ts index.ts
+const client = new Client({
+  apiKey: "my-api-key"
+})
+```
+
+### 自定义 API Key 变量名称
+
+如果你想控制变量命名和要扫描的环境变量，请使用以下配置：
+
+```yml title="asyncapi.yml" {5-7}
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      x-fern-api-key:
+        name: customApiKey
+        env: CUSTOM_API_KEY
+      in: header
+      name: X-API-Key
+```
+
+## Basic 安全方案
+
+首先在 `asyncapi.yml` 中定义一个 `basic` 安全方案：
+
+```yml title="asyncapi.yml" {3-5}
+components:
+  securitySchemes:
+    BasicAuth:
+      type: http
+      scheme: basic
+```
+
+这将生成一个 SDK，用户需要提供 `username` 和 `password`。
+
+```ts index.ts
+const client = new Client({
+  username: "john@example.com",
+  password: "password123"
+})
+```
+
+### 自定义基本认证变量名称
+
+如果你想控制变量命名和要扫描的环境变量，请使用以下配置：
+
+```yml title="asyncapi.yml" {4-7}
+components:
+  securitySchemes:
+    BasicAuth:
+      type: http
+      scheme: basic
+      x-fern-username:
+        name: email
+        env: EMAIL
+      x-fern-password:
+        name: pass
+        env: PASSWORD
+```
+
+## OAuth2 安全方案
+
+<Markdown src="/snippets/team-or-pro-plan.mdx"/>
+
+AsyncAPI 规范支持 OAuth2 身份验证：
+
+```yml title="asyncapi.yml" {3-11}
+components:
+  securitySchemes:
+    OAuth2:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://example.com/oauth/authorize
+          tokenUrl: https://example.com/oauth/token
+          scopes:
+            read: Read access to resources
+            write: Write access to resources
+```
+
+这将生成一个支持事件驱动操作的 OAuth2 流程的 SDK。
+
+## 多个安全方案
+
+你可以指定多个安全方案并将它们应用于不同的操作：
+
+```yml title="asyncapi.yml" {2-12, 16-17}
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+    BearerAuth:
+      type: http
+      scheme: bearer
+    OAuth2:
+      type: oauth2
+      flows: ...
+
+operations:
+  sendMessage:
+    security:
+      - ApiKeyAuth: []
+      - BearerAuth: []
+```
+
+这允许不同的操作根据需要使用不同的身份验证方法。

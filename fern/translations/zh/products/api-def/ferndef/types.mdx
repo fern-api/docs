@@ -1,0 +1,396 @@
+---
+title: Fern 定义中的类型
+description: 类型描述了您的 API 的数据模型。Fern 具有许多内置类型，支持自定义类型，以及扩展和别名对象和联合类型。
+sidebar-title: 类型
+---
+
+类型描述了您的 API 的数据模型。
+
+## 内置类型
+
+| 类型 | 描述 |
+|------|-------------|
+| `string` | 基本字符串类型 |
+| `integer` | 整数类型 |
+| `long` | 长整数类型 |
+| `double` | 双精度浮点数 |
+| `boolean` | 布尔值 true/false |
+| `datetime` | [RFC 3339, section 5.6 datetime](https://ijmacd.github.io/rfc3339-iso8601/)。例如，`2017-07-21T17:32:28Z` |
+| `date` | RFC 3339, section 5.6 日期 (YYYY-MM-DD)。例如，`2017-07-21` |
+| `uuid` | UUID 标识符 |
+| `base64` | Base64 编码数据 |
+| `list` | 允许重复的有序集合，例如，`list<string>` |
+| `set` | 具有唯一元素的无序集合，例如，`set<string>` |
+| `map` | 键值映射，例如，`map<string, integer>` |
+| `optional` | 可选值，例如，`optional<string>` |
+| `literal` | 字面值，例如，`literal<"Plants">` |
+| `file` | 文件上传类型，例如，[文件上传](/learn/api-definitions/ferndef/endpoints/multipart) |
+| `unknown` | 表示任意 JSON |
+
+## 自定义类型
+
+在 Fern 中创建您自己的类型很容易！
+
+### 对象
+
+最常见的自定义类型是**对象**。
+
+在 Fern 中，您使用 `"properties"` 键来创建对象：
+
+```yaml {3,8}
+types:
+  Person:
+    properties:
+      name: string
+      address: Address
+
+  Address:
+    properties:
+      line1: string
+      line2: optional<string>
+      city: string
+      state: string
+      zip: string
+      country: literal<"USA">
+```
+
+这些表示 JSON 对象：
+
+```json
+{
+  "name": "Alice",
+  "address": {
+    "line1": "123 Happy Lane",
+    "city": "New York",
+    "state": "NY",
+    "zip": "10001",
+    "country": "USA"
+  }
+}
+```
+
+您还可以使用 **extends** 来组合对象：
+
+```yaml {6}
+types:
+  Pet:
+    properties:
+      name: string
+  Dog:
+    extends: Pet
+    properties:
+      breed: string
+```
+
+您可以扩展多个对象：
+
+```yaml {3-5}
+types:
+  GoldenRetriever:
+    extends:
+      - Dog
+      - Pet
+    properties:
+      isGoodBoy: boolean
+```
+
+### 别名
+
+别名类型是对现有类型的重命名。这通常是为了清晰起见。
+
+```yaml
+types:
+  # UserId 是 string 的别名
+  UserId: string
+
+  User:
+    properties:
+      id: UserId
+      name: string
+```
+
+### 枚举
+
+枚举表示具有一组允许值的字符串。
+
+在 Fern 中，您使用 `"enum"` 键来创建枚举：
+
+```yaml {3}
+types:
+  WeatherReport:
+    enum:
+      - SUNNY
+      - CLOUDY
+      - RAINING
+      - SNOWING
+```
+
+枚举名称仅限于 `A-Z`、`a-z`、`0-9` 和 `_`，以确保生成的代码能够在 Fern 能够输出的所有语言中编译。如果您有一个不遵循此约定的枚举，您可以使用 `"name"` 键来指定自定义名称：
+
+```yaml
+types:
+  Operator:
+    enum:
+      - name: LESS_THAN # <--- 将在 SDK 中使用的名称
+        value: '<' # <--- 将被序列化的值
+      - name: GREATER_THAN
+        value: '>'
+      - name: NOT_EQUAL
+        value: '!='
+```
+
+### 判别联合
+
+Fern 支持标记联合（也称为判别联合）。联合对于多态性很有用。这类似于 OpenAPI 中的 `oneOf` 概念。
+
+在 Fern 中，您使用 `"union"` 键来创建联合：
+
+```yaml {3-5}
+types:
+  Animal:
+    union:
+      dog: Dog
+      cat: Cat
+  Dog:
+    properties:
+      likesToWoof: boolean
+  Cat:
+    properties:
+      likesToMeow: boolean
+```
+
+在 JSON 中，联合有一个**判别属性**来区分联合的不同成员。默认情况下，Fern 使用 `"type"` 作为判别属性：
+
+```json
+{
+  "type": "dog",
+  "likesToWoof": true
+}
+```
+
+您可以使用 "discriminant" 键自定义判别属性：
+
+```yaml {3}
+ types:
+   Animal:
+     discriminant: animalType
+     union:
+       dog: Dog
+       cat: Cat
+   Dog:
+     properties:
+       likesToWoof: boolean
+   Cat:
+     properties:
+       likesToMeow: boolean
+```
+
+这对应于如下的 JSON 对象：
+
+```json
+{
+  "animalType": "dog",
+  "likesToWoof": true
+}
+```
+
+### 无判别联合
+
+无判别联合类似于判别联合，但是您不需要定义显式的判别属性。
+
+```yaml 
+MyUnion:
+  discriminated: false
+  union:
+    - string
+    - integer
+```
+ 
+### 泛型
+
+Fern 支持浅泛型对象，以最小化代码重复。您可以定义一个泛型以供重用：
+
+```yaml
+MySpecialMapItem<Key, Value>:
+  properties:
+    key: Key, 
+    value: Value,
+    diagnostics: string
+```
+
+现在，您可以将泛型类型实例化为类型别名：
+
+```yml 
+StringIntegerMapItem:
+  type: Response<string, number>
+
+StringStringMapItem:
+  type: Response<string, string>
+```
+
+您现在可以像使用任何其他类型一样自由使用这种类型！请注意，生成的代码不会使用泛型。上面的示例将在 TypeScript 中生成为：
+
+```typescript
+type StringIntegerMapItem = {
+  key: string,
+  value: number,
+  diagnostics: string
+}   
+ 
+type StringStringMapItem = {
+  key: string,
+  value: string,
+  diagnostics: string
+}
+```
+
+### 文档化类型
+
+您可以为类型添加文档。这些文档被传递到编译器中，在生成的输出中非常有用（例如，SDK 中的文档字符串）。
+
+<CodeBlock title="Fern Definition">
+```yaml
+types:
+  Person:
+    docs: 一个人代表一个人类
+    properties:
+      name: string
+      age:
+        docs: 年龄（以年为单位）
+        type: integer
+```
+</CodeBlock>
+
+<CodeBlock title="Generated TypeScript SDK from Fern Definition">
+```typescript 
+/**
+ * 一个人代表一个人类
+ */
+interface Person {
+  name: string;
+  // 年龄（以年为单位）
+  age: number;
+}
+```
+</CodeBlock>
+
+### 验证类型
+
+您可以向类型（别名和引用）添加验证约束以确保数据完整性。这些验证约束存在于您的 API 定义中，由服务器强制执行，但生成的客户端 SDK 不包含验证逻辑。
+
+<CodeBlock title="Fern Definition">
+```yaml {8-11, 15-17}
+types:
+  Person:
+    docs: 一个人代表一个人类
+    properties:
+      name:
+        docs: 该人的全名
+        type: string
+        validation:
+          minLength: 2
+          maxLength: 100
+          pattern: "^[A-Za-z ]+$"
+      age:
+        docs: 年龄（以年为单位）
+        type: integer
+        validation:
+          min: 0
+          max: 150
+```
+</CodeBlock>
+
+<AccordionGroup>
+<Accordion title="字符串验证参考">
+
+字符串类型支持几个验证约束。
+
+```yaml {4-6, 11-13, 16-19}
+types:
+  Word:
+    type: string
+    validation:
+      minLength: 2
+      maxLength: 26
+  User:
+    properties:
+      email:
+        type: string
+        validation:
+          format: email
+          maxLength: 254
+      username:
+        type: string
+        validation:
+          minLength: 3
+          maxLength: 20
+          pattern: "^[a-zA-Z0-9_]+$"
+```
+
+<ParamField path="minLength" type="integer">
+  所需的最小字符数
+</ParamField>
+
+<ParamField path="maxLength" type="integer">
+  允许的最大字符数
+</ParamField>
+
+<ParamField path="pattern" type="string">
+  字符串必须匹配的正则表达式模式
+</ParamField>
+
+<ParamField path="format" type="string">
+  字符串格式规范（例如，"email"、"uri"、"date-time"）
+</ParamField>
+
+</Accordion>
+
+<Accordion title="数字验证参考">
+
+数字类型（包括 `integer`、`long` 和 `double`）支持几个验证约束。
+
+```yaml {4-6, 12-15, 18-20}
+types:
+  Age:
+    type: integer
+    validation:
+      min: 0
+      max: 150
+  Product:
+    properties:
+      name: string
+      price:
+        type: double
+        validation:
+          min: 0
+          exclusiveMin: true
+          multipleOf: 0.01
+      quantity:
+        type: integer
+        validation:
+          min: 1
+          max: 1000
+```
+
+<ParamField path="min" type="number">
+  最小值（默认包含）
+</ParamField>
+
+<ParamField path="max" type="number">
+  最大值（默认包含）
+</ParamField>
+
+<ParamField path="exclusiveMin" type="boolean">
+  为 true 时，最小值为独占（值必须大于 min）
+</ParamField>
+
+<ParamField path="exclusiveMax" type="boolean">
+  为 true 时，最大值为独占（值必须小于 max）
+</ParamField>
+
+<ParamField path="multipleOf" type="number">
+  值必须是此数字的倍数
+</ParamField>
+
+</Accordion>
+</AccordionGroup>

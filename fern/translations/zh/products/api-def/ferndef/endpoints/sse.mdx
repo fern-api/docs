@@ -1,0 +1,100 @@
+---
+title: 服务器发送事件和流式 API
+subtitle: 使用 `response-stream` 键来建模流式端点
+sidebar-title: 服务器发送事件和流式 API
+---
+
+
+<Markdown src="/snippets/team-or-pro-plan.mdx"/>
+
+在端点上指定 `response-stream` 允许您表示流式响应的端点。
+
+## JSON 流式传输
+
+如果您的 API 返回一系列 `JSON` 块，如下所示
+
+```json
+{ "text": "Hi, I am a" }
+{ "text": "chatbot. Do you have any"}
+{ "text": "questions for me"}
+```
+
+那么只需在端点的 `response-stream` 下指定响应即可。
+
+```yaml title="chat.yml" {4}
+service:
+  base-path: /chat
+  endpoints:
+    stream:
+      method: POST
+      path: ""
+      response-stream: Chat
+
+types:
+  Chat:
+    properties:
+      text: string
+```
+
+## 服务器发送事件
+
+如果您的 API 返回服务器发送事件，带有 `data` 和 `event` 键，如下所示
+
+```json
+data: { "text": "Hi, I am a" }
+data: { "text": "chatbot. Do you have any"}
+data: { "text": "questions for me"}
+```
+
+那么请确保包含 `format: sse`。
+
+```yaml title="chat.yml" {9}
+service:
+  base-path: /chat
+  endpoints:
+    stream:
+      method: POST
+      path: ""
+      response-stream:
+        type: Chat
+        format: sse
+
+types:
+  Chat:
+    properties:
+      text: string        
+```
+
+## `Stream` 参数
+
+端点具有 `stream` 参数来控制响应是否流式传输已成为常见做法。Fern 以一等公民的方式支持此模式。
+
+只需指定 `stream-condition` 以及普通响应和流式响应：
+
+```yaml title="chat.yml" {7}
+service:
+  base-path: /chat
+  endpoints:
+    stream:
+      method: POST
+      path: ""
+      stream-condition: $request.stream
+      request:
+        name: StreamChatRequest
+        body: 
+          properties: 
+            stream: boolean
+      response: Chat
+      response-stream:
+        type: ChatChunk
+        format: sse
+
+types:
+  Chat:
+    properties:
+      text: string
+      tokens: integer
+  ChatChunk:
+    properties:
+      text: string
+```

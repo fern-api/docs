@@ -1,0 +1,59 @@
+---
+title: API Explorer 控制
+headline: API Explorer 控制 (OpenAPI)
+description: 使用 `x-fern-explorer` 启用或禁用 API Explorer
+sidebar-title: API Explorer 控制
+---
+
+[API Explorer](/learn/docs/api-references/api-explorer) 默认为所有端点启用。使用 `x-fern-explorer` 全局禁用或按操作覆盖。这通常用于对破坏性操作、支付处理或仅限管理员的端点禁用 Explorer。
+
+## 全局
+
+要为整个 API 禁用 API Explorer，请在根级别添加 `x-fern-explorer`：
+
+```yaml title="openapi.yml" {2}
+openapi: 3.0.2
+x-fern-explorer: false  # 为所有端点禁用 Explorer
+info:
+  title: My API
+  version: 1.0.0
+paths:
+  /payments:
+    get:
+      operationId: list_payments
+```
+
+## 端点
+
+要控制各个端点的 API Explorer，请使用 `x-fern-explorer`：
+
+```yaml title="openapi.yml" {4,9}
+paths:
+  /payments:
+    get:
+      x-fern-explorer: true  # 为安全的读取操作启用 Explorer
+  /payments/charge:
+    post:
+      x-fern-explorer: false  # 禁用以防止意外交易
+```
+
+## 结合全局和端点级别设置
+
+您可以结合使用两种扩展来全局设置默认行为并为特定端点覆盖：
+
+```yaml title="openapi.yml" {2,10}
+openapi: 3.0.2
+x-fern-explorer: false  # 全局禁用 Explorer
+info:
+  title: My API
+  version: 1.0.0
+paths:
+  /payments:
+    get:
+      operationId: list_payments
+      x-fern-explorer: true  # 为安全的读取操作启用 Explorer
+  /payments/charge:
+    post:
+      operationId: charge_payment
+      # 保持禁用（应用全局设置）
+```

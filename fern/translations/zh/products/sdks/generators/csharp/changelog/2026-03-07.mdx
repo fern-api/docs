@@ -1,0 +1,22 @@
+## 2.23.12
+**`(chore):`** 在 `populateSnippetsCache()` 中并行化端点代码片段生成。现在所有端点通过 `Promise.all` 并发处理，而不是顺序处理，减少了大型 API 的代码片段生成时间。
+
+
+## 2.23.11
+**`(chore):`** 从生成器 Dockerfile 中移除不必要的 NuGet 包还原。生成器在生成时不需要 NuGet 包，因为生成器只写入文件并运行 csharpier；生成过程中不会发生 dotnet 还原。
+
+
+## 2.23.10
+**`(chore):`** 优化上下文构建性能：将 ModelNavigator 树索引中昂贵的 O(n) 字符串分割/过滤/连接操作替换为 O(1) 增量路径构建，跳过仅包含原始值的命名格式变体分支的递归，并懒加载初始化 CsharpFormatter，使得 csharpier 工具路径仅在实际需要格式化时才解析。
+
+
+## 2.23.9
+**`(chore):`** 跨所有 C# Dockerfile 同步和缓存 NuGet 依赖项。将测试框架包更新以匹配生成的 SDK 版本，并向生成器 Dockerfile 添加 NuGet 还原缓存。
+
+
+## 2.23.8
+**`(chore):`** 通过直接生成 `.slnx` 解决方案文件和测试项目引用作为模板，而不是调用 5 个独立的 `dotnet` CLI 命令（`dotnet new sln`、`dotnet sln add` ×2、`dotnet remove reference`、`dotnet add reference`），减少项目设置期间的 dotnet CLI 进程启动。这消除了每次生成运行约 5-10 秒的 .NET CLI 冷启动开销。
+
+
+## 2.23.7
+**`(chore):`** 在项目持久化期间使用批量并发（每批 100 个文件通过 `Promise.all`）并行化文件写入，显著减少了包含数千个文件的大型项目的生成时间。

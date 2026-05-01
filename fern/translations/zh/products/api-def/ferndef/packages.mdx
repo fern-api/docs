@@ -1,0 +1,146 @@
+---
+title: Fern 定义中的包
+description: Fern 定义支持在包之间重用 API 类型和错误名称，并可以配置您的 API 文档结构。
+sidebar-title: 包
+---
+
+## 什么是包？
+
+您的 API 定义中的每个文件夹都是一个包。
+
+<Files>
+  <Folder name="fern" defaultOpen>
+    <File name="fern.config.json" />
+    <File name="generators.yml" />
+    <Folder name="definition" defaultOpen comment="根包">
+      <File name="api.yml" />
+      <File name="projects.yml" />
+      <Folder name="roles" defaultOpen comment="嵌套包">
+        <File name="admin.yml" />
+      </Folder>
+    </Folder>
+  </Folder>
+</Files>
+
+生成的 SDK 将匹配您的 API 定义层次结构。
+
+<CodeBlock title='生成的 SDK'>
+```ts
+const client = new Client();
+
+// 调用在 projects.yml 中定义的端点
+client.projects.get();
+
+// 调用在 roles/admin.yml 中定义的端点
+client.roles.admin.get();
+```
+</CodeBlock>
+
+## 包配置
+
+每个包都可以有一个名为 `__package__.yml` 的特殊定义文件。与任何其他定义文件一样，它可以包含[导入](/learn/api-definitions/ferndef/imports)、[类型](/learn/api-definitions/ferndef/types)、[端点](/learn/api-definitions/ferndef/endpoints/overview)和[错误](/learn/api-definitions/ferndef/errors)。
+
+`__package__.yml` 中的端点将出现在包的根目录下。
+例如，以下生成的 SDK：
+
+<CodeBlock title='生成的 SDK'>
+```ts
+const client = new Client();
+
+client.getProjects();
+```
+</CodeBlock>
+
+将具有一个 `fern/` 文件夹：
+
+<Files>
+  <Folder name="fern" defaultOpen>
+    <File name="fern.config.json" />
+    <File name="generators.yml" />
+    <Folder name="definition" defaultOpen>
+      <File name="__package__.yml" highlighted />
+      <File name="roles.yml" />
+    </Folder>
+  </Folder>
+</Files>
+
+其中包含以下 `__package__.yml`：
+
+<CodeBlock title="__package__.yml">
+```yaml 
+service:
+  base-path: ""
+  auth: false
+  endpoints:
+    getProjects:
+      method: GET
+      path: ""
+      response: list<Project>
+```
+</CodeBlock>
+
+## 命名空间
+
+每个包都有自己的命名空间。这意味着您可以在包之间重用类型名称和错误名称。
+
+这在版本化您的 API 时很有用。例如，当您想要增加 API 版本时，可以将现有的 API 复制到新包中并开始进行更改。如果新的 API 版本重用了某些类型或错误，这是可以的，因为两个 API 位于不同的包中。
+
+<Files>
+  <Folder name="fern" defaultOpen>
+    <File name="fern.config.json" />
+    <File name="generators.yml" />
+    <Folder name="definition" defaultOpen>
+      <File name="api.yml" />
+      <Folder name="roles" defaultOpen>
+        <Folder name="v1" defaultOpen>
+          <File name="admin.yml" comment="类型名称可以与 v2/admin.yml 重叠" />
+        </Folder>
+        <Folder name="v2" defaultOpen>
+          <File name="admin.yml" />
+        </Folder>
+      </Folder>
+    </Folder>
+  </Folder>
+</Files>
+
+## 导航
+
+`__package__.yml` 还允许您配置服务的导航顺序。当您想要控制文档的显示时，这是相关的。
+
+例如，假设您有以下 `fern/` 文件夹：
+
+<Files>
+  <Folder name="fern" defaultOpen>
+    <File name="fern.config.json" />
+    <File name="generators.yml" />
+    <Folder name="definition" defaultOpen>
+      <File name="projects.yml" />
+      <File name="roles.yml" />
+      <File name="users.yml" />
+    </Folder>
+  </Folder>
+</Files>
+
+您的 API 将按字母顺序排序：projects、roles，然后是 users。如果您想控制导航，可以添加一个 `__package__.yml` 文件并配置顺序：
+
+<Files>
+  <Folder name="fern" defaultOpen>
+    <File name="fern.config.json" />
+    <File name="generators.yml" />
+    <Folder name="definition" defaultOpen>
+      <File name="__package__.yml" comment="新文件" />
+      <File name="projects.yml" />
+      <File name="roles.yml" />
+      <File name="users.yml" />
+    </Folder>
+  </Folder>
+</Files>
+
+<CodeBlock title='__package__.yml'>
+```yaml
+navigation: 
+  - users.yml
+  - roles.yml
+  - projects.yml
+```
+</CodeBlock>

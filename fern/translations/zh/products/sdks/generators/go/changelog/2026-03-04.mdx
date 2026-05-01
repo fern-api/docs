@@ -1,0 +1,11 @@
+## 1.28.3
+**`(fix):`** 修复具有字节请求体的端点的线路测试生成崩溃。线路测试生成器现在跳过字节端点，与也排除它们的 wiremock 映射生成保持一致。之前，当 API 包含使用 `application/octet-stream` 的文件上传端点时，生成器会抛出"未找到 wiremock 映射"错误。
+
+## 1.28.1
+**`(fix):`** 在 marshal/unmarshal 代码生成中解析日期时间别名。类型为 `datetime` 或 `date` 别名的字段（例如 `DatetimeAlias: type: datetime`）现在正确使用自定义的 `internal.DateTime` / `internal.Date` 序列化助手，而不是回退到默认的 `time.Time` JSON 处理。同时放宽 `DateTime.UnmarshalJSON` 以接受不带时区后缀的 ISO 8601 时间戳（例如 `2024-01-15T09:30:00`），当时区缺失时从 RFC 3339 回退。
+
+## 1.28.0
+**`(feat):`** 改进 DateTime 反序列化以处理多种时间戳格式，而不仅仅是严格的 RFC3339。UnmarshalJSON 方法现在首先尝试 RFC3339Nano（它是 RFC3339 的超集并支持分数秒），然后回退到不带时区的 ISO 8601（假定 UTC），再到仅日期格式，最后是 Unix 时间戳秒（整数）。这与其他 Fern SDK 生成器（Java、Python、TypeScript、C#）的灵活性匹配，防止 API 返回略有不同的 ISO 8601 变体时的反序列化失败。
+
+## 1.27.0
+**`(feat):`** 为生成的 Go SDK 代码添加 golangci-lint 到种子测试；调整各种内部文件以符合 golangci-lint。（这样做的结果是 `golangci-lint run` 现在应该对任何 Fern 生成的 Go SDK 都能通过。）

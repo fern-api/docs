@@ -1,0 +1,74 @@
+---
+title: 忽略元素
+headline: 忽略元素 (OpenAPI)
+description: 使用 x-fern-ignore 从您的 OpenAPI 规范中排除端点、模式、属性或参数。控制 Fern 读取和处理的内容。
+sidebar-title: 忽略元素
+---
+
+如果您希望 Fern 跳过读取任何端点、模式、属性或参数，请使用 `x-fern-ignore` 扩展。
+
+## 忽略端点
+
+要跳过端点，请在操作级别添加 `x-fern-ignore: true`。
+
+```yaml title="openapi.yml 中操作级别的 x-fern-ignore" {4}
+paths:
+  /users:
+    get:
+      x-fern-ignore: true
+      ...
+```
+## 忽略模式
+
+要跳过模式，请在模式级别添加 `x-fern-ignore: true`。
+
+```yaml title="openapi.yml 中模式级别的 x-fern-ignore" {4}
+components:
+  schemas:
+    SchemaToSkip:
+      x-fern-ignore: true
+      ...
+```
+
+## 忽略属性
+要跳过模式中的属性，请在属性级别添加 `x-fern-ignore: true`。
+
+```yaml title="openapi.yml 中属性级别的 x-fern-ignore" {9}
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        name:
+          type: string
+        internalField:
+          x-fern-ignore: true
+          type: string
+```
+
+## 忽略参数
+
+要跳过参数，请在参数级别添加 `x-fern-ignore: true`。
+```yaml title="openapi.yml 中参数级别的 x-fern-ignore" {7}
+paths:
+  /users:
+    get:
+      parameters:
+        - name: internalParam
+          in: query
+          x-fern-ignore: true
+          schema:
+            type: string
+```
+
+<Tip>
+要在不修改基础规范的情况下跳过参数，请在您的[覆盖文件](/learn/api-definitions/openapi/overrides)中使用 `null` 值来删除参数：
+
+```yaml title="overrides.yml" {5}
+paths:
+  /users:
+    get:
+      parameters:
+        - null  # 从基础规范中删除第一个参数
+```
+</Tip>

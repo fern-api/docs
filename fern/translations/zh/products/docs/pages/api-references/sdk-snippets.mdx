@@ -1,0 +1,163 @@
+---
+title: 显示 SDK 代码片段
+description: 通过 API 定义中记录的请求和响应示例，启用 TypeScript、Python、Go 等多种语言的 SDK 代码示例。一旦启用，Fern Docs 将自动在您的 API 参考中填充代码片段。
+sidebar-title: 显示 SDK 代码片段
+---
+
+如果您使用 Fern 来生成 SDK，可以在 API 参考中显示 SDK 代码片段。这些代码片段展示了如何在 TypeScript、Python、Go 和其他支持的语言中使用您的实际 SDK。
+
+配置完成后，SDK 代码片段将替换 [HTTP 代码片段](/learn/docs/api-references/http-snippets)。
+
+<Note title="动态代码片段">
+  默认情况下，SDK 代码片段是动态代码示例，允许用户修改参数并实时查看所有支持语言的代码示例更新。
+  
+  或者，您可以[在 `docs.yml` 中禁用动态代码片段](/learn/docs/configuration/site-level-settings#experimentaldynamic-snippets)并使用静态代码示例。
+</Note>
+
+<Frame>
+![SDK code snippet selector](https://fern-image-hosting.s3.amazonaws.com/sdk-code-snippets.png)
+</Frame>
+
+## 配置
+
+要配置 SDK 代码片段，首先在 `generators.yml` 中命名您的 SDK，然后在 `docs.yml` 中引用该名称。
+
+<Steps>
+
+### 向您的 API 定义添加示例
+
+Fern 需要从您的 API 定义中读取请求示例来生成代码片段。
+- 对于 Fern Definition，请遵循[示例文档](/learn/api-definitions/ferndef/examples)。
+- 对于 OpenAPI，请遵循 [Swagger 的示例文档](https://swagger.io/docs/specification/adding-examples/)。
+
+### 为您的 SDK 定义包名
+
+在 `generators.yml` 文件中配置包名：
+*  对于 **Python、TypeScript、Ruby 和 .NET/C#**，在 `output` 部分添加 `package-name: your-package-name`。
+*  对于 **Java**，在 `output` 部分添加 `coordinate: com.your-org:your-package-name`。
+*  对于 **PHP**，在 `config` 部分添加 `packageName: YourPackageName`。
+*  对于 **Go**，在 `github` 部分添加 `repository: your-organization/your-repository`。
+
+<Note>Fern 支持 TypeScript、Python、Ruby、Go、Java、PHP 和 .NET/C# 的 SDK 代码片段。[提交问题](https://github.com/fern-api/fern/issues)以请求其他语言支持。</Note>
+
+<CodeBlock title="generators.yml">
+```yaml {9, 16, 22, 28, 34, 41, 46}
+groups:
+  production:
+    generators:
+      - name: fernapi/fern-python-sdk
+        version: <Markdown src="/snippets/version-number-python.mdx" />
+        output:
+          location: pypi
+          token: ${PYPI_TOKEN}
+          package-name: your-package-name # <--- add this field
+        ...
+      - name: fernapi/fern-typescript-sdk
+        version: <Markdown src="/snippets/version-number-ts.mdx" />
+        output:
+          location: npm
+          token: ${NPM_TOKEN}
+          package-name: your-package-name # <--- add this field
+      - name: fernapi/fern-ruby-sdk
+        version: <Markdown src="/snippets/version-number-ruby.mdx" />
+        output:
+          location: rubygems
+          token: ${RUBYGEMS_TOKEN}
+          package-name: your-package-name # <--- add this field
+      - name: fernapi/fern-csharp-sdk
+        version: <Markdown src="/snippets/version-number-csharp.mdx" />
+        output:
+          location: nuget
+          api-key: ${NUGET_API_KEY}
+          package-name: your-package-name # <--- add this field
+        ...
+      - name: fernapi/fern-java-sdk
+        version: <Markdown src="/snippets/version-number-java.mdx" />
+        output:
+          location: maven
+          coordinate: com.your-org:your-package-name # <--- add this field
+        ...
+      - name: fernapi/fern-php-sdk
+        version: <Markdown src="/snippets/version-number-php.mdx" />
+        github:
+          repository: your-organization/your-repository
+        config:
+          packageName: YourPackageName # <--- add this field
+        ...
+      - name: fernapi/fern-go-sdk
+        version: <Markdown src="/snippets/version-number-go.mdx" />
+        github:
+          repository: your-organization/your-repository # <--- add this field
+        ...     
+```
+</CodeBlock>
+
+### 将包名添加到您的文档配置中
+
+将相应 SDK 的包名添加到您的 `docs.yml` 文件中：
+  *  **对于 Python、TypeScript、Ruby 和 .NET/C#**，`your-package-name` 必须与您在 `generators.yml` 文件中配置的 `your-package-name` 匹配。
+  *  **对于 Java**，`com.your-org:your-package-name` 必须与您在 `generators.yml` 文件中配置的 `coordinate` 匹配。
+  *  **对于 PHP**，`YourPackageName` 必须与您在 `generators.yml` 文件中配置的 `packageName` 匹配。
+  *  **对于 Go**，使用 SDK 仓库所在的确切 URL，包括 `https://github.com/`。
+
+<CodeBlock title="docs.yml">
+```yaml {3-10}
+navigation:
+  - api: API Reference
+    snippets:
+      python: your-package-name  # <--- needs to match the naming in generators.yml
+      typescript: your-package-name # <--- needs to match the naming in generators.yml
+      ruby: your-package-name # <--- needs to match the naming in generators.yml
+      csharp: your-package-name # <--- needs to match the naming in generators.yml
+      java: com.your-org:your-package-name # <--- needs to match the coordinate in generators.yml
+      php: YourPackageName # <--- needs to match the packageName in generators.yml
+      go: https://github.com/your-organization/your-repository # <--- needs the https://github.com/ prefix
+```
+</CodeBlock>
+
+<Note>
+  要为 SDK 用户和文档用户显示不同的包名，请[使用覆盖文件](/learn/api-definitions/asyncapi/overrides#separate-overrides-for-sdks-and-docs)。
+</Note>
+
+### 触发生成
+
+通过在本地或 CI/CD（如 GitHub Actions）中运行 `fern generate --docs` 来触发文档生成。SDK 代码片段将通过下拉菜单出现！
+
+</Steps>
+
+## 其他选项
+
+### 指定 SDK 版本
+
+您可以指定生成代码片段时要使用的 SDK 版本。
+
+<CodeBlock title="docs.yml">
+```yaml {4-6}
+navigation:
+  - api: API Reference
+    snippets:
+      python:
+        package: your-package-name  # <--- needs to match the naming in generators.yml
+        version: your-version number # SDK version to use for snippets
+```
+</CodeBlock>
+
+### 设置默认代码片段语言
+
+在 `docs.yml` 的顶级缩进使用 `default-language` 键。此设置适用于 SDK 代码片段和 HTTP 代码片段。
+
+<CodeBlock title="docs.yml">
+```yaml {1}
+default-language: typescript
+
+navigation:
+  - api: API Reference
+    snippets:
+      python: your-package-name
+      typescript: your-package-name
+```
+</CodeBlock>
+
+## 端点请求和响应代码片段
+
+正在寻找有关生成 API 端点请求和响应代码片段的信息？请查看我们关于[端点请求代码片段](/learn/docs/content/components/request-snippet)和[端点响应代码片段](/learn/docs/content/components/response-snippet)的文档。

@@ -1,0 +1,93 @@
+---
+title: .NET 配置
+description: 使用 Fern 配置您的 C# .NET SDK 生成器。自定义客户端类名、命名空间、错误处理和分页设置。
+sidebar-title: .NET 配置
+---
+
+您可以在 `generators.yml` 中自定义 C#/.NET SDK 生成器的行为：
+
+```yml {6-7} title="generators.yml"
+groups: 
+  csharp-sdk:
+    generators:
+      - name: fernapi/fern-csharp-sdk
+        version: <Markdown src="/snippets/version-number-csharp.mdx"/>
+        config:
+          client-class-name: YourApiClient
+```
+
+<ParamField path="base-api-exception-class-name" type="string" required={false} toc={true}>
+自定义基础 API 异常类的名称，所有特定于 API 的异常都将从该类继承。这允许您定义自定义的基础异常类名称，以便更好地与现有的错误处理模式集成。
+</ParamField>
+
+<ParamField path="base-exception-class-name" type="string" required={false} toc={true}>
+指定所有生成的异常都将从其继承的基础异常类的名称。这为所有 SDK 异常提供了一个通用的父类，使异常处理模式保持一致。
+</ParamField>
+
+<ParamField path="client-class-name" type="string" required={false} toc={true}>
+设置生成的 API 客户端类的名称。这决定了用户在生成的 .NET SDK 中将与之交互的主要客户端类型名称。
+</ParamField>
+
+<ParamField path="custom-pager-name" type="string" required={false} toc={true}>
+自定义用于处理分页 API 响应的分页助手类的名称。这允许您指定符合您命名约定的自定义名称。
+</ParamField>
+
+<ParamField path="enable-forward-compatible-enums" type="boolean" required={false} toc={true}>
+启用时，生成可以处理未知值的枚举类型。这允许 SDK 处理可能添加到 API 的新枚举值，而不会破坏现有的客户端代码，从而提高向前兼容性。
+</ParamField>
+
+<ParamField path="environment-class-name" type="string" required={false} toc={true}>
+指定用于管理不同 API 环境（例如开发、测试、生产）的环境配置类的名称。
+</ParamField>
+
+<ParamField path="explicit-namespaces" type="boolean" required={false} toc={true}>
+启用时，在整个 SDK 中生成带有显式命名空间声明的代码。这有助于避免命名冲突并提高大型项目中代码的清晰度。
+</ParamField>
+
+<ParamField path="exported-client-class-name" type="string" required={false} toc={true}>
+设置将在代码示例和文档中使用的导出客户端类的名称。这对于自定义客户端在生成的文档中的显示方式很有用。
+</ParamField>
+
+<ParamField path="generate-error-types" type="boolean" required={false} toc={true}>
+启用时，为不同的 API 错误生成特定的错误类型类。这提供了强类型的错误处理，而不是使用通用的异常类型。
+</ParamField>
+
+<ParamField path="generate-mock-server-tests" type="boolean" default="true" required={false} toc={true}>
+生成[模拟服务器（连线）测试](/learn/sdks/deep-dives/testing#mock-server-tests)以验证 SDK 是否按预期发送和接收 HTTP 请求。
+</ParamField>
+
+<ParamField path="include-exception-handler" type="boolean" required={false} toc={true}>
+启用时，在生成的 SDK 中包含内置的异常处理实用程序。这为常见的错误处理场景提供了便利方法。
+</ParamField>
+
+<ParamField path="inline-path-parameters" type="boolean" required={false} toc={true}>
+启用时，路径参数将作为请求对象的属性包含在内，而不是作为单独的方法参数传递。这创建了一个更统一的请求结构，其中所有参数都组合在一起。
+</ParamField>
+
+<ParamField path="namespace" type="string" required={false} toc={true}>
+指定所有生成的 .NET 代码的根命名空间。这决定了用户在使用 SDK 时将导入的命名空间层次结构。
+</ParamField>
+
+<ParamField path="package-id" type="string" required={false} toc={true}>
+设置生成的 SDK 的 NuGet 包标识符。这在将 SDK 发布到 NuGet 或其他包存储库时使用。
+</ParamField>
+
+<ParamField path="read-only-memory-types" type="List<string>" required={false} toc={true}>
+指定应该使用 ReadOnlyMemory&lt;T&gt; 而不是常规数组或集合生成的类型列表。这可以通过减少内存分配来提高大数据传输的性能。
+</ParamField>
+
+<ParamField path="redact-response-body-on-error" type="boolean" required={false} toc={true}>
+启用时，防止原始响应体泄漏到异常消息和日志中。反序列化错误异常传递 `null` 而不是原始响应体，基础 API 异常类包含一个自定义的 `ToString()` 覆盖，它排除响应体。
+</ParamField>
+
+<ParamField path="root-client-class-access" type="'public' | 'internal'" required={false} toc={true}>
+控制根客户端类的访问修饰符。使用 'public' 使客户端可从其他程序集访问，或使用 'internal' 将访问限制在同一程序集内。
+</ParamField>
+
+<ParamField path="root-namespace-for-core-classes" type="boolean" required={false} toc={true}>
+启用时，将核心 SDK 类（如基础客户端类和实用程序）放置在根命名空间中，而不是嵌套命名空间中。这可以简化常用类型的导入。
+</ParamField>
+
+<ParamField path="use-discriminated-unions" type="boolean" required={false} toc={true}>
+启用时，为可以包含多种不同对象类型的 API 响应生成判别联合类型。这为多态响应提供了类型安全的处理。
+</ParamField>

@@ -1,0 +1,30 @@
+## 3.32.0
+**`(feat):`** 添加端点级安全支持，支持路由认证提供者。API 现在可以使用 ENDPOINT_SECURITY 认证模式为每个端点定义不同的认证要求。SDK 生成独立的认证提供者（Bearer、Basic、ApiKey、OAuth、InferredAuth）和一个 RoutingAuthProvider，根据每个端点的安全要求将请求路由到相应的提供者。支持 OR（任意一个）和 AND（全部）认证要求组合。
+
+要启用此功能，请在您的 api.yml 中添加 `auth: endpoint-security: {}`，并在您的服务定义中使用每个端点的 `auth` 字段定义每个端点的认证。
+
+
+## 3.31.0
+**`(feat):`** 在 `RequestOptions` 中添加 `additionalQueryParameters` 支持，允许用户在运行时向 API 请求添加查询参数。通过 RequestOptions 添加的查询参数会覆盖任何具有相同键的请求定义参数。这与现有的 `addHeader` 模式保持一致。
+
+使用示例：
+```java
+client.endpoint(
+    Request.builder().build(),
+    RequestOptions.builder()
+        .addQueryParameter("key", "value")
+        .build()
+);
+```
+
+
+## 3.30.0
+**`(feat):`** 添加 `enable-gradle-profiling` 配置选项，用于在生成过程中对 Gradle 命令进行性能分析。
+
+
+## 3.29.2
+**`(fix):`** 将 `notify`、`notifyAll` 和 `wait` 添加到保留方法名中，以防止生成的 SDK 方法与 Java Object 类中的 final 方法冲突。这修复了当 API 有名为"notify"的子包（例如 Twilio 的 Notify API）时的编译错误。
+
+
+## 3.29.1
+**`(fix):`** 修复 `_Builder` 类以支持所有构建器方法（url、timeout、environment、maxRetries、httpClient、addHeader），使方法链可以按任何顺序工作。这允许从 3.18.x 升级且编写了 `builder().url().token()` 的客户继续正常工作而不出现编译错误。现在在 `_Builder` 上设置的配置值在调用 `token()` 或 `credentials()` 时会正确传递给 `_TokenAuth` 和 `_CredentialsAuth`。

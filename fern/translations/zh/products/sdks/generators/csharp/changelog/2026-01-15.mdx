@@ -1,0 +1,53 @@
+## 2.15.0
+**`(feat):`** 添加对显式可为空/可选类型处理的支持，新增了 `Optional<T>` 类型。
+
+当在 generators.yml 中配置 `experimental-explicit-nullable-optional: true` 时，SDK 将对可为空的可选字段使用 `Optional<T?>`，为 PATCH 请求启用三态语义：
+* **未定义**：字段未设置 - 不会包含在请求中（在服务器上保持不变）
+* **定义为 null**：字段显式设置为 null - 将发送 `null`（清除服务器上的字段）
+* **定义为值**：字段设置为一个值 - 将发送该值（更新服务器上的字段）
+
+使用示例：
+```csharp
+public class UpdateUserRequest
+{
+    public Optional<string?> Name { get; set; } = Optional<string?>.Undefined;
+    public Optional<string?> Email { get; set; } = Optional<string?>.Undefined;
+}
+
+// 不发送 name 字段（保持不变）
+var request1 = new UpdateUserRequest();
+
+// 将 name 设置为一个值
+var request2 = new UpdateUserRequest { Name = "John" };
+
+// 清除 name（发送 null）
+var request3 = new UpdateUserRequest { Name = null };
+```
+
+`Optional<T>` 类型包括：
+* `IsDefined` 属性，用于检查是否设置了值
+* `Value` 属性，用于访问值（如果未定义则抛出异常）
+* `TryGetValue` 方法，用于安全的值访问
+* 隐式转换操作符，便于使用
+* 完整的 JSON 序列化支持
+* `IEquatable<Optional<T>>` 实现，用于正确的相等性检查
+
+**`(fix):`** 修复查询参数序列化，通过在需要时添加 `.Value` 访问器来正确处理可为空的结构类型（DateTime?、DateOnly? 等）。
+
+**`(fix):`** 改进整个生成器中的可为空和可选类型处理，包括集合值类型和类型映射。
+
+## 2.14.1
+**`(fix):`** 当配置 `include-exception-handler: true` 时，生成的异常拦截器类现在在其构造函数中接受 `ClientOptions`。这允许拦截器在捕获异常时访问客户端配置。
+
+## 2.14.0
+**`(feat):`** 重构 WebSocket API 代码生成，使用组合而非继承。
+
+主要变更：
+* 用使用组合的 `WebSocketClient` 内部类替换 `AsyncApi<T>` 基类
+* 将命名空间从 `{root}.Core.Async.*` 扁平化为 `{root}.Core.WebSockets`
+* 生成的 WebSocket 客户端现在直接实现 `IAsyncDisposable`、`IDisposable` 和 `INotifyPropertyChanged`
+* 将 `Options` 和 `WebSocketClient` 存储为私有字段而不是使用继承
+* 从内部客户端转发 `Status`、`Connected`、`Closed` 和 `ExceptionOccurred` 事件
+* 简化 `INotifyPropertyChanged` 仅通知 `Status` 属性变更
+
+此重构提高了代码清晰度并降低了复杂性。

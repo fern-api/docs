@@ -1,0 +1,56 @@
+## 0.48.3
+**`(fix):`** SDK 现在支持从环境变量中读取基本认证的用户名和密码值。
+
+## 0.48.2
+**`(fix):`** 更新重试逻辑以停止在 HTTP 冲突 (409) 时重试。这是一个疏忽，我们一直打算移除它（类似于其他 Fern SDK）。
+
+## 0.48.1
+**`(fix):`** 带有 `null` 值的记录类型现在可以正确序列化。
+
+## 0.48.0
+**`(feat):`** 当 `useBigInt` SDK 配置设置为 `true` 时，将使用定制的 JSON 序列化器和反序列化器来保持 `bigint` 的精度，而不是原生的 `JSON.stringify` 和 `JSON.parse` 函数将 `bigint` 转换为 `number` 从而丢失精度。
+
+当将 `useBigInt` 与我们的序列化层结合使用时（`no-serde: false`（默认）），在 OpenAPI/Fern 规范中标记为 `long` 和 `bigint` 的请求和响应属性都将始终为 `bigint`。
+但是，当禁用序列化层时（`no-serde: true`），它们将被类型化为 `number | bigint`。
+
+以下是在将 `useBigInt` 和 `noSerde` 与以下 Fern 定义结合使用时生成类型的概述：
+
+**Fern 定义**
+```yml
+types:
+  ObjectWithOptionalField:
+    properties:
+      longProp: long
+      bigIntProp: bigint
+```
+
+**TypeScript 输出**
+```typescript
+// useBigInt: true
+// noSerde: false
+interface ObjectWithLongAndBigInt {
+  longProp: bigint;
+  bigIntProp: bigint;
+}
+
+// useBigInt: true
+// noSerde: true
+interface ObjectWithLongAndBigInt {
+  longProp: bigint | number;
+  bigIntProp: bigint | number;
+}
+
+// useBigInt: false
+// noSerde: false
+interface ObjectWithLongAndBigInt {
+  longProp: number;
+  bigIntProp: string;
+}
+
+// useBigInt: false
+// noSerde: true
+interface ObjectWithLongAndBigInt {
+  longProp: number;
+  bigIntProp: string;
+}
+```
