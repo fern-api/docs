@@ -1,0 +1,21 @@
+## 2.17.5
+**`(fix):`** 修复集合中嵌套 OneOf 值的测试相等比较。
+
+以前，当比较包含 `List<OneOf<...>>` 属性的对象（例如 FHIR 风格模型中的 `RelatedResources`）时，即使值相同，测试框架也会错误地报告差异。这是因为嵌套的 OneOf 比较器没有递归处理集合中的 OneOf 值。
+
+修复添加了一个自定义 `EqualityAdapter`，它将自己注册到内部的 `NUnitEqualityComparer`，从而实现嵌套 OneOf 值的正确递归比较。
+
+
+## 2.17.4
+**`(fix):`** 修复内联请求体的额外属性支持并改进测试相等比较。
+
+此修复解决了 `extra-properties: true` 功能的三个问题：
+* 内联请求体现在正确支持 `AdditionalProperties` 进行序列化/反序列化
+* 测试代码片段现在包括对象类型和包装请求示例中的额外属性
+* 添加了 `AdditionalPropertiesComparer` 来处理测试断言中 JsonElement 和原生 C# 类型之间的类型不匹配
+
+
+## 2.17.3
+**`(fix):`** 修复模拟服务器测试，对表单 URL 编码请求使用 FormUrlEncodedMatcher。
+
+以前，模拟服务器测试对表单 URL 编码请求使用 `WithBodyAsJson`，这会导致测试失败，因为 SDK 以 `key=value&key2=value2` 格式发送请求体，而不是 JSON。此修复使用 WireMock 的 `FormUrlEncodedMatcher` 来正确匹配表单 URL 编码请求体。
