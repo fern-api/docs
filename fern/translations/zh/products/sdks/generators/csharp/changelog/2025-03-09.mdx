@@ -1,0 +1,41 @@
+## 1.12.0-rc17
+**`(fix):`** 当生成器配置中 `use-discriminated-unions` 为 `true` 时，为联合类型生成代码片段。
+
+## 1.12.0-rc16
+**`(fix):`** 从 JsonElementComparer.cs 中删除硬编码的命名空间导入
+
+## 1.12.0-rc15
+**`(feat):`** 生成**可辨识联合类型**，具有以下特性：
+- 编译时检查的类型安全
+- 穷尽的判别值匹配
+- JSON 序列化支持
+
+以下是如何使用形状可辨识联合类型的简单示例：
+```csharp
+var shape = new Shape(new Circle { Radius = 5 });
+
+// 类型检查
+if (shape.IsCircle) {
+    Console.WriteLine($"Radius: {circle.AsCircle().Radius}");
+}
+
+// 判别值匹配
+var area = shape.Match(
+    circle => Math.PI * circle.Radius * circle.Radius,
+    square => square.Length * square.Length,
+    (type, _) => throw new NotSupportedException($"Unknown: {type}")
+);
+
+// TryAs 模式
+if (shape.TryAsCircle(out var circle)) {
+    Console.WriteLine($"Radius: {circle.Radius}");
+}
+```
+
+为了保持向后兼容性，此功能默认关闭。
+要启用它，请在生成器配置中将 `use-discriminated-unions` 设置为 `true`。
+
+
+**`(feat):`** 改进了普通对象和可辨识联合类型生成类的序列化测试。
+
+**`(feat):`** 生成的类现在遵循 C# 约定来排序常量、字段、构造函数、属性、方法、运算符和内部类。
