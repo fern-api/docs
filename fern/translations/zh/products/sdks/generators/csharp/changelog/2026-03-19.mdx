@@ -1,0 +1,75 @@
+## 2.39.0
+**`(feat):`** 为 WebSocket API 类生成接口（例如 `IStreamApi`、`ITranscribeApi`）
+以提高可测试性。每个 WebSocket 客户端现在都实现相应的接口，
+该接口声明所有公共事件属性、`Status`、`ConnectAsync`、`Send` 和
+`CloseAsync`。当启用 WebSockets 时，根客户端接口（`ICortiClient`）还包含工厂方法
+签名（`CreateStreamApi`、`CreateTranscribeApi`）。
+
+
+## 2.38.1
+**`(fix):`** 修复 `Event<T>` 线程安全问题。`RaiseEvent` 现在在锁下对订阅者
+集合进行快照后再迭代，`Subscribe`、`Unsubscribe` 和
+`UnsubscribeAll` 已同步，以防止在不同线程并发添加或移除
+处理程序时出现 `InvalidOperationException`。
+
+
+## 2.38.0
+**`(feat):`** 为所有公共异步 WebSocket 方法添加可选的 `CancellationToken` 参数
+（`ConnectAsync`、`CloseAsync` 和 `Send` 重载）。该 token 贯穿
+内部的 `WebSocketClient`、`WebSocketConnection`，并向下传递到底层的
+`ClientWebSocket.SendAsync`/`ConnectAsync`/`CloseAsync` 调用，使调用者能够
+取消长时间运行的 WebSocket 操作。
+
+
+## 2.37.2
+**`(fix):`** 修复 WebSocket 二进制消息使用 `WebSocketMessageType.Text` 而非
+`WebSocketMessageType.Binary` 发送的问题。`RequestBinaryMessage` 和 `RequestBinarySegmentMessage`
+现在在调用 `SendAsync` 时正确使用 `WebSocketMessageType.Binary`，确保
+音频数据（例如 webm/opus 块）作为二进制帧发送。
+
+
+## 2.37.1
+**`(fix):`** 为所有剩余的自定义 `JsonConverter` 类型添加 `ReadAsPropertyName` 和 `WriteAsPropertyName` 重写：
+`EnumSerializer<TEnum>`（原生 C# 枚举）、
+`DateTimeSerializer`、`DateAsDateTimeConverter`、判别联合转换器
+和字面量类型转换器。没有这些重写，当这些类型中的任何一个用作 `Dictionary<TKey, TValue>`
+键时，`System.Text.Json` 会抛出 `NotSupportedException`。这补充了 2.35.1 中的 `IStringEnum` 修复。
+
+
+## 2.37.0
+**`(feat):`** 使用 `JsonAssert.Roundtrips<T>(inputJson)` 的单个往返
+序列化测试替换单独的反序列化和序列化测试。该助手将
+JSON 反序列化为 `T`，重新序列化，并通过 `JsonElement` 深度
+相等性与原始 JSON 进行比较，产生可报告差异的失败。
+
+
+## 2.36.0
+**`(feat):`** 添加 `UsingObjectDictionaryComparer` 到测试比较器中，用于处理
+`Dictionary<string, object?>` 字段。System.Text.Json 将
+`object?` 值反序列化为 `JsonElement`，因此结构相等性比较
+需要在比较前序列化双方。`UsingDefaults()`
+链现在自动包含此比较器。
+
+
+## 2.35.1
+**`(fix):`** 为生成的 `IStringEnum` JsonConverter 添加 `ReadAsPropertyName` 和 `WriteAsPropertyName` 重写。
+没有这些重写，`System.Text.Json` 在序列化或反序列化
+`Dictionary<TStringEnum, TValue>` 时会在运行时抛出 `NotSupportedException`。
+这适用于所有生成的 `IStringEnum` 类型，因此字典键用法无需重新生成即可工作。
+
+
+## 2.35.0
+**`(fix):`** 修复 WebSocket 二进制消息发送。二进制消息（例如音频字节）现在
+作为原始字节发送，而不是进行 JSON 序列化，这导致服务器以 CONFIG_DENIED 拒绝
+它们。
+
+
+**`(fix):`** 修复 WebSocket 传入消息反序列化。`TryDeserialize` 现在传递
+`JsonSerializerOptions`，以便生成的字面量属性设置器在反序列化期间正确
+验证常量判别器字段（例如 `type: "transcript"` vs `type: "flushed"`）。
+
+
+**`(feat):`** 为 WebSocket 客户端添加向前兼容的 `UnknownMessage` 事件。当服务器
+发送 SDK 无法识别的事件类型时，现在将其分派到
+`UnknownMessage` 事件处理程序（作为 `JsonElement`），而不是引发异常。
+这允许 SDK 优雅地处理新的服务器事件类型，而无需重新生成。

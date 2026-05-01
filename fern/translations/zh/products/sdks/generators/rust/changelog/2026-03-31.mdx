@@ -1,0 +1,163 @@
+## 0.30.2
+**`(fix):`** 修复带查询参数的字节端点的动态代码片段生成，
+使用请求结构体而非位置参数。
+
+
+## 0.30.1
+**`(fix):`** 为带查询参数的字节（八位流）端点生成请求结构体，
+用单个结构体替换位置参数，该结构体使用构建器模式
+捆绑原始正文和所有查询参数。
+
+
+## 0.30.0
+**`(feat):`** 全面改进 WebSocket 重连：带抖动的指数退避算法，稳定连接 5 秒后
+自动重置重试计数器，以及重连期间的消息队列（文本和二进制消息
+被缓冲并在重连后刷新，而非报错）。
+
+
+**`(feat):`** 在 `WebSocketMessage::Close` 中添加 `DisconnectInfo` 结构体，暴露服务器的
+关闭代码和原因字符串。`recv()` 现在在关闭帧时返回 `None` 以
+发送流结束信号。
+
+
+**`(feat):`** 为带查询参数的 WebSocket 通道生成类型化的 `ConnectOptions` 结构体，
+用支持 `..Default::default()` 人机工学的 `#[derive(Default)]` 结构体
+替换位置 `&str` 参数。底层使用 `QueryBuilder`，匹配 HTTP 端点模式。
+
+
+**`(feat):`** 支持从 IR 自定义连接和消息方法名称
+（`channel.connectMethodName`、`msg.methodName`），分别回退到 `connect`
+和 `send_{name}`。
+
+
+**`(feat):`** 添加 `generateWebSocketClients` 配置别名，与 `enableWebsockets` 并存，
+匹配 TypeScript/Python/Java 生成器配置键。
+
+
+**`(feat):`** 在多 URL API 中将每个 WebSocket 连接器路由到正确的环境 URL 方法
+（例如，Deepgram 的 `wss://agent.deepgram.com` 与
+`wss://api.deepgram.com`）。
+
+
+**`(feat):`** 在生成的 `ServerMessage` 枚举中添加 `Unknown(serde_json::Value)` 兜底变量，
+用于向前兼容新的服务器消息类型。
+
+
+**`(feat):`** 优雅的 WebSocket 关闭：发送关闭帧并等待最多 5 秒的
+服务器响应，带双重关闭保护。
+
+
+**`(fix):`** 将隐式认证参数从必需的 `&str` 更改为 `Option<&str>`，
+仅在提供令牌时有条件地注入 Authorization 标头。
+
+
+**`(fix):`** 修复带显式 Authorization 标头的 API（例如 Deepgram）的连接器认证转发
+— 连接器现在正确解包 `Option` 以匹配客户端的 `&str` 参数类型。
+
+
+**`(fix):`** 修复仅 JSON 通道上的 `recv()` 在遇到意外二进制帧时返回带帧大小的错误，
+而不是静默跳过它们。
+
+
+**`(chore):`** 从通道路径而非通道 ID 派生通道名称，将版本段移动到后缀位置
+（例如，`/v1/agent/converse` → `AgentConverseV1Client`）。
+
+
+**`(fix):`** 在 `ServerMessage` 枚举上用自定义的 `Deserialize` 实现替换 `#[serde(untagged)]` 派生，
+使用往返评分。修复结构体字段上的 `#[serde(default)]` 导致
+每个变量都匹配、总是返回第一个的静默不匹配问题。
+
+
+**`(chore):`** 引入 `ReconnectContext` 结构体来组织重连状态，
+在 `read_loop` 和 `try_reconnect` 中替换 8 个单独的 `Arc` 包装参数。
+
+
+**`(fix):`** 修复 `try_reconnect` 以指数退避重试至 `max_reconnect_attempts`，
+而非在单次失败尝试后放弃。
+
+
+**`(fix):`** 修复 `flush_queues` 在发送失败时通过发送前克隆并在错误时
+推回队列前端来保留消息。
+
+
+**`(chore):`** 从 WebSocket 客户端基础设施中移除无用的 `parse_websocket_message` 函数和
+未使用的 `serde::de::DeserializeOwned` 导入。
+
+
+**`(fix):`** 修复线路测试生成器为多 URL API 设置 `config.environment = None`，
+使请求路由到 WireMock 服务器而非真实 API 端点。
+
+
+**`(fix):`** 修复 `number_serializers` 单元测试断言使用 `1e+20` 匹配 Rust 的
+serde_json 指数格式化。
+
+
+**`(fix):`** 修复 WebSocket 连接器以支持 `api_key` 认证和 bearer
+令牌。连接器现在从根客户端接收预计算的 Authorization 标头值，
+使用 IR 的 api 键前缀（例如 `Token`），`api_key` 优先于 `token`，匹配 HTTP 客户端行为。
+
+
+### What's new
+- 对于之前将查询参数作为位置参数传递给 `connect()` 的代码，这是一个破坏性变更。
+
+
+## 0.29.0
+**`(feat):`** 为多 URL 环境添加每个端点的 URL 解析。每个端点
+现在在调用时从环境对象解析其基础 URL，匹配
+Python 和 Java SDK 方法。
+
+
+**`(feat):`** 从代码而非静态模板生成 `ApiClientBuilder`，为多 URL API 启用
+环境感知的构建器方法。
+
+
+**`(feat):`** 为多 URL 环境在 `Environment` 枚举上添加每个基础 URL 的获取器方法
+（例如，`api_url()`、`agent_url()`）。
+
+
+**`(feat):`** 为多 URL 环境在 `ClientConfig` 中添加 `Option<Environment>` 字段，
+以支持每个端点的 URL 解析。
+
+
+**`(feat):`** 在 `HttpClient` 中添加 `base_url()`、`config()`、`execute_request_with_base_url()` 和
+`execute_stream_request_with_base_url()` 访问器，用于
+多 URL 端点解析。
+
+
+**`(chore):`** 从 `RootClientGenerator` 中移除构造时 URL 覆盖；所有
+子客户端现在统一接收 `config.clone()`。
+
+
+## 0.28.0
+**`(feat):`** 添加 `number_serializers` 模块，将整数 `f64` 值序列化为
+不带尾随 `.0` 的格式（例如，`24000.0` 序列化为 `24000`）。某些 API
+拒绝整数值的小数表示。包含范围验证以防止
+`i64` 范围外数字的错误值。
+
+
+**`(feat):`** 为带 `application/octet-stream` 请求正文的端点添加 `execute_bytes_request` 
+HTTP 客户端方法，发送原始字节而非 JSON 编码。
+
+
+**`(feat):`** 支持来自 IR 认证方案的 API 键前缀。当配置了 `Token`
+或 `Bearer` 等前缀时，生成的 HTTP 客户端会将其
+添加到 API 键标头值前。
+
+
+**`(fix):`** 重构文件上传和内联请求正文上的查询参数，作为 URL 查询字符串发送
+而非序列化到请求正文中。查询参数字段现在标记为 `#[serde(skip_serializing)]`。
+
+
+**`(fix):`** 修复可选查询参数字段上冗余的 `#[serde(skip_serializing_if = "Option::is_none")]` 和
+`#[serde(skip_serializing)]`。现在仅发出 `skip_serializing`。
+
+
+**`(chore):`** 仅在 IR 使用浮点/双精度类型时有条件地包含 `number_serializers.rs`，
+与其他序列化器模块保持一致。
+
+
+**`(chore):`** 在认证方案上用适当的 `FernIr.AuthScheme._visit()` 模式匹配
+替换不安全的类型转换。
+
+
+**`(chore):`** 将 IR SDK 从 v61 升级到 v65。

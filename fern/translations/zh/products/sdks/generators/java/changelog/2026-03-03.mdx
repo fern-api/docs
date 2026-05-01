@@ -1,0 +1,29 @@
+## 3.42.0
+**`(feat):`** 通过 `custom-plugins` 配置选项添加对自定义 Gradle 插件的支持。用户现在可以指定自定义 Gradle 插件（可选版本），这些插件将被添加到生成的 build.gradle 文件中。格式：`["plugin-id:version", "plugin-id"]`。插件在内置插件（java-library、maven-publish、spotless）之后应用。
+
+
+## 3.41.0
+**`(feat):`** 为 Java SDK 生成器添加 `custom-interceptors` 配置选项。启用时（在 `generators.yml` 中设置 `custom-interceptors: true`），生成的客户端构建器暴露一个 `addInterceptor(Interceptor)` 方法，允许 SDK 用户添加自定义 OkHttp 拦截器。拦截器在客户端构建时应用到 OkHttpClient。这启用了诸如 PKCV（公钥客户端验证）、自定义请求签名和其他通过受 `.fernignore` 保护的自定义代码进行的 HTTP 级别自定义等用例。
+
+
+## 3.40.9
+**`(fix):`** 修复表单 urlencoded 请求体的 wire 测试生成：对象现在按照 Java 的 `Map.toString()` 格式（`{key=value}`）序列化，而不是 JSON（`{"key":"value"}`），并且零秒的 ISO 8601 日期会删除 `:00` 以匹配 Java 的 `OffsetDateTime.toString()` 输出（例如 `2015-07-30T20:00Z` 而不是 `2015-07-30T20:00:00Z`）。
+
+
+## 3.40.8
+**`(fix):`** 修复 wire 测试生成，将 RFC 2822 日期在模拟响应体（由 MockWebServer 提供）和预期响应断言中都转换为 ISO 8601。之前，只有预期响应被转换，模拟响应中保留 RFC 2822 日期，这导致 Jackson 反序列化时对于类型为 `dateTime`（不是 `dateTimeRfc2822`）的字段出现 `DateTimeParseException`。现在转换提前进行，使得单个规范化的资源文件被模拟设置和验证共享。
+
+
+## 3.40.7
+**`(fix):`** 修复 URI 和路径分页端点的 wire 测试生成返回错误类型。发布的 `@fern-fern/ir-sdk` 不包括 `uri`/`path` 作为 `Pagination` 联合成员，所以原始 IR JSON 通过未反序列化传递，带有 `_type` 判别字段而不是 `type`。生成器现在在提取分页项类型之前规范化原始 IR JSON（`_type` → `type`），因此 wire 测试正确使用 `SyncPagingIterable<T>` 而不是原始响应类型。
+
+
+## 3.40.6
+**`(fix):`** 修复表单 urlencoded 请求体编码的 wire 测试生成。生成器现在对空格使用 `+`（匹配 Java 的 `URLEncoder.encode()`）而不是 `%20`（来自 `encodeURIComponent`），将数组序列化为 `[val1, val2]`（匹配 Java 的 `List.toString()`），并将对象序列化为 JSON 字符串。
+
+
+**`(fix):`** 修复 RFC 2822 日期字段的 wire 测试生成。wire 测试中的预期响应体现在将 RFC 2822 日期（例如 `Thu, 30 Jul 2015 20:00:00 +0000`）转换为带 Z 后缀的 ISO 8601（例如 `2015-07-30T20:00:00Z`），以匹配 Jackson 的 `JavaTimeModule` 对 `OffsetDateTime` 的序列化。模拟响应体保留 RFC 2822 日期，因为 SDK 的 `Rfc2822DateTimeDeserializer` 能正确处理它们。
+
+
+## 3.40.5
+**`(fix):`** 修复 URI 和路径分页端点的 wire 测试生成。生成的 wire 测试错误地使用原始响应类型（例如 `ListMessagesResponse`）而不是使用 URI 或基于路径分页的端点的分页返回类型（`SyncPagingIterable<T>`），导致编译失败。

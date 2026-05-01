@@ -1,0 +1,50 @@
+## 1.8.5
+**`(feat):`** 添加前向兼容枚举。在配置中将 `experimental-enable-forward-compatible-enums` 设置为 `true` 以生成前向兼容枚举。
+使用前向兼容枚举，您可以创建和解析未预定义的枚举值。
+- 前向兼容枚举与之前生成的原生枚举不兼容。
+  这对生成的 SDK 用户来说是一个破坏性更改，但只有使用 switch-case 语句的用户会受到影响。
+- 使用 `Value` 属性来获取枚举的字符串值。- 对于枚举中的每个值，
+  - 生成一个公共静态属性，它是枚举类的实例，
+  - 在嵌套的 `Values` 类中生成一个公共静态属性，包含枚举的字符串值。
+
+以下是使用预定义枚举值和自定义枚举值创建和解析资源的前后对比：
+**Before**:
+```csharp var resource = client.CreateResource(new Resource { Id = "2", EnumProperty = MyEnum.Value2 } ); // The line below does not compile because the enum does not have a `Value3` value. // resource = client.CreateResource(new Resource { Id = "3", EnumProperty = MyEnum.Value3 } ); resource = client.GetResource("3"); switch(resource.EnumProperty) {
+    case MyEnum.Value1:
+        Console.WriteLine("Value1");
+        break;
+    case MyEnum.Value2:
+        Console.WriteLine("Value2");
+        break;
+    default:
+        // this will never be reached until the SDK is updated with the new enum value
+        Console.WriteLine("Unknown");
+        break;
+} if(resource.EnumProperty == MyEnum.Value1) {
+        Console.WriteLine("Value1");
+} else if (resource.EnumProperty == MyEnum.Value2) {
+        Console.WriteLine("Value2");
+} else {
+    // this will never be reached until the SDK is updated with the new enum value
+    Console.WriteLine("Unknown");
+} ```
+没有抛出异常，但输出错误地显示 `Value1`，因为 .NET 会回退到枚举中的第一个值。
+**After**:
+```csharp var resource = client.CreateResource(new Resource { Id = "2", EnumProperty = MyEnum.Value2 } ); resource = client.CreateResource(new Resource { Id = "3", EnumProperty = MyEnum.Custom("value3") } ); resource = client.GetResource("3"); switch(resource.EnumProperty.Value) {
+    case MyEnum.Values.Value1:
+        Console.WriteLine("Value1");
+        break;
+    case MyEnum.Values.Value2:
+        Console.WriteLine("Value2");
+        break;
+    default:
+        Console.WriteLine(resource.EnumProperty.Value);
+        break;
+} if(resource.EnumProperty == MyEnum.Value1) {
+    Console.WriteLine("Value1");
+} else if (resource.EnumProperty == MyEnum.Value2) {
+    Console.WriteLine("Value2");
+} else {
+    Console.WriteLine(resource.EnumProperty.Value);
+} ```
+输出正确地显示 `Value3`。

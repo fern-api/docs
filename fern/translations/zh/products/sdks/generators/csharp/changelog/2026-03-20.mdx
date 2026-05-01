@@ -1,0 +1,145 @@
+## 2.53.0
+**`(fix):`** 在生成代码中对所有 `System` 命名空间引用强制使用 `global::` 前缀。
+这可以防止当客户项目定义了名为 `System` 的类型或命名空间时出现 CS0118/CS0426 编译错误
+（例如根命名空间 `Foo.Net` 中有一个 `System` 类）。
+所有 `using System.*` 指令和内联的 `System.*` 类型引用现在都使用 `global::System.*`。
+seed.yml 中的 CI 验证脚本将在未来强制执行此规则。
+
+
+## 2.52.0
+**`(feat):`** 仅在目标为 net8.0 之前的 TFM（netstandard2.0、net462）时有条件地发出 System.Text.Json 作为 PackageReference。
+该包被包装在一个带有 MSBuild IsTargetFrameworkCompatible 条件的 ItemGroup 中，
+因此在 net8.0+ 中会被跳过，因为它已内置在框架中。
+
+
+## 2.51.1
+**`(chore):`** 移除 `QueryStringBuilder` 中死代码的 `#elif NET7_0_OR_GREATER` 和 `#else` 分支，
+这些分支只能在 .NET 6 或 .NET 7 上执行，而这些版本已不再受支持。
+
+
+## 2.51.0
+**`(feat):`** 为所有生成的 C# SDK 项目添加 `net9.0` 目标框架。该库现在目标为 `net462;net8.0;net9.0;netstandard2.0`，
+支持 `#if NET9_0_OR_GREATER` 代码路径，例如用于传输层死连接检测的 `ClientWebSocketOptions.KeepAliveTimeout`。
+测试项目现在目标为 `net9.0` 而不是 `net8.0`。
+
+
+**`(feat):`** 添加全面的 WebSocket 单元和端到端测试模板。所有生成的 WebSocket SDK 现在都带有 349 个测试，
+覆盖 `AsyncLock`、`Event<T>`、`ReconnectStrategy`、`DisconnectionInfo`、`RequestMessage`、`Query`、
+`WebSocketConnection`、`WebSocketClient`、`ReconnectionInfo` 和 `WebsocketException`。
+端到端测试针对进程内的 `TestWebSocketServer` 运行，覆盖回显、快速发送、重连、服务器关闭、
+中止恢复、并发客户端、大消息和完整生命周期。当 Fern 定义包含 WebSocket 端点时，
+模板会有条件地发出。
+
+
+**`(feat):`** 在 `WebSocketClient` 上公开 `StateCheckInterval` 属性。该属性（默认：5 秒）
+在 `ConnectAsync` 中转发到 `WebSocketConnection`，允许调用者控制后台状态监视器轮询静默断开连接的频率。
+
+
+**`(fix):`** 修复服务器启动的关闭跳过重连的问题。当服务器发送 `WebSocketMessageType.Close` 帧时，
+`Listen()` 方法使用 `return` 完全退出——绕过了 `ReconnectSynchronized` 调用。
+更改为使用 `closedByServer` 标志的 `break`，以便重连使用 `ReconnectionType.ByServer` 执行。
+
+
+**`(fix):`** 修复服务器启动的关闭忽略 `CancelReconnection` 标志的问题。
+`OnDisconnectionHappened` 回调在 Close 处理程序中触发，用户可以设置 `info.CancelReconnection = true`，
+但在调用 `ReconnectSynchronized` 之前从未检查此标志。现在捕获到本地 `cancelReconnect` 变量中，
+并在重连之前进行检查。
+
+
+## 2.50.0
+**`(feat):`** 为 WebSocket 连接添加指数退避重连策略。
+新的 `ReconnectStrategy` 类提供可配置的指数退避（从 1 秒到 60 秒的加倍间隔）、
+可选的随机抖动（0-25%）以防止雷群效应，以及可配置的最大尝试次数。
+该策略作为 `ReconnectBackoff` 属性暴露在生成的 Options 类上，
+并通过 `WebSocketClient` 连接到 `WebSocketConnection.Reconnect()`。
+当最大尝试次数用尽时，重连停止并引发断开连接事件。成功重连后退避会重置。
+
+
+## 2.49.0
+**`(feat):`** 添加每次发送超时以防止 `SendAsync` 挂起。`WebSocketConnection` 上的新 `SendTimeout` 属性
+（默认：30 秒）使用链接的 `CancellationTokenSource` 包装每个 `SendAsync` 调用，
+该源在 `CancelAfter(SendTimeout)` 后触发。当超时到期时，连接会被中止并抛出 `WebsocketException`，
+防止单个死连接阻塞发送锁长达 30 分钟。
+参见：https://github.com/dotnet/runtime/issues/125257
+
+
+## 2.48.0
+**`(feat):`** 为 `WebSocketConnection` 添加带消息过期的有界发送队列。
+无界的 `Channel<T>` 队列被替换为可配置的有界通道（`SendQueueLimit`，默认：10,000），
+使用 `BoundedChannelFullMode.DropWrite` 在队列满时拒绝新消息。
+`SendCacheItemTimeout` 属性（默认：30 分钟）会在清空过程中静默丢弃过期消息，
+防止网络中断期间的内存增长，避免在重连后发送过时消息。
+将 `SendQueueLimit` 设置为 0 表示无界，或将 `SendCacheItemTimeout` 设置为 null 以禁用过期。
+
+
+## 2.47.0
+**`(feat):`** 通过后台状态监视器任务添加接收挂起检测。新的 `StateCheckInterval` 属性
+（默认：5 秒）控制监视器轮询 `WebSocket.State` 的频率。当状态转换为 `Closed`、
+`Aborted` 或 `CloseReceived`——表示 TCP 连接已断开但未通知接收循环——
+监视器通过链接的 `CancellationTokenSource` 取消待处理的 `ReceiveAsync`。
+这解决了已知的 .NET 运行时问题，即在静默 TCP 断开连接时 `ReceiveAsync` 无限期挂起
+（dotnet/runtime#110496）以及 `Abort()` 无法取消待处理接收（dotnet/runtime#44272）。
+将 `StateCheckInterval` 设置为 `null` 以禁用。
+
+
+## 2.46.0
+**`(feat):`** 连接 WebSocket 重连逻辑。`WebSocketConnection` 模板现在包含从 Marfusios 库移植的完整重连实现：
+心跳计时器（`ReconnectTimeout`）、错误重试计时器（`ErrorReconnectTimeout`）、
+丢失连接延迟（`LostReconnectTimeout`）以及 `Reconnect()`/`ReconnectOrFail()` 公共方法。
+生成的 WebSocket API 类公开 `Reconnecting` 事件和 `IsReconnectionEnabled` 选项（默认：`false`），
+以便调用者可以选择加入自动重连。所有超时属性都是可配置的，并具有合理的默认值。
+
+
+## 2.45.1
+**`(fix):`** 修复重连时粘性压缩的问题。当 `EnableCompression` 为 `false` 时，
+`DeflateOptions` 现在被明确重置为 `null`，防止先前的非空值在连接周期中持续存在。
+
+
+## 2.45.0
+**`(feat):`** 为生成的 WebSocket 客户端类添加 `InjectTestMessage` 内部方法。
+这允许单元测试通过普通的 `OnTextMessage` 管道注入原始 JSON 字符串来模拟传入的 WebSocket 消息，
+而无需真实的 WebSocket 连接。该方法被标记为 `internal`，因此只能通过测试项目中的 `[InternalsVisibleTo]` 访问，
+保持公共 API 表面的清洁。
+
+
+## 2.44.0
+**`(feat):`** 为 WebSocket 连接层通过 `Channel<T>` 添加队列发送。两个无界通道（文本和二进制）
+由与连接一起启动的专用后台任务清空。非阻塞的 `Send(string)` 和 `Send(byte[])` 方法返回 `bool`
+指示消息是否已排队，而现有的 `SendInstant` 每发送异步路径保持不变。
+队列在取消令牌发信号之前在 `Dispose` 中完成。清空循环错误通过 `ExceptionOccurred` 事件暴露。
+
+
+## 2.43.0
+**`(feat):`** 为 WebSocket 连接添加每消息 deflate 压缩支持（RFC 7692）。
+生成的 WebSocket Options 类上的新 `EnableCompression` 选项通过 `ClientWebSocketOptions.DangerousDeflateOptions`
+启用 `WebSocketDeflateOptions`。这可以显著减少文本重（JSON）WebSocket API 的带宽。
+警告：在发送包含机密的数据时不要使用压缩（CRIME/BREACH 漏洞）。
+详细信息请参见 https://learn.microsoft.com/dotnet/api/system.net.websockets.clientwebsocketoptions.dangerousdeflateoptions。
+
+
+## 2.42.0
+**`(feat):`** 通过 `SocketsHttpHandler` 添加对 HTTP/2 WebSocket 的支持。WebSocket Options 类上的新 `HttpInvoker` 属性
+允许传递 `HttpMessageInvoker` 以启用在单个 TCP 连接上多路复用多个 WebSocket 流。
+设置时，连接工厂配置 `HttpVersion.Version20` 并在 .NET 7+ 上使用
+`ConnectAsync(Uri, HttpMessageInvoker, CancellationToken)` 重载。在较旧的目标上，
+调用器被忽略并使用标准连接路径。
+
+
+## 2.41.0
+**`(feat):`** 为 `WebSocketConnection` 和 `WebSocketClient` 添加 `ConnectTimeout` 属性，默认为 5 秒。
+`StartClient` 中的连接工厂调用现在使用带有 `CancelAfter(ConnectTimeout)` 的链接 `CancellationTokenSource`，
+防止服务器无响应时的无限期挂起。
+
+
+## 2.40.0
+**`(feat):`** 在 `ClientWebSocket` 上配置 PING/PONG keep-alive。默认连接工厂现在设置 `KeepAliveInterval`
+（默认：30 秒）以及在 .NET 9+ 上的 `KeepAliveTimeout`（默认：20 秒），
+以启用在传输层检测无响应服务器的 PING/PONG keep-alive 策略。
+这两个值都作为公共属性在 `WebSocketConnection` 上公开，供调用者自定义。
+
+
+## 2.38.2
+**`(fix):`** 在 WebSocket `OnTextMessage` 处理程序中为 `JsonDocument` 添加 `using` 声明。
+`JsonDocument` 实现 `IDisposable` 并持有池化内存缓冲区；没有销毁，高消息吞吐量会导致内存压力。
+生成的代码现在发出 `using var json = await JsonSerializer.DeserializeAsync<JsonDocument>(stream);`，
+以便在方法返回时销毁文档。
