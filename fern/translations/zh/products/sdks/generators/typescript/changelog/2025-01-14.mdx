@@ -1,0 +1,49 @@
+## 0.47.0
+**`(feat):`** 添加对 `nullable` 属性的支持。用户现在可以为指定 `nullable` 属性的类型指定显式的 `null` 值，如下所示：
+
+```typescript
+await client.users.update({ username: "john.doe", metadata: null });
+```
+
+
+## 0.46.11
+**`(fix):`** 在使用序列化器构建查询字符串参数时，不要双重检查可选字符串字面量别名（见下面的示例）是否为字符串。
+
+```yml
+types:
+  LiteralAliasExample: literal<"MyLiteralValue">
+
+service:
+  endpoints:
+    foo:
+      path: /bar
+      method: POST
+      request:
+        name: FooBarRequest
+        query-parameters:
+          optional_alias_literal: optional<LiteralAliasExample>
+```
+
+```ts
+// 之前
+if (optionalAliasLiteral != null) {
+    _queryParams["optional_alias_literal"] = typeof serializers.LiteralAliasExample.jsonOrThrow(optionalAliasLiteral, {
+        unrecognizedObjectKeys: "strip",
+    }) === "string" ? serializers.LiteralAliasExample.jsonOrThrow(optionalAliasLiteral, {
+        unrecognizedObjectKeys: "strip",
+    }) : JSON.stringify(serializers.LiteralAliasExample.jsonOrThrow(optionalAliasLiteral, {
+        unrecognizedObjectKeys: "strip",
+    }));
+}
+
+// 之后
+if (optionalAliasLiteral != null) {
+    _queryParams["optional_alias_literal"] = serializers.LiteralAliasExample.jsonOrThrow(optionalAliasLiteral, {
+        unrecognizedObjectKeys: "strip",
+    });
+}
+```
+
+
+## 0.46.10
+**`(fix):`** 启用时使用序列化层将类型转换为 JSON 字符串。
