@@ -24,17 +24,23 @@ You maintain your default-language pages as usual. When you run `fern generate -
   [Reach out](mailto:support@buildwithfern.com) if you're interested in implementing localization for your docs.
 </Note>
 
-## Setup
+## Early access setup
 
-First, upgrade the Fern CLI:
+The manual setup below works today. Once localization is generally available, most of these steps will be handled for you.
+
+<Steps>
+
+<Step title="Upgrade the Fern CLI">
+
+Localization requires the latest CLI version.
 
 ```bash
 fern upgrade
 ```
 
-<Steps>
+</Step>
 
-<Step title="Declare languages in docs.yml">
+<Step title="Declare languages in `docs.yml`">
 
 Add a `translations` key to your `docs.yml` listing each supported language. Mark one language as the default.
 
@@ -46,13 +52,13 @@ translations:
   - lang: zh
 ```
 
-Fern supports both two-letter [ISO 639-1](https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes) codes (e.g., `en`, `ja`, `zh`) and full [BCP 47](https://en.wikipedia.org/wiki/IETF_language_tag) locale tags (e.g., `ja-JP`, `pt-BR`, `zh-Hans-CN`). The locale code you choose here determines your translation folder name under `fern/translations/`.
+Fern supports both two-letter [ISO 639-1](https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes) codes (e.g., `en`, `ja`, `zh`) and full [BCP 47](https://en.wikipedia.org/wiki/IETF_language_tag) locale tags (e.g., `ja-JP`, `pt-BR`, `zh-Hans-CN`).
 
 </Step>
 
 <Step title="Add a translations folder">
 
-Create a `translations` folder inside your `fern` directory, with a subfolder for each language code. This folder contains your translated content and navigation overrides.
+Create a `translations` folder inside your `fern` directory. Each language declared in `docs.yml` needs a subfolder matching its locale code. This folder contains your translated content and navigation overrides.
 
 <Files>
   <Folder name="fern" defaultOpen>
@@ -87,9 +93,9 @@ Create a `translations` folder inside your `fern` directory, with a subfolder fo
 
 </Step>
 
-<Step title="Translate your sidebar and tabs">
+<Step title="Translate your navigation">
 
-Create a navigation overlay file at `fern/translations/{locale}/fern/docs.yml` to translate the product switcher, navbar links, and other top-level fields. You only need to include the fields you want to override — everything else falls back to the default language.
+To translate navigation items, create a matching file under `fern/translations/{locale}/` for any base config YAML you have — `docs.yml`, product files, [version files](/learn/docs/configuration/versions). Include only the fields you want to translate; everything else falls back to the default language. [Example PR](https://github.com/fern-api/docs/pull/5203/files)
 
 ```yaml fern/translations/ja/fern/docs.yml
 products:
@@ -107,36 +113,6 @@ products:
     path: ./products/docs/docs.yml
     subtitle: 美しいインタラクティブなドキュメントサイトを生成
 ```
-
-To translate section names and page names in the sidebar, create an overlay for each product file at `fern/translations/{locale}/fern/products/{product}/{product}.yml`.
-
-<llms-only>
-Here's a full product-level overlay example. Entries are matched by position and `slug` — keep the same ordering and slug values as the base file. The `path` field can be omitted since it's inherited.
-
-```yaml fern/translations/ja/fern/products/docs/docs.yml
-navigation:
-  - section: はじめに
-    contents:
-      - page: 概要
-      - page: 仕組み
-      - page: クイックスタート
-      - page: プロジェクト構成
-  - section: 設定
-    contents:
-      - page: 概要
-      - page: サイトレベルの設定
-        slug: site-level-settings
-      - section: ナビゲーション
-        contents:
-          - page: セクション、ページ、フォルダ
-            slug: navigation
-          - page: タブとタブバリアント
-            slug: tabs
-          - page: バージョン
-          - page: 製品
-```
-</llms-only>
-
 </Step>
 
 <Step title="Translate page content">
@@ -157,12 +133,6 @@ Fernドキュメントへようこそ。
 
 </Step>
 
-<Step title="Translate version files">
-
-If your docs use [versions](/learn/docs/config/versions), you can translate version display names and navigation the same way — create an overlay at `fern/translations/{locale}/fern/versions/{version}.yml`.
-
-</Step>
-
 <Step title="Generate your docs">
 
 ```bash
@@ -174,55 +144,3 @@ Fern picks up the translations, renders the language switcher in the header, and
 </Step>
 
 </Steps>
-
-<llms-only>
-## Overlay file reference
-
-| Target | Overlay path |
-|---|---|
-| Product switcher, navbar links | `fern/translations/{locale}/fern/docs.yml` |
-| Sidebar sections, page names, tabs | `fern/translations/{locale}/fern/products/{product}/{product}.yml` |
-| Version display names | `fern/translations/{locale}/fern/versions/{version}.yml` |
-| Page content | `fern/translations/{locale}/products/{product}/pages/...` |
-
-Overlays merge into the base config — include only the fields you want to translate. Keep the same ordering and `slug` values as the base file.
-
-## Complete example
-
-A minimal setup translating an English docs site into Japanese:
-
-```yaml fern/docs.yml
-instances:
-  - url: your-org.docs.buildwithfern.com
-
-translations:
-  - lang: en
-    default: true
-  - lang: ja
-```
-
-```yaml fern/translations/ja/fern/docs.yml
-products:
-  - display-name: ドキュメント
-    path: ./products/docs/docs.yml
-    subtitle: ドキュメントサイトを生成
-```
-
-```yaml fern/translations/ja/fern/products/docs/docs.yml
-navigation:
-  - section: はじめに
-    contents:
-      - page: 概要
-      - page: クイックスタート
-```
-
-```mdx fern/translations/ja/products/docs/pages/getting-started/overview.mdx
----
-sidebar-title: 概要
----
-
-ドキュメントへようこそ。このガイドでは...
-```
-
-When a reader switches to Japanese, the sidebar shows translated section and page names, and translated page content is served where available. Any page without a translation file falls back to the English version.
-</llms-only>
