@@ -25,7 +25,7 @@ For example, NVIDIA's docs are split across multiple independent repositories, e
 - [docs.nvidia.com/aiperf](https://docs.nvidia.com/aiperf)
 - [docs.nvidia.com/nemo/curator](https://docs.nvidia.com/nemo/curator)
 
-Each sub-path is published independently, but end users see a single unified site. The root `docs.nvidia.com` itself is a separate site outside the Fern setup — multi-source covers only the sub-paths. A Fern-published landing page is optional ([example](#example-setup-with-a-homepage-and-three-teams)), and any combination of sub-paths works, including just two.
+Each sub-path is published independently, but end users see a single unified site. The root `docs.nvidia.com` itself is a separate site outside the Fern setup — multi-source covers only the sub-paths. A Fern-published landing page is optional ([example](#example-a-live-multi-source-site)), and any combination of sub-paths works, including just two.
 
 ## Set up multi-source docs
 
@@ -110,20 +110,35 @@ Two search modes are available:
 
 </Steps>
 
-## Example: Homepage and three sub-paths
+## Example: A live multi-source site
 
-This is the alternative shape to NVIDIA's setup: a Fern-managed homepage that serves as the root, with three product teams each on their own sub-path. Use this pattern when the root should be a landing page or product selector instead of pointing somewhere outside Fern.
+<Tip>
+Browse the live site at [multi-source.docs.buildwithfern.com](https://multi-source.docs.buildwithfern.com) and the source at [fern-api/docs-examples/multi-source](https://github.com/fern-api/docs-examples/tree/main/multi-source).
+</Tip>
 
-The setup uses four `fern/` projects — a homepage at `/home` plus one per team at `/seeds`, `/greenhouses`, and `/nursery`. All four share the same global theme (`plantstore-theme`) and set `multi-source: true`; they differ only in their basepath:
+This is the alternative shape to NVIDIA's setup: a Fern-managed homepage at the bare root, plus team sub-paths underneath. The example uses six independent `fern/` projects on one shared domain — a homepage at `/`, a `/seeds` team hub with two nested sub-children, and standalone `/greenhouses` and `/nursery` teams:
+
+```
+multi-source.docs.buildwithfern.com
+├── /                     ← homepage
+├── /seeds                ← Seeds team hub
+│   ├── /seeds/sunflower  ← Sunflower sub-team
+│   └── /seeds/tomato     ← Tomato sub-team
+├── /greenhouses          ← Greenhouses team
+└── /nursery              ← Nursery team
+```
+
+All six projects share `global-theme: plantstore-theme` and set `multi-source: true` — they differ only in their basepath. Sub-paths can themselves contain nested sub-paths: `/seeds/sunflower` and `/seeds/tomato` are independently published projects that live under `/seeds`.
+
+The example uses Fern's preview domain (`*.docs.buildwithfern.com`), so no `custom-domain` is set. A production deployment typically adds `custom-domain: docs.example.com/...` to each instance.
 
 <Tabs>
 <Tab title="Homepage">
-```yaml Homepage — docs.yml
+```yaml homepage/fern/docs.yml
 global-theme: plantstore-theme
 
 instances:
-  - url: plantstore.docs.buildwithfern.com/home
-    custom-domain: docs.plantstore.com/home
+  - url: multi-source.docs.buildwithfern.com
     multi-source: true
 
 navigation:
@@ -135,25 +150,24 @@ The homepage `home.mdx` can use cards to direct users to each team's docs:
 
 ```jsx home.mdx
 <CardGroup>
-  <Card title="Seeds" icon="fa-regular fa-seedling" href="https://docs.plantstore.com/seeds">
-    Seed catalog and germination guides.
+  <Card title="Seeds" icon="fa-regular fa-seedling" href="/seeds">
+    A hub with nested sub-children at `/seeds/sunflower` and `/seeds/tomato`.
   </Card>
-  <Card title="Greenhouses" icon="fa-regular fa-warehouse" href="https://docs.plantstore.com/greenhouses">
+  <Card title="Greenhouses" icon="fa-regular fa-warehouse" href="/greenhouses">
     Climate control and monitoring.
   </Card>
-  <Card title="Nursery" icon="fa-regular fa-leaf" href="https://docs.plantstore.com/nursery">
+  <Card title="Nursery" icon="fa-regular fa-leaf" href="/nursery">
     Plant care and propagation.
   </Card>
 </CardGroup>
 ```
 </Tab>
-<Tab title="Seeds team">
-```yaml Seeds team — docs.yml
+<Tab title="Seeds (hub)">
+```yaml seeds/fern/docs.yml
 global-theme: plantstore-theme
 
 instances:
-  - url: plantstore.docs.buildwithfern.com/seeds
-    custom-domain: docs.plantstore.com/seeds
+  - url: multi-source.docs.buildwithfern.com/seeds
     multi-source: true
 
 navigation:
@@ -163,13 +177,12 @@ navigation:
         path: ./pages/overview.mdx
 ```
 </Tab>
-<Tab title="Greenhouses team">
-```yaml Greenhouses team — docs.yml
+<Tab title="Sunflower (nested)">
+```yaml seeds-sunflower/fern/docs.yml
 global-theme: plantstore-theme
 
 instances:
-  - url: plantstore.docs.buildwithfern.com/greenhouses
-    custom-domain: docs.plantstore.com/greenhouses
+  - url: multi-source.docs.buildwithfern.com/seeds/sunflower
     multi-source: true
 
 navigation:
@@ -179,13 +192,12 @@ navigation:
         path: ./pages/overview.mdx
 ```
 </Tab>
-<Tab title="Nursery team">
-```yaml Nursery team — docs.yml
+<Tab title="Greenhouses">
+```yaml greenhouses/fern/docs.yml
 global-theme: plantstore-theme
 
 instances:
-  - url: plantstore.docs.buildwithfern.com/nursery
-    custom-domain: docs.plantstore.com/nursery
+  - url: multi-source.docs.buildwithfern.com/greenhouses
     multi-source: true
 
 navigation:
