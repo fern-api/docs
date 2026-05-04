@@ -1,0 +1,368 @@
+---
+title: Fern 定义中的示例
+subtitle: 使用 Fern 定义添加 API 示例，这些示例会显示在 SDK 注释、API 参考文档和 Postman 集合中。
+sidebar-title: Fern 定义中的示例
+---
+
+您可以为类型和端点添加示例。示例会显示为 SDK 中的注释、文档的请求和响应部分，以及 Postman 集合中。
+
+## 验证
+
+Fern CLI 会验证您的示例是否与预期的类型匹配。以下内容无法编译：
+
+```yaml
+types:
+  UserId:
+    type: integer
+    examples:
+      - value: hello # 不是整数
+```
+
+```bash CLI 错误消息
+[api]: example.yml -> types -> UserId -> examples[0]
+       期望示例为整数。示例值为："hello"
+```
+
+## 引用示例
+
+您可以引用来自其他类型、端点或错误的示例。
+
+就像类型一样，您可以组合示例。要引用来自其他类型的示例，请使用 `$`。
+
+```yaml {14}
+types:
+  UserId:
+    type: integer
+    examples:
+      - name: Example1
+        value: user-id-123
+
+  User:
+    properties:
+      id: UserId
+      name: string
+    examples:
+      - value:
+          id: $UserId.Example1
+          name: Jane Smith
+```
+
+## 类型示例
+
+### 对象
+
+```yml
+types:
+  ShipTo:
+    properties:
+      street1: string
+      street2: optional<string>
+      city: string
+      state: string
+      postalCode: string
+      country: Country
+      isResidential: boolean
+    examples:
+      - name: WhiteHouse
+        value:
+          street1: 1600 Pennsylvania Avenue NW
+          city: Washington DC
+          state: Washington DC
+          postalCode: "20500"
+          country: US
+          isResidential: true
+      - name: EmpireStateBuilding
+        value:
+          street1: 350 5th Ave
+          street2: Attn: Maintenance Department
+          city: New York
+          state: NY
+          postalCode: "10118"
+          country: US
+          isResidential: false
+```
+
+<CodeBlock title = "生成的 TypeScript SDK">
+```typescript
+/**
+ * 代表一个邮寄地址。
+ * 
+ * 白宫地址
+ * @example {
+ *  street1: "1600 Pennsylvania Avenue NW",
+ *  city: "Washington DC",
+ *  state: "Washington DC",
+ *  postalCode: "20500",
+ *  country: "US",
+ *  isResidential: true
+ * }
+ * 
+ * * 帝国大厦地址
+ * @example {
+ *  street1: "350 5th Ave",
+ *  street2: "Attn: Maintenance Department",
+ *  city: "New York",
+ *  state: "NY",
+ *  postalCode: "10118",
+ *  country: "US",
+ *  isResidential: false
+ * }
+ */
+type ShipTo = {
+  street1: string;
+  street2?: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: Country;
+  isResidential: boolean;
+};
+```
+</CodeBlock>
+
+### 列表
+
+```yml
+ Shipments:
+    type: list<ShipmentStatus>
+    examples:
+      - name: Default
+        value:
+          - status: "InTransit"
+            estimatedDeliveryDate: "2024-01-11"
+          - status: "Delivered"
+            estimatedDeliveryDate: "2024-01-13"
+```
+
+### 联合
+
+#### 有区分的联合
+
+```yml
+types:
+  Animal:
+    union:
+      dog: Dog
+      cat: Cat
+    examples:
+      - value:
+          type: dog
+          likesToWoof: true
+  Dog:
+    properties:
+      likesToWoof: boolean
+  Cat:
+    properties:
+      likesToMeow: boolean
+```
+
+<CodeBlock title = "生成的 TypeScript SDK">
+```typescript
+/**
+ * 代表一个动物，可以是狗或猫。
+ *
+ * 狗的示例：
+ * @example {
+ *  type: "dog",
+ *  likesToWoof: true
+ * }
+ */
+type Animal = Dog | Cat;
+```
+</CodeBlock>
+
+#### 无区分的联合
+
+```yml
+types:
+  Animal:
+    discriminated: false
+    union:
+      - Dog
+      - Cat
+    examples:
+      - value:
+          likesToMeow: true
+  Dog:
+    properties:
+      likesToWoof: boolean
+  Cat:
+    properties:
+      likesToMeow: boolean
+```
+
+<CodeBlock title = "生成的 TypeScript SDK">
+```typescript
+/**
+ * 代表一个动物，可以是狗或猫。
+ *
+ * 动物作为猫的示例：
+ * @example {
+ *  likesToMeow: true
+ * }
+ */
+type Animal = Dog | Cat;
+```
+</CodeBlock>
+
+### 别名
+
+```yml
+types:
+  UserId:
+    docs: 用户的唯一标识符
+    type: string
+    examples:
+      - value: user-id-123
+```
+
+<CodeBlock title="生成的 TypeScript SDK">
+  ```typescript 
+  /** 
+  * 用户的唯一标识符 * 
+  * @example "user-id-123" 
+  */ 
+  type UserId = string; 
+  ```
+</CodeBlock>
+
+## 端点示例
+
+您可以为端点添加成功和错误响应的示例。示例可以引用类型的示例以避免重复。
+
+```yml
+service:
+  auth: true
+  base-path: ""
+  endpoints:
+    CreateShippingLabel:
+      docs: 创建新的运输标签。
+      method: POST
+      path: /shipping
+      request: CreateShippingLabelRequest
+      response: ShippingLabel
+      errors:
+        - NotAuthorized
+        - InsufficientFunds
+      examples:
+        # 不引用其他示例的成功响应。
+        - request:
+            orderId: "online_789"
+            weightInOunces: 5
+          response:
+            body:
+              orderId: "online_789"
+              weightInOunces: 5
+              trackingNumber: "1Z26W8370303469306"
+              price: 2.50
+
+        # 使用引用的成功响应。
+        - request: $CreateShippingLabelRequest.SuccessfulRequest
+          response:
+            body: $ShippingLabel.Default
+
+        # 错误响应。
+        - request: $CreateShippingLabelRequest.InsufficientFundsRequest
+          response:
+            error: InsufficientFunds
+            body: $InsufficientFundsBody.Default
+
+types:
+  CreateShippingLabelRequest:
+    properties:
+      orderId: string
+      weightInOunces: integer
+    examples:
+      - name: SuccessfulRequest
+        value:
+          orderId: "online_123"
+          weightInOunces: 13
+      - name: InsufficientFundsRequest
+        value:
+          orderId: "online_456"
+          weightInOunces: 2000
+
+  ShippingLabel:
+    properties:
+      orderId: string
+      weightInOunces: integer
+      trackingNumber: string
+      price: double
+    examples:
+      - name: Default
+        value:
+          orderId: "online_123"
+          weightInOunces: 13
+          trackingNumber: "1Z12345E0205271688"
+          price: 12.35
+
+  InsufficientFundsBody:
+    properties:
+      message: string
+    examples:
+      - name: Default
+        value:
+          message: "Insufficient funds to create shipping label."
+
+errors:
+  NotAuthorized:
+    status-code: 401
+  InsufficientFunds:
+    status-code: 422
+    type: InsufficientFundsBody
+```
+
+### 带请求头的示例
+
+当您在 `api.yml` 中定义了[全局请求头](/api-definitions/ferndef/api-yml/global-headers#global-headers)时，必须在示例中包含它们：
+
+```yml {15-16}
+service:
+  auth: true
+  base-path: ""
+  endpoints:
+    CreateShippingLabel:
+      docs: 创建新的运输标签。
+      method: POST
+      path: /shipping
+      request: CreateShippingLabelRequest
+      response: ShippingLabel
+      errors:
+        - NotAuthorized
+        - InsufficientFunds
+      examples:
+        - headers:
+            X-App-Id: "app_12345"
+          request:
+            orderId: "online_789"
+            weightInOunces: 5
+          response:
+            body:
+              orderId: "online_789"
+              weightInOunces: 5
+              trackingNumber: "1Z26W8370303469306"
+              price: 2.50
+```
+
+## 路径参数示例
+
+```yml
+service:
+  auth: true
+  base-path: ""
+  endpoints:
+    TrackShipment:
+      docs: 跟踪货物的状态。
+      method: GET
+      path: /shipping/{trackingNumber}
+      path-parameters: 
+        trackingNumber: string
+      response: ShipmentStatus
+      examples:
+        - path-parameters: 
+            trackingNumber: "1Z26W8370303469306"
+          response:
+            body:
+              status: "InTransit"
+              estimatedDeliveryDate: "2024-01-11"
+```

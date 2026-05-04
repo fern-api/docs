@@ -1,0 +1,4 @@
+## 5.9.1
+**`(fix):`** 在从压缩的 v66 IR 字符串计算 Python 标识符时，遵循客户在 `generators.yml` 中的 `smart-casing` 标志。此前 v1 Python 生成器的 `_smart_snake` 和 v2 的 `PYTHON_CASE_CONVERTER` 都被硬编码为 `smartCasing: true`，导致当客户设置 `smart-casing: false` 时，生成器产生的名称与 IR 预先计算的 `snake_case` 值不一致。这表现为线路测试方法调用和 Pydantic 字段别名在生成的客户端上不存在（例如，测试调用 `set_fcmv_1_provider()`，而客户端方法被命名为 `set_fcmv1provider`）。
+
+`_smart_snake` 和 v2 `caseConverter` 现在从 IR 读取 `casingsConfig.smartCasing`，并在 smart-casing 语义（默认）和普通 lodash 语义（`smart-casing: false`）之间切换。对使用默认值的客户没有影响；修复了像 auth0 这样选择退出的客户的生成。

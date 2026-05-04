@@ -1,0 +1,45 @@
+## 4.57.1
+**`(fix):`** 仅在存在自定义分页端点时将 `custom_pagination.py` 复制到生成的 SDK 中，仅在存在标准分页端点时复制 `pagination.py`。
+
+
+## 4.57.0
+**`(feat):`** 添加 `custom_transport: true` 生成器配置选项，该选项在生成的客户端构造函数上公开一个 `http_client` 参数，用于自定义 httpx 传输注入。
+
+**主要用例：** 启用 PKCE（Proof Key for Code Exchange）OAuth 流程和其他需要在传输层进行请求拦截的认证方案。
+
+**配置：**
+```yaml
+generators:
+  - name: fernapi/fern-python-sdk
+    config:
+      custom_transport: true
+```
+
+**生成的参数类型：**
+- 同步客户端：`http_client: typing.Optional[httpx.BaseTransport]`
+- 异步客户端：`http_client: typing.Optional[httpx.AsyncBaseTransport]`
+
+**用例：**
+- 需要代码质询/验证器注入的 PKCE OAuth 认证流程
+- 自定义请求签名或认证头部操作
+- 请求/响应拦截和修改
+- 用于无网络调用测试的模拟传输
+- 超出内置指数退避的自定义重试逻辑
+
+**示例模式（Twilio SDK 风格）：**
+```python
+# SDK 开发者在自定义代码中提供工厂方法
+class ValidationClient:
+    @classmethod
+    def create(cls, account_sid: str, auth_token: str) -> httpx.BaseTransport:
+        # 带有 PKCE 或验证逻辑的自定义传输
+        return CustomValidationTransport(account_sid, auth_token)
+
+# 终端用户使用
+from myapi import MyClient, ValidationClient
+
+validation_transport = ValidationClient.create("account_sid", "auth_token")
+client = MyClient(http_client=validation_transport, base_url="https://api.example.com")
+```
+
+此功能允许 SDK 开发者将传输特定逻辑延迟到自定义代码，而生成器只是将传输传递给 `httpx.Client`/`httpx.AsyncClient`。

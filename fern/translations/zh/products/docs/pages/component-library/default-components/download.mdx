@@ -1,0 +1,66 @@
+---
+title: Download
+description: Download 组件使用户能够从您的文档中下载 PDF、文件和多文件 ZIP 包。
+sidebar-title: 下载组件
+---
+
+`<Download>` 组件允许用户直接从您的文档中下载诸如 PDF 等资源。您可以将其用于单个文件或将多个文件打包为 ZIP 下载。
+
+<Info>
+有关如何嵌入图像、PDF 和其他资源的信息，请查看 [Markdown 富媒体](/learn/docs/writing-content/markdown-media) 文档。
+</Info>
+
+## 用法
+
+### 单个文件
+
+<div className="highlight-frame">
+  <div className="highlight-frame-content">
+  <Download src="./all-about-ferns.pdf">
+    <Button intent="primary">下载 PDF</Button>
+  </Download>
+  </div>
+</div>
+
+```jsx Markdown
+<Download src="./all-about-ferns.pdf">
+  <Button intent="primary">下载 PDF</Button>
+</Download>
+```
+
+### 多个文件打包为 ZIP
+
+使用 `sources` 属性将多个文件打包为单个 ZIP 下载。该组件在客户端获取每个文件，并使用 [fflate](https://github.com/101arrowz/fflate) 将它们打包到 ZIP 存档中。
+
+当您希望用户下载相关资源的集合时（例如品牌标识、SDK 文件或配置模板），这非常有用，无需托管预构建的 ZIP 文件。
+
+```jsx Markdown
+<Download
+  sources={[
+    "https://example.com/assets/logo-dark.svg",
+    "https://example.com/assets/logo-light.svg",
+    "https://example.com/assets/icon.svg"
+  ]}
+  filename="brand-assets.zip"
+>
+  <Button intent="primary">下载品牌资源</Button>
+</Download>
+```
+
+## 属性
+
+<ParamField path="src" type="string">
+  用于下载的单个文件路径（相对于当前 MDX 文件）。资源必须位于 `fern` 文件夹内。使用 `src` 进行**单文件下载**。与 `sources` 互斥——您必须提供其中之一。
+</ParamField>
+
+<ParamField path="sources" type="string[]">
+  要打包到 ZIP 下载中的公开可访问 URL 数组。使用 `sources` 进行**多文件下载**——组件在客户端获取每个 URL 并将其打包到 ZIP 存档中。与 `src` 互斥。如果仅提供一个 URL，则表现类似于 `src`（直接下载文件而不压缩）。ZIP 内每个文件的文件名来自其 URL 的最后一段（例如 `logo-dark.svg`）。如果任何文件获取失败，整个下载都将失败。
+</ParamField>
+
+<ParamField path="children" type="React.ReactNode" required={true}>
+  作为下载点击目标显示的文本或元素。通常是 `<Button>` 或样式链接。
+</ParamField>
+
+<ParamField path="filename" type="string">
+  下载文件的文件名。与 `sources` 一起使用时，设置 ZIP 文件的名称（默认为 `download.zip`）。与 `src` 一起使用时，覆盖原始资源文件名。
+</ParamField>

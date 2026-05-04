@@ -1,0 +1,6 @@
+## 4.2.1
+**`(fix):`** 在动态代码片段生成器中，通过有区别和无区别联合类型转换传播 `as: "request"` 上下文。现在在联合变体的构建器调用中，字面量类型属性（例如 `method: literal<"card">`）可以正确地从构建器调用中过滤掉，与 Java SDK 构建器匹配，后者会从 setter 中排除字面量属性。修复了在具有字面量判别字段的类型的生成线测试中的 `cannot find symbol` 编译错误。
+
+**`(fix):`** 修复 `String | int`（和类似的）联合的无区别联合反序列化。之前，`convertValue(Integer, String.class)` 会静默地将整数强制转换为字符串，导致 String 变体总是获胜。基本类型 `instanceof` 检查现在在 `convertValue` 分支之前运行，以便精确的类型匹配优先于有损强制转换。
+
+**`(fix):`** 修复了几个往返序列化怪异情况的线测试响应断言：（1）允许预期 JSON 中的显式 null 字段匹配实际中的缺失字段（Jackson 的 `@JsonInclude(NON_ABSENT)` 会删除 `Optional.empty()`）；（2）将预期 JSON 中无时区的 ISO 8601 日期时间标准化，以包含 Jackson 在重新序列化时添加的 `Z` 后缀。将两个递归 JSON 标准化过程统一为一次树遍历。

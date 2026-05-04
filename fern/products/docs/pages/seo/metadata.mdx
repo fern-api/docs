@@ -1,7 +1,7 @@
 ---
 title: Configure SEO metadata
 description: Configure SEO metadata in Fern docs with page-level frontmatter and site-wide settings. Control titles, descriptions, social media previews, and sitemap timestamps.
-max-toc-depth: 3
+max-toc-depth: 4
 ---
 
 When you want to customize how your pages appear in search results or social previews, you can set defaults [at the site level](#site-wide-defaults) or override them on [individual pages](#page-level-overrides).
@@ -63,91 +63,135 @@ Identity and descriptive fields used by search engines and shared across social 
   The name of your website for Open Graph tags.
 </ParamField>
 
-<ParamField path="metadata.og:title" type="string" required={false} toc={true}>
-  The title shown in social media previews.
+<ParamField path="metadata.og:title" type="string" required={false} default="Page title" toc={true}>
+  The title shown in social media previews. Falls back to the page's `title` when unset.
 </ParamField>
 
-<ParamField path="metadata.og:description" type="string" required={false} toc={true}>
-  The description shown in social media previews.
+<ParamField path="metadata.og:description" type="string" required={false} default="Page description" toc={true}>
+  The description shown in social media previews. Falls back to the page's `description`, `subtitle`, or `excerpt` when unset.
 </ParamField>
 
-<ParamField path="metadata.og:url" type="string" required={false} toc={true}>
-  The canonical URL of your documentation.
+<ParamField path="metadata.og:url" type="string" required={false} default="Page URL" toc={true}>
+  The canonical URL of your documentation. Falls back to the page's resolved URL when unset.
 </ParamField>
 
 <ParamField path="metadata.og:locale" type="string" required={false} toc={true}>
-  The locale of your content (e.g., `en_US`).
+  The locale of your content (e.g., `en_US`). No default; the tag is omitted when unset.
 </ParamField>
 
-<ParamField path="metadata.canonical-host" type="string" required={false} toc={true}>
+<ParamField path="metadata.canonical-host" type="string" required={false} default="Instance URL" toc={true}>
   The host of your documentation website. Used to set the canonical URL for metadata tags and documents like the sitemap. Defaults to the URL defined in `instances`.
 </ParamField>
 
 ### Social image
 
-The image displayed when your docs are shared on LinkedIn, Slack, Discord, and other platforms. Use a 1200x630px image for the best display across platforms — this is the standard Open Graph size and will render correctly in most previews. Avoid embedding text in the image since it may be cropped on some platforms.
+The image displayed when your docs are shared on LinkedIn, Slack, Discord, and other platforms. You can either set a single image that applies to every page, or have Fern dynamically generate a unique image per page.
+
+#### Manual
+
+Set one static image with `og:image` that applies to every page. Use a 1200x630px image for the best display across platforms — this is the standard Open Graph size and will render correctly in most previews. Avoid embedding text in the image since it may be cropped on some platforms.
 
 <ParamField path="metadata.og:image" type="string" required={false} toc={true}>
-  The image shown in social media previews. Recommended size is 1200x630 pixels.
+  The image shown in social media previews. Recommended size is 1200x630 pixels. No default; the tag is omitted when unset.
 </ParamField>
 
 <ParamField path="metadata.og:image:width" type="number" required={false} toc={true}>
-  The width of your Open Graph image in pixels.
+  The width of your Open Graph image in pixels. Only applied when `og:image` is set.
 </ParamField>
 
 <ParamField path="metadata.og:image:height" type="number" required={false} toc={true}>
-  The height of your Open Graph image in pixels.
+  The height of your Open Graph image in pixels. Only applied when `og:image` is set.
 </ParamField>
 
 <ParamField path="metadata.og:logo" type="string" required={false} toc={true}>
-  URL to your company logo.
+  URL to your company logo. No default; the tag is omitted when unset.
 </ParamField>
 
-### Dynamic OG images <Availability type="beta" /> [#dynamic-og-images]
+#### Dynamic <Availability type="beta" /> [#dynamic-og-images]
 
-Instead of using a single static image for all pages, you can enable dynamic OG image generation. When enabled, Fern automatically generates a unique `og:image` for each page that doesn't have one [set in frontmatter](#open-graph).
+Instead of using a single static image for all pages, you can enable dynamic OG image generation. When enabled, Fern automatically generates a unique `og:image` for each page that doesn't have one [set in frontmatter](#open-graph). The `og:dynamic:*` sub-settings below are only read when `og:dynamic: true` — they're ignored otherwise. `fern check` surfaces warnings for conflicting settings so you can resolve them locally.
 
-You can optionally provide a custom background image (`og:background-image`) for dynamically generated OG images.
+You can optionally provide a custom background image (`og:dynamic:background-image`) for dynamically generated OG images.
 
 ```yaml docs.yml
 metadata:
   og:dynamic: true
-  og:background-image: ./images/og-background.png # optional
+  og:dynamic:background-image: ./images/og-background.png
+  og:dynamic:text-color: "#1a1a1a"
+  og:dynamic:background-color: "#ffffff"
+  og:dynamic:logo-color: dark
+  og:dynamic:show-logo: true
+  og:dynamic:show-section: true
+  og:dynamic:show-description: true
+  og:dynamic:show-url: true
+  og:dynamic:show-gradient: true
 ```
 
 <ParamField path="metadata.og:dynamic" type="boolean" required={false} default={false} toc={true}>
-  When `true`, enables dynamic OG image generation for pages that don't have a custom `og:image` set.
+  When `true`, enables dynamic OG image generation for pages that don't have a custom `og:image` set. Any site-wide `og:image` and `twitter:image` still apply to the homepage; every other page uses the dynamically generated image.
 </ParamField>
 
-<ParamField path="metadata.og:background-image" type="string" required={false} toc={true}>
-  A custom background image for dynamically generated OG images. Can be a URL or a relative file path. Relative paths are resolved from the YAML file where this property is set (e.g., `docs.yml`). When set, this image is used as the background instead of a solid color.
+<ParamField path="metadata.og:dynamic:background-image" type="string" required={false} toc={true}>
+  A custom background image for dynamically generated OG images. Can be a URL or a relative file path. Relative paths are resolved from the YAML file where this property is set (e.g., `docs.yml`). When set, this image is used as the background instead of a solid color. No default; the dynamic OG image renders without a background image when unset.
+</ParamField>
+
+<ParamField path="metadata.og:dynamic:text-color" type="string" required={false} default="#ffffff (dark) / #1a1a1a (light)" toc={true}>
+  Override the text color for dynamically generated OG images. Accepts any valid CSS color value (e.g., `"#1a1a1a"`). By default, Fern reads the text color from your theme (`grayScale[11]`). If no theme color is available, falls back to `#ffffff` for dark mode or `#1a1a1a` for light mode. Must differ from `og:dynamic:background-color` so the text remains visible.
+</ParamField>
+
+<ParamField path="metadata.og:dynamic:background-color" type="string" required={false} default="#0A0A0A (dark) / theme background (light)" toc={true}>
+  Override the background color for dynamically generated OG images. Accepts any valid CSS color value (e.g., `"#ffffff"`). By default, Fern reads the background color from your theme. If no theme color is available, falls back to `#0A0A0A`.
+</ParamField>
+
+<ParamField path="metadata.og:dynamic:logo-color" type="enum" required={false} default="dark" toc={true}>
+  Choose which logo variant to render in dynamically generated OG images. Accepts `dark` or `light`, matching the corresponding entry under the top-level [`logo:` setting](/learn/docs/getting-started/global-configuration#logo-configuration) in your `docs.yml`. If your `docs.yml` only defines one logo variant, that variant is used regardless of this setting. Has no effect when `og:dynamic:show-logo: false`.
+</ParamField>
+
+<ParamField path="metadata.og:dynamic:show-logo" type="boolean" required={false} default={true} toc={true}>
+  Toggle visibility of the logo in dynamically generated OG images. Defaults to `true` when `og:dynamic` is enabled.
+</ParamField>
+
+<ParamField path="metadata.og:dynamic:show-section" type="boolean" required={false} default={true} toc={true}>
+  Toggle visibility of the section title in dynamically generated OG images. The section title is derived from the page's navigation breadcrumb. Defaults to `true` when `og:dynamic` is enabled.
+</ParamField>
+
+<ParamField path="metadata.og:dynamic:show-description" type="boolean" required={false} default={true} toc={true}>
+  Toggle visibility of the page description in dynamically generated OG images. The description is extracted from the page's frontmatter (`description`, `subtitle`, or `excerpt`). Defaults to `true` when `og:dynamic` is enabled.
+</ParamField>
+
+<ParamField path="metadata.og:dynamic:show-url" type="boolean" required={false} default={true} toc={true}>
+  Toggle visibility of the page URL in dynamically generated OG images. Defaults to `true` when `og:dynamic` is enabled.
+</ParamField>
+
+<ParamField path="metadata.og:dynamic:show-gradient" type="boolean" required={false} default={true} toc={true}>
+  Toggle visibility of the accent gradient overlay in dynamically generated OG images. The gradient uses your accent color. Defaults to `true` when `og:dynamic` is enabled.
 </ParamField>
 
 ### Twitter / X
 
 Controls how your docs appear in Twitter Card previews when shared on X.
 
-<ParamField path="metadata.twitter:title" type="string" required={false} toc={true}>
-  The title shown in Twitter Card previews.
+<ParamField path="metadata.twitter:title" type="string" required={false} default="og:title" toc={true}>
+  The title shown in Twitter Card previews. Falls back to `og:title` (and then to the page title) when unset.
 </ParamField>
 
-<ParamField path="metadata.twitter:description" type="string" required={false} toc={true}>
-  The description shown in Twitter Card previews.
+<ParamField path="metadata.twitter:description" type="string" required={false} default="og:description" toc={true}>
+  The description shown in Twitter Card previews. Falls back to `og:description` (and then to the page description) when unset.
 </ParamField>
 
 <ParamField path="metadata.twitter:handle" type="string" required={false} toc={true}>
-  Your company's Twitter handle.
+  Your company's Twitter handle. No default; the tag is omitted when unset.
 </ParamField>
 
-<ParamField path="metadata.twitter:image" type="string" required={false} toc={true}>
-  The image shown in Twitter Card previews.
+<ParamField path="metadata.twitter:image" type="string" required={false} default="og:image" toc={true}>
+  The image shown in Twitter Card previews. Falls back to `og:image` when unset.
 </ParamField>
 
 <ParamField path="metadata.twitter:site" type="string" required={false} toc={true}>
-  The Twitter handle for your website.
+  The Twitter handle for your website. No default; the tag is omitted when unset.
 </ParamField>
 
-<ParamField path="metadata.twitter:card" type="string" required={false} toc={true}>
+<ParamField path="metadata.twitter:card" type="string" required={false} default="summary_large_image" toc={true}>
   The Twitter Card type. Options are `summary`, `summary_large_image`, `app`, or `player`.
 </ParamField>
 
@@ -181,87 +225,87 @@ nofollow: false
 
 Page title, URL, and keyword fields used by search engines. Use `headline` when you need a different title for search engines than what appears as the visible page heading.
 
-<ParamField path="headline" type="string" required={false} toc={true}>
+<ParamField path="headline" type="string" required={false} default="Page title with site name" toc={true}>
   When set, the `<title />` tag in the document head will use this value rather than the `title` property. For example, your `title` might be "Quickstart" (shown in the sidebar and as the H1), while `headline` could be "Quickstart | PlantStore API Docs" to give search engines more context. If not set, Fern uses `title` with your site name appended.
 </ParamField>
 
-<ParamField path="canonical-url" type="string" required={false} toc={true}>
-  Overrides the canonical URL for this page. Must be a full URL including the protocol (e.g., `https://buildwithfern.com/learn/docs/content/frontmatter`).
+<ParamField path="canonical-url" type="string" required={false} default="Page URL" toc={true}>
+  Overrides the canonical URL for this page. Must be a full URL including the protocol (e.g., `https://buildwithfern.com/learn/docs/content/frontmatter`). Defaults to the page's resolved URL when unset.
 </ParamField>
 
 <ParamField path="keywords" type="string" required={false} toc={true}>
-  Comma-separated keywords relevant to the page (e.g., `plants, garden, nursery`). Accepts only comma-separated strings, not arrays.
+  Comma-separated keywords relevant to the page (e.g., `plants, garden, nursery`). Accepts only comma-separated strings, not arrays. No default; the tag is omitted when unset.
 </ParamField>
 
 ### Open Graph
 
 Controls how this page appears when shared on LinkedIn, Slack, Discord, and other platforms that support Open Graph. Keep titles between 50–60 characters and descriptions between 150–160 characters for optimal display.
 
-<ParamField path="og:site_name" type="string" required={false} toc={true}>
-  The name of your website as it should appear when your content is shared.
+<ParamField path="og:site_name" type="string" required={false} default="metadata.og:site_name" toc={true}>
+  The name of your website as it should appear when your content is shared. Falls back to the site-wide `metadata.og:site_name` from `docs.yml`.
 </ParamField>
 
-<ParamField path="og:title" type="string" required={false} toc={true}>
-  The title of your page as it should appear when your content is shared.
+<ParamField path="og:title" type="string" required={false} default="Page title" toc={true}>
+  The title of your page as it should appear when your content is shared. Falls back to the page's `title` when unset.
 </ParamField>
 
-<ParamField path="og:description" type="string" required={false} toc={true}>
-  The description of your page as it should appear when your content is shared.
+<ParamField path="og:description" type="string" required={false} default="Page description" toc={true}>
+  The description of your page as it should appear when your content is shared. Falls back to the page's `description`, `subtitle`, or `excerpt` when unset.
 </ParamField>
 
-<ParamField path="og:url" type="string" required={false} toc={true}>
-  The URL of your page.
+<ParamField path="og:url" type="string" required={false} default="Page URL" toc={true}>
+  The URL of your page. Falls back to the page's resolved URL when unset.
 </ParamField>
 
-<ParamField path="og:image" type="string" required={false} toc={true}>
-  The URL of the image displayed when your content is shared.
+<ParamField path="og:image" type="string" required={false} default="metadata.og:image" toc={true}>
+  The URL of the image displayed when your content is shared. Falls back to the site-wide `metadata.og:image` from `docs.yml`.
 </ParamField>
 
 <ParamField path="og:image:width" type="number" required={false} toc={true}>
-  The width of the image in pixels.
+  The width of the image in pixels. No default; only used when `og:image` is set.
 </ParamField>
 
 <ParamField path="og:image:height" type="number" required={false} toc={true}>
-  The height of the image in pixels.
+  The height of the image in pixels. No default; only used when `og:image` is set.
 </ParamField>
 
-<ParamField path="og:locale" type="string" required={false} toc={true}>
-  The locale of the page, typically in the format `language_TERRITORY` (e.g., `en_US`).
+<ParamField path="og:locale" type="string" required={false} default="metadata.og:locale" toc={true}>
+  The locale of the page, typically in the format `language_TERRITORY` (e.g., `en_US`). Falls back to the site-wide `metadata.og:locale` from `docs.yml`.
 </ParamField>
 
-<ParamField path="og:logo" type="string" required={false} toc={true}>
-  The URL of your logo image displayed when your content is shared.
+<ParamField path="og:logo" type="string" required={false} default="metadata.og:logo" toc={true}>
+  The URL of your logo image displayed when your content is shared. Falls back to the site-wide `metadata.og:logo` from `docs.yml`.
 </ParamField>
 
 ### Twitter / X
 
 Controls how this page appears in Twitter Card previews when shared on X.
 
-<ParamField path="twitter:title" type="string" required={false} toc={true}>
-  The title of your page as it should appear in a tweet.
+<ParamField path="twitter:title" type="string" required={false} default="og:title" toc={true}>
+  The title of your page as it should appear in a tweet. Falls back to `og:title` (and then to the page title) when unset.
 </ParamField>
 
-<ParamField path="twitter:description" type="string" required={false} toc={true}>
-  The description of your page as it should appear in a tweet.
+<ParamField path="twitter:description" type="string" required={false} default="og:description" toc={true}>
+  The description of your page as it should appear in a tweet. Falls back to `og:description` (and then to the page description) when unset.
 </ParamField>
 
-<ParamField path="twitter:handle" type="string" required={false} toc={true}>
-  The Twitter handle of the page creator or site.
+<ParamField path="twitter:handle" type="string" required={false} default="metadata.twitter:handle" toc={true}>
+  The Twitter handle of the page creator or site. Falls back to the site-wide `metadata.twitter:handle` from `docs.yml`.
 </ParamField>
 
-<ParamField path="twitter:image" type="string" required={false} toc={true}>
-  The URL of the image displayed in a tweet.
+<ParamField path="twitter:image" type="string" required={false} default="og:image" toc={true}>
+  The URL of the image displayed in a tweet. Falls back to `og:image` when unset.
 </ParamField>
 
-<ParamField path="twitter:site" type="string" required={false} toc={true}>
-  The Twitter handle for your website.
+<ParamField path="twitter:site" type="string" required={false} default="metadata.twitter:site" toc={true}>
+  The Twitter handle for your website. Falls back to the site-wide `metadata.twitter:site` from `docs.yml`.
 </ParamField>
 
-<ParamField path="twitter:url" type="string" required={false} toc={true}>
-  The URL of your page.
+<ParamField path="twitter:url" type="string" required={false} default="og:url" toc={true}>
+  The URL of your page. Falls back to `og:url` (and then to the page URL) when unset.
 </ParamField>
 
-<ParamField path="twitter:card" type="string" required={false} toc={true}>
+<ParamField path="twitter:card" type="string" required={false} default="summary_large_image" toc={true}>
   The type of card used for sharing on Twitter. Options: `summary`, `summary_large_image`, `app`, `player`.
 </ParamField>
 

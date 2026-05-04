@@ -1,0 +1,181 @@
+---
+title: Localization
+subtitle: Ship documentation in multiple languages from a single source
+---
+
+Fern lets you publish your documentation in multiple languages from a single set of source files. Readers switch languages from a dropdown in the header, [search](/learn/docs/customization/search) is scoped to the active language, and each locale has its own URL so search engines can index it separately.
+
+You maintain your default-language pages as usual. When you run `fern generate --docs`, Fern auto-translates them into every configured language as part of the build, so your site rebuilds with up-to-date translations each time.
+
+<Frame caption="See it live on the [i18n example site](https://i18n.docs.buildwithfern.com/) ([source](https://github.com/fern-api/docs-examples/tree/main/i18n/fern)).">
+  <video
+    src="i18n.mp4"
+    autoPlay
+    loop
+    playsInline
+    muted
+  >
+  </video>
+</Frame>
+
+<Note>
+  Localization is under active development. Automated translation, Ask Fern, `fern check` errors, and API Reference pages are still in progress.
+
+  [Reach out](mailto:support@buildwithfern.com) if you're interested in implementing localization for your docs.
+</Note>
+
+## Early access setup
+
+The manual setup below works today. Once localization is generally available, most of these steps will be handled for you.
+
+<Steps>
+
+<Step title="Upgrade the Fern CLI">
+
+Localization requires the latest CLI version.
+
+```bash
+fern upgrade
+```
+
+</Step>
+
+<Step title="Declare languages in `docs.yml`">
+
+Add a `translations` key to your `docs.yml` listing each supported language. Mark one language as the default.
+
+```yaml docs.yml
+translations:
+  - lang: en
+    default: true
+  - lang: ja
+  - lang: zh
+```
+
+Fern supports both two-letter [ISO 639-1](https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes) codes (e.g., `en`, `ja`, `zh`) and full [BCP 47](https://en.wikipedia.org/wiki/IETF_language_tag) locale tags (e.g., `ja-JP`, `pt-BR`, `zh-Hans-CN`).
+
+</Step>
+
+<Step title="Add a translations folder">
+
+Create a `translations` folder inside your `fern` directory. Each language declared in `docs.yml` needs a subfolder matching its locale code. This folder contains your translated content and navigation overrides.
+
+<Files>
+  <Folder name="fern" defaultOpen>
+    <File name="fern.config.json" />
+    <File name="docs.yml" />
+    <Folder name="products" defaultOpen>
+      <Folder name="docs">
+        <File name="docs.yml" />
+      </Folder>
+    </Folder>
+    <Folder name="translations" defaultOpen highlighted>
+      <Folder name="ja" defaultOpen>
+        <Folder name="fern" defaultOpen>
+          <File name="docs.yml" />
+          <Folder name="products">
+            <Folder name="docs">
+              <File name="docs.yml" />
+            </Folder>
+          </Folder>
+        </Folder>
+        <Folder name="products">
+          <Folder name="docs">
+            <Folder name="pages">
+              <File name="introduction.mdx" />
+            </Folder>
+          </Folder>
+        </Folder>
+      </Folder>
+    </Folder>
+  </Folder>
+</Files>
+
+</Step>
+
+<Step title="Translate your navigation">
+
+For each [base config YAML](/learn/docs/configuration/overview) you have — `docs.yml`, product files, version files — create a matching file under `fern/translations/{locale}/` at the same relative path and mirror its structure. 
+
+Within an entry, include only the fields you want to translate (`display-name`, `subtitle`, `section`, `page`); anything you omit falls back to the base file. Add a `slug:` to pin the base URL when the page name is an English term like `markdown` or `api-catalog`. [Example PR](https://github.com/fern-api/docs/pull/5203/files)
+
+<Tabs>
+<Tab title="Product switcher">
+```yaml fern/translations/ja/fern/docs.yml
+products:
+  - display-name: ホーム
+    path: ./products/home/home.yml
+    subtitle: 開発者体験を向上させる製品
+
+  - slug: sdks
+    display-name: SDK
+    path: ./products/sdks/sdks.yml
+    subtitle: 複数の言語でクライアントライブラリを生成
+
+  - slug: docs
+    display-name: ドキュメント
+    path: ./products/docs/docs.yml
+    subtitle: 美しいインタラクティブなドキュメントサイトを生成
+```
+</Tab>
+<Tab title="Sidebar navigation">
+```yaml fern/translations/ja/fern/products/docs/docs.yml
+navigation:
+  - section: はじめに
+    contents:
+      - page: 概要
+      - page: クイックスタート
+        slug: quickstart
+  - section: AI 機能
+    contents:
+      - page: 概要
+      - page: Markdown アクセス
+        slug: markdown
+      - page: API カタログ検出
+        slug: api-catalog
+      - section: llms-txt
+        contents:
+          - page: 概要
+            slug: llms-txt
+          - page: Agent 指示
+```
+</Tab>
+</Tabs>
+
+<Warning>
+  Field-level fallback only applies within an entry. If a page is in the base nav but missing from the localized YAML, the localized URL serves the default-language page — even when a translated `.mdx` exists. Register every page you [translate](#translate-page-content) here too.
+</Warning>
+
+</Step>
+
+<Step title="Translate page content">
+
+Place translated `.mdx` files in `fern/translations/{locale}/products/` mirroring the original file structure. Use the `sidebar-title` frontmatter field to override the sidebar entry per language:
+
+```mdx fern/translations/ja/products/docs/pages/getting-started/overview.mdx
+---
+sidebar-title: 概要
+---
+
+Fernドキュメントへようこそ。
+```
+
+<Tip>
+  You only need to translate the files you want to localize. Any page that's registered in the localized navigation but has no matching `.mdx` falls back to the default-language file automatically.
+
+  Adding a translated `.mdx` alone isn't enough to localize a page — the page must also have an entry in the [localized navigation YAML](#translate-your-navigation). Without a localized nav entry, the page falls back to the default language even when a translation file exists.
+</Tip>
+
+</Step>
+
+<Step title="Generate your docs">
+
+```bash
+fern generate --docs
+```
+
+Fern picks up the translations, renders the language switcher in the header, and emits a sitemap entry per locale. You can also preview translations locally with `fern docs dev`.
+
+</Step>
+
+</Steps>

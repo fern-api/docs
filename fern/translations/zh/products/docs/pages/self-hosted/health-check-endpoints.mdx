@@ -1,0 +1,88 @@
+---
+title: 健康检查端点
+description: 使用内置的存活性和就绪性探针监控自托管容器的健康状况。
+sidebar-title: 健康检查端点
+---
+
+
+<Markdown src="/snippets/enterprise-plan.mdx" />
+
+自托管容器在端口 8081 上为 Kubernetes 和 Helm 部署暴露健康检查端点。这些端点帮助您监控容器的健康状况并确保正确的启动行为。
+
+**存活性探针**检测不可恢复的故障并触发容器重启，而**就绪性探针**防止将流量路由到仍在启动的容器。通过使用两个探针，部署不再需要任意超时，如 `--wait --timeout 15m0s`。
+
+## 可用端点
+
+### 存活性探针
+
+`GET /liveness` 通过检查 PID 来验证所有关键服务进程是否仍在运行。使用此探针来区分不可恢复的故障（进程死亡）和缓慢启动。
+
+```bash Usage
+curl http://localhost:8081/liveness
+```
+
+| 响应 | 描述 |
+|-------------|-------------|
+| `200 OK` | 所有关键进程都是活跃的 |
+| `503 Service Unavailable` | 一个或多个关键进程已死亡（容器应该重启） |
+
+<Accordion title="检查的服务">
+- PostgreSQL（通过 `pg_isready`）
+- MinIO（通过 `/minio/health/live`）
+- FDR 服务器（通过 `/health`）
+- Next.js 文档服务器（通过根端点）
+- MeiliSearch（仅警告，非关键）
+</Accordion>
+
+### 就绪性探针
+
+`GET /readiness` 通过测试健康端点来验证所有服务是否健康并准备好处理流量。只有当所有服务都完全初始化并响应时才返回成功。
+
+```bash Usage
+curl http://localhost:8081/readiness
+```
+
+| 响应 | 描述 |
+|-------------|-------------|
+| `200 OK` | 所有服务都准备好处理流量 |
+| `503 Service Unavailable` | 一个或多个服务尚未准备好（需要等待更长时间） |
+
+<Accordion title="检查的服务">
+- PostgreSQL（通过 `pg_isready`）
+- MinIO（通过 `/minio/health/live`）
+- FDR 服务器（通过 `/health`）
+- Next.js 文档服务器（通过根端点）
+- MeiliSearch（仅警告，非关键）
+</Accordion>
+
+### 传统健康端点
+
+`GET /health` 为现有部署提供向后兼容性。返回与就绪性探针相同的状态。
+
+```bash Usage
+curl http://localhost:8081/health
+```
+
+## 配置
+
+配置您的 Kubernetes 或 Helm 部署以使用两个探针：
+
+```yaml
+livenessProbe:
+  httpGet:
+    path: /liveness
+    port: 8081
+  initialDelaySeconds: 60
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /readiness
+    port: 8081
+  initialDelaySeconds: 30
+  periodSeconds: 5
+  timeoutSeconds: 5
+  failureThreshold: 3
+```

@@ -1,0 +1,125 @@
+---
+title: Global themes
+subtitle: Share a consistent visual identity across multiple documentation sites.
+description: Learn how to use global themes to define branding in one repository and apply it automatically across child documentation sites.
+---
+
+Global themes let a single "control" repository define the shared visual identity (logo, colors, fonts, layout, CSS, JS, and more) for your organization's documentation. Child repositories reference the theme by name and inherit those settings automatically when they publish.
+
+This is useful when your organization maintains multiple documentation sites that should share the same branding.
+
+## Set up a global theme
+
+<Steps>
+
+<Step title="Export a theme from your control repository">
+
+From the repository that defines your canonical branding, [export](/learn/cli-api-reference/cli-reference/commands#fern-docs-theme-export) the theme:
+
+```bash
+fern docs theme export
+```
+
+This reads the theme-eligible fields from your `docs.yml` and produces a `theme.yml` file along with copies of any local assets (logos, fonts, CSS, JS) in a `fern/theme/` directory.
+
+Use `--output` to specify a different directory:
+
+```bash
+fern docs theme export --output ./my-theme
+```
+
+</Step>
+
+<Step title="Upload the theme">
+
+[Upload](/learn/cli-api-reference/cli-reference/commands#fern-docs-theme-upload) the exported theme to Fern's registry:
+
+```bash
+fern docs theme upload --name my-theme
+```
+
+This uploads the theme configuration and all referenced file assets. If you omit `--name`, the theme is saved as `default`.
+
+</Step>
+
+<Step title="Confirm the upload">
+
+[List](/learn/cli-api-reference/cli-reference/commands#fern-docs-theme-list) all themes for your organization:
+
+```bash
+fern docs theme list
+```
+
+Use `--json` for machine-readable output that includes `updatedAt` timestamps:
+
+```bash
+fern docs theme list --json
+```
+
+</Step>
+
+<Step title="Reference the theme from a child repository">
+
+In a child repository's `docs.yml`, add:
+
+```yaml docs.yml
+global-theme: my-theme
+```
+
+</Step>
+
+<Step title="Publish as normal">
+
+Run the standard [publish command](/learn/cli-api-reference/cli-reference/commands#fern-generate---docs) from the child repository:
+
+```bash
+fern generate --docs
+```
+
+The CLI fetches the named theme from Fern's registry, downloads any file assets, merges the theme into the local `docs.yml` configuration, and publishes the merged result. No extra steps are needed.
+
+</Step>
+
+</Steps>
+
+## What the theme controls
+
+When a global theme is applied, the theme's values take precedence over branding fields in the child repository's `docs.yml` while the child retains control of its content and structure. In a child repo, only edit fields owned by the child repository — any local changes you make to theme-owned fields are overwritten on publish when the theme is merged in.
+
+
+<StickyTable>
+| Field | Owner | Description |
+| --- | --- | --- |
+| [`logo`](/learn/docs/configuration/site-level-settings#logo-configuration) | Theme | Brand logo images and link |
+| [`favicon`](/learn/docs/configuration/site-level-settings#favicon) | Theme | Browser tab icon |
+| [`background-image`](/learn/docs/configuration/site-level-settings#background-image-configuration) | Theme | Page background |
+| [`colors`](/learn/docs/configuration/site-level-settings#colors-configuration) | Theme | Accent and background colors |
+| [`typography`](/learn/docs/configuration/site-level-settings#typography-configuration) | Theme | Body, heading, and code fonts |
+| [`layout`](/learn/docs/configuration/site-level-settings#layout-configuration) | Theme | Sidebar width, content width, tab and searchbar placement |
+| [`theme`](/learn/docs/configuration/site-level-settings#theme-configuration) | Theme | Light/dark mode default |
+| [`settings`](/learn/docs/configuration/site-level-settings#settings-configuration) | Theme | Display settings |
+| [`integrations`](/learn/docs/configuration/site-level-settings#integrations-configuration) | Theme | Analytics and tracking |
+| [`css`](/learn/docs/customization/custom-css-js) | Theme | Custom stylesheets |
+| [`js`](/learn/docs/customization/custom-css-js) | Theme | Custom scripts |
+| [`header`](/learn/docs/configuration/site-level-settings#header) | Theme | Custom header component |
+| [`footer`](/learn/docs/configuration/site-level-settings#footer) | Theme | Custom footer component |
+| [`navbar-links`](/learn/docs/configuration/site-level-settings#navbar-links-configuration) | Theme | Top navigation links |
+| [`footer-links`](/learn/docs/configuration/site-level-settings#footer-links-configuration) | Theme | Footer navigation links |
+| [`ai-search`](/learn/docs/configuration/site-level-settings#ask-fern-configuration) | Theme | AI search configuration |
+| [`announcement`](/learn/docs/customization/announcement-banner) | Theme | Announcement banner |
+| [`metadata`](/learn/docs/configuration/site-level-settings#seo-metadata-configuration) | Theme | SEO metadata |
+| [`navigation`](/learn/docs/configuration/navigation) | Child repository | Tabs, sections, pages |
+| [`apis`](/learn/docs/api-references/overview) | Child repository | API references |
+| [`redirects`](/learn/docs/configuration/site-level-settings#redirects-configuration) | Child repository | Redirects |
+| [`versions`](/learn/docs/configuration/versions) | Child repository | Versions |
+| [`instances`](/learn/docs/configuration/site-level-settings#instances-configuration) | Child repository | Domain and URL |
+</StickyTable>
+
+## Updating a theme
+
+To update a theme, make changes to the control repository's `docs.yml`, re-export, and re-upload with the same name. The next time a child repository publishes, it picks up the updated theme automatically.
+
+```bash
+fern docs theme export
+fern docs theme upload --name my-theme
+```

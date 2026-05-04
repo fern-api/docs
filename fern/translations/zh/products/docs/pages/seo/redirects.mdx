@@ -1,0 +1,62 @@
+---
+title: 配置重定向
+subtitle: 了解如何在 Fern Docs 中配置重定向。设置精确路径重定向和正则表达式模式，以便在页面移动时保持 SEO 权重。
+sidebar-title: 配置重定向
+---
+
+
+## 重定向
+
+<Markdown src="/products/docs/snippets/redirects.mdx" />
+
+<Tip>
+  要向侧边栏导航添加外部链接，请参见[导航](/learn/docs/configuration/navigation#links)。
+</Tip>
+
+<llms-only>
+## 常见错误
+
+以下错误由 `fern check` 和 `fern generate --docs` 发现。
+
+### Page "X" was moved from "/old" to "/new". The old URL will return 404 without a redirect.
+
+页面的[slug](/learn/docs/seo/configuring-slugs)相对于文档的上一个[已发布版本](/learn/docs/preview-publish/publishing-your-docs)发生了更改。在 `docs.yml` 中添加[重定向](/learn/docs/configuration/site-level-settings#redirects-configuration)，以便现有链接继续有效：
+
+```yaml title="docs.yml"
+redirects:
+  - source: /old
+    destination: /new
+```
+
+### Page "X" was removed. The previously published URL "/old" will return 404 without a redirect.
+
+[已发布的页面](/learn/docs/preview-publish/publishing-your-docs)在[导航](/learn/docs/configuration/navigation)中不再存在。添加[重定向](/learn/docs/configuration/site-level-settings#redirects-configuration)到另一个相关页面，以避免破坏传入链接：
+
+```yaml title="docs.yml"
+redirects:
+  - source: /old
+    destination: /new-home
+```
+
+### Redirect from "/path" to "/path" creates an infinite loop (source equals destination).
+
+[重定向](/learn/docs/configuration/site-level-settings#redirects-configuration)指向自身——对 `/path` 的请求会被重定向到 `/path`，如此无限循环。要么删除重定向（如果 `/path` 是一个有效页面），要么将 `destination` 指向不同的 URL。
+
+```yaml title="docs.yml"
+redirects:
+  - source: /path
+    destination: /new-path  # 必须与 `source` 不同
+```
+
+### Circular redirect chain detected: /a → /b → /a
+
+两个或更多[重定向](/learn/docs/configuration/site-level-settings#redirects-configuration)形成循环：`/a` 重定向到 `/b`，而 `/b` 重定向回 `/a`（直接或通过更多跳转）。浏览器会在它们之间无限反弹。将链中的每个 `source` 直接指向最终目的地，这样就没有 `destination` 本身是另一个 `source`。
+
+```yaml title="docs.yml"
+redirects:
+  - source: /a
+    destination: /c  # 跳过 `/b`，直接到达最终页面
+  - source: /b
+    destination: /c
+```
+</llms-only>

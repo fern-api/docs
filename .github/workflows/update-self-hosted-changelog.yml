@@ -1,0 +1,66 @@
+name: Update Self-Hosted Changelog
+
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch:
+
+jobs:
+  update-self-hosted-changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - name: Sync self-hosted releases from fern-platform
+        env:
+          GH_TOKEN: ${{ secrets.FERN_GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          DIR="fern/products/docs/pages/self-hosted/changelog"
+          mkdir -p "$DIR"
+
+          gh api -H "Accept: application/vnd.github+json" \
+            "repos/fern-api/fern-platform/releases?per_page=50" \
+            --jq '.[] | select(.tag_name | startswith("docs@")) | "\(.tag_name)\t\(.published_at)"' \
+            | sort -k2 \
+            > /tmp/releases.tsv
+
+          while IFS=$'\t' read -r tag published; do
+            version="${tag#docs@}"
+            date="${published%%T*}"
+            file="$DIR/$date.mdx"
+            version_escaped="${version//./\\.}"
+
+            if grep -rqE "^### v${version_escaped}$" "$DIR" 2>/dev/null; then
+              continue
+            fi
+
+            if [ -s "$file" ]; then
+              printf '\n### v%s\n\n```dockerfile\nFROM fernenterprise/fern-self-hosted:%s\n```\n' "$version" "$version" >> "$file"
+            else
+              printf '### v%s\n\n```dockerfile\nFROM fernenterprise/fern-self-hosted:%s\n```\n' "$version" "$version" > "$file"
+            fi
+          done < /tmp/releases.tsv
+      - name: create PR
+        id: cpr
+        uses: peter-evans/create-pull-request@v8
+        with:
+          commit-message: "update self-hosted changelog from fern-platform releases"
+          title: "Update self-hosted changelog"
+          branch: update-self-hosted-changelog
+          base: main
+          delete-branch: true
+      - name: Enable Pull Request Automerge
+        if: steps.cpr.outputs.pull-request-operation == 'created'
+        uses: peter-evans/enable-pull-request-automerge@v3
+        with:
+          pull-request-number: ${{ steps.cpr.outputs.pull-request-number }}
+          merge-method: squash
+      - name: Approving PR
+        if: steps.cpr.outputs.pull-request-operation == 'created'
+        env:
+          GH_TOKEN: ${{ secrets.FERN_GITHUB_TOKEN }}
+        run: |
+          echo "Approving PR"
+          gh pr review ${{ steps.cpr.outputs.pull-request-number }} --approve

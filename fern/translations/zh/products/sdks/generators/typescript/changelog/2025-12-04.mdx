@@ -1,0 +1,35 @@
+## 3.37.0
+**`(feat):`** 添加对 OAuth token 覆盖的支持，允许用户通过直接提供预生成的 bearer token 来跳过 OAuth 流程。
+当用户已经有有效的 token 且不需要经过 OAuth 客户端凭据流程时，这个功能很有用。
+
+要启用此功能，请在您的 _generators.yml_ 文件中添加 `oauthTokenOverride` 配置：
+```yaml
+# In generators.yml
+groups:
+  generators:
+    - name: fernapi/fern-typescript-sdk
+      config:
+        oauthTokenOverride: true
+```
+
+然后用户可以使用 OAuth 凭据或预生成的 token 来实例化客户端：
+```ts
+// 选项 1：OAuth 流程（现有行为）
+const client = new Client({
+  clientId: "YOUR_CLIENT_ID",
+  clientSecret: "YOUR_CLIENT_SECRET",
+  ...
+});
+
+// 选项 2：直接 bearer token 覆盖（新功能）
+const client = new Client({
+  token: "my-pre-generated-bearer-token",
+  ...
+});
+```
+
+
+## 3.35.9
+**`(fix):`** 修复生成的错误类，正确设置原型链、捕获堆栈跟踪并设置错误名称，使 `instanceof` 检查按预期工作。
+错误类现在使用 `new.target.prototype` 而不是静态类名来调用 `Object.setPrototypeOf`，
+在 V8 环境中有条件地调用 `Error.captureStackTrace`，并动态设置 `this.name`。

@@ -1,0 +1,212 @@
+---
+title: 项目结构
+description: Fern Docs 项目文件和文件夹结构概览
+sidebar-title: 项目结构
+---
+
+本页面提供 Fern Docs 项目文件和文件夹结构的概览。
+
+## 目录结构
+
+您的文档配置文件存放在 `fern` 文件夹中：
+
+<Files>
+  <Folder name="fern" defaultOpen>
+    <Folder name="docs" comment="文档内容" defaultOpen>
+      <Folder name="pages" comment="MDX 文件" />
+      <Folder name="assets" comment="图片、logo、图标" />
+      <Folder name="changelog" comment="更新日志条目" />
+    </Folder>
+    <Folder name="snippets" comment="可重用的 MDX 片段" />
+    <File name="docs.yml" comment="定义导航、主题和托管" />
+    <File name="openapi.yaml" comment="API 定义（OpenAPI、AsyncAPI 等）" />
+    <File name="generators.yml" comment="引用规范，配置 SDK" />
+    <File name="fern.config.json" comment="组织名称和 CLI 版本" />
+    <File name="styles.css" comment="自定义 CSS 样式" />
+  </Folder>
+</Files>
+
+<Warning>
+`fern` 和 `changelog` 文件夹是保留名称 — 如果重命名，Fern 将无法识别它们。所有其他文件夹名称都是可自定义的。
+</Warning>
+
+## Pages 文件夹
+
+`pages` 文件夹包含构成您文档的 Markdown (MDX) 文件。每个 MDX 文件代表文档中的一个页面。文件夹名称是可自定义的。
+
+<Files>
+  <Folder name="pages" defaultOpen>
+    <File name="welcome.mdx" />
+    <File name="navigation.mdx" />
+    <File name="customization.mdx" />
+    <File name="support.mdx" />
+  </Folder>
+</Files>
+
+您可以根据文档的章节将 `pages` 文件夹组织成子文件夹，或者如上所示保持页面扁平化。
+
+## Assets 文件夹
+
+`assets` 文件夹包含文档中使用的任何图片或视频。您可以使用相对路径在 MDX 文件中引用这些资源。文件夹名称是可自定义的。
+
+<Files>
+  <Folder name="assets" defaultOpen>
+    <File name="favicon.svg" />
+    <File name="logo.svg" comment="浅色模式 logo" />
+    <File name="logo-dark.svg" comment="深色模式 logo" />
+  </Folder>
+</Files>
+
+## `docs.yml`
+
+`docs.yml` 文件是您 Fern 文档站点的核心。此配置文件控制您文档的导航结构、视觉设计、站点功能和托管设置。只有在您的 `docs.yml` 导航中引用的文件（或通过 [`folder` 配置](/learn/docs/configuration/navigation#auto-populate-from-folder)发现的文件）才会包含在构建中 — 任何未引用的文件都会被忽略。
+
+有关完整的配置选项，请参见 [`docs.yml` 参考](/docs/configuration/site-level-settings)。
+
+<CodeBlock title="示例 fern/docs.yml">
+```yml
+instances:
+  - url: plantstore.docs.buildwithfern.com
+
+title: Fern Docs Starter
+
+tabs:
+  home:
+    display-name: Docs
+    icon: home
+  API Reference:
+    display-name: API Reference
+    icon: puzzle
+
+navigation:
+  - tab: home
+    layout:
+      - section: Get started
+        contents:
+          - page: Welcome
+            path: docs/pages/welcome.mdx
+          - page: Edit your docs
+            path: docs/pages/editing-your-docs.mdx
+      - section: Changelog
+        contents:
+          - changelog: docs/changelog
+  - tab: API Reference
+    layout:
+      - api: Plant Store API
+
+navbar-links:
+  - type: minimal
+    text: Fork this repo
+    url: https://github.com/fern-api/docs-starter
+  - type: filled
+    text: Dashboard
+    url: https://dashboard.buildwithfern.com
+
+logo:
+  light: docs/assets/logo.svg
+  dark: docs/assets/logo-dark.svg
+
+colors:
+  accent-primary:
+    dark: "#70E155"
+    light: "#008700"
+
+favicon: docs/assets/favicon.svg
+
+css: styles.css
+```
+</CodeBlock>
+
+## API 定义和 `generators.yml`
+
+要生成 [API 参考](/docs/api-references/generate-api-ref) 文档，您需要提供您的 API 定义。操作方式取决于您的格式：
+
+- **OpenAPI/AsyncAPI**：始终需要一个包含 `api.specs` 部分的 `generators.yml` 文件。您可以选择性地添加 `groups` 部分用于 SDK 生成。
+- **Fern Definition**：当您有 `definition/` 目录时会自动检测。只有在生成 SDK 时才需要添加 `generators.yml`。
+
+<Info>同时使用 Fern 进行 API 参考文档和 SDK？您将使用 `docs.yml` 进行文档设置，使用 `generators.yml` 配置 API 参考中的 [SDK 代码片段](/docs/api-references/sdk-snippets)。</Info>
+
+<AccordionGroup>
+  <Accordion title="OpenAPI">
+    将您的 OpenAPI 规范文件放在 `fern/` 目录中（或子文件夹中）。Fern 支持 YAML 或 JSON 格式。
+
+    在 `generators.yml` 中引用它：
+
+    ```yaml title="generators.yml"
+    api:
+      specs:
+        - openapi: openapi.yaml
+    ```
+
+    您可以选择性地[添加覆盖文件](/learn/api-definitions/openapi/overlays)进行额外自定义。要在实践中看到这一点，请查看 [Fluidstack 的 Fern 配置](https://github.com/fluidstackio/fern-config/tree/main/fern/openapi)。
+
+  </Accordion>
+  <Accordion title="AsyncAPI">
+    将您的 AsyncAPI 规范文件与 OpenAPI 规范一起放在 `fern/` 目录中。在 `generators.yml` 中引用它：
+
+    ```yaml title="generators.yml"
+    api:
+      specs:
+        - openapi: openapi.yaml
+        - asyncapi: asyncapi.yaml
+    ```
+
+    您可以选择性地[添加覆盖文件](/learn/api-definitions/asyncapi/overrides)进行额外自定义。
+
+  </Accordion>
+  <Accordion title="Fern Definition">
+    `definition` 文件夹包含用于生成 API 参考部分的 Fern Definition YAML 文件。Fern 会自动检测此目录，因此 API 参考文档不需要 `generators.yml`。
+
+    您可以选择性地[添加覆盖文件](/learn/api-definitions/asyncapi/overrides)进行额外自定义。
+
+    <Files>
+      <Folder name="definition" defaultOpen>
+        <File name="pets.yaml" />
+        <File name="owners.yaml" />
+        <File name="stores.yaml" />
+        <File name="overrides.yaml" comment="可选" />
+        <File name="api.yaml" />
+      </Folder>
+    </Files>
+
+    [查看示例](https://github.com/fern-api/fern/tree/3137938b70e058f3691ddef34d5c1cc29acc4b80/test-definitions/fern/apis/imdb/definition)。
+
+  </Accordion>
+  <Accordion title="多个 API">
+    将多个 API 组织到单独的文件夹中。您可以混合使用 OpenAPI 和 Fern Definition 格式：
+
+    <Files>
+      <Folder name="apis" defaultOpen>
+        <Folder name="admin-api" defaultOpen>
+          <File name="openapi.json" highlighted />
+          <File name="generators.yml" comment="OpenAPI 必需" />
+          <File name="overrides.yaml" comment="可选" />
+        </Folder>
+        <Folder name="user-api" defaultOpen>
+          <Folder name="definition" defaultOpen comment="Fern Definition 自动检测">
+            <File name="api.yml" highlighted />
+            <File name="overrides.yaml" comment="可选" />
+          </Folder>
+        </Folder>
+      </Folder>
+    </Files>
+
+    `apis` 文件夹必须使用这个确切的名称。在 `docs.yml` 中使用与子文件夹名称匹配的 `api-name` 引用每个 API。要在实践中看到这一点，请查看 [Vapi 的 Fern 配置](https://github.com/VapiAI/docs/tree/main/fern/apis)。
+
+  </Accordion>
+</AccordionGroup>
+
+## `fern.config.json`
+
+`fern.config.json` 文件存储您的组织名称和 Fern CLI 版本。锁定版本可提供确定性的构建。
+
+```json title="fern.config.json"
+{
+  "organization": "plantstore",
+  "version": "<Markdown src="/snippets/version-number-cli.mdx"/>"
+}
+```
+
+<Info> 
+  在使用本地安装的 CLI 时，将 `version` 设置为 `"*"`。详情请参见[本地安装 Fern CLI](/cli-api-reference/cli-reference/overview#install-fern-cli-locally)。
+</Info>

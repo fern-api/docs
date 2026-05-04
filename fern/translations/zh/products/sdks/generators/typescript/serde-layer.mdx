@@ -1,0 +1,52 @@
+---
+title: TypeScript 序列化层
+description: 了解如何在 Fern SDK 生成器中启用 TypeScript 序列化层，以将 API 字段名转换为 camelCase 并在运行时验证请求。
+sidebar-title: TypeScript 序列化层
+---
+
+Fern 的 TypeScript SDK 生成器包含一个可选的序列化层，它决定生成的 SDK 是匹配您原始 API 命名约定（snake_case vs. camelCase，大小写敏感字段）还是遵循 TypeScript 约定。此序列化层由 `noSerdeLayer` 选项控制。
+
+默认情况下，序列化层是**禁用的**（`noSerdeLayer: true`），这意味着字段名将完全按照它们在您的 API 规范中出现的方式保留。
+
+## 何时启用序列化层
+
+```yaml title="generators.yml" {7}
+groups:
+  ts-sdk:
+    generators:
+    - name: fernapi/fern-typescript-sdk
+      version: <Markdown src="/snippets/version-number-ts.mdx"/>
+      config:
+        noSerdeLayer: false # 启用序列化层
+```
+
+当您开启序列化层时（`noSerdeLayer: false`），TypeScript SDK 生成器会包含自定义序列化代码，它可以：
+- 将所有属性名从您的 API 转换为 camelCase
+- 在运行时验证请求和响应
+- 支持复杂类型，如 `Date` 和 `Set`
+
+当您想要符合习惯的 TypeScript 约定并且没有大小写敏感的字段冲突时，启用序列化层。当您的 API 具有仅在大小写上有差异的字段或需要精确保留字段名时，保持其禁用状态。
+
+## 其他配置选项
+
+几个配置选项与启用的序列化层一起工作：
+- `skipResponseValidation` 禁用序列化层的运行时验证，同时保留其转换功能
+- `allowExtraFields` 允许模式中未定义的属性
+- `useBigInt` 启用自定义 JSON 处理以保留大数字精度
+
+这些选项仅在序列化层启用时（`noSerdeLayer: false`）生效，因为它们需要自定义序列化基础架构。
+
+```yaml title="generators.yml" {7-10}
+groups:
+  ts-sdk:
+    generators:
+    - name: fernapi/fern-typescript-sdk
+      version: <Markdown src="/snippets/version-number-ts.mdx"/>
+      config:
+        noSerdeLayer: false           # 启用序列化层
+        skipResponseValidation: true  # 禁用运行时验证错误
+        allowExtraFields: true        # 允许响应中的未定义字段
+        useBigInt: true               # 保留大数字的精度
+```
+
+有关所有 TypeScript 配置选项的完整列表，请转到 [TypeScript 配置](/sdks/generators/typescript/configuration)。

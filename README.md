@@ -7,8 +7,8 @@ Welcome to the Fern documentation! This repository contains the source code for 
 ### Prerequisites
 
 Before you begin, make sure you have the following installed:
-- [Node.js](https://nodejs.org/) (version 16 or higher)
-- [npm](https://www.npmjs.com/) (comes with Node.js)
+- [Node.js](https://nodejs.org/) (version 22 or higher)
+- [npm](https://www.npmjs.com/) version 10.0.0 or higher (comes with Node.js 22)
 
 ### Installation
 

@@ -1,0 +1,26 @@
+## 1.31.0
+**`(feat):`** 添加对推断认证的支持。当 API 定义包含推断认证方案时，生成的 Go SDK 将自动从指定的令牌端点获取令牌，并在所有已认证的请求中注入 `Authorization: Bearer <token>` 头。令牌会被缓存，并根据令牌响应中的 `expires_in` 自动刷新（当未提供时默认为 1 小时）。
+
+生成器为令牌端点上定义的每个凭据参数生成 `WithXxx()` 客户端选项（例如 `WithClientId`、`WithClientSecret`、`WithXApiKey`），在配置时提供环境变量回退，以及一个具有线程安全缓存的 `core/token_provider.go`。
+
+要使用推断认证，请在您的 Fern API 定义中定义推断认证方案：
+
+```yaml
+auth:
+  scheme: inferred
+  token-endpoint:
+    endpoint: auth.getToken
+    response-properties:
+      access-token: access_token
+      expires-in: expires_in
+```
+
+当在自定义配置中设置 `enableWireTests: true` 时，还会生成 Wire 测试，验证自动令牌获取、缓存和自定义头透传。
+
+
+## 1.29.3
+**`(chore):`** 为生成的 CI 工作流添加并发配置，设置 cancel-in-progress: false，以防止在新运行开始时取消堆叠的运行。
+
+
+## 1.29.2
+**`(fix):`** 修复 datetime 查询参数序列化始终包含毫秒。`internal/query.go` 中的 `valueString` 函数现在使用 `"2006-01-02T15:04:05.000Z07:00"` 格式化 `time.Time` 值，而不是 `time.RFC3339`，确保 Go SDK 发送具有毫秒精度的时间戳（例如 `2024-07-01T15:30:00.000Z`），与 WireMock 存根映射匹配。

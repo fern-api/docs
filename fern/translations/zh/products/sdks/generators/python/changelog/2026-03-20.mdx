@@ -1,0 +1,9 @@
+## 5.0.6
+**`(fix):`** 修复 `construct_type` 以解析嵌套模型字段中的 `ForwardRef` 注解，并为未区分的联合使用严格的字面量判别匹配。
+
+在带有 `from __future__ import annotations` 的 Pydantic v2 下，像 `List["Block"]` 这样的字段注解即使在 `model_rebuild` 后仍保持为 `list[ForwardRef('Block')]`。`construct_type` 现在通过宿主模型的模块解析这些 ForwardRefs，确保嵌套数据递归构造为适当的模型实例，而不是保持为原始字典。
+
+另外，未区分联合解析现在要求字面量类型的判别字段在接受候选类型之前必须存在且匹配。这防止了具有全可选字段的模型（例如 `FigureDetails`）贪婪地匹配属于不同变体或纯字典回退的输入。
+
+## 5.0.5
+**`(fix):`** 向 `construct_type()` 添加枚举处理，以防止当枚举值通过无类型模型构造路径时出现 Pydantic 序列化警告。

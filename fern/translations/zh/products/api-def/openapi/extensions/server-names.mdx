@@ -1,0 +1,84 @@
+---
+title: 服务器名称和 URL 模板化
+headline: 服务器名称和 URL 模板化（OpenAPI）
+description: 了解如何在 OpenAPI 规范中使用 x-fern-server-name、x-fern-default-url 和 URL 模板变量，以便更好地生成 SDK。
+sidebar-title: 服务器名称和 URL 模板化
+---
+
+Fern 支持多个扩展来配置 OpenAPI 规范中的 `servers` 块。使用 `x-fern-server-name` 为服务器提供可读的名称，然后将其与 URL 模板变量和 `x-fern-default-url` 结合使用，以在生成的 SDK 中支持动态基础 URL。
+
+## `x-fern-server-name`
+
+使用 `x-fern-server-name` 为每个服务器条目提供可读的名称。Fern 在生成的环境枚举中使用此名称。
+
+`x-fern-server-name` 扩展用于命名您的服务器。
+
+```yaml title="openapi.yml"
+servers:
+  - url: https://api.example.com
+    x-fern-server-name: Production
+  - url: https://sandbox.example.com
+    x-fern-server-name: Sandbox
+```
+
+在生成的 TypeScript SDK 中，您会看到：
+
+```typescript title="environment.ts"
+export const ExampleEnvironment = {
+  Production: "https://api.example.com",
+  Sandbox: "https://sandbox.example.com",
+} as const;
+
+export type ExampleEnvironment = typeof ExampleEnvironment.Production;
+```
+
+### 多个基础 URL
+
+不同的端点可以针对不同的服务器。直接在端点上添加 `servers` 块以覆盖该路径的顶级服务器。使用 `x-fern-server-name` 为每个端点级服务器提供不同的名称，以便 Fern 能够正确分组。
+
+```yaml title="openapi.yml"
+paths:
+  /auth/token:
+    post:
+      servers:
+        - url: https://auth.example.com
+          x-fern-server-name: Auth
+```
+
+当 Fern 检测到多个命名服务器时，生成的 SDK 客户端会自动将每个端点解析到正确的基础 URL。
+
+`x-fern-server-name` 也与 URL 模板变量一起使用，如下所示。
+
+## URL 模板化和 `x-fern-default-url`
+
+<Note>URL 模板变量和 `x-fern-default-url` 目前仅支持 Python 和 Java SDK 生成。</Note>
+
+对于跨多个区域、环境或自定义域部署的 API，您可以使用 `{variable}` 语法在服务器 `url` 中定义变量占位符。Fern 读取这些变量并将其作为生成的 SDK 中的可配置参数公开，以便用户可以在运行时自定义基础 URL。
+
+由于像 `https://api.{region}.example.com/v1` 这样的模板化 URL 本身并不有效，因此使用 `x-fern-default-url` 提供具体的回退值。这样，不需要自定义变量的 SDK 用户就能获得开箱即用的工作客户端。
+
+```yaml title="openapi.yml"
+servers:
+  - url: https://api.{region}.{environment}.example.com/v1
+    description: Regional API server
+    x-fern-server-name: Default
+    x-fern-default-url: https://api.example.com/v1
+    variables:
+      region:
+        default: us-east-1
+        enum:
+          - us-east-1
+          - us-west-2
+          - eu-west-1
+      environment:
+        default: prod
+        enum:
+          - prod
+          - staging
+          - dev
+```
+
+每个变量都在 `variables` 映射下定义，并支持以下字段：
+
+- `default` — 当 SDK 用户未提供值时使用的回退值。此字段是 OpenAPI 规范所要求的。
+- `enum` — 允许值的可选列表。当提供时，Fern 在 SDK 中将变量生成为类型化枚举，而不是开放字符串。

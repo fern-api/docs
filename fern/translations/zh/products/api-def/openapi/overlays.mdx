@@ -1,0 +1,195 @@
+---
+title: Overlays
+description: 使用 OpenAPI Overlay 规范来自定义您的 OpenAPI 定义，而无需修改原始规范。
+sidebar-title: Overlays
+---
+
+Overlays 让您可以自定义 OpenAPI 规范而无需修改原始文件。这在以下情况下很有用：
+
+- 您的 API 规范是从服务器代码自动生成的
+- 您需要为 SDK 和文档配置不同的设置
+- 您想要添加 Fern 配置，如分页或 SDK 方法名称
+- 您想要使用 JSONPath 通配符对多个端点进行批量更改
+
+Overlays 遵循 [OpenAPI Overlay 规范](https://spec.openapis.org/overlay/v1.0.0.html)，并且在 OpenAPI 生态系统中是可移植的。
+
+<Note>
+  Fern 建议对 OpenAPI 规范使用 overlays 而不是 overrides。
+
+  [Overrides](/learn/api-definitions/openapi/overrides) 也完全受支持。如果 overrides 对您的团队有效，则无需切换。您也可以同时使用两者（先应用 overrides，然后应用 overlays）。
+</Note>
+
+## 配置 overlays
+
+要使用 overlays，请在与您的规范相同的文件夹中创建一个 `overlays` 文件，并在 `generators.yml` 中引用它：
+
+```yaml title="generators.yml"
+api:
+  specs:
+    - openapi: openapi.json
+      overlays: overlays.yml
+```
+
+## 定义 overlays 文件
+
+overlay 中的每个动作使用 [JSONPath](https://datatracker.ietf.org/doc/html/rfc9535) 定位元素，并应用 `update` 或 `remove` 操作：
+
+```yaml title="openapi-overlays.yml"
+overlay: 1.0.0 # 必需：Overlay 规范版本
+info:
+  title: 自定义植物商店 API # 必需：overlay 目的的可读描述
+  version: 1.0.0 # 必需：用于跟踪此 overlay 更改的版本标识符
+actions: # 必需：要应用的更改的有序列表
+  - target: $.info # 选择要修改的元素的 JSONPath 表达式
+    update: # 要与目标元素合并的属性
+      x-fern-sdk-group-name: plants
+  - target: $.paths['/plants/{plantId}'].get.parameters[?(@.name == 'plantId')]
+    update:
+      x-fern-parameter-name: id
+```
+
+<Warning>
+Fern 要求在 JSONPath 筛选表达式周围使用括号。请使用 `[?(@.name == 'plantId')]` 而不是 `[?@.name == 'plantId']`。
+</Warning>
+
+<AccordionGroup>
+<Accordion title="修改 OpenAPI 属性" toc={true}>
+
+使用 `update` 来更改标准 OpenAPI 属性，如描述、摘要或其他字段：
+
+```yaml title="openapi-overlays.yml"
+overlay: 1.0.0
+info:
+  title: 改进 API 文档
+  version: 1.0.0
+actions:
+  - target: $.paths['/plants'].get
+    update:
+      summary: 列出所有可用植物
+      description: 返回商店库存中植物的分页列表。
+```
+
+</Accordion>
+<Accordion title="使用 Fern 扩展进行自定义" toc={true}>
+
+使用 `update` 添加 [Fern 扩展](/api-definitions/openapi/extensions/overview)：
+
+```yaml title="openapi-overlays.yml"
+overlay: 1.0.0
+info:
+  title: 添加 Fern SDK 自定义
+  version: 1.0.0
+actions:
+  # 添加 SDK 组和方法名称
+  - target: $.paths['/plants'].get
+    update:
+      x-fern-sdk-group-name: plants
+      x-fern-sdk-method-name: list
+  - target: $.paths['/plants'].post
+    update:
+      x-fern-sdk-group-name: plants
+      x-fern-sdk-method-name: create
+  # 重命名参数
+  - target: $.paths['/plants/{plantId}'].get.parameters[?(@.name == 'includeDetails')]
+    update:
+      x-fern-parameter-name: withDetails
+```
+
+</Accordion>
+<Accordion title="移除元素" toc={true}>
+
+使用 `remove: true` 从您的规范中删除元素：
+
+```yaml title="openapi-overlays.yml" {8}
+overlay: 1.0.0
+info:
+  title: 移除内部端点
+  version: 1.0.0
+actions:
+  - target: $.paths['/internal/debug']
+    description: 从公共 SDK 中移除调试端点
+    remove: true
+```
+
+</Accordion>
+</AccordionGroup>
+
+## 跨 API 管理 overlays
+
+`generators.yml` 中的每个规范接受一个 overlay 文件。您可以在规范中引用相同的文件，或为不同的配置使用单独的文件。
+
+<AccordionGroup>
+<Accordion title="多个规范之间的共享 overlays">
+
+当多个规范需要相同的自定义时，将它们指向同一个 overlay 文件以避免重复：
+
+```yaml title="generators.yml"
+api:
+  specs:
+    - openapi: ./payments-api.yml
+      overlays: shared-overlays.yml       # 两个规范使用相同的 overlay
+    - openapi: ./users-api.yml
+      overlays: shared-overlays.yml
+```
+
+如果每个规范需要唯一的自定义，请为每个规范创建单独的 overlay 文件：
+
+```yaml title="generators.yml"
+api:
+  specs:
+    - openapi: ./payments-api.yml
+      overlays: payments-overlays.yml
+    - openapi: ./users-api.yml
+      overlays: users-overlays.yml
+```
+
+</Accordion>
+<Accordion title="SDK 和文档的单独 overlays">
+
+通过创建具有自己的 `generators.yml` 的单独文件夹，为 SDK 生成和文档使用不同的 overlay 文件：
+
+<Files>
+  <Folder name="fern" defaultOpen>
+    <File name="fern.config.json" />
+    <File name="openapi.yml" />
+    <Folder name="docs" defaultOpen>
+      <File name="generators.yml" />
+      <File name="docs-overlays.yml" />
+    </Folder>
+    <Folder name="sdks" defaultOpen>
+      <File name="generators.yml" />
+      <File name="sdk-overlays.yml" />
+    </Folder>
+  </Folder>
+</Files>
+
+```yaml title="sdks/generators.yml"
+api:
+  specs:
+    - openapi: ../openapi.yml
+      overlays: sdk-overlays.yml
+```
+
+</Accordion>
+<Accordion title="不同环境的 Overlays">
+
+为生产环境与内部 API 配置不同的 overlays：
+
+```yaml title="generators.yml" {5, 11}
+groups:
+  production:
+    specs:
+      - openapi: openapi.yml
+        overlays: production-overlays.yml
+    generators:
+      ...
+  internal:
+    specs:
+      - openapi: openapi.yml
+        overlays: internal-overlays.yml
+    generators:
+      ...
+```
+
+</Accordion>
+</AccordionGroup>

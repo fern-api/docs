@@ -1,0 +1,297 @@
+---
+title: 使用受众过滤您的 API
+headline: 使用受众过滤您的 API (OpenRPC)
+subtitle: 使用 `x-fern-audiences` 过滤相关方法、参数和模式
+sidebar-title: 使用受众过滤 API
+---
+
+受众是一个有用的工具，用于为不同的消费者分割您的 JSON-RPC API。常见的受众示例包括 `public`
+和 `beta`。
+
+<Info>
+  记住在指定受众后过滤您的 SDK 和文档。如果**未指定受众**，
+  将不会过滤任何内容。
+
+<AccordionGroup>
+
+<Accordion title="SDK">
+以下示例配置 SDK 过滤到 `public` 受众：
+
+```yaml title="generators.yml" {3-4}
+groups:
+  sdks:
+    audiences:
+      - public
+    generators:
+      - name: fernapi/fern-typescript-sdk
+        version: 0.8.8
+```
+</Accordion>
+
+<Accordion title="文档">
+以下示例配置文档过滤到 `public` 受众：
+
+```yaml title="docs.yml" {3-4}
+navigation:
+  - api: API Reference
+    audiences:
+      - public
+```
+</Accordion>
+
+</AccordionGroup>
+</Info>
+
+## 过滤方法
+
+向方法添加 `x-fern-audiences` 来控制特定受众包含哪些方法：
+
+```yaml title="openrpc.yml" {5-6, 12-13}
+methods:
+  - name: public.getInfo
+    summary: Get public API information
+    description: Publicly available information about the API
+    x-fern-audiences:
+      - public
+    params: []
+    result:
+      name: info
+      schema:
+        $ref: '#/components/schemas/ApiInfo'
+  - name: admin.getUsers
+    summary: Get all users (admin only)
+    x-fern-audiences:
+      - admin
+    params:
+      - name: limit
+        schema:
+          type: integer
+          default: 100
+    result:
+      name: users
+      schema:
+        type: array
+        items:
+          $ref: '#/components/schemas/User'
+```
+
+## 过滤方法参数
+
+您可以过滤方法内的特定参数：
+
+```yaml title="openrpc.yml" {8-9, 14-15}
+methods:
+  - name: user.create
+    summary: Create a new user
+    params:
+      - name: userData
+        schema:
+          type: object
+          properties:
+            email:
+              type: string
+              format: email
+            name:
+              type: string
+            adminNotes:
+              type: string
+              x-fern-audiences:
+                - admin
+            internalId:
+              type: string
+              x-fern-audiences:
+                - internal
+          required:
+            - email
+            - name
+        required: true
+    result:
+      name: user
+      schema:
+        $ref: '#/components/schemas/User'
+```
+
+## 过滤模式
+
+将整个模式过滤到不同的受众：
+
+```yaml title="openrpc.yml" {5-6, 20-21}
+components:
+  schemas:
+    PublicUser:
+      type: object
+      x-fern-audiences:
+        - public
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+      required:
+        - id
+        - name
+        - email
+    AdminUser:
+      allOf:
+        - $ref: '#/components/schemas/PublicUser'
+        - type: object
+          x-fern-audiences:
+            - admin
+          properties:
+            role:
+              type: string
+            permissions:
+              type: array
+              items:
+                type: string
+            createdAt:
+              type: string
+              format: date-time
+            lastLoginAt:
+              type: string
+              format: date-time
+```
+
+## 过滤模式属性
+
+您可以过滤模式内的各个属性：
+
+```yaml title="openrpc.yml" {9-10, 13-14, 17-18}
+components:
+  schemas:
+    Order:
+      type: object
+      properties:
+        id:
+          type: string
+        amount:
+          type: number
+          x-fern-audiences:
+            - public
+        internalCost:
+          type: number
+          x-fern-audiences:
+            - internal
+        debugInfo:
+          type: object
+          x-fern-audiences:
+            - debug
+        customerInfo:
+          type: object
+          properties:
+            id:
+              type: string
+            email:
+              type: string
+              x-fern-audiences:
+                - admin
+```
+
+## 过滤错误响应
+
+根据受众过滤错误信息：
+
+```yaml title="openrpc.yml" {7-12, 14-19}
+methods:
+  - name: payment.process
+    summary: Process a payment
+    params:
+      - name: paymentData
+        schema:
+          $ref: '#/components/schemas/PaymentRequest'
+    errors:
+      - code: -32001
+        message: Payment failed
+        x-fern-audiences:
+          - public
+        data:
+          type: object
+          properties:
+            error:
+              type: string
+              const: "Payment could not be processed"
+      - code: -32001
+        message: Payment failed
+        x-fern-audiences:
+          - admin
+        data:
+          type: object
+          properties:
+            error:
+              type: string
+            errorCode:
+              type: string
+            gatewayResponse:
+              type: object
+            debugTrace:
+              type: string
+```
+
+## 服务器级别过滤
+
+在服务器级别应用受众过滤：
+
+```yaml title="openrpc.yml" {4-5, 10-11}
+servers:
+  - name: public-api
+    url: https://api.example.com/rpc
+    x-fern-audiences:
+      - public
+    description: Public API server
+  - name: admin-api
+    url: https://admin-api.example.com/rpc
+    x-fern-audiences:
+      - admin
+    description: Admin API server with additional privileges
+```
+
+## 条件方法可用性
+
+使用受众使方法仅在特定上下文中可用：
+
+```yaml title="openrpc.yml" {5-6, 15-16, 25-26}
+methods:
+  - name: debug.getSystemInfo
+    summary: Get system debug information
+    description: Internal system information for debugging
+    x-fern-audiences:
+      - debug
+    params: []
+    result:
+      name: systemInfo
+      schema:
+        type: object
+        additionalProperties: true
+  - name: beta.advancedSearch
+    summary: Advanced search functionality
+    x-fern-audiences:
+      - beta
+    params:
+      - name: query
+        schema:
+          type: object
+          properties:
+            text:
+              type: string
+            filters:
+              type: object
+              additionalProperties: true
+    result:
+      name: results
+      schema:
+        $ref: '#/components/schemas/SearchResults'
+  - name: internal.resetCache
+    summary: Reset internal caches
+    x-fern-audiences:
+      - internal
+    params:
+      - name: cacheType
+        schema:
+          type: string
+          enum: [user, product, session, all]
+    # Notification - no result expected
+```
+
+这允许您为不同类型的消费者创建同一个 JSON-RPC API 的不同视图，确保每个受众只看到与其用例相关的方法和数据。

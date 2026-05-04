@@ -1,0 +1,39 @@
+---
+tags: ["ai", "navigation", "configuration", "docs.yml"]
+---
+
+## AI 代理的 HTTP API 访问
+
+AI 代理现在可以通过 HTTP API 直接访问受认证保护的文档。这使得自定义集成和 AI 工具能够以编程方式检索受保护的内容。
+
+代理通过 `/api/fern-docs/get-jwt` 端点使用 Fern API 密钥获取 JWT，然后使用它来访问受保护的文档：
+
+```bash
+curl https://docs.example.com/platform/overview \
+  -H 'Accept: text/plain' \
+  -H 'x-fern-host: docs.example.com' \
+  -H 'FERN_TOKEN: your-jwt-here'
+```
+
+内容以干净的 Markdown 格式提供，以实现高效的 token 处理。
+
+## 基于文件夹的导航
+
+使用新的 `folder` 配置从 markdown 文件文件夹自动生成导航。无需在 `docs.yml` 中手动列出每个页面，只需指向一个文件夹。Fern 会发现所有 `.md` 和 `.mdx` 文件并将它们添加到导航中。
+
+```yaml docs.yml {6-10}
+navigation:
+  - section: Getting started
+    contents:
+      - page: Introduction
+        path: ./pages/intro.mdx
+      - folder: ./pages/guides
+        title: Guides # Display name for folder section
+        icon: fa-regular fa-book
+        collapsed: true
+        availability: beta # Optional badge to display in navigation
+```
+
+子文件夹会成为嵌套部分。支持的选项：`title`、`slug`、`icon`、`collapsed`、`hidden`、`skip-slug`、`availability`。
+
+<Button intent="none" outlined rightIcon="arrow-right" href="/learn/docs/configuration/navigation">阅读文档</Button>

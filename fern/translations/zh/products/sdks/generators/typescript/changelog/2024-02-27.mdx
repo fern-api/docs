@@ -1,0 +1,72 @@
+## 0.12.6
+**`(fix):`** 在 Node.js 环境中，SDK 将默认使用 `node-fetch`。SDK 依赖 node-fetch 的 v2 版本以保持 CJS 兼容性。
+
+之前 SDK 执行的是 `require("node-fetch")`，但根据
+https://github.com/node-fetch/node-fetch/issues/450#issuecomment-387045223
+应该是 `require("node-fetch").default`。
+
+
+## 0.12.5
+**`(feat):`** 引入了一个名为 `tolerateRepublish` 的自定义配置，支持使用 `--tolerateRepublish` 标志运行 npm publish。此标志允许您在现有的 npm 包之上进行发布。
+
+要启用此标志，请更新您的 generators.yml：
+
+```yaml
+groups:
+  generators:
+    - name: fernapi/fern-typscript-node-sdk
+      version: 0.12.5
+      ...
+      config:
+        tolerateRepublish: true
+```
+
+
+## 0.12.4
+**`(fix):`** 之前 reference.md 只是利用函数名作为引用，现在它使用完整的包范围路径，反映了函数在实际使用中的方式。
+
+```ts
+seedExamples.getException(...)
+
+// 现在是
+
+seedExamples.file.notification.service.getException(...)
+```
+
+
+**`(fix):`** 之前 SDK 代码片段不支持使用无判别联合类型生成。现在支持了。
+
+## 0.12.2
+**`(fix):`** 之前 SDK 代码片段不会考虑默认参数值，总是会包含一个 `{}`。这很奇怪，不能代表开发者如何使用 SDK。现在，代码片段会检查默认参数值，如果没有指定字段则会省略。
+
+```ts
+// 之前
+client.users.list({});
+
+// 之后
+client.users.list();
+```
+
+
+## 0.12.1
+**`(fix):`** 深层查询参数中的可选对象之前被错误地序列化。在此更改之前，可选对象只是被 JSON.stringified，这会通过网络发送错误的内容。
+
+```ts
+// 之前
+if (foo != null) {
+  _queryParams["foo"] = JSON.stringify(foo);
+}
+
+// 之后
+if (foo != null) {
+  _queryParams["foo"] = foo;
+}
+
+// 之后（使用序列化层）
+if (foo != null) {
+  _queryParams["foo"] = serializers.Foo.jsonOrThrow(foo, {
+    skipValidation: false,
+    breadcrumbs: ["request", "foo"]
+  });
+}
+```

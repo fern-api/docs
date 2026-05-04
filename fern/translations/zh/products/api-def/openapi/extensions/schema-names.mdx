@@ -1,0 +1,84 @@
+---
+title: 模式名称
+sidebar-title: 模式名称
+headline: 模式名称 (OpenAPI)
+description: 使用 `x-fern-type-name` 扩展覆盖内联模式的自动生成名称
+---
+
+OpenAPI 允许您定义没有名称的内联模式。
+
+```yaml title="openapi.yml 中的内联类型" {11}
+components:
+  schemas:
+    Movie:
+      type: object
+      properties:
+        name:
+          type: string
+        cast:
+          type: array
+          items:
+            type: object
+            properties:
+              firstName:
+                type: string
+              lastName:
+                type: string
+              age:
+                type: integer
+```
+
+Fern 会自动为所有内联模式生成名称。例如，在这个示例中，
+Fern 会为内联数组项模式生成名称 `CastItem`。
+
+```typescript title="自动生成的名称" {6}
+export interface Movie {
+  name?: string;
+  cast?: CastItem[];
+}
+
+export interface CastItem {
+  firstName?: string;
+  lastName?: string;
+  age?: integer;
+}
+```
+
+如果您想覆盖生成的名称，可以使用扩展 `x-fern-type-name`。
+
+```yaml title="openapi.yml" {12}
+components:
+  schemas:
+    Movie:
+      type: object
+      properties:
+        name:
+          type: string
+        cast:
+          type: array
+          items:
+            type: object
+            x-fern-type-name: Person
+            properties:
+              firstName:
+                type: string
+              lastName:
+                type: string
+              age:
+                type: integer
+```
+
+这将用 `Person` 替换 `CastItem`，生成的代码将读起来更加自然：
+
+```typescript title="覆盖的名称" {6}
+export interface Movie {
+  name?: string;
+  cast?: Person[];
+}
+
+export interface Person {
+  firstName?: string;
+  lastName?: string;
+  age?: integer;
+}
+```

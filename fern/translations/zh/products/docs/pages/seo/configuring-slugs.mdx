@@ -1,0 +1,197 @@
+---
+title: 在站点内自定义链接地址
+description: 在 Fern 文档站点中自定义 URL 路径。为页面、章节、选项卡、落地页面和子标题重命名链接地址，或完全跳过它们。
+sidebar-title: 自定义站点 URL slug
+---
+
+默认情况下，Fern 基于 `docs.yml` 文件中的导航结构生成页面的链接地址。
+
+<AccordionGroup>
+<Accordion title="无选项卡示例" defaultOpen>
+```yaml docs.yml {5, 7}
+instances:
+  - url: plantstore.docs.buildwithfern.com
+  
+navigation:
+  - section: Get Started
+    contents: 
+      - page: Welcome 
+        path: ./docs/pages/welcome.mdx
+```
+
+在上面的示例中，**Welcome** 页面将托管在 `plantstore.docs.buildwithfern.com/get-started/welcome`。
+</Accordion>
+<Accordion title="有选项卡示例">
+```yaml docs.yml {5, 13, 15}
+instances:
+  - url: plantstore.docs.buildwithfern.com
+  
+tabs: 
+  docs:
+    display-name: Docs
+  reference: 
+    display-name: API Reference
+  
+navigation:
+  - tab: docs
+    layout: 
+      - section: Get Started
+        contents: 
+          - page: Welcome 
+            path: ./docs/pages/welcome.mdx
+```
+
+在上面的示例中，**Welcome** 页面将托管在 `plantstore.docs.buildwithfern.com/docs/get-started/welcome`。
+</Accordion>
+</AccordionGroup>
+
+您可以通过重命名或完全跳过这些默认链接地址来自定义它们。
+
+## 重命名链接地址
+
+在 `docs.yml` 中或在页面的前置配置中设置 `slug` 属性来自定义 URL 路径。
+
+### 修改页面或章节链接地址
+要修改页面或章节使用的链接地址，您可以在 `navigation` 对象中设置 `slug`。
+
+```yaml docs.yml {3, 6}
+navigation:
+  - section: Get Started
+    slug: start
+    contents: 
+      - page: Welcome 
+        slug: intro
+        path: ./docs/pages/welcome.mdx
+```
+
+在上面的示例中，**Welcome** 页面将托管在 `plantstore.docs.buildwithfern.com/start/intro`。
+
+### 修改选项卡链接地址
+
+要修改选项卡使用的链接地址，您可以在 `tabs` 对象中设置 `slug`。
+
+```yaml docs.yml {4}
+tabs: 
+  docs:
+    display-name: Docs
+    slug: guides
+  reference: 
+    display-name: API Reference
+  
+navigation:
+  - tab: docs
+    layout: 
+      - section: Get Started
+        contents: 
+          - page: Welcome 
+            path: ./docs/pages/welcome.mdx
+```
+
+在上面的示例中，**Welcome** 页面将托管在 `plantstore.docs.buildwithfern.com/guides/get-started/welcome`。
+
+### 修改落地页面的链接地址
+要修改落地页面使用的链接地址，您可以在 `landing-page` 对象中设置 `slug`。
+
+```yaml title="docs.yml" {4}
+landing-page: 
+  page: Page Title
+  path: path/to/landing-page.mdx
+  slug: /welcome
+```
+
+### 使用前置配置覆盖页面的链接地址
+
+前置配置中的链接地址优先于 `docs.yml` 中生成或设置的链接地址，让您完全控制页面的 URL。
+
+```yaml title="docs.yml"
+navigation:
+  - section: Get Started
+    slug: start
+    contents:
+      - page: Quickstart
+        path: ./docs/pages/quickstart.mdx
+```
+
+使用这种配置，页面通常会在 `plantstore.docs.buildwithfern.com/start/quickstart`。要覆盖这个设置，请在页面的前置配置中设置 `slug`：
+
+```markdown title="quickstart.mdx" {2}
+---
+title: Quickstart
+slug: start-up
+---
+```
+
+现在页面可在 `plantstore.docs.buildwithfern.com/start/start-up` 访问。查看[前置配置](/learn/docs/configuration/page-level-settings#slug)获取更多详情。
+
+### 为子标题重命名链接地址
+默认情况下，子标题的深度链接通过在页面 URL 后面附加 `#` 和子标题的标题（转换为 `kebab-casing-convention`）来生成。
+
+```yaml docs.yml
+navigation:
+  - section: Get Started
+    contents: 
+      - page: Welcome 
+        path: ./docs/pages/welcome.mdx
+```
+
+```markdown welcome.mdx
+...
+
+## Frequently Asked Questions 
+...
+```
+
+此章节的链接将在 `plantstore.docs.buildwithfern.com/get-started/welcome#frequently-asked-questions` 可用。
+
+要重命名子标题的链接地址，添加所需的链接地址：
+
+```markdown welcome.mdx
+## Frequently Asked Questions [#faqs]
+```
+
+此章节的链接现在将在 `plantstore.docs.buildwithfern.com/get-started/welcome#faqs` 可用。
+
+## 跳过链接地址
+要在生成链接地址时忽略选项卡或章节，只需指定 `skip-slug: true`。
+
+<AccordionGroup>
+<Accordion title="无选项卡示例" defaultOpen>
+```yaml docs.yml {6}
+instances:
+  - url: plantstore.docs.buildwithfern.com
+  
+navigation:
+  - section: Get Started
+    skip-slug: true
+    contents: 
+      - page: Welcome 
+        path: ./docs/pages/welcome.mdx
+```
+
+在上面的示例中，**Welcome** 页面将托管在 `plantstore.docs.buildwithfern.com/welcome`。
+</Accordion>
+<Accordion title="有选项卡示例">
+```yaml docs.yml {7, 15}
+instances:
+  - url: plantstore.docs.buildwithfern.com
+  
+tabs: 
+  docs:
+    display-name: Docs
+    skip-slug: true
+  reference: 
+    display-name: API Reference
+  
+navigation:
+  - tab: docs
+    layout: 
+      - section: Get Started
+        skip-slug: true
+        contents: 
+          - page: Welcome 
+            path: ./docs/pages/welcome.mdx
+```
+
+在上面的示例中，**Welcome** 页面将托管在 `plantstore.docs.buildwithfern.com/welcome`。
+</Accordion>
+</AccordionGroup>

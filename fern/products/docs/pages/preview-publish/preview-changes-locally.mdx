@@ -11,7 +11,7 @@ Fern offers two ways to preview documentation changes:
 
 <Info title="Prerequisites">
 Install the following:
-- Node.js version 18 or higher
+- Node.js version 22 or higher
 - [The Fern CLI](/learn/cli-api-reference/cli-reference/overview#install-fern-cli)
 </Info>
 
@@ -305,3 +305,35 @@ jobs:
 </CodeBlock>
 
 </Accordion>
+
+#### Clean up preview links when PRs merge
+
+To clean up preview links automatically after a PR is merged, add this workflow alongside the one above. It calls [`fern docs preview delete`](/learn/cli-api-reference/cli-reference/commands#fern-docs-preview-delete) with the PR's branch name as the `--id`, matching the identifier used when the preview was generated.
+
+<CodeBlock title = ".github/workflows/cleanup-preview.yml">
+```yaml
+name: Clean up preview links
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  cleanup:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Fern CLI
+        uses: fern-api/setup-fern-cli@v1
+
+      - name: Delete preview deployment
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+        run: |
+          echo "Deleting preview for branch: ${{ github.head_ref }}"
+          fern docs preview delete --id "${{ github.head_ref }}" || echo "Preview deletion returned non-zero — it may already be gone"
+```
+</CodeBlock>

@@ -81,8 +81,50 @@ jobs:
 
       - name: Fetch sitemap and extract URLs
         run: |
-          curl -s https://buildwithfern.com/learn/sitemap.xml | grep -oP '(?<=<loc>)[^<]+' > urls.txt
-          echo "Found $(wc -l < urls.txt) URLs in sitemap"
+          # The sitemap may be either a regular <urlset> or a <sitemapindex>
+          # that points to per-language sub-sitemaps (e.g. sitemap-en.xml,
+          # sitemap-zh.xml). Handle both shapes by recursively expanding any
+          # sitemapindex into its child sitemaps before extracting page URLs.
+          set -euo pipefail
+          ROOT_SITEMAP="https://buildwithfern.com/learn/sitemap.xml"
+
+          fetch_sitemap_urls() {
+            local sitemap_url="$1"
+            local body
+            body=$(curl -fsSL "$sitemap_url") || {
+              echo "Warning: failed to fetch $sitemap_url" >&2
+              return 0
+            }
+
+            local locs
+            locs=$(echo "$body" | grep -oP '(?<=<loc>)[^<]+' || true)
+
+            if echo "$body" | grep -q '<sitemapindex'; then
+              # Recursively expand each child sitemap.
+              while IFS= read -r child; do
+                if [ -n "$child" ]; then
+                  fetch_sitemap_urls "$child"
+                fi
+              done <<< "$locs"
+            else
+              # Regular <urlset> — emit page URLs directly.
+              if [ -n "$locs" ]; then
+                echo "$locs"
+              fi
+            fi
+          }
+
+          fetch_sitemap_urls "$ROOT_SITEMAP" | sort -u > urls.txt
+
+          total=$(wc -l < urls.txt | tr -d ' ')
+          echo "Found $total URLs in sitemap"
+
+          if [ "$total" -eq 0 ]; then
+            echo "::error::No URLs were extracted from the sitemap. The link checker has nothing to scan."
+            echo "Root sitemap response:"
+            curl -fsSL "$ROOT_SITEMAP" || true
+            exit 1
+          fi
 
       - name: Extract and verify GitHub blob/tree/tag URLs locally
         id: verify_github
@@ -762,6 +804,11 @@ jobs:
             **Broken Links:**
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          # Retry transient GitHub API errors (e.g. 502/503/504) so a flaky
+          # api.github.com response doesn't fail the whole link-check job.
+          # actions/github-script defaults to 0 retries; the default exempt
+          # list (400,401,403,404,422) still surfaces real client errors.
+          retries: 3
           script: |
             const fs = require('fs');
             const devinPrompt = process.env.DEVIN_PROMPT;
