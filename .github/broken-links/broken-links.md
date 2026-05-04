@@ -22,15 +22,13 @@
 - [404] https://buildwithfern.com/learn/docs/preview-publish/multi-source
 - [404] https://buildwithfern.com/learn/docs/preview-publish/multi-source
 - [404] https://buildwithfern.com/learn/zh/dashboard/assets/pdf-ui.png
-- [404] https://buildwithfern.com/learn/zh/sdks/overview/introduction#_R_
 - [404] https://buildwithfern.com/products/sdks/custom-code.mdx
 - [404] https://buildwithfern.com/zh
 - [404] https://buildwithfern.com/zh
-- [500] https://buildwithfern.com/learn/zh/sdks/generators/rust/changelog/2026/4/2
 
 ## GitHub URLs Missing Locally
 
 - [LOCAL_MISSING] https://github.com/fern-api/protoc-gen-openapi/releases/tag/v0.1.7） (tag: v0.1.7） in fern-api/protoc-gen-openapi)
 
 ---
-[View workflow run](https://github.com/fern-api/docs/actions/runs/25327721336)
+[View workflow run](https://github.com/fern-api/docs/actions/runs/25331132026)
