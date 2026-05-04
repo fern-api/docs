@@ -804,6 +804,11 @@ jobs:
             **Broken Links:**
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          # Retry transient GitHub API errors (e.g. 502/503/504) so a flaky
+          # api.github.com response doesn't fail the whole link-check job.
+          # actions/github-script defaults to 0 retries; the default exempt
+          # list (400,401,403,404,422) still surfaces real client errors.
+          retries: 3
           script: |
             const fs = require('fs');
             const devinPrompt = process.env.DEVIN_PROMPT;
