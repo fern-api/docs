@@ -452,7 +452,6 @@ export default function FernFooter() {
                 <a href="/learn/api-definitions/asyncapi/overview" className="fern-cf-link">AsyncAPI</a>
                 <a href="/learn/api-definitions/openrpc/overview" className="fern-cf-link">OpenRPC</a>
                 <a href="/learn/api-definitions/grpc/overview" className="fern-cf-link">gRPC</a>
-                <a href="/learn/api-definitions/ferndef/overview" className="fern-cf-link">Fern Definition</a>
               </div>
             </div>
 
