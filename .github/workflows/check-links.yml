@@ -136,19 +136,29 @@ jobs:
           echo "Scanning repo for GitHub blob/tree/tag URLs..."
           start_time=$(date +%s)
           > github-urls.txt
-          
+
+          # Use byte-oriented matching so the URL terminator class can
+          # exclude all non-ASCII bytes. Without LC_ALL=C, grep's PCRE
+          # engine runs in UTF-8 mode and treats \x80-\xff differently.
+          export LC_ALL=C
+
           # Search the content directories for GitHub blob/tree URLs
           # Include fern/ (main docs) and README.md (root)
           # Exclude .git and any cloned repos
-          grep -RhoE 'https://github\.com/[^/]+/[^/]+/(blob|tree)/[^"'"'"')<>[:space:]]+' \
+          # The terminator class excludes ASCII whitespace, common markdown
+          # delimiters, and any non-ASCII byte (\x80-\xff). This prevents
+          # trailing CJK punctuation (e.g., U+FF09 FULLWIDTH RIGHT PAREN)
+          # from being absorbed into the URL when extracted from translated
+          # prose.
+          grep -RhoP 'https://github\.com/[^/]+/[^/]+/(blob|tree)/[^"'"'"')<>\s\x80-\xff]+' \
             fern/ \
             README.md \
             --exclude-dir=.git \
             --exclude-dir=.github-repos \
             >> github-urls.txt 2>/dev/null || true
-          
+
           # Also search for releases/tag URLs
-          grep -RhoE 'https://github\.com/[^/]+/[^/]+/releases/tag/[^"'"'"')<>[:space:]]+' \
+          grep -RhoP 'https://github\.com/[^/]+/[^/]+/releases/tag/[^"'"'"')<>\s\x80-\xff]+' \
             fern/ \
             README.md \
             --exclude-dir=.git \
@@ -323,33 +333,36 @@ jobs:
           
           echo "Scanning repo for GitHub URLs to check via HTTP..."
           > github-http-urls.txt
-          
+
+          # See note above about LC_ALL=C and the \x80-\xff terminator class.
+          export LC_ALL=C
+
           # Search for issues URLs
-          grep -RhoE 'https://github\.com/[^/]+/[^/]+/issues/[^"'"'"')<>[:space:]]+' \
+          grep -RhoP 'https://github\.com/[^/]+/[^/]+/issues/[^"'"'"')<>\s\x80-\xff]+' \
             fern/ README.md \
             --exclude-dir=.git --exclude-dir=.github-repos \
             >> github-http-urls.txt 2>/dev/null || true
-          
+
           # Search for compare URLs
-          grep -RhoE 'https://github\.com/[^/]+/[^/]+/compare/[^"'"'"')<>[:space:]]+' \
+          grep -RhoP 'https://github\.com/[^/]+/[^/]+/compare/[^"'"'"')<>\s\x80-\xff]+' \
             fern/ README.md \
             --exclude-dir=.git --exclude-dir=.github-repos \
             >> github-http-urls.txt 2>/dev/null || true
-          
+
           # Search for commit/commits URLs
-          grep -RhoE 'https://github\.com/[^/]+/[^/]+/commits?/[^"'"'"')<>[:space:]]+' \
+          grep -RhoP 'https://github\.com/[^/]+/[^/]+/commits?/[^"'"'"')<>\s\x80-\xff]+' \
             fern/ README.md \
             --exclude-dir=.git --exclude-dir=.github-repos \
             >> github-http-urls.txt 2>/dev/null || true
-          
+
           # Search for discussions URLs
-          grep -RhoE 'https://github\.com/[^/]+/[^/]+/discussions/[^"'"'"')<>[:space:]]+' \
+          grep -RhoP 'https://github\.com/[^/]+/[^/]+/discussions/[^"'"'"')<>\s\x80-\xff]+' \
             fern/ README.md \
             --exclude-dir=.git --exclude-dir=.github-repos \
             >> github-http-urls.txt 2>/dev/null || true
-          
+
           # Search for pull request URLs (excluding fern-api org - those are too slow to check)
-          grep -RhoE 'https://github\.com/[^/]+/[^/]+/pull/[^"'"'"')<>[:space:]]+' \
+          grep -RhoP 'https://github\.com/[^/]+/[^/]+/pull/[^"'"'"')<>\s\x80-\xff]+' \
             fern/ README.md \
             --exclude-dir=.git --exclude-dir=.github-repos \
             2>/dev/null | grep -v 'github\.com/fern-api/' \
