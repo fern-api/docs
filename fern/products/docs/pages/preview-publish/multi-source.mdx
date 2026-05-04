@@ -6,16 +6,16 @@ description: Learn how to set up multi-source documentation so independent teams
 
 <Markdown src="/snippets/enterprise-plan.mdx" />
 
-Multi-source documentation lets multiple teams publish to the same custom domain from independent repositories. Each repository has its own `docs.yml` and content, while a shared [global theme](/learn/docs/customization/global-themes) keeps branding consistent across every sub-path.
+Multi-source documentation publishes a single docs site to a custom domain, split into multiple sub-paths. Each sub-path is sourced from its own repository, so teams ship updates independently while a shared [global theme](/learn/docs/customization/global-themes) keeps branding consistent across the site.
 
 ## How it works
 
-Each repository owns a unique basepath on the shared domain. Running `fern generate --docs` in one repository updates only its sub-path — every other sub-path is untouched.
+Each repository declares a unique basepath under the shared domain in its `docs.yml`. Running `fern generate --docs` from that repository updates only its sub-path — every other sub-path stays untouched.
 
 Three pieces of configuration make this work:
 
 1. **`multi-source: true`** set on the instance in each repository's `docs.yml`, with `url` and `custom-domain` ending in the same basepath.
-2. **[Global themes](/learn/docs/customization/global-themes)**, referenced by name in each `docs.yml`, deliver shared branding from a central source.
+2. **[Global themes](/learn/docs/customization/global-themes)** live in a dedicated control repository and are referenced by name from each source repository's `docs.yml`.
 3. **Multi-repo settings** in the [Fern Dashboard](https://dashboard.buildwithfern.com) control the domain's default path and search/Ask AI scope.
 
 For example, NVIDIA's docs are split across multiple independent repositories, each publishing to its own sub-path on `docs.nvidia.com`:
@@ -25,7 +25,11 @@ For example, NVIDIA's docs are split across multiple independent repositories, e
 - [docs.nvidia.com/aiperf](https://docs.nvidia.com/aiperf)
 - [docs.nvidia.com/nemo/curator](https://docs.nvidia.com/nemo/curator)
 
-Each sub-path is published independently, but end users see a single unified site. The root `docs.nvidia.com` itself is a separate site outside the Fern setup — multi-source covers only the sub-paths. A Fern-published landing page is optional ([example](#example-a-live-multi-source-site)), and any combination of sub-paths works, including just two.
+Each sub-path is published independently, but end users see a single unified site. 
+
+<Tip>
+  The root `docs.nvidia.com` itself is a separate site outside the Fern setup — multi-source covers only the sub-paths. A Fern-published landing page is optional ([example](#example-a-live-multi-source-site)), and any combination of sub-paths works, including just two.
+</Tip>
 
 ## Set up multi-source docs
 
@@ -33,7 +37,7 @@ Each sub-path is published independently, but end users see a single unified sit
 
 <Step title="Create a control repository for the global theme">
 
-The control repository is a dedicated Fern project whose only job is to house your global theme — the shared logo, colors, fonts, layout, and site-level settings that every team repository will inherit. Define those settings in its `docs.yml`, then export and upload the theme:
+The control repository is a dedicated Fern project that holds your global theme — the shared logo, colors, fonts, layout, and site-level settings that every source repository inherits. Define those settings in its `docs.yml`, then export and upload the theme:
 
 ```bash
 fern docs theme export
@@ -92,19 +96,18 @@ Only the sub-path owned by that repository is updated. Every other sub-path is u
 
 <Step title="Configure domain settings in the Dashboard">
 
-Open the [Fern Dashboard](https://dashboard.buildwithfern.com) and select your top-level domain (e.g., `docs.example.com`) — these settings apply to the whole domain, not per sub-path. In the **Settings** tab, navigate to the **Multi-repo settings** card and configure:
+Open the [Fern Dashboard](https://dashboard.buildwithfern.com) and select your top-level domain (e.g., `docs.example.com`) — these settings apply to the whole domain, not per sub-path. In the **Settings** tab, navigate to the **Multi-repo settings** card. 
 
-- **Default path** *(optional)* — sets where users land when they visit the bare root of your domain. Set this when a Fern-managed page should serve as the root: for example, if your homepage lives at the `/home` sub-path, set the default path to `/home` so `docs.example.com` redirects to `docs.example.com/home`. Skip this if the root isn't Fern-managed, like NVIDIA's `docs.nvidia.com` (a separate marketing site outside the Fern setup).
-- **Search / Ask AI behavior** — controls how [Ask Fern](/learn/docs/ai-features/ask-fern/overview) and search work across sub-paths.
+Configure the following:
+
+- **Default path** *(optional)* — sets where users land when they visit the bare root of your domain. Set this when a Fern-managed page should serve as the root. For example, if your homepage lives at the `/home` sub-path, set the default path to `/home` so `docs.example.com` redirects to `docs.example.com/home`. Skip this if the root isn't Fern-managed, like NVIDIA's `docs.nvidia.com` (a separate marketing site outside the Fern setup).
+- **Search / Ask AI behavior** — controls how [Ask Fern](/learn/docs/ai-features/ask-fern/overview) and search work across sub-paths. Two modes are available:
+  - **Hierarchical** — searches under `/subpath` only return results from `/subpath` and below. Use when each sub-path covers a distinct product and users expect scoped results.
+  - **Unified** — searches under any sub-path return results from all sub-paths. Use when the sub-paths are parts of a single product and users benefit from cross-cutting results.
 
 <Frame>
 ![Multi-source settings in the Fern Dashboard](./images/multi-repo.png)
 </Frame>
-
-Two search modes are available:
-
-- **Hierarchical** — searches under `/subpath` only return results from `/subpath` and below. Use this when each sub-path covers a distinct product and users expect scoped results.
-- **Unified** — searches under any sub-path return results from all sub-paths. Use this when the sub-paths are parts of a single product and users benefit from cross-cutting results.
 
 </Step>
 
@@ -118,15 +121,21 @@ Browse the live site at [multi-source.docs.buildwithfern.com](https://multi-sour
 
 This is the alternative shape to NVIDIA's setup: a Fern-managed homepage at the bare root, plus team sub-paths underneath. The example uses six independent `fern/` projects on one shared domain — a homepage at `/`, a `/seeds` team hub with two nested sub-children, and standalone `/greenhouses` and `/nursery` teams:
 
-```
-multi-source.docs.buildwithfern.com
-├── /                     ← homepage
-├── /seeds                ← Seeds team hub
-│   ├── /seeds/sunflower  ← Sunflower sub-team
-│   └── /seeds/tomato     ← Tomato sub-team
-├── /greenhouses          ← Greenhouses team
-└── /nursery              ← Nursery team
-```
+<Files>
+  <Folder name="multi-source.docs.buildwithfern.com" defaultOpen>
+    <File name="/" comment="homepage" />
+    <Folder name="/seeds" defaultOpen comment="Seeds team hub">
+      <File name="/seeds/sunflower" comment="Sunflower sub-team" />
+      <File name="/seeds/tomato" comment="Tomato sub-team" />
+    </Folder>
+    <File name="/greenhouses" comment="Greenhouses team" />
+    <File name="/nursery" comment="Nursery team" />
+  </Folder>
+</Files>
+
+<Note>
+The unit is one `fern/` folder per sub-path, not one repository per sub-path. A repo-per-sub-path layout (often one per team) is the most common shape, but multiple `fern/` folders in a single repo work too.
+</Note>
 
 All six projects share `global-theme: plantstore-theme` and set `multi-source: true` — they differ only in their basepath. Sub-paths can themselves contain nested sub-paths: `/seeds/sunflower` and `/seeds/tomato` are independently published projects that live under `/seeds`.
 
