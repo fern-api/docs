@@ -100,6 +100,36 @@ description: 显示一个可复制的提示词，并可附带在 Cursor、Claude
 </Prompt>
 ```
 
+### 自定义 URL 操作
+
+在 `actions` 中传入 `{ label, url, icon? }` 对象，可指向任意 AI 工具。自定义操作和内置操作可以在同一个数组中混合使用。
+
+<div className="highlight-frame">
+  <div className="highlight-frame-content">
+  <Prompt
+    title="生成 TypeScript SDK"
+    actions={[
+      { label: "Open in Perplexity", url: "https://www.perplexity.ai/search?q={prompt}", icon: "magnifying-glass" },
+      "cursor"
+    ]}
+  >
+  根据我的 OpenAPI 规范生成一个 TypeScript SDK。请参照 [TypeScript SDK 快速上手](https://buildwithfern.com/learn/sdks/generators/typescript/quickstart.md)。
+  </Prompt>
+  </div>
+</div>
+
+```jsx Markdown
+<Prompt
+  title="生成 TypeScript SDK"
+  actions={[
+    { label: "Open in Perplexity", url: "https://www.perplexity.ai/search?q={prompt}", icon: "magnifying-glass" },
+    "cursor"
+  ]}
+>
+根据我的 OpenAPI 规范生成一个 TypeScript SDK。请参照 [TypeScript SDK 快速上手](https://buildwithfern.com/learn/sdks/generators/typescript/quickstart.md)。
+</Prompt>
+```
+
 ### 自定义图标
 
 将 `icon` 属性设置为 Font Awesome 图标名或图片 URL。
@@ -190,9 +220,20 @@ description: 显示一个可复制的提示词，并可附带在 Cursor、Claude
   显示在提示词文本左侧的 [Font Awesome 图标](/learn/docs/writing-content/components/icons) 名称或图片 URL。未设置时默认使用星光图标。
 </ParamField>
 
-<ParamField path="actions" type="string[]" default="[]">
-  要显示的“打开方式”操作按钮。可用值：`cursor`、`claude`、`chatgpt`。第一个操作会渲染为主按钮，其他操作可通过下拉菜单访问。无论该属性如何设置，复制按钮始终存在。
+<ParamField path="actions" type="(string | object)[]" default="[]">
+  要显示的操作按钮。每一项可以是内置的缩写值（`cursor`、`claude` 或 `chatgpt`），也可以是包含 `label`、`url` 以及可选 `icon` 字段的自定义操作对象。第一个操作会渲染为主按钮，其他操作可通过下拉菜单访问。无论该属性如何设置，复制按钮始终存在。
 </ParamField>
+<Indent>
+  <ParamField path="label" type="string" required={true}>
+    自定义操作的按钮文本。原样渲染——不会自动添加 `Open in` 前缀。
+  </ParamField>
+  <ParamField path="url" type="string" required={true}>
+    自定义操作的目标 URL。使用 `{prompt}` 作为 URL 编码后提示词正文的占位符。若省略该占位符，提示词会作为 `prompt` 查询参数附加在 URL 后。仅支持 `http` 和 `https` 协议的 URL。
+  </ParamField>
+  <ParamField path="icon" type="string">
+    在自定义操作按钮上显示的 [Font Awesome 图标](/learn/docs/writing-content/components/icons) 名称或图片 URL。未设置时默认使用星光图标。
+  </ParamField>
+</Indent>
 
 <ParamField path="hidePrompt" type="boolean" default={false}>
   隐藏提示词正文区域，仅显示带复制和“打开方式”操作的标题行。需要同时设置 `title`。
