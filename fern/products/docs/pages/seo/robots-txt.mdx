@@ -3,30 +3,53 @@ title: Custom robots.txt
 description: Serve a custom robots.txt at the root of your documentation site to control how search engines and AI crawlers access your content.
 ---
 
-By default, Fern serves an auto-generated `robots.txt` at the root of your documentation site that allows all crawlers and points to your `sitemap.xml`. Use the `agents.robots-txt` key in `docs.yml` to serve your own file instead — useful for opting in or out of specific AI crawlers, gating sensitive sections, or signaling preferences with the [Cloudflare Content Signals Policy](https://blog.cloudflare.com/content-signals-policy/).
+By default, Fern serves an auto-generated `robots.txt` at the root of your documentation site that allows all crawlers and points to your `sitemap.xml`. Use the [`agents.robots-txt` key in `docs.yml`](/learn/docs/configuration/site-level-settings#agentsrobots-txt) to serve your own file instead — useful for opting in or out of specific AI crawlers, gating sensitive sections, or signaling preferences with the [Cloudflare Content Signals Policy](https://blog.cloudflare.com/content-signals-policy/).
+
+`robots.txt` is advisory: compliant crawlers honor your `Disallow` and `Allow` directives, but bots that ignore the protocol still reach those paths. For content that must stay private, [use authentication](/learn/docs/authentication/overview).
+
+<Note>
+  `robots.txt` decides which crawlers can reach your site and what AI training signals you broadcast. Its companions, [`llms.txt` and `llms-full.txt`](/learn/docs/ai-features/llms-txt), shape what AI agents receive once they crawl.
+</Note>
 
 ## Configuration
 
-Point `agents.robots-txt` at a file relative to your `docs.yml`:
+<Steps>
+<Step title="Point `agents.robots-txt` at your file in `docs.yml`">
 
 ```yaml docs.yml
 agents:
   robots-txt: ./robots.txt
 ```
 
-Then write the file. For example:
+The path is relative to `docs.yml`.
+
+</Step>
+
+<Step title="Write your custom `robots.txt`">
 
 ```txt robots.txt
-User-Agent: GPTBot
-Disallow: /private
-
+# Allow search engines
 User-Agent: Googlebot
 Allow: /
 
+# Restrict an AI crawler from a private path
+User-Agent: GPTBot
+Disallow: /private
+
+# Declare AI usage preferences via Cloudflare Content Signals
 Content-Signal: ai-train=yes, search=yes, ai-input=yes
 
+# Point crawlers at your sitemap — Fern's default robots.txt includes this,
+# so add it back when you replace the default with a custom file
 Sitemap: https://docs.example.com/sitemap.xml
 ```
+<Tip>
+  Place named bots (e.g., `GPTBot`, `Googlebot`) before any wildcard groups in your file — Fern appends its own `User-Agent: *` block when it serves the file.
+</Tip>
+
+</Step>
+
+<Step title="Fern serves your file">
 
 Your file is served verbatim at `/robots.txt`. Fern appends a managed block at the end that disallows internal API routes:
 
@@ -36,15 +59,5 @@ User-Agent: *
 Disallow: /api/fern-docs/
 ```
 
-<Note>
-  Crawler `User-Agent` groups in `robots.txt` are matched most-specific-first. Place named bots (e.g. `GPTBot`, `Googlebot`) before any wildcard `User-Agent: *` group so your overrides aren't shadowed by Fern's appended `User-Agent: *` block.
-</Note>
-
-<ParamField path="agents.robots-txt" type="string" required={false} toc={true}>
-  Path to a custom `robots.txt` file, relative to `docs.yml`. When set, this file is served at the root-level `/robots.txt` endpoint instead of the auto-generated default. Fern appends a managed block disallowing `/api/fern-docs/` after your content.
-</ParamField>
-
-## Related configuration
-
-- Per-page indexing is controlled with the [`noindex` frontmatter field](/learn/docs/seo/setting-seo-metadata#indexing).
-- AI-specific endpoints (`llms.txt`, `llms-full.txt`) are configured under [`agents.llms-txt` and `agents.llms-full-txt`](/learn/docs/ai-features/customize-llm-output#serve-custom-files).
+</Step>
+</Steps>
