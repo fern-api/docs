@@ -1,3 +1,31 @@
+## 5.12.0
+**`(feat):`** `fern automations generate` now automatically retries 429 Too Many Requests responses with
+exponential backoff (2s → 120s, up to 3 attempts, jittered). Automation runs are unattended,
+so transient rate limiting should not fail the run and ask a human to re-trigger with a flag.
+Real outages still surface as failures after retries exhaust.
+
+
+**`(chore):`** Bump `@fern-fern/fiddle-sdk` catalog pin to `1.0.2`. The new SDK exposes
+`replay` on `CreateJobRequestV2`, so the field added to `createJobV3` in
+PR #15690 stops being silently stripped by the SDK serializer and now
+actually reaches Fiddle. With this in place, customers setting
+`replay.enabled: false` in `generators.yml` get the legacy GitHub push/PR
+path on cloud generation. Final activation step for FER-10343.
+
+
+**`(feat):`** Surface CLI errors and warnings as GitHub Actions annotations when running under GHA.
+
+`fern automations generate` now emits a structured `::error::` workflow command for every
+failed generator, anchored on the exact line in `generators.yml` so the annotation appears
+inline on the file in the PR's Files-changed view, with the API / group / generator name
+in the title and the failure reason in the body.
+
+All other commands (e.g. `fern generate`, `fern check`) emit annotations from any
+`logger.error` / `logger.warn` call, providing baseline coverage for failures that don't
+flow through the per-generator collector. Status-only logs (`omitOnTTY`) are filtered out
+so they don't burn through GitHub's per-step annotation cap.
+
+
 ## 5.11.0
 **`(feat):`** Forward the top-level `replay` block from `generators.yml` to Fiddle's
 `createJobV3` call so cloud generation honors `replay.enabled: false` and
