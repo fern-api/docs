@@ -131,6 +131,31 @@ client = new Client({
 })
 ```
 
+### Omit username or password
+
+If your API's basic auth uses only one of the two fields (for example, a token in the username and an empty password), set `omit: true` on the field that isn't used. The omitted field is removed from the SDK's public API and treated as an empty string when encoding the `Authorization: Basic` header.
+
+```yaml title="api.yml" {8}
+auth: Basic
+auth-schemes:
+  Basic:
+    scheme: basic
+    username:
+      name: apiKey
+    password:
+      omit: true
+```
+
+The generated SDK accepts only the `apiKey` parameter, and the `Authorization` header encodes `apiKey:` (with a trailing colon):
+
+```ts index.ts
+const client = new Client({
+  apiKey: "ey34..."
+})
+```
+
+If both `username.omit` and `password.omit` are set to `true`, the `Authorization` header is skipped entirely.
+
 ## Custom header (e.g. API key)
 
 You can also create your own authentication scheme with customized headers. 
