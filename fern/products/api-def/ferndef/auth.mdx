@@ -131,6 +131,30 @@ client = new Client({
 })
 ```
 
+### Omit username or password
+
+If your API only expects one half of a basic auth credential pair (for example, a token in the username and an empty password), set `omit: true` on the field you want to remove from the generated SDK:
+
+```yaml title="api.yml" {8}
+auth: Basic
+auth-schemes:
+  Basic:
+    scheme: basic
+    username:
+      name: apiToken
+    password:
+      omit: true
+```
+
+The omitted field is removed from the SDK's constructor entirely. Internally, an empty string is used to encode the `Authorization` header — omitting `password` produces `base64("apiToken:")`, and omitting `username` produces `base64(":password")`. If both fields are omitted, no `Authorization` header is sent.
+
+```ts index.ts
+// Only the non-omitted field is exposed
+const client = new Client({
+  apiToken: "ey34..."
+})
+```
+
 ## Custom header (e.g. API key)
 
 You can also create your own authentication scheme with customized headers. 
