@@ -1,0 +1,124 @@
+openapi: 3.1.0
+info:
+  title: 宠物商店 API
+  version: 1.0.0
+  description: |
+    用于演示 Fern 本地化 OpenAPI 文档的小型示例 API。此规范的结构、路径和模式
+    与基础版本 `fern/apis/petstore/openapi.yml` 完全一致；仅 `summary` 和
+    `description` 字符串被翻译为简体中文。
+servers:
+  - url: https://petstore.example.com/api
+    description: 生产环境服务器
+tags:
+  - name: pets
+    description: 用于管理商店中宠物的操作。
+paths:
+  /pets:
+    get:
+      operationId: listPets
+      tags:
+        - pets
+      summary: 列出宠物
+      description: 返回商店中宠物的分页列表。
+      parameters:
+        - name: limit
+          in: query
+          description: 单页返回的最大宠物数量。
+          required: false
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        "200":
+          description: 一页宠物数据。
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Pet"
+    post:
+      operationId: createPet
+      tags:
+        - pets
+      summary: 创建宠物
+      description: 向商店中添加一只新宠物。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NewPet"
+      responses:
+        "201":
+          description: 宠物创建成功。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pet"
+  /pets/{petId}:
+    get:
+      operationId: getPet
+      tags:
+        - pets
+      summary: 按 ID 获取宠物
+      description: 返回由唯一 ID 标识的单只宠物。
+      parameters:
+        - name: petId
+          in: path
+          description: 宠物的唯一标识符。
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 请求的宠物。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pet"
+        "404":
+          description: 未找到具有该 ID 的宠物。
+components:
+  schemas:
+    Pet:
+      type: object
+      required:
+        - id
+        - name
+        - species
+      properties:
+        id:
+          type: string
+          description: 宠物的唯一标识符。
+        name:
+          type: string
+          description: 宠物的显示名称。
+        species:
+          type: string
+          description: 宠物的物种，例如 "dog" 或 "cat"。
+        tags:
+          type: array
+          description: 用于对宠物进行分类的可选标签。
+          items:
+            type: string
+    NewPet:
+      type: object
+      required:
+        - name
+        - species
+      properties:
+        name:
+          type: string
+          description: 宠物的显示名称。
+        species:
+          type: string
+          description: 宠物的物种，例如 "dog" 或 "cat"。
+        tags:
+          type: array
+          description: 用于对宠物进行分类的可选标签。
+          items:
+            type: string

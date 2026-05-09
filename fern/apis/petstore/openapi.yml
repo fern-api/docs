@@ -1,0 +1,125 @@
+openapi: 3.1.0
+info:
+  title: Petstore API
+  version: 1.0.0
+  description: |
+    A small example API used to demonstrate localized OpenAPI documentation in
+    Fern. The schema and operation shape match the Chinese-translated copy at
+    `fern/translations/zh/apis/petstore/openapi.yml`; only `summary` and
+    `description` strings differ between the two.
+servers:
+  - url: https://petstore.example.com/api
+    description: Production server
+tags:
+  - name: pets
+    description: Operations for managing pets in the store.
+paths:
+  /pets:
+    get:
+      operationId: listPets
+      tags:
+        - pets
+      summary: List pets
+      description: Returns a paginated list of pets in the store.
+      parameters:
+        - name: limit
+          in: query
+          description: Maximum number of pets to return in a single page.
+          required: false
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        "200":
+          description: A page of pets.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Pet"
+    post:
+      operationId: createPet
+      tags:
+        - pets
+      summary: Create a pet
+      description: Adds a new pet to the store.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NewPet"
+      responses:
+        "201":
+          description: The pet was created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pet"
+  /pets/{petId}:
+    get:
+      operationId: getPet
+      tags:
+        - pets
+      summary: Get a pet by ID
+      description: Returns a single pet identified by its unique ID.
+      parameters:
+        - name: petId
+          in: path
+          description: The unique identifier of the pet.
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The requested pet.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pet"
+        "404":
+          description: No pet was found with the given ID.
+components:
+  schemas:
+    Pet:
+      type: object
+      required:
+        - id
+        - name
+        - species
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the pet.
+        name:
+          type: string
+          description: The pet's display name.
+        species:
+          type: string
+          description: The pet's species, such as "dog" or "cat".
+        tags:
+          type: array
+          description: Optional tags used to categorize the pet.
+          items:
+            type: string
+    NewPet:
+      type: object
+      required:
+        - name
+        - species
+      properties:
+        name:
+          type: string
+          description: The pet's display name.
+        species:
+          type: string
+          description: The pet's species, such as "dog" or "cat".
+        tags:
+          type: array
+          description: Optional tags used to categorize the pet.
+          items:
+            type: string
