@@ -1,0 +1,131 @@
+---
+title: Features
+description: Explore the capabilities of Fern's generated CLIs, including output formatting, pagination, dry-run mode, and TLS configuration.
+---
+
+Generated CLIs ship as a single statically linked binary with no runtime dependencies. Every feature described here works out of the box.
+
+## Output formatting
+
+Use the `--format` flag to control how responses are displayed.
+
+| Format | Flag | Description |
+| --- | --- | --- |
+| JSON | `--format json` | Default. Pretty-printed JSON. |
+| Table | `--format table` | Columnar table. Nested objects flatten to `parent.child` column names. |
+| YAML | `--format yaml` | YAML representation of the response. |
+| CSV | `--format csv` | Comma-separated values, suitable for piping into spreadsheet tools. |
+
+```bash
+# Display customers in a table
+bigcommerce v3 customers list --format table
+
+# Export orders as CSV
+bigcommerce v3 orders list --format csv > orders.csv
+```
+
+## Dry-run mode
+
+Pass `--dry-run` to validate arguments and preview the HTTP request without sending it. The CLI prints the method, URL, headers, and body it would send, then exits.
+
+```bash
+box users get-current-user --dry-run
+```
+
+## Pagination
+
+For endpoints annotated with [`x-fern-pagination`](/learn/api-definitions/openapi/extensions/pagination), the CLI auto-paginates when the `--page-all` flag is set.
+
+| Flag | Description | Default |
+| --- | --- | --- |
+| `--page-all` | Fetch every page and emit one JSON line per page (NDJSON). | Off |
+| `--page-limit <N>` | Maximum number of pages to fetch. | 10 |
+| `--page-delay <MS>` | Delay in milliseconds between page requests. | 100 |
+
+```bash
+# Fetch all scheduled events, one JSON line per page
+box scheduled-events list-scheduled-events \
+  --params '{"user": "..."}' --page-all
+
+# Limit to 5 pages with a 200 ms delay
+box scheduled-events list-scheduled-events \
+  --params '{"user": "..."}' --page-all --page-limit 5 --page-delay 200
+```
+
+Paginated output works with all output formats. For table and CSV formats, headers are only emitted on the first page so the output concatenates cleanly.
+
+## Passing parameters
+
+| Flag | Purpose |
+| --- | --- |
+| `--params <JSON>` | URL path and query parameters as a JSON object. |
+| `--json <JSON>` | Request body for POST, PUT, and PATCH methods. |
+
+```bash
+# Path + query parameters
+box scheduled-events list-scheduled-events \
+  --params '{"user": "https://api.example.com/users/abc"}'
+
+# Request body
+box webhooks create-webhook-subscription \
+  --json '{"url": "https://example.com/hook", "events": ["invitee.created"], "scope": "organization"}'
+```
+
+## File uploads and downloads
+
+For endpoints with `format: binary` request bodies, pass a file path as the `--file` argument. For binary responses, use `--output <PATH>` to save the response body to a file.
+
+## Exit codes
+
+| Code | Meaning | Example cause |
+| --- | --- | --- |
+| `0` | Success | Command completed normally. |
+| `1` | API error | Server returned a 4xx/5xx response. |
+| `2` | Auth error | Credentials missing or invalid. |
+| `3` | Validation error | Bad arguments, unknown command, or invalid JSON. |
+| `4` | Discovery error | Couldn't load API schema. |
+| `5` | Internal error | Unexpected failure. |
+
+All errors are emitted as structured JSON on stderr, making them easy to parse in scripts and CI pipelines.
+
+## TLS, proxies, and CA bundles
+
+Every generated CLI honors environment variables for TLS and proxy configuration at runtime. Variables are scoped by binary name — `<NAME>` is the CLI's binary name uppercased with hyphens mapped to underscores (for example, `BIGCOMMERCE`).
+
+| Variable | Effect |
+| --- | --- |
+| `<NAME>_CA_BUNDLE` | Path to a PEM file appended to the default trust roots. |
+| `<NAME>_INSECURE=1` | Disable TLS verification. Logs a warning. Not for production use. |
+| `<NAME>_PROXY` | HTTP/HTTPS proxy URL, overriding `HTTPS_PROXY` / `HTTP_PROXY`. |
+| `<NAME>_NO_PROXY` | Comma-separated proxy bypass list scoped to this CLI. |
+| `<NAME>_TIMEOUT_SECS` | Total request timeout. None by default. |
+| `<NAME>_CONNECT_TIMEOUT_SECS` | Connection-establishment timeout. |
+
+Standard environment variables (`HTTPS_PROXY`, `HTTP_PROXY`, `NO_PROXY`, `SSL_CERT_FILE`) are honored when the scoped overrides are absent.
+
+<Accordion title="Common scenarios">
+
+**Behind a MITM proxy (Proxyman, Charles, mitmproxy):**
+
+```bash
+export SSL_CERT_FILE=~/path/to/proxyman-ca.pem
+export HTTPS_PROXY=http://127.0.0.1:9090
+bigcommerce v3 customers list
+```
+
+**Corporate network with a custom root CA:**
+
+```bash
+export BIGCOMMERCE_CA_BUNDLE=/etc/ssl/corp-roots.pem
+bigcommerce v3 customers list
+```
+
+</Accordion>
+
+## Structured logging
+
+Logging is off by default. Set `FERN_CLI_LOG` to a [tracing filter](https://docs.rs/tracing-subscriber/latest/tracing_subscriber/filter/struct.EnvFilter.html) to emit structured logs to stderr. Set `FERN_CLI_LOG_FILE` to a directory path to write daily rotated JSON log files.
+
+```bash
+FERN_CLI_LOG=debug box users get-current-user
+```

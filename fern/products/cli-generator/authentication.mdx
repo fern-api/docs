@@ -1,0 +1,63 @@
+---
+title: Authentication
+description: Configure how generated CLIs authenticate with your API using environment variables, CLI flags, files, or fallback chains.
+---
+
+Each generated CLI reads authentication credentials from the security schemes declared in your OpenAPI spec. Credentials can come from environment variables, CLI flags, files, or a combination of these through fallback chains.
+
+Without a credential, the CLI still works — you can explore the command tree, view help, and use `--dry-run`.
+
+## Credential sources
+
+The CLI supports several ways to supply credentials, configured at build time.
+
+| Source | Description |
+| --- | --- |
+| Environment variable | Read from an env var (the most common option). |
+| CLI flag | Auto-registered as a `--<flag-name>` global flag. |
+| File | Read trimmed contents from a file path (`~` is expanded). |
+| Literal | Baked into the binary at compile time. |
+| Fallback chain | Try multiple sources in order; first non-empty value wins. |
+
+A typical fallback chain lets the CLI flag override the env var, which in turn overrides a file:
+
+```bash
+# CLI flag takes priority
+box users get-current-user --api-token sk-123
+
+# Otherwise falls back to the environment variable
+export BOX_API_KEY=sk-123
+box users get-current-user
+
+# Otherwise reads from a file
+echo "sk-123" > ~/.box/token
+box users get-current-user
+```
+
+## Supported auth schemes
+
+The CLI supports every scheme type that OpenAPI's `securitySchemes` defines:
+
+| Scheme | How the CLI applies it |
+| --- | --- |
+| Bearer (`http: bearer`) | Sends `Authorization: Bearer <token>`. |
+| API key (`apiKey`) | Sends the key in the configured header (for example, `X-Auth-Token`). |
+| Basic (`http: basic`) | Sends `Authorization: Basic <base64(user:pass)>`. Each field has its own credential source. |
+| OAuth 2 | Treated as bearer — sends `Authorization: Bearer <token>`. |
+
+## Auth strategies
+
+When a spec declares multiple security schemes, the CLI composes them according to one of these strategies:
+
+| Strategy | Behavior |
+| --- | --- |
+| Auto | Default. Infers the right composition from the spec's `security` blocks. |
+| Any | The API accepts any one of the declared schemes. The first scheme with a credential wins. |
+| All | The API requires every scheme simultaneously (for example, HMAC signature plus API key). |
+| Routing | Per-operation dispatch. Each endpoint's `security` block determines which schemes to use. |
+
+Operations that declare `security: []` (an empty list) opt out of authentication entirely — no credentials are sent regardless of what's configured.
+
+## Help output
+
+Every generated CLI includes a dynamically rendered `Authentication:` section in its `--help` output listing every scheme, the expected env var or flag, and whether a credential is detected.

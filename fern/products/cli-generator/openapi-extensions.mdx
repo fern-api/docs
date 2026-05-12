@@ -1,0 +1,137 @@
+---
+title: OpenAPI extensions
+description: Learn which Fern OpenAPI extensions influence the generated CLI and how they map to commands, flags, and help text.
+---
+
+The CLI generator reads several [Fern OpenAPI extensions](/learn/api-definitions/openapi/extensions/overview) to shape the generated CLI. You can add these extensions directly in your spec or apply them through [overlays](/learn/api-definitions/openapi/overlays).
+
+## Command structure
+
+### `x-fern-sdk-group-name`
+
+Determines the subcommand group hierarchy. Each list element becomes a nested subcommand, with names converted from camelCase to kebab-case.
+
+```yaml title="openapi.yaml" {4-6}
+paths:
+  /scheduled-events/{uuid}/invitees:
+    get:
+      x-fern-sdk-group-name:
+        - scheduledEvents
+        - invitees
+      x-fern-sdk-method-name: list-event-invitees
+```
+
+Produces: `cli scheduled-events invitees list-event-invitees`
+
+### `x-fern-sdk-method-name`
+
+Sets the leaf command name (used as-is).
+
+```yaml title="openapi.yaml" {4}
+paths:
+  /users/me:
+    get:
+      x-fern-sdk-method-name: get-current-user
+```
+
+Produces: `cli get-current-user` (or nested under a group if `x-fern-sdk-group-name` is also set).
+
+<Note>
+If neither extension is present, the CLI falls back to the `operationId`.
+</Note>
+
+## Filtering
+
+### `x-fern-ignore`
+
+Excludes operations or parameters from the generated CLI. An ignored operation produces no command; an ignored parameter produces no flag.
+
+```yaml title="openapi.yaml" {4}
+paths:
+  /internal/debug:
+    get:
+      x-fern-ignore: true
+```
+
+At the parameter level:
+
+```yaml title="openapi.yaml" {7}
+paths:
+  /users:
+    get:
+      parameters:
+        - name: internalParam
+          in: query
+          x-fern-ignore: true
+          schema:
+            type: string
+```
+
+See [Ignoring elements](/learn/api-definitions/openapi/extensions/ignoring-elements) for more details.
+
+## Availability badges
+
+### `x-fern-availability`
+
+Adds a status badge next to the command in `--help` output.
+
+| Value | Badge |
+| --- | --- |
+| `alpha` | `[Alpha]` |
+| `beta` | `[Beta]` |
+| `preview` | `[Preview]` |
+| `generally-available` or `ga` | `[GA]` |
+| `deprecated` | `[Deprecated]` |
+| `legacy` | `[Legacy]` |
+
+```yaml title="openapi.yaml" {4}
+paths:
+  /v2/reports:
+    get:
+      x-fern-availability: beta
+```
+
+OpenAPI's standard `deprecated: true` is also honored and maps to `[Deprecated]` when `x-fern-availability` isn't set.
+
+See [Availability](/learn/api-definitions/openapi/extensions/availability) for more details.
+
+## Parameter naming
+
+### `x-fern-parameter-name`
+
+Overrides the CLI flag name derived from a parameter. By default, parameter names are converted to kebab-case for use as flags.
+
+```yaml title="openapi.yaml" {8}
+paths:
+  /users:
+    get:
+      parameters:
+        - name: X-API-Version
+          in: header
+          schema:
+            type: string
+          x-fern-parameter-name: api-version
+```
+
+Produces `--api-version` instead of `--x-api-version`.
+
+See [Customize parameter names](/learn/api-definitions/openapi/extensions/parameter-names) for more details.
+
+## Pagination
+
+### `x-fern-pagination`
+
+Enables auto-pagination for an endpoint. When present, the CLI recognizes `--page-all`, `--page-limit`, and `--page-delay` flags for that command.
+
+```yaml title="openapi.yaml" {5-8}
+paths:
+  /plants:
+    get:
+      operationId: list_plants
+      x-fern-pagination:
+        cursor: $request.cursor
+        next_cursor: $response.next
+        results: $response.results
+```
+
+See [Pagination](/learn/api-definitions/openapi/extensions/pagination) for all supported pagination schemes (offset, cursor, URI, and path).

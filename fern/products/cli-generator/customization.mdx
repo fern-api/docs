@@ -1,0 +1,87 @@
+---
+title: Customization
+description: Customize generated CLIs with overrides, overlays, multi-spec merging, custom commands, and server URL templating.
+---
+
+## Overrides and overlays
+
+The CLI generator supports both [overrides](/learn/api-definitions/openapi/overrides) and [overlays](/learn/api-definitions/openapi/overlays) for customizing the OpenAPI spec before the CLI is built. This lets you add Fern extensions, rename parameters, or remove internal endpoints without modifying your original spec.
+
+Overlays follow the [OpenAPI Overlay Specification](https://spec.openapis.org/overlay/v1.0.0.html) and use JSONPath to target elements:
+
+```yaml title="overlay.yaml"
+overlay: 1.0.0
+info:
+  title: CLI customizations
+  version: 1.0.0
+actions:
+  - target: $.paths['/plants'].get
+    update:
+      x-fern-sdk-group-name: plants
+      x-fern-sdk-method-name: list
+  - target: $.paths['/internal/debug']
+    remove: true
+```
+
+When both are present, overrides are applied first, then overlays.
+
+## Multi-spec merging
+
+A single CLI can combine multiple OpenAPI specs into one command tree. This is useful for APIs that split their spec across domains or versions.
+
+Specs can be merged flat (all commands at the top level) or under a namespace prefix:
+
+```rust title="main.rs"
+CliApp::new("my-api")
+    .spec(include_str!("core.yaml"))
+    .spec_under("billing", include_str!("billing.yaml"))
+    .run()
+```
+
+This produces a CLI where core commands live at the top level and billing commands live under a `billing` subcommand:
+
+```bash
+my-api users list          # from core.yaml
+my-api billing invoices list  # from billing.yaml
+```
+
+When a namespace matches a top-level resource in the incoming spec, the CLI hoists that resource's methods into the namespace to avoid repetition (for example, `billing billing invoices list` becomes `billing invoices list`).
+
+## Server URL variables
+
+For APIs with templated server URLs (such as `https://api.example.com/stores/{store_hash}/v3`), the CLI automatically exposes each template variable as a CLI flag and environment variable.
+
+```bash
+# Pass the variable as a flag
+bigcommerce --store-hash abc123 v3 customers list
+
+# Or set it via an environment variable
+export BIGCOMMERCE_STORE_HASH=abc123
+bigcommerce v3 customers list
+```
+
+## Custom commands
+
+Generated CLIs can include custom commands alongside the spec-derived ones. Custom commands have access to the same API executor, so they can chain multiple API calls into a single workflow.
+
+```rust title="main.rs"
+CliApp::new("my-api")
+    .spec(include_str!("openapi.yaml"))
+    .auth_scheme_env("bearerAuth", "MY_API_TOKEN")
+    .command(whoami_cmd(), whoami_handler)
+    .run()
+```
+
+## GraphQL support
+
+The CLI generator also supports GraphQL APIs. Instead of an OpenAPI spec, you provide a GraphQL introspection schema. Queries and mutations become leaf commands.
+
+```rust title="main.rs"
+use fern_cli_sdk::graphql::CliApp;
+
+CliApp::new("linear")
+    .spec(include_str!("schema.json"))
+    .endpoint("https://api.linear.app/graphql")
+    .auth_scheme_env("apiKey", "LINEAR_API_KEY")
+    .run()
+```
