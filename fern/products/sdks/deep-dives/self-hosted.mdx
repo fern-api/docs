@@ -221,7 +221,11 @@ FERN_TOKEN=<token> fern generate --version AUTO
 
 <Info>
 `--version AUTO` requires:
-- A `FERN_TOKEN` (the diff analysis runs as a hosted Fern service that authenticates your organization the same way [cloud generation](/learn/sdks/overview/how-it-works) does).
+- A `FERN_TOKEN` (for organization verification, same as all local generation).
+- An LLM provider API key for the diff analysis. Set one of:
+  - `OPENAI_API_KEY` for OpenAI.
+  - `ANTHROPIC_API_KEY` for Anthropic.
+  - Standard AWS credentials (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`) for AWS Bedrock.
 - A self-hosted GitHub output configured in `generators.yml` (with `github.uri` and `github.token`, [as shown above](#setup)), because the auto-versioning pipeline pushes the version bump and changelog back to the SDK repo.
 </Info>
 
@@ -229,7 +233,7 @@ This approach is designed for the [`fern-api/fern-generate`](https://github.com/
 
 ### Deterministic versioning with `fern ir` + `fern diff`
 
-If you'd rather derive the version number yourself, use the `fern ir` and `fern diff` commands to compute the bump from your API definition. This flow has no dependency on hosted AI: `fern diff` walks the intermediate representation (IR) of both specs and returns a deterministic result. It's the legacy path — `--version AUTO` will keep getting improvements first — but it remains fully supported for setups that need explicit control.
+If you'd rather derive the version number yourself, use the `fern ir` and `fern diff` commands to compute the bump from your API definition. This flow has no LLM dependency: `fern diff` walks the intermediate representation (IR) of both specs and returns a deterministic result.
 
 The workflow has three steps:
 
@@ -268,7 +272,8 @@ fern diff \
 ```json
 {
   "bump": "minor",
-  "nextVersion": "1.5.0"
+  "nextVersion": "1.5.0",
+  "errors": []
 }
 ```
 
