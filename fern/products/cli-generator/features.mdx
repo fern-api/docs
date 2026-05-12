@@ -17,11 +17,11 @@ Use the `--format` flag to control how responses are displayed.
 | CSV | `--format csv` | Comma-separated values, suitable for piping into spreadsheet tools. |
 
 ```bash
-# Display customers in a table
-bigcommerce v3 customers list --format table
+# Display plants in a table
+contoso plants list --format table
 
 # Export orders as CSV
-bigcommerce v3 orders list --format csv > orders.csv
+contoso orders list --format csv > orders.csv
 ```
 
 ## Dry-run mode
@@ -29,7 +29,7 @@ bigcommerce v3 orders list --format csv > orders.csv
 Pass `--dry-run` to validate arguments and preview the HTTP request without sending it. The CLI prints the method, URL, headers, and body it would send, then exits.
 
 ```bash
-box users get-current-user --dry-run
+contoso plants get --params '{"plantId": "abc"}' --dry-run
 ```
 
 ## Pagination
@@ -43,13 +43,11 @@ For endpoints annotated with [`x-fern-pagination`](/learn/api-definitions/openap
 | `--page-delay <MS>` | Delay in milliseconds between page requests. | 100 |
 
 ```bash
-# Fetch all scheduled events, one JSON line per page
-box scheduled-events list-scheduled-events \
-  --params '{"user": "..."}' --page-all
+# Fetch all plants, one JSON line per page
+contoso plants list --page-all
 
 # Limit to 5 pages with a 200 ms delay
-box scheduled-events list-scheduled-events \
-  --params '{"user": "..."}' --page-all --page-limit 5 --page-delay 200
+contoso plants list --page-all --page-limit 5 --page-delay 200
 ```
 
 Paginated output works with all output formats. For table and CSV formats, headers are only emitted on the first page so the output concatenates cleanly.
@@ -63,12 +61,11 @@ Paginated output works with all output formats. For table and CSV formats, heade
 
 ```bash
 # Path + query parameters
-box scheduled-events list-scheduled-events \
-  --params '{"user": "https://api.example.com/users/abc"}'
+contoso plants get --params '{"plantId": "abc"}'
 
 # Request body
-box webhooks create-webhook-subscription \
-  --json '{"url": "https://example.com/hook", "events": ["invitee.created"], "scope": "organization"}'
+contoso plants create \
+  --json '{"name": "Monstera", "species": "Monstera deliciosa", "sunlight": "indirect"}'
 ```
 
 ## File uploads and downloads
@@ -90,7 +87,7 @@ All errors are emitted as structured JSON on stderr, making them easy to parse i
 
 ## TLS, proxies, and CA bundles
 
-Every generated CLI honors environment variables for TLS and proxy configuration at runtime. Variables are scoped by binary name — `<NAME>` is the CLI's binary name uppercased with hyphens mapped to underscores (for example, `BIGCOMMERCE`).
+Every generated CLI honors environment variables for TLS and proxy configuration at runtime. Variables are scoped by binary name — `<NAME>` is the CLI's binary name uppercased with hyphens mapped to underscores (for example, `CONTOSO`).
 
 | Variable | Effect |
 | --- | --- |
@@ -110,22 +107,22 @@ Standard environment variables (`HTTPS_PROXY`, `HTTP_PROXY`, `NO_PROXY`, `SSL_CE
 ```bash
 export SSL_CERT_FILE=~/path/to/proxyman-ca.pem
 export HTTPS_PROXY=http://127.0.0.1:9090
-bigcommerce v3 customers list
+contoso plants list
 ```
 
 **Corporate network with a custom root CA:**
 
 ```bash
-export BIGCOMMERCE_CA_BUNDLE=/etc/ssl/corp-roots.pem
-bigcommerce v3 customers list
+export CONTOSO_CA_BUNDLE=/etc/ssl/corp-roots.pem
+contoso plants list
 ```
 
 </Accordion>
 
 ## Structured logging
 
-Logging is off by default. Set `FERN_CLI_LOG` to a [tracing filter](https://docs.rs/tracing-subscriber/latest/tracing_subscriber/filter/struct.EnvFilter.html) to emit structured logs to stderr. Set `FERN_CLI_LOG_FILE` to a directory path to write daily rotated JSON log files.
+Logging is off by default. Set `<NAME>_LOG` to a [tracing filter](https://docs.rs/tracing-subscriber/latest/tracing_subscriber/filter/struct.EnvFilter.html) to emit structured logs to stderr. Set `<NAME>_LOG_FILE` to a directory path to write daily rotated JSON log files.
 
 ```bash
-FERN_CLI_LOG=debug box users get-current-user
+CONTOSO_LOG=debug contoso plants list
 ```
