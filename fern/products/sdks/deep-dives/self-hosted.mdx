@@ -221,14 +221,20 @@ FERN_TOKEN=<token> fern generate --version AUTO
 
 <Info>
 `--version AUTO` requires:
-- A `FERN_TOKEN` (for organization verification, same as all local generation).
-- Credentials for the LLM provider that performs the diff analysis. Set one of:
+- A `FERN_TOKEN` for organization verification (same as all local generation).
+- An `ai:` block in `generators.yml` that picks the LLM provider and model:
+  ```yaml title="generators.yml"
+  ai:
+    provider: openai   # openai | anthropic | bedrock
+    model: gpt-4o      # any model name the provider accepts
+  ```
+- The corresponding API key in your environment so the provider's SDK can authenticate:
   - `OPENAI_API_KEY` for OpenAI.
   - `ANTHROPIC_API_KEY` for Anthropic.
   - Standard AWS credentials (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`) for AWS Bedrock.
 - A self-hosted GitHub output configured in `generators.yml` (with `github.uri` and `github.token`, [as shown above](#setup)), because the auto-versioning pipeline pushes the version bump and changelog back to the SDK repo.
 
-The diff is sent to whichever LLM provider you configure. The Fern CLI calls that provider's API directly using your credentials — Fern's infrastructure is not involved in the analysis.
+The diff is sent to the provider's API using your credentials — Fern's infrastructure is not involved in the analysis.
 </Info>
 
 This approach is designed for the [`fern-api/fern-generate`](https://github.com/fern-api/fern-generate) GitHub Action that powers Fern's automated release pipeline, but it works standalone anywhere that meets the requirements above.
