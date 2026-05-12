@@ -205,7 +205,7 @@ When self-hosting, your pipeline picks the version number for each SDK release. 
 The CLI exposes two workflows for this. Both can be wired into the same generation pipeline:
 
 - **`--version AUTO`** is the recommended approach. Fern classifies the change and picks the next version for you. This is the path that continues to receive improvements.
-- **`fern ir` + `fern diff`** is the deterministic alternative. Use it when you need explicit control over how the version number is derived, or when you can't depend on Fern's hosted AI service.
+- **`fern ir` + `fern diff`** is the deterministic alternative. Use it when you need explicit control over how the version number is derived, or when you can't depend on an external LLM provider.
 
 ### `--version AUTO` (recommended)
 
@@ -222,11 +222,13 @@ FERN_TOKEN=<token> fern generate --version AUTO
 <Info>
 `--version AUTO` requires:
 - A `FERN_TOKEN` (for organization verification, same as all local generation).
-- An LLM provider API key for the diff analysis. Set one of:
+- Credentials for the LLM provider that performs the diff analysis. Set one of:
   - `OPENAI_API_KEY` for OpenAI.
   - `ANTHROPIC_API_KEY` for Anthropic.
   - Standard AWS credentials (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`) for AWS Bedrock.
 - A self-hosted GitHub output configured in `generators.yml` (with `github.uri` and `github.token`, [as shown above](#setup)), because the auto-versioning pipeline pushes the version bump and changelog back to the SDK repo.
+
+The diff is sent to whichever LLM provider you configure. The Fern CLI calls that provider's API directly using your credentials — Fern's infrastructure is not involved in the analysis.
 </Info>
 
 This approach is designed for the [`fern-api/fern-generate`](https://github.com/fern-api/fern-generate) GitHub Action that powers Fern's automated release pipeline, but it works standalone anywhere that meets the requirements above.
