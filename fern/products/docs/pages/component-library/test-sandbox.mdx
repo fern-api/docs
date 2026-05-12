@@ -1,0 +1,198 @@
+---
+title: Test sandbox
+description: "Hidden sandbox page used for testing documentation rendering, component composition, and end-to-end content workflows."
+hidden: true
+---
+
+This page is a hidden sandbox for exercising MDX rendering, component composition, and end-to-end content workflows. It is excluded from the sidebar via `hidden: true` and from search indexing via the surrounding markup. Link to it directly from tickets or test plans when you need a stable URL with predictable content.
+
+<Note>
+  This page is intentionally not linked from the public navigation. If you find a stray reference to it in a customer-facing page, remove the link.
+</Note>
+
+## Why this page exists
+
+Fern's MDX pipeline composes a long chain of transforms: frontmatter parsing, MDX-to-JSX compilation, component resolution, slug derivation, link rewriting, and search indexing. Each layer has its own edge cases. A dedicated sandbox page lets us:
+
+- Reproduce rendering regressions without modifying customer-facing content.
+- Validate component prop changes against a known reference.
+- Smoke-test new Fern Writer workflows end-to-end before they go live.
+- Provide a stable target for link-checking and screenshot diffing scripts.
+
+## Page anatomy
+
+The frontmatter at the top of this page sets:
+
+| Field         | Value          | Effect                                                  |
+|---------------|----------------|---------------------------------------------------------|
+| `title`       | Test sandbox   | Used in the browser tab and `<h1>`.                     |
+| `description` | (see source)   | Surfaced in search results and OG metadata.             |
+| `hidden`      | `true`         | Removes the page from the sidebar but keeps it routable.|
+
+The navigation entry in `fern/products/docs/docs.yml` uses the matching `slug: test-sandbox` so the URL stays stable even if the display title changes.
+
+## Component coverage
+
+### Callouts
+
+<Info>The `Info` intent is for neutral background context.</Info>
+<Warning>The `Warning` intent is for non-blocking risks.</Warning>
+<Tip>The `Tip` intent is for optional but recommended guidance.</Tip>
+<Check>The `Check` intent is for confirming a step succeeded.</Check>
+
+### Cards
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="regular rocket" href="/learn/docs/getting-started/quickstart">
+    Walk through a minimal Fern Docs setup in five minutes.
+  </Card>
+  <Card title="Project structure" icon="regular folder-tree" href="/learn/docs/getting-started/project-structure">
+    Understand how `fern/`, `docs.yml`, and `pages/` fit together.
+  </Card>
+  <Card title="Navigation" icon="regular sitemap" href="/learn/docs/configuration/navigation">
+    Configure sections, pages, folders, tabs, and products.
+  </Card>
+  <Card title="Components" icon="regular shapes" href="/learn/docs/writing-content/components/overview">
+    Browse the full library of built-in MDX components.
+  </Card>
+</CardGroup>
+
+### Accordions
+
+<AccordionGroup>
+  <Accordion title="When should I use a hidden page?">
+    Use `hidden: true` for content that should be routable but not surfaced in the sidebar — sandbox pages, deep-link landing pages for support tickets, or experimental drafts that aren't ready for general discovery.
+  </Accordion>
+  <Accordion title="Does hidden content still get indexed by search?">
+    Hidden pages remain reachable by URL and are typically still indexed unless explicitly excluded. Avoid placing genuinely sensitive content behind `hidden: true` alone.
+  </Accordion>
+  <Accordion title="Can I link to hidden pages?">
+    Yes. Hidden pages have stable slugs and respond to direct navigation just like any other page.
+  </Accordion>
+</AccordionGroup>
+
+### Steps
+
+<Steps>
+  ### Add the MDX file
+  Create a new file under `fern/products/<product>/pages/` and include `title` and `description` frontmatter.
+
+  ### Register the navigation entry
+  Reference the new file from the relevant `docs.yml` so it builds. If the page is internal-only, set `hidden: true` and pin a stable `slug`.
+
+  ### Verify the URL
+  Walk the slug chain (`/learn/{product-slug}/{section-slug}/{page-slug}`) and confirm the page renders at the expected path.
+
+  ### Update internal links
+  When you rename or move the file, update every link that points at the old URL and add a redirect if the original URL was public.
+</Steps>
+
+### Tabs
+
+<Tabs>
+  <Tab title="TypeScript">
+    ```typescript
+    import { FernClient } from "@fern-api/sdk";
+
+    const client = new FernClient({ token: process.env.FERN_TOKEN });
+    const docs = await client.docs.list();
+    ```
+  </Tab>
+  <Tab title="Python">
+    ```python
+    from fern import FernClient
+
+    client = FernClient(token=os.environ["FERN_TOKEN"])
+    docs = client.docs.list()
+    ```
+  </Tab>
+  <Tab title="cURL">
+    ```bash
+    curl https://api.buildwithfern.com/v1/docs \
+      -H "Authorization: Bearer $FERN_TOKEN"
+    ```
+  </Tab>
+</Tabs>
+
+### Code blocks
+
+```yaml fern/docs.yml
+navigation:
+  - section: Internal
+    contents:
+      - page: Test sandbox
+        path: ./pages/component-library/test-sandbox.mdx
+        slug: test-sandbox
+        hidden: true
+```
+
+```mdx pages/component-library/test-sandbox.mdx
+---
+title: Test sandbox
+description: Hidden sandbox page for testing.
+hidden: true
+---
+
+<Note>Sandbox content goes here.</Note>
+```
+
+### Parameter fields
+
+<ParamField path="title" type="string" required={true}>
+  The display name for the page. Appears in the browser tab and as the page heading.
+</ParamField>
+
+<ParamField path="description" type="string">
+  Short summary used for search results, OG metadata, and the subtitle area.
+</ParamField>
+
+<ParamField path="hidden" type="boolean" default="false">
+  When `true`, the page is excluded from the sidebar but remains accessible by URL.
+</ParamField>
+
+<ParamField path="slug" type="string">
+  Override the auto-derived slug. Use this when you want a stable URL that is independent of the display title.
+</ParamField>
+
+## Sample reference content
+
+The following sections exist purely so the page has enough material to exercise long-page rendering, table-of-contents generation, and anchor scrolling.
+
+### Working with frontmatter
+
+Frontmatter sits at the top of every MDX file inside `---` delimiters. Fern parses it as YAML. Values become page-level settings — typed and validated against the page schema. Unknown keys are ignored, so feature flags or experimental fields can ride alongside well-known ones without breaking builds.
+
+A few patterns we've found useful:
+
+- Keep `title` short and human-readable. Use sentence case unless the surrounding section uses Title Case.
+- Always include a `description`. It powers search, OG cards, and Ask Fern citations.
+- Treat `slug` as a contract. Once a page is public, changing the slug breaks inbound links unless you add a redirect.
+
+### Working with navigation
+
+Navigation lives in `docs.yml` (and product-specific YAML files when products are enabled). A few rules of thumb:
+
+1. Every MDX file that should appear in builds must be referenced from navigation — or auto-discovered via `folder:` configuration.
+2. `skip-slug: true` removes a segment from the URL without removing the section from the sidebar. Use it to flatten URLs that would otherwise be redundant.
+3. `collapsed: true` collapses a section by default; `collapsed: open-by-default` expands it but keeps it collapsible.
+4. `hidden: true` removes the entry from the sidebar entirely. Pair with a stable `slug` so the URL doesn't drift.
+
+### Working with components
+
+Built-in components handle the majority of documentation patterns: callouts, cards, accordions, tabs, steps, parameter fields, code blocks, frames, files, and schemas. For anything not covered, you can register custom React components and reference them from MDX. Prefer built-ins where possible — they're styled, accessible, and tested against the rest of the design system.
+
+### Working with links
+
+Internal links should use URL paths derived from the navigation config, not file paths on disk. The mapping is `/learn/{product-slug}/{section-slug}/{page-slug}`, with `skip-slug: true` and unset `slug:` fields collapsing segments. External links use full URLs. Same-page anchors use `#anchor`. Image paths stay relative to the MDX file.
+
+## Acceptance checklist
+
+- [ ] The page builds without warnings under `fern check`.
+- [ ] The page renders at `/learn/docs/test-sandbox` and is not visible in the sidebar.
+- [ ] All component examples render with their expected styling.
+- [ ] Internal links in the cards resolve to existing pages.
+- [ ] The acceptance checklist itself renders as a task list.
+
+<Tip>
+  If you change anything on this page, run a local preview and a link check before merging. Sandbox regressions are easy to miss precisely because the page is hidden.
+</Tip>
