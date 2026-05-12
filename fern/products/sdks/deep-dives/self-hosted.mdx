@@ -243,7 +243,7 @@ Set the matching API key in your environment so the Fern CLI can call the provid
 
 The diff is sent to the provider's API using your credentials — Fern's infrastructure is not involved in the analysis.
 
-This approach is designed for the [`fern-api/fern-generate`](https://github.com/fern-api/fern-generate) GitHub Action that powers Fern's automated release pipeline, but it works standalone anywhere that meets the requirements above.
+This approach is designed for use with `fern automations generate`, which powers Fern's automated release pipeline, but it works standalone anywhere that meets the requirements above.
 
 ### Deterministic versioning with `fern ir` + `fern diff`
 
@@ -368,12 +368,12 @@ jobs:
       - name: Generate previous IR
         run: |
           git checkout ${{ steps.meta.outputs.old_sha }}
-          fern ir old-ir.json --api plants
+          fern ir old-ir.json --api <your-api-name>
 
       - name: Generate current IR
         run: |
           git checkout ${{ github.sha }}
-          fern ir new-ir.json --api plants
+          fern ir new-ir.json --api <your-api-name>
 
       - name: Compute next version
         id: diff
@@ -381,7 +381,12 @@ jobs:
           result=$(fern diff \
             --from old-ir.json \
             --to new-ir.json \
-            --from-version ${{ steps.meta.outputs.from_version }})
+            --from-version ${{ steps.meta.outputs.from_version }}) || true
+          bump=$(echo "$result" | jq -r .bump)
+          if [ "$bump" = "major" ]; then
+            echo "Computed a major version bump — manual review required before releasing."
+            exit 1
+          fi
           echo "next_version=$(echo "$result" | jq -r .nextVersion)" >> "$GITHUB_OUTPUT"
 
       - name: Generate SDK
