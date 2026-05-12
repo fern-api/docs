@@ -9,9 +9,10 @@ jobs:
   update-versions:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           ref: main
+          persist-credentials: false
       - name: update-csharp-version
         run: curl -s "https://registry.hub.docker.com/v2/repositories/fernapi/fern-csharp-sdk/tags" | jq -r -j '[.results[] | select(.name != "latest" and .name != "AUTO")] | .[0].name' > fern/snippets/version-number-csharp.mdx
       - name: update-go-version
@@ -36,7 +37,7 @@ jobs:
         run: curl -s https://api.github.com/repos/fern-api/fern/releases/latest | jq -r -j '.tag_name' > fern/snippets/version-number-cli.mdx
       - name: create PR
         id: cpr
-        uses: peter-evans/create-pull-request@v8
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8
         with:
           commit-message: "update versions from docker hub"
           title: "Update versions from docker hub"
@@ -45,7 +46,7 @@ jobs:
           delete-branch: true
       - name: Enable Pull Request Automerge
         if: steps.cpr.outputs.pull-request-operation == 'created'
-        uses: peter-evans/enable-pull-request-automerge@v3
+        uses: peter-evans/enable-pull-request-automerge@a660677d5469627102a1c1e11409dd063606628d # v3
         with:
           pull-request-number: ${{ steps.cpr.outputs.pull-request-number }}
           merge-method: squash
@@ -53,6 +54,7 @@ jobs:
         if: steps.cpr.outputs.pull-request-operation == 'created'
         env:
           GH_TOKEN: ${{ secrets.FERN_GITHUB_TOKEN }}
+          STEPS_CPR_OUTPUTS_PULL_REQUEST_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
         run: |
           echo "Approving PR"
-          gh pr review ${{ steps.cpr.outputs.pull-request-number }} --approve
+          gh pr review ${STEPS_CPR_OUTPUTS_PULL_REQUEST_NUMBER} --approve

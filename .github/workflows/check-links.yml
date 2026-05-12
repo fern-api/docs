@@ -16,7 +16,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
 
       - name: Create lychee config
         run: |
@@ -380,7 +382,7 @@ jobs:
 
 
       - name: Upload URLs (early, for debugging)
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: urls
           path: |
@@ -392,7 +394,7 @@ jobs:
       - name: Check GitHub links (very low concurrency to avoid 503 rate limiting)
         id: lychee_github
         if: steps.extract_github_http.outputs.github_http_count != '0'
-        uses: lycheeverse/lychee-action@v2
+        uses: lycheeverse/lychee-action@8646ba30535128ac92d33dfc9133794bfdd9b411 # v2
         with:
           args: >-
             --no-progress
@@ -408,7 +410,7 @@ jobs:
 
       - name: Check non-GitHub links (high concurrency)
         id: lychee_main
-        uses: lycheeverse/lychee-action@v2
+        uses: lycheeverse/lychee-action@8646ba30535128ac92d33dfc9133794bfdd9b411 # v2
         with:
           args: >-
             --config lychee.toml
@@ -600,15 +602,15 @@ jobs:
           broken_count=$(wc -l < broken-links.txt | tr -d ' ')
           
           # Get rate limit stats
-          rate_limited="${{ steps.retry429.outputs.rate_limited_count }}"
+          rate_limited="${STEPS_RETRY429_OUTPUTS_RATE_LIMITED_COUNT}"
           rate_limited=${rate_limited:-0}
-          still_failing_429="${{ steps.retry429.outputs.still_failing_429 }}"
+          still_failing_429="${STEPS_RETRY429_OUTPUTS_STILL_FAILING_429}"
           still_failing_429=${still_failing_429:-0}
           
           # Get GitHub local verification stats
-          github_verified="${{ steps.verify_github.outputs.verified_count }}"
+          github_verified="${STEPS_VERIFY_GITHUB_OUTPUTS_VERIFIED_COUNT}"
           github_verified=${github_verified:-0}
-          github_missing="${{ steps.verify_github.outputs.missing_count }}"
+          github_missing="${STEPS_VERIFY_GITHUB_OUTPUTS_MISSING_COUNT}"
           github_missing=${github_missing:-0}
           
           # Build clean errors-only report
@@ -682,9 +684,9 @@ jobs:
           cat lychee-summary-table.md
           echo ""
           # Get repo-internal GitHub URL counts
-          verified_locally="${{ steps.retry429.outputs.verified_locally }}"
+          verified_locally="${STEPS_RETRY429_OUTPUTS_VERIFIED_LOCALLY}"
           verified_locally=${verified_locally:-0}
-          missing_locally="${{ steps.retry429.outputs.missing_locally }}"
+          missing_locally="${STEPS_RETRY429_OUTPUTS_MISSING_LOCALLY}"
           missing_locally=${missing_locally:-0}
           
           echo "Recovery Info:"
@@ -763,10 +765,17 @@ jobs:
             
             echo ""
           } >> "$GITHUB_STEP_SUMMARY"
+        env:
+          STEPS_RETRY429_OUTPUTS_RATE_LIMITED_COUNT: ${{ steps.retry429.outputs.rate_limited_count }}
+          STEPS_RETRY429_OUTPUTS_STILL_FAILING_429: ${{ steps.retry429.outputs.still_failing_429 }}
+          STEPS_VERIFY_GITHUB_OUTPUTS_VERIFIED_COUNT: ${{ steps.verify_github.outputs.verified_count }}
+          STEPS_VERIFY_GITHUB_OUTPUTS_MISSING_COUNT: ${{ steps.verify_github.outputs.missing_count }}
+          STEPS_RETRY429_OUTPUTS_VERIFIED_LOCALLY: ${{ steps.retry429.outputs.verified_locally }}
+          STEPS_RETRY429_OUTPUTS_MISSING_LOCALLY: ${{ steps.retry429.outputs.missing_locally }}
 
       - name: Upload errors-only report
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: lychee-report
           path: ./lychee-report.md
@@ -774,7 +783,7 @@ jobs:
 
       - name: Upload lychee outputs and verification results
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: lychee-outputs
           path: |
@@ -787,7 +796,7 @@ jobs:
       - name: Create PR for broken links
         id: create-pr
         if: steps.check_failures.outputs.has_other_failures == 'true' || steps.retry429.outputs.has_429_failures == 'true' || steps.verify_github.outputs.has_missing == 'true'
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           DEVIN_PROMPT: |
             @devin-ai-integration Please fix the broken links detected by the scheduled link checker.
@@ -1042,7 +1051,7 @@ jobs:
 
       - name: Send Slack notification for broken links
         if: steps.create-pr.outputs.pr_created == 'true'
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           SLACK_TOKEN: ${{ secrets.DEVIN_AI_PR_BOT_SLACK_TOKEN }}
           PR_URL: ${{ steps.create-pr.outputs.pr_url }}
@@ -1085,14 +1094,18 @@ jobs:
         if: steps.check_failures.outputs.has_other_failures == 'true' || steps.retry429.outputs.has_429_failures == 'true' || steps.verify_github.outputs.has_missing == 'true'
         run: |
           echo "Link check failed!"
-          if [ "${{ steps.check_failures.outputs.has_other_failures }}" == "true" ]; then
+          if [ "${STEPS_CHECK_FAILURES_OUTPUTS_HAS_OTHER_FAILURES}" == "true" ]; then
             echo "There are broken links (non-429 failures) in the report."
           fi
-          if [ "${{ steps.retry429.outputs.has_429_failures }}" == "true" ]; then
+          if [ "${STEPS_RETRY429_OUTPUTS_HAS_429_FAILURES}" == "true" ]; then
             echo "Some URLs still returned 429 after exponential backoff retry."
             echo "These URLs may need to be excluded or the rate limit needs more time to reset."
           fi
-          if [ "${{ steps.verify_github.outputs.has_missing }}" == "true" ]; then
+          if [ "${STEPS_VERIFY_GITHUB_OUTPUTS_HAS_MISSING}" == "true" ]; then
             echo "Some GitHub URLs point to paths that don't exist in the repos."
           fi
           exit 1
+        env:
+          STEPS_CHECK_FAILURES_OUTPUTS_HAS_OTHER_FAILURES: ${{ steps.check_failures.outputs.has_other_failures }}
+          STEPS_RETRY429_OUTPUTS_HAS_429_FAILURES: ${{ steps.retry429.outputs.has_429_failures }}
+          STEPS_VERIFY_GITHUB_OUTPUTS_HAS_MISSING: ${{ steps.verify_github.outputs.has_missing }}
