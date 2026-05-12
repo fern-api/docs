@@ -1,0 +1,174 @@
+---
+title: Documentation review checklist
+description: A practical checklist for reviewing API documentation changes before publishing, covering content quality, structure, navigation, and accessibility.
+noindex: true
+---
+
+
+Reviewing documentation is different from reviewing code. Code reviews verify that software behaves as intended; documentation reviews verify that a reader can understand and act on what you've written. Use this checklist as a final pass on any non-trivial documentation change — whether you're adding a new page, restructuring navigation, or revising existing content.
+
+<Tip>
+This is a working checklist. Treat it as a starting point and adapt it to your team's workflow.
+</Tip>
+
+## Before you start reviewing
+
+A focused review depends on having the right context up front. Skim these before opening the diff:
+
+- The original issue, ticket, or PR description to understand the intent of the change.
+- The page or section the change affects, in its currently-published form.
+- Any prior reviewer comments on related pages — patterns of feedback often repeat.
+
+If the change spans more than a few pages, ask the author for a short walkthrough or a summary of what changed and why. A 60-second async note saves you 20 minutes of guessing.
+
+## Content quality
+
+The substance of a docs page is what makes it useful. These checks look past prose polish at whether the content actually helps a reader succeed.
+
+<Steps>
+  <Step title="Audience and scope">
+    - The page states (explicitly or by clear context) who it's for: a first-time user, an integrator, an operator, an administrator.
+    - The scope is bounded. The page covers one topic and resists drifting into adjacent topics that belong elsewhere.
+    - Prerequisites are listed when they aren't obvious from the surrounding navigation.
+  </Step>
+  <Step title="Accuracy">
+    - Every code sample compiles or runs against the version of the SDK or API the page targets.
+    - Default values, parameter names, and types match the OpenAPI specification or source-of-truth schema.
+    - Version numbers, release dates, and pricing references are current.
+    - Screenshots reflect the current UI. Outdated screenshots are worse than no screenshots.
+  </Step>
+  <Step title="Completeness">
+    - The "happy path" is documented end-to-end.
+    - Common failure modes are covered, including the error messages users will actually see.
+    - Edge cases that affect a meaningful portion of users (rate limits, pagination, authentication failures) are mentioned or linked.
+  </Step>
+  <Step title="Voice and tone">
+    - The tone matches the rest of the docs site. A reference page is concise; a tutorial is patient.
+    - Sentences are active and direct. Replace "It is recommended that you..." with "Use..." or "Set...".
+    - Jargon is either defined on first use or linked to a glossary entry.
+  </Step>
+</Steps>
+
+## Structure and navigation
+
+Even an excellent page fails if readers can't find it. These checks cover discoverability and reading order.
+
+<AccordionGroup>
+  <Accordion title="Page structure">
+    - The page has a clear `title` and `description` in its frontmatter.
+    - Headings form a logical outline (`##` for major sections, `###` for sub-sections).
+    - No heading is skipped (don't jump from `##` to `####`).
+    - The first paragraph answers "what is this page about and why should I care?" without forcing a scroll.
+  </Accordion>
+  <Accordion title="Navigation">
+    - The page is reachable from the sidebar (a new page must be added to `docs.yml`).
+    - The page appears in a section that matches its topic — not just where the author had a free slot.
+    - The URL slug is short, lowercase, and hyphenated. It matches the page's purpose, not its current title (titles change; URLs shouldn't).
+    - If the new page replaces or supersedes an existing one, a redirect is in place.
+  </Accordion>
+  <Accordion title="Cross-references">
+    - Internal links use URL paths from the YAML config (e.g., `/learn/docs/getting-started/overview`), not file paths.
+    - Every internal link resolves. Click each one or run a link checker.
+    - Related pages link back to this one where it makes sense — discoverability is bidirectional.
+    - External links open to a stable URL, not a blog post that's likely to be deleted next quarter.
+  </Accordion>
+</AccordionGroup>
+
+## Code samples
+
+Code samples are the part of the docs readers copy-paste. Treat them as production code.
+
+```typescript
+import { ApiClient } from "@example/sdk";
+
+const client = new ApiClient({
+  apiKey: process.env.API_KEY,
+});
+
+const result = await client.documents.create({
+  title: "Quarterly review",
+  status: "draft",
+});
+
+console.log(result.id);
+```
+
+Review checks for code samples:
+
+- **Runnable as-is.** A reader who copies the snippet, sets the documented environment variables, and runs it should get the documented result.
+- **Idiomatic for the language.** TypeScript samples use `async/await`, not raw `.then()` chains. Python samples follow PEP 8. Shell samples use POSIX-compatible syntax unless Bash is required.
+- **No leaked secrets.** Read every sample for hardcoded tokens, internal hostnames, or customer data. Use placeholders like `YOUR_API_KEY` or `process.env.API_KEY`.
+- **Imports are explicit.** Don't rely on the reader to figure out where `ApiClient` comes from.
+- **Error handling is shown when the page is about error handling**, and omitted when it would obscure the main point.
+
+## Accessibility and inclusivity
+
+Docs are read by people using screen readers, by people on slow connections, and by people whose first language isn't yours.
+
+<CardGroup cols={2}>
+  <Card title="Images and media" icon="image">
+    Every image has descriptive alt text. Diagrams that convey information have a text description nearby. Videos have captions or transcripts.
+  </Card>
+  <Card title="Color and contrast" icon="palette">
+    Information isn't conveyed by color alone. Status badges include a label as well as a color. Code samples use sufficient contrast in both light and dark themes.
+  </Card>
+  <Card title="Plain language" icon="message">
+    Sentences average under 25 words. Idioms and culture-specific references are replaced with plain alternatives. Acronyms are expanded on first use.
+  </Card>
+  <Card title="Inclusive examples" icon="users">
+    Sample names, places, and scenarios don't reinforce stereotypes. "Alice" and "Bob" are fine; so is anything generic. Avoid using a single demographic as the default user.
+  </Card>
+</CardGroup>
+
+## Frontmatter and metadata
+
+A page's frontmatter shapes its appearance in search results, social shares, and AI assistants. It's the cheapest, highest-impact field to get right.
+
+| Field         | Required | Notes                                                                                       |
+| ------------- | -------- | ------------------------------------------------------------------------------------------- |
+| `title`       | Yes      | Used in browser tabs, search results, and the page header.                                  |
+| `description` | Yes      | One or two sentences. Appears in search snippets and social previews.                       |
+| `slug`        | No       | Override the auto-derived URL slug. Lock this in once a page is published.                  |
+| `og:image`    | No       | Custom OpenGraph image. Falls back to the site default if omitted.                          |
+| `noindex`     | No       | Set to `true` for staging pages and internal references that shouldn't appear in search.    |
+| `keywords`    | No       | Aid AI search and on-site search. Use real terms readers would type.                        |
+
+Reviewer checks:
+
+- `title` and `description` are present and accurate.
+- `description` is under ~160 characters; longer descriptions get truncated in search results.
+- `slug` is set explicitly if the auto-derived slug would change with a title edit.
+- `noindex: true` is set for genuinely internal pages and *not* set on anything users should find.
+
+## Search and AI
+
+Modern docs sites are increasingly read through search and through AI assistants that ingest the page as context.
+
+- The page's headings are self-explanatory when read in isolation (as they will be in search results).
+- The page's `description` reads naturally — it will be quoted by AI assistants when summarizing the page.
+- Long pages have an introduction that summarizes the rest of the page in 1–2 paragraphs.
+- Tables are used for genuinely tabular data, not as a layout hack — tables are hard for AI assistants to flatten.
+
+## Final pass
+
+Before approving, do one quick read of the rendered preview, not the diff:
+
+- Open the preview URL in the same viewport size most readers will use.
+- Read the page top to bottom without scrolling back. Note any sentence you have to re-read.
+- Switch to the mobile preview and check that code samples don't overflow.
+- Toggle dark mode if the site supports it.
+- Click every internal link.
+
+<Note>
+A diff view shows what changed; a rendered preview shows what readers will see. Approve based on the preview, not the diff.
+</Note>
+
+## When to request changes vs. approve with comments
+
+Not every nit needs a re-review. As a rough heuristic:
+
+- **Request changes** for inaccuracies, broken links, missing navigation entries, or anything that would mislead a reader.
+- **Approve with comments** for style preferences, minor wording suggestions, or follow-up improvements that don't block publishing.
+- **Approve without comments** when the change is small, low-risk, and the author has already addressed prior feedback.
+
+The goal of review is to ship correct, useful docs — not to round-trip every edge case. Trust the author to take comments seriously, and save formal change-requests for the things that actually block publishing.
