@@ -1,12 +1,14 @@
 ---
 title: Customization
-description: Customize generated CLIs with overrides, overlays, multi-spec merging, custom commands, and server URL templating.
+description: Customize generated CLIs with overrides, overlays, multi-spec merging, and custom commands.
 availability: beta
 ---
 
 <Note title="Early access">
 The CLI generator is in early access. [Reach out](https://buildwithfern.com/book-demo?type=cli) to get started.
 </Note>
+
+A generated CLI can be customized at three levels: the OpenAPI spec it's built from, the configuration that combines multiple specs into a single command tree, and code that adds custom commands alongside the spec-derived ones.
 
 ## Overrides and overlays
 
@@ -52,19 +54,6 @@ my-api billing invoices list  # from billing.yaml
 
 When a namespace matches a top-level resource in the incoming spec, the CLI hoists that resource's methods into the namespace to avoid repetition (for example, `billing billing invoices list` becomes `billing invoices list`).
 
-## Server URL variables
-
-For APIs with templated server URLs (such as `https://api.example.com/stores/{store_hash}/v3`), the CLI automatically exposes each template variable as a CLI flag and environment variable.
-
-```bash
-# Pass the variable as a flag
-bigcommerce --store-hash abc123 v3 customers list
-
-# Or set it via an environment variable
-export BIGCOMMERCE_STORE_HASH=abc123
-bigcommerce v3 customers list
-```
-
 ## Custom commands
 
 Generated CLIs can include custom commands alongside the spec-derived ones. Custom commands have access to the same API executor, so they can chain multiple API calls into a single workflow.
@@ -77,16 +66,3 @@ CliApp::new("my-api")
     .run()
 ```
 
-## GraphQL support
-
-The CLI generator also supports GraphQL APIs. Instead of an OpenAPI spec, you provide a GraphQL introspection schema. Queries and mutations become leaf commands.
-
-```rust title="main.rs"
-use fern_cli_sdk::graphql::CliApp;
-
-CliApp::new("linear")
-    .spec(include_str!("schema.json"))
-    .endpoint("https://api.linear.app/graphql")
-    .auth_scheme_env("apiKey", "LINEAR_API_KEY")
-    .run()
-```
