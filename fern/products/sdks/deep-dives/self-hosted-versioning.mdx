@@ -1,0 +1,213 @@
+---
+title: Self-hosted SDK versioning
+description: Compute the next SDK version number from your own CI when self-hosting Fern SDK generation.
+---
+
+<Markdown src="/snippets/enterprise-plan.mdx" />
+
+When self-hosting, your pipeline picks the version number for each SDK release. Cloud generation handles this automatically via Fern Autorelease, but [self-hosted setups](/learn/sdks/deep-dives/self-hosted) need to compute the next version themselves.
+
+The CLI exposes two workflows for this. Both can be wired into the same generation pipeline:
+
+- **`--version AUTO`** is the recommended approach. Fern classifies the change, picks the next version, and writes the changelog entry, PR description, and conventional-commit message for you. This is also the path that continues to receive improvements.
+- **`fern ir` + `fern diff`** is the deterministic alternative. It returns only the computed bump and next version — the rest of the release artifacts are yours to write. Use it when you need explicit control over how the version number is derived, or when you can't depend on an external LLM provider.
+
+## `--version AUTO` (recommended)
+
+Pass `--version AUTO` to `fern generate` and Fern analyzes the diff between the previous and current SDK output, classifies the change as `MAJOR`, `MINOR`, or `PATCH`, and applies the next [semantic version](https://semver.org/) to the generated package. The same analysis also produces:
+
+- A changelog entry describing what changed
+- A PR description summarizing the release
+- A [conventional commit](https://www.conventionalcommits.org/) message
+
+<Info>
+`--version AUTO` requires:
+- A `FERN_TOKEN` for organization verification (same as all self-hosted generation).
+- A [GitHub output](/learn/sdks/deep-dives/self-hosted#setup) configured in `generators.yml`, since the pipeline pushes the version bump and changelog back to the SDK repo.
+</Info>
+
+<Steps>
+<Step title="Configure the AI provider">
+
+Set the provider and model in `generators.yml`:
+
+```yaml title="generators.yml"
+ai:
+  provider: openai   # openai | anthropic | bedrock
+  model: gpt-4o      # any model name the provider accepts
+```
+
+</Step>
+<Step title="Set provider credentials">
+
+Export the matching API key so the Fern CLI can call the provider:
+
+- `OPENAI_API_KEY` for OpenAI
+- `ANTHROPIC_API_KEY` for Anthropic
+- Standard AWS credentials (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`) for AWS Bedrock
+
+The diff is sent to the provider's API using your credentials — Fern's infrastructure is not involved in the analysis.
+
+</Step>
+<Step title="Run generation with `--version AUTO`">
+
+```bash
+FERN_TOKEN=<token> fern generate --version AUTO
+```
+
+</Step>
+</Steps>
+
+## Deterministic versioning with `fern ir` + `fern diff`
+
+If you'd rather derive the version number yourself, use the `fern ir` and `fern diff` commands to compute the bump from your API definition. This flow has no LLM dependency: `fern diff` walks the intermediate representation (IR) of both specs and returns a deterministic result.
+
+The workflow has three steps:
+
+<Steps>
+<Step title="Generate the previous IR">
+
+Check out the spec as it was at the last SDK generation and write its IR to disk:
+
+```bash
+fern ir old-ir.json
+```
+
+Pass `--api <name>` if your [project defines multiple APIs](/learn/sdks/overview/project-structure).
+
+</Step>
+<Step title="Generate the current IR">
+
+Check out the spec at `HEAD` and write its IR to disk:
+
+```bash
+fern ir new-ir.json
+```
+
+</Step>
+<Step title="Diff the two IRs">
+
+Run `fern diff` with `--from-version` set to the SDK's current version. When `--from-version` is provided, the command prints a JSON object containing the computed bump and the next version:
+
+```bash
+fern diff \
+  --from old-ir.json \
+  --to new-ir.json \
+  --from-version 1.4.2
+```
+
+```json
+{
+  "bump": "minor",
+  "nextVersion": "1.5.0",
+  "errors": []
+}
+```
+
+`bump` is one of `major`, `minor`, `patch`, or `no_change`. Pass `nextVersion` to `fern generate` to release that exact version:
+
+<Tabs>
+<Tab title="CLI v1" language="cli-v1">
+```bash
+fern generate --version 1.5.0
+```
+</Tab>
+<Tab title="CLI v2" language="cli-v2">
+```bash
+fern generate --output-version 1.5.0
+```
+</Tab>
+</Tabs>
+
+</Step>
+</Steps>
+
+<Info>
+`fern diff` exits with a non-zero status when the computed bump is `major`. This makes it easy to gate breaking changes on a manual review step in CI.
+</Info>
+
+### Wiring `fern ir` + `fern diff` into CI
+
+The non-obvious part is reproducing the IR for the *previous* spec. Each generated SDK records the config repo commit it was generated from in `.fern/metadata.json`:
+
+```json title=".fern/metadata.json"
+{
+  "cliVersion": "0.74.0",
+  "generatorName": "fernapi/fern-python-sdk",
+  "generatorVersion": "4.0.0",
+  "originGitCommit": "a1b2c3d4e5f6...",
+  "requestedVersion": "1.4.2",
+  "sdkVersion": "1.4.2"
+}
+```
+
+`originGitCommit` is the SHA in the **config repo** that produced the SDK at its current version. Check that commit out, run `fern ir`, then switch back to `HEAD` and run `fern ir` again to produce both inputs to `fern diff`.
+
+<Accordion title="Example: GitHub Actions workflow">
+
+The following snippet runs in the config repo on every push to `main` and computes the next version for a Python SDK whose `originGitCommit` and `sdkVersion` are read from the SDK repo:
+
+```yaml title=".github/workflows/release-sdk.yml"
+name: Release SDK
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+      SDK_REPO: your-org/python-sdk
+    steps:
+      - name: Check out config repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Fern CLI
+        uses: fern-api/setup-fern-cli@v1
+
+      - name: Read previous SDK metadata
+        id: meta
+        run: |
+          curl -fsSL \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.raw" \
+            "https://api.github.com/repos/${SDK_REPO}/contents/.fern/metadata.json" \
+            > metadata.json
+          echo "old_sha=$(jq -r .originGitCommit metadata.json)" >> "$GITHUB_OUTPUT"
+          echo "from_version=$(jq -r .sdkVersion metadata.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Generate previous IR
+        run: |
+          git checkout ${{ steps.meta.outputs.old_sha }}
+          fern ir old-ir.json --api <your-api-name>
+
+      - name: Generate current IR
+        run: |
+          git checkout ${{ github.sha }}
+          fern ir new-ir.json --api <your-api-name>
+
+      - name: Compute next version
+        id: diff
+        run: |
+          result=$(fern diff \
+            --from old-ir.json \
+            --to new-ir.json \
+            --from-version ${{ steps.meta.outputs.from_version }}) || true
+          bump=$(echo "$result" | jq -r .bump)
+          if [ "$bump" = "major" ]; then
+            echo "Computed a major version bump — manual review required before releasing."
+            exit 1
+          fi
+          echo "next_version=$(echo "$result" | jq -r .nextVersion)" >> "$GITHUB_OUTPUT"
+
+      - name: Generate SDK
+        run: fern generate --group python-sdk --version ${{ steps.diff.outputs.next_version }}
+```
+
+`fetch-depth: 0` on the checkout step is required so the runner has the history needed to check out `originGitCommit`. Replace the metadata-fetch step with whatever mechanism gives your pipeline access to the SDK repo's `.fern/metadata.json` (a checkout of the SDK repo, a release artifact, an internal API, and so on).
+
+</Accordion>
