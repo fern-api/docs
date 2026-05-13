@@ -55,13 +55,55 @@ Because the `<h1>` is generated automatically, you should begin your page conten
 ## Links in Markdown
 
 ### Link format
-Use a `/` character to begin a relative URL to another page on your docs site. This routes to the `url` defined in your `docs.yml` file, such as `example-docs.buildwithfern.com`. For example, if you want to link to `https://example-docs.buildwithfern.com/overview/introduction`, you can write the link in Markdown as follows:
 
-<CodeBlock title='Relative link example'>
+To link to another page on your docs site, write the destination's **published site path**, starting with a `/`. Fern builds this path from the slugs in your `docs.yml` and product YAML files (see [Navigation](/learn/docs/configuration/navigation)) — not the file's location on disk and not a path relative to the current Markdown file.
+
+<CodeBlock title='Internal link example'>
 ```mdx
 Read the [Introduction](/learn/sdks/overview/introduction).
 ```
 </CodeBlock>
+
+If your docs are hosted on a subpath (such as `buildwithfern.com/learn`), include the subpath. To link to a heading on another page, append `#anchor` to the path — for example, `/learn/docs/configuration/navigation#section-availability`.
+
+<Note title="What about `./` and `../`?">
+File-relative paths like `./getting-started/overview` or `../shared.mdx` aren't supported for inter-page links — use the published site path instead. File-relative paths are still correct for [images and other media](/learn/docs/writing-content/markdown-media), and for `path:` references inside YAML config.
+</Note>
+
+### Links in versioned docs
+
+If your site has [versions](/learn/docs/configuration/versions), the path you write determines which version a reader lands on:
+
+- The **default version** publishes at unversioned paths (e.g. `/learn/docs/getting-started`).
+- **Other versions** publish at versioned paths (e.g. `/learn/docs/v2/getting-started`).
+
+When the same page is referenced from multiple versions — for example, a shared file in a `common/` folder that each version's YAML pulls in — the file is published once per version, at the corresponding URL. Linking with the unversioned path always sends readers to the default version. To keep readers in a non-default version's context, link to that version's path explicitly:
+
+```mdx
+<!-- Sends readers to the default version's page -->
+[Authentication](/learn/docs/authentication)
+
+<!-- Keeps readers in the v2 version's page -->
+[Authentication](/learn/docs/v2/authentication)
+```
+
+<Tip>
+To switch content inline based on the active version without changing the link target, use the [`<If versions=…>`](/learn/docs/writing-content/components/if#by-version) or [`<Versions>`](/learn/docs/writing-content/components/versions) components.
+</Tip>
+
+### Validate links locally
+
+[`fern check`](/learn/cli-api-reference/cli-reference/commands#fern-check) — including the validation run that fires during `fern docs dev` — checks internal links against the navigation tree built from your **local** `docs.yml` and product YAML files. It does not crawl your live deployed site or follow external URLs. A link that works on the deployed site can still flag locally if your local config doesn't yet contain the destination's slug (and vice versa).
+
+To control noise — for example, during a docs migration — set the [`broken-links` rule](/learn/docs/configuration/site-level-settings#check-configuration) to `warn` in `docs.yml`:
+
+```yaml docs.yml
+check:
+  rules:
+    broken-links: warn
+```
+
+For checks against your live deployed site, including external URLs, use the link checker in the [Fern Dashboard](https://dashboard.buildwithfern.com/).
 
 ### API link syntax
 

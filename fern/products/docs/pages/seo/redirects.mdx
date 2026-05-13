@@ -16,6 +16,26 @@ subtitle: Learn how to configure redirects in Fern Docs. Set up exact path redir
 
 You can use [`fern check`](/learn/cli-api-reference/cli-reference/commands#fern-check) to automatically detect pages that were removed or moved without a redirect. Configure the [`missing-redirects` rule](/learn/docs/configuration/site-level-settings#check-configuration) in `docs.yml` to control its severity.
 
+### How `missing-redirects` works
+
+The check compares the navigation tree built from your **local** config against the navigation tree of your most recently **published** site, then flags any previously-published URL that no longer resolves and is not covered by an entry in `redirects:`. Because it reads the published state, it requires authentication — run [`fern login`](/learn/cli-api-reference/cli-reference/commands#fern-login) first, or set the `FERN_TOKEN` environment variable. The check is skipped when authentication is missing, when the network is unavailable, or on a site's first publish.
+
+This means warnings reflect the diff against the last publish, not against your `main` branch or a specific commit. The check only knows about pages that were live the last time you ran `fern generate --docs`.
+
+<Tip title="Silencing noise during a migration">
+During a large migration where redirect warnings aren't actionable yet, downgrade the rule to a warning or skip it entirely:
+
+```yaml docs.yml
+check:
+  rules:
+    missing-redirects: warn  # or `error` once you're ready to enforce
+```
+
+You can also run `fern check` unauthenticated (without `fern login` and without `FERN_TOKEN`) to skip the check temporarily. Once the migration is stable, log back in and re-enable the rule.
+</Tip>
+
+If a moved file isn't being flagged, that's usually because it wasn't part of the last published navigation — the check only compares against the most recent publish, so files added and moved within the same un-published batch of changes won't appear.
+
 <llms-only>
 ## Common errors
 
