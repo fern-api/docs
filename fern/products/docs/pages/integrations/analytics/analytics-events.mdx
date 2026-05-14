@@ -1,0 +1,68 @@
+---
+title: Analytics events reference
+description: Complete reference of the analytics events Fern emits on your documentation site, including page views, feedback, API Playground, search, and error tracking events.
+---
+
+Fern automatically emits analytics events on your documentation site. If you have [PostHog](/learn/docs/integrations/analytics/posthog) configured, these events are forwarded to your PostHog instance alongside Fern's internal tracking. Events are also forwarded to any other [analytics provider](/learn/docs/integrations/overview) you configure (GA4, Segment, FullStory, etc.) where supported.
+
+## Page views
+
+| Event | Description |
+| --- | --- |
+| `$pageview` | Fired on every route change. Includes the current URL. |
+| `$pageleave` | Fired when a user navigates away from a page. Captured automatically by PostHog. |
+
+Page view tracking is automatic and requires no additional configuration.
+
+## Feedback events
+
+These events are emitted by the [on-page feedback](/learn/docs/customization/user-feedback) widget and the Ask Fern feedback component.
+
+| Event | Description | Key properties |
+| --- | --- | --- |
+| `feedback_voted` | User clicked the thumbs up or thumbs down button. | `satisfied` (boolean), `feedbackQuestion` or `type` |
+| `feedback_submitted` | User submitted written feedback after voting. | `satisfied` (boolean), `feedback` (text ID) |
+| `code_block_feedback_opened` | User opened the feedback prompt on a code block. | Code block context |
+| `code_block_feedback_submitted` | User submitted feedback on a code block. | Code block context |
+
+## API Playground events
+
+These events track usage of the [API Explorer](/learn/docs/api-references/api-explorer).
+
+| Event | Description | Key properties |
+| --- | --- | --- |
+| `api_playground_request_sent` | User sent a request from the API Explorer. | `endpointId`, `endpointName` |
+| `api_playground_request_received` | A response was received in the API Explorer. | `endpointId`, `endpointName`, response status |
+
+## Search and AI events
+
+These events track [search](/learn/docs/customization/search) and [Ask Fern](/learn/docs/ai-features/ask-fern/overview) usage.
+
+| Event | Description | Key properties |
+| --- | --- | --- |
+| `ask_ai_suggest` | An Ask Fern suggestion was generated. | Query context |
+
+## Error events
+
+These events help identify broken pages and missing content.
+
+| Event | Description | Key properties |
+| --- | --- | --- |
+| `not_found` | A visitor hit a 404 page. | `pathname`, `url` |
+
+## Disabling analytics
+
+To disable all analytics events, set `disable-analytics: true` in your [site-level settings](/learn/docs/configuration/site-level-settings#settingsdisable-analytics):
+
+```yaml docs.yml
+settings:
+  disable-analytics: true
+```
+
+This disables all analytics integrations configured in the `analytics` section of `docs.yml`, including Google Analytics 4, Google Tag Manager, PostHog, and any other providers.
+
+## CLI and Dashboard events
+
+The Fern CLI and [Dashboard](https://dashboard.buildwithfern.com) emit their own analytics events for internal product telemetry (command usage, onboarding funnels, billing events, etc.). These are not forwarded to your analytics providers and are used only by Fern for product improvement.
+
+CLI telemetry can be disabled by setting the `FERN_TELEMETRY_DISABLED` environment variable or adding `telemetry.enabled: false` to `~/.fernrc`.
