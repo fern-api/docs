@@ -1,7 +1,7 @@
 ---
 title: Adding custom code
 headline: Adding custom code (overview)
-description: Extend Fern-generated SDKs with custom methods, logic, and dependencies. Use .fernignore to protect your code from being overwritten during regeneration.
+description: Extend Fern-generated SDKs with custom methods, logic, and dependencies. Use Fern Replay for line-level edits and .fernignore for files you own end-to-end.
 ---
 
 
@@ -9,11 +9,47 @@ Fern-generated SDKs are designed to be extended with custom logic, methods, and 
 
 You can also add custom methods by inheriting the Fern generated client and extending it, plus add any dependencies that your custom methods depend on in your `generators.yml` file.
 
+Fern provides two complementary tools for keeping your customizations safe across regenerations: **Replay** for line-level edits to generated files, and **`.fernignore`** for files you own end-to-end.
+
+## Preserving customizations with Replay
+
+<Note title="Early Access">
+Fern Replay is rolling out across customer orgs. [Contact us](https://buildwithfern.com/contact) to enable it for your organization.
+</Note>
+
+Replay automatically preserves the edits you make to your generated SDK across regenerations. When you commit a change to generated code, Replay records it as a patch. On the next `fern generate`, the patch is reapplied to the freshly generated SDK using a 3-way merge.
+
+Replay handles the common case where `.fernignore` is too heavy-handed: you want to change a few lines, not own the whole file forever.
+
+### How it works
+
+1. Edit generated SDK code and commit to your SDK repo.
+2. On the next `fern generate`, Replay scans your repo's history for customer commits since the last `[fern-generated]` commit and stores each one as a tracked patch in `.fern/replay.lock`.
+3. The patches are reapplied on top of the freshly generated code via 3-way merge.
+4. The result lands as a `[fern-replay]` commit on top of `[fern-generated]` in the regeneration PR.
+
+```text title="Regeneration PR"
+* abc123 (HEAD -> main) [fern-replay] Apply customizations
+* 789abc [fern-generated] Update SDK to spec rev 0451
+* 234bcd Add helpers on top of User type
+* ...
+```
+
+If the generator and your customization changed the same lines, Replay reports the conflict in the PR body. Run `fern replay resolve` locally to walk through it.
+
+### Requirements
+
+Replay requires `pull-request` output mode. If your SDK uses `release` or `push` mode, see the [migration guide](/learn/sdks/overview/replay-migration) for the switch.
+
+### Disable Replay
+
+To disable Replay for a specific generator, set `replay.enabled: false` in `generators.yml`. See the [`replay` reference](/learn/sdks/reference/generators-yml#replay) for global and per-generator configuration.
+
 ##  Using `.fernignore` to preserve your customizations
 
-Once you add files containing custom code, use `.fernignore` to protect your custom code from being overwritten when Fern regenerates your SDK.
+Use `.fernignore` to protect files you own end-to-end from being overwritten during SDK regeneration. Where Replay reapplies line-level edits to generated files, `.fernignore` makes the file entirely yours. The generator won't touch it, but generator updates to that file also stop flowing.
 
-Simply add your custom files to the SDK repository and list them in `.fernignore`. Fern won't override any files listed there. A `.fernignore` file is automatically created in your SDK repository when you use GitHub publishing.
+Add your custom files to the SDK repository and list them in `.fernignore`. A `.fernignore` file is automatically created in your SDK repository when you use GitHub publishing.
 
 <Note>`.fernignore` applies only to SDK generation. It has no effect on [Fern Docs](/learn/docs/getting-started/overview) builds.</Note>
 
