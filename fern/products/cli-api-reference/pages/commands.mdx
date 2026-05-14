@@ -38,6 +38,8 @@ hideOnThisPage: true
 | [`fern generate`](#fern-generate) | Build & publish SDK updates |
 | [`fern write-overrides`](#fern-write-overrides) | Create OpenAPI customizations |
 | [`fern generator upgrade`](#fern-generator-upgrade) | Update SDK generators to latest versions |
+| [`fern replay resolve`](#fern-replay-resolve) | Resolve patch conflicts left by [Fern Replay](/learn/sdks/overview/custom-code#line-level-edits-with-replay) |
+| [`fern replay forget`](#fern-replay-forget) | Remove tracked customization patches from `.fern/replay.lock` |
 
 ## Detailed command documentation
 
@@ -173,7 +175,7 @@ hideOnThisPage: true
 
     <CodeBlock title="terminal">
     ```bash
-    fern generate [--group <group>] [--api <api>] [--version <version>] [--preview] [--fernignore <path>] [--local] [--force]
+    fern generate [--group <group>] [--api <api>] [--version <version>] [--preview] [--fernignore <path>] [--local] [--force] [--no-replay]
     ```
     </CodeBlock>
 
@@ -269,6 +271,18 @@ hideOnThisPage: true
     # Generate without confirmation prompts
     fern generate --group python-sdk --force
     ```
+
+    ### no-replay
+
+    Use `--no-replay` to skip [Fern Replay](/learn/sdks/overview/custom-code#line-level-edits-with-replay)'s patch detection and application phase for a single generation. The generation still produces the new SDK code, but tracked customization patches aren't applied on top. Useful for a clean regeneration — for example, to debug whether a conflict is caused by a specific patch.
+
+    ```bash
+    fern generate --no-replay --local
+    ```
+
+    <Note>
+    `--no-replay` works only for local generation (`--local`).
+    </Note>
 
   </Accordion>
 
@@ -708,6 +722,75 @@ hideOnThisPage: true
      Use `--include-major` to include major version upgrades. Major versions are skipped by default to prevent breaking changes.
   
   </Accordion>
+
+  <Accordion title="fern replay resolve">
+
+    Use `fern replay resolve` to work through patch conflicts that [Fern Replay](/learn/sdks/overview/custom-code#line-level-edits-with-replay) couldn't merge cleanly during `fern generate`. The command runs in two phases: the first run applies unresolved patches to your working tree with standard merge markers (`<<<<<<<` / `=======` / `>>>>>>>`) for you to edit; the second run verifies no markers remain and commits the resolved patches.
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern replay resolve [directory] [--no-check-markers]
+    ```
+    </CodeBlock>
+
+    ### directory
+
+    Path to the SDK directory containing `.fern/replay.lock`. Defaults to the current directory.
+
+    ### no-check-markers
+
+    Skip the conflict-marker check before committing. Use with caution — committing files that still contain merge markers will break the next regeneration.
+
+  </Accordion>
+
+  <Accordion title="fern replay forget">
+
+    Use `fern replay forget` to remove tracked customization patches from `.fern/replay.lock`. Useful when the generator now supports a customization natively, or when you want to stop replaying a specific edit on future regenerations.
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern replay forget <patch-id-or-pattern>... [--all] [--dry-run] [--yes]
+    ```
+    </CodeBlock>
+
+    The command accepts three modes:
+
+    - **By patch ID.** Pass one or more patch IDs to remove specific patches.
+
+      ```bash
+      fern replay forget patch-abc123 patch-def456
+      ```
+
+    - **By search pattern.** Pass a pattern to find matching patches. The command shows the matches with diff stats and prompts for confirmation before removing.
+
+      ```bash
+      fern replay forget "src/utils"
+      ```
+
+    - **All patches.** Pass `--all` to remove every tracked patch.
+
+      ```bash
+      fern replay forget --all
+      ```
+
+    ### dry-run
+
+    Show what would be removed without actually removing.
+
+    ```bash
+    fern replay forget "src/utils" --dry-run
+    ```
+
+    ### yes
+
+    Skip confirmation prompts. Required in non-interactive or CI environments.
+
+    ```bash
+    fern replay forget "src/utils" --yes
+    ```
+
+  </Accordion>
+
   <Accordion title="fern api update">
   Pulls the latest OpenAPI spec from the specified `origin` in `generators.yml` and
   updates the local spec. Alternatively, you can [automate this process by setting up a GitHub Action](/api-definitions/openapi/sync-your-open-api-specification).

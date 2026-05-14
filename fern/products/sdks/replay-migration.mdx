@@ -4,11 +4,11 @@ headline: Migrating from release or push mode to pull-request mode
 description: Step-by-step guide for switching SDK generation from release or push mode to pull-request mode so Fern Replay can run.
 ---
 
-<Note title="Early Access">
-Fern Replay is rolling out across customer orgs. [Contact us](https://buildwithfern.com/contact) to enable it for your organization.
+<Note>
+  Replay requires the latest Fern CLI and SDK generator versions. Run `fern upgrade` to make sure you're current.
 </Note>
 
-[Fern Replay](/learn/sdks/overview/custom-code#preserving-customizations-with-replay) requires `pull-request` output mode. This guide covers the migration from `release` or `push` mode in five phases.
+This guide migrates an SDK from `release` or `push` output mode to `pull-request` output mode — the mode required to enable [Fern Replay](/learn/sdks/overview/custom-code#line-level-edits-with-replay). Only follow it if your SDK is currently on `release` or `push` mode and you want to switch in order to use Replay. SDKs already using `pull-request` mode have Replay on by default; no migration is needed.
 
 ## What changes
 
@@ -27,15 +27,29 @@ Fern sets GitHub Actions secrets in your SDK repo on every generation. When you 
 
 For each SDK repo:
 
-1. Identify which secrets your `generators.yml` references for publishing:
-    - Python: `PYPI_USERNAME`, `PYPI_PASSWORD`
-    - TypeScript / npm: `NPM_TOKEN`
-    - Java / Maven: `MAVEN_USERNAME`, `MAVEN_PASSWORD`, `MAVEN_SIGNATURE_KID`, `MAVEN_SIGNATURE_PASSWORD`, `MAVEN_SIGNATURE_SECRET_KEY`
-    - Ruby: `RUBY_GEMS_API_KEY`
-    - C# / NuGet: `NUGET_API_KEY`
-    - Rust / Crates: `CRATES_TOKEN`
-2. Add the real publish credentials directly to the SDK repo: **Settings → Secrets and variables → Actions → New repository secret**.
-3. Remove the publish credential values from the config repo's `generators.yml`:
+<Steps>
+<Step title="Identify the publishing secrets">
+
+Find which secrets your `generators.yml` references for publishing:
+
+- Python: `PYPI_USERNAME`, `PYPI_PASSWORD`
+- TypeScript / npm: `NPM_TOKEN`
+- Java / Maven: `MAVEN_USERNAME`, `MAVEN_PASSWORD`, `MAVEN_SIGNATURE_KID`, `MAVEN_SIGNATURE_PASSWORD`, `MAVEN_SIGNATURE_SECRET_KEY`
+- Ruby: `RUBY_GEMS_API_KEY`
+- C# / NuGet: `NUGET_API_KEY`
+- Rust / Crates: `CRATES_TOKEN`
+
+</Step>
+
+<Step title="Add credentials to the SDK repo">
+
+Add the real publish credentials directly to the SDK repo: **Settings → Secrets and variables → Actions → New repository secret**.
+
+</Step>
+
+<Step title="Remove credentials from generators.yml">
+
+Remove the publish credential values from the config repo's `generators.yml`:
 
 ```yaml title="generators.yml"
 # BEFORE
@@ -63,7 +77,14 @@ groups:
           mode: pull-request
 ```
 
-4. Run a generation. Confirm the SDK repo's secrets weren't overwritten by checking the "Last updated" timestamp under **SDK repo → Settings → Secrets**.
+</Step>
+
+<Step title="Verify secrets are preserved">
+
+Run a generation. Confirm the SDK repo's secrets weren't overwritten by checking the "Last updated" timestamp under **SDK repo → Settings → Secrets**.
+
+</Step>
+</Steps>
 
 ## Phase 2: Switch output mode
 
@@ -81,13 +102,18 @@ If you use `version: AUTO`, no other changes are needed. Autoversioning runs as 
 
 To control publishing on your own schedule rather than on every Fern generation, keep your publish workflow out of Fern's generation cycle:
 
-1. Add the workflow to `.fernignore`:
+<Steps>
+<Step title="Add the workflow to .fernignore">
 
 ```text title=".fernignore"
 .github/workflows/ci.yml
 ```
 
-2. Change the workflow trigger from push-to-main to manual or release-tagged:
+</Step>
+
+<Step title="Change the workflow trigger">
+
+Switch from push-to-main to manual or release-tagged:
 
 ```yaml title=".github/workflows/ci.yml"
 # Instead of:
@@ -102,21 +128,50 @@ on:
     types: [published]
 ```
 
-3. Update any secret references if you renamed credentials in Phase 1.
+</Step>
+
+<Step title="Update secret references">
+
+Update any secret references if you renamed credentials in Phase 1.
+
+</Step>
+</Steps>
 
 ## Phase 4: First generation with replay
 
-1. Run `fern generate --group <group-name>` from the config repo (or trigger via your existing CI).
-2. The first run auto-creates `.fern/replay.lock`. Replay tracks customer commits to generated files from this point on.
-3. Review the resulting PR. It contains:
-    - `[fern-generated]`: pure generator output
-    - `[fern-replay]`: patches re-applied (empty on first run, since no patches exist yet)
-    - Updated `.fern/replay.lock`
-4. Squash-merge the PR. The next generation re-anchors correctly even after the squash.
+<Steps>
+<Step title="Run fern generate">
+
+Run `fern generate --group <group-name>` from the config repo (or trigger via your existing CI).
+
+</Step>
+
+<Step title="Confirm the lockfile was created">
+
+The first run auto-creates `.fern/replay.lock`. Replay tracks customer commits to generated files from this point on.
+
+</Step>
+
+<Step title="Review the resulting PR">
+
+The PR contains:
+
+- `[fern-generated]`: pure generator output
+- `[fern-replay]`: patches re-applied (empty on first run, since no patches exist yet)
+- Updated `.fern/replay.lock`
+
+</Step>
+
+<Step title="Squash-merge the PR">
+
+The next generation re-anchors correctly even after the squash.
+
+</Step>
+</Steps>
 
 ## Phase 5: Validate
 
-After the first generation and merge:
+After the first generation and merge, confirm the following:
 
 - A PR was created (not a direct push to `main`).
 - No unintended package release was triggered.
@@ -139,7 +194,8 @@ Replay never modifies files destructively. Your `main` branch always has correct
 
 **Full revert to `release` or `push` mode:**
 
-1. Switch `mode` back in `generators.yml`:
+<Steps>
+<Step title="Switch mode back in generators.yml">
 
 ```yaml title="generators.yml" {3}
 github:
@@ -147,18 +203,33 @@ github:
   mode: release   # or mode: push
 ```
 
-2. Re-add publish credentials to the config repo (if you removed them in Phase 1).
-3. Clean up Replay state in the SDK repo:
-    - Delete `.fern/replay.lock`
-    - Delete `.fern/replay.yml`
-    - Delete the `fern-generation-base` tag if it exists
-4. Close any open `fern-bot` PRs from PR mode.
+</Step>
 
-## Escape hatches
+<Step title="Re-add publish credentials to the config repo">
 
-- `fern generate --no-replay`: skip patch application for one generation. Generation still creates `[fern-generated]`; patches aren't applied. Useful for debugging.
-- `fern replay forget <pattern>`: untrack specific patches. The next generation overwrites those files.
-- `fern replay reset`: delete the lockfile entirely. Your code stays, but Replay loses all state. Run `fern replay bootstrap` to start fresh.
+Re-add the credentials you removed in Phase 1.
+
+</Step>
+
+<Step title="Clean up Replay state in the SDK repo">
+
+- Delete `.fern/replay.lock`
+- Delete `.fern/replay.yml`
+- Delete the `fern-generation-base` tag if it exists
+
+</Step>
+
+<Step title="Close any open fern-bot PRs from PR mode">
+
+</Step>
+</Steps>
+
+## Troubleshooting
+
+| Command | Effect |
+|---------|--------|
+| [`fern generate --no-replay`](/learn/cli-api-reference/cli-reference/commands#no-replay) | Skip patch application for one generation. Generation still creates `[fern-generated]`; patches aren't applied. Useful for debugging. |
+| [`fern replay forget`](/learn/cli-api-reference/cli-reference/commands#fern-replay-forget) | Untrack patches by ID, by pattern, or all at once. The next generation overwrites those files. |
 
 ## Known caveats
 

@@ -7,51 +7,18 @@ description: Extend Fern-generated SDKs with custom methods, logic, and dependen
 
 Fern-generated SDKs are designed to be extended with custom logic, methods, and dependencies. If you want your SDK to do more than just make basic API calls (like combining multiple calls, processing data, adding utilities), you can add custom code that lives in harmony with the generated code. 
 
-You can also add custom methods by inheriting the Fern generated client and extending it, plus add any dependencies that your custom methods depend on in your `generators.yml` file.
+Fern provides two complementary tools for keeping your customizations safe across regenerations:
 
-Fern provides two complementary tools for keeping your customizations safe across regenerations: **Replay** for line-level edits to generated files, and **`.fernignore`** for files you own end-to-end.
+- **`.fernignore`** — Full-file ownership. The generator stops touching listed files entirely. Use for fully hand-written modules, READMEs, or custom workflows. Trade-off: you also stop receiving generator updates to those files.
+- **Replay** — Line-level edits. Keep generated files under generator control, and reapply your edits via 3-way merge on every regeneration.
 
-## Preserving customizations with replay
-
-<Note title="Early Access">
-Fern Replay is rolling out across customer orgs. [Contact us](https://buildwithfern.com/contact) to enable it for your organization.
-</Note>
-
-Replay automatically preserves the edits you make to your generated SDK across regenerations. When you commit a change to generated code, Replay records it as a patch. On the next `fern generate`, the patch is reapplied to the freshly generated SDK using a 3-way merge.
-
-Replay handles the common case where `.fernignore` is too heavy-handed: you want to change a few lines, not own the whole file forever.
-
-### How it works
-
-1. Edit generated SDK code and commit to your SDK repo.
-2. On the next `fern generate`, Replay scans your repo's history for customer commits since the last `[fern-generated]` commit and stores each one as a tracked patch in `.fern/replay.lock`.
-3. The patches are reapplied on top of the freshly generated code via 3-way merge.
-4. The result lands as a `[fern-replay]` commit on top of `[fern-generated]` in the regeneration PR.
-
-```text title="Regeneration PR"
-* abc123 (HEAD -> main) [fern-replay] Apply customizations
-* 789abc [fern-generated] Update SDK to spec rev 0451
-* 234bcd Add helpers on top of User type
-* ...
-```
-
-If the generator and your customization changed the same lines, Replay reports the conflict in the PR body. Run `fern replay resolve` locally to walk through it.
-
-### Requirements
-
-Replay requires `pull-request` output mode. If your SDK uses `release` or `push` mode, see the [migration guide](/learn/sdks/overview/replay-migration) for the switch.
-
-### Disable replay
-
-To disable Replay for a specific generator, set `replay.enabled: false` in `generators.yml`. See the [`replay` reference](/learn/sdks/reference/generators-yml#replay) for global and per-generator configuration.
-
-##  Using `.fernignore` to preserve your customizations
-
-Use `.fernignore` to protect files you own end-to-end from being overwritten during SDK regeneration. Where Replay reapplies line-level edits to generated files, `.fernignore` makes the file entirely yours. The generator won't touch it, but generator updates to that file also stop flowing.
-
-Add your custom files to the SDK repository and list them in `.fernignore`. A `.fernignore` file is automatically created in your SDK repository when you use GitHub publishing.
+## Full-file ownership with `.fernignore`
 
 <Note>`.fernignore` applies only to SDK generation. It has no effect on [Fern Docs](/learn/docs/getting-started/overview) builds.</Note>
+
+Use `.fernignore` to protect files you own end-to-end from being overwritten during SDK regeneration.
+
+Add your custom files to the SDK repository and list them in `.fernignore`. A `.fernignore` file is automatically created in your SDK repository when you use GitHub publishing.
 
 Your `.fernignore` file might look something like this:
 
@@ -67,7 +34,8 @@ LICENSE
 # Custom code
 src/CustomClient.ts
 ```
-<Note>For another example, see Cohere's [`.fernignore` file for their TypeScript SDK](https://github.com/cohere-ai/cohere-typescript/blob/ad583e3003bd51e80a82317f9e16beec85881b86/.fernignore).</Note> 
+
+For another real-world example, see Cohere's [`.fernignore` file for their TypeScript SDK](https://github.com/cohere-ai/cohere-typescript/blob/ad583e3003bd51e80a82317f9e16beec85881b86/.fernignore).
 
 You'll have a separate `.fernignore` file for each of your SDKs:
 
@@ -97,24 +65,39 @@ You'll have a separate `.fernignore` file for each of your SDKs:
   </Folder>
 </Files>
 
+## Line-level edits with Replay
 
-  ## Augmenting your SDK with custom code
+<Note title="Requirements">
+Replay is on by default for SDKs using [`pull-request` output mode](/learn/sdks/reference/generators-yml#pull-request). To enable Replay on an SDK that's currently on `release` or `push` mode, switch to `pull-request` mode via the [migration guide](/learn/sdks/overview/replay-migration).
 
-  Get started adding custom code to a specific SDK:
+Replay requires the latest Fern CLI and SDK generator versions — run `fern upgrade` to make sure you're current.
+</Note>
 
-    <CardGroup cols={3}>
-    <Card title="TypeScript" icon={<img src="./images/icons/ts-light.svg" alt="TypeScript logo" className="h-6 w-6" noZoom />}  href="/sdks/generators/typescript/custom-code">
-    </Card>
-    <Card title="Python" icon={<img src="./images/icons/python-light.svg" className="h-6 w-6" noZoom />} href="/sdks/generators/python/custom-code">
-    </Card>
-    <Card title="Go" icon={<img src="./images/icons/go-light.svg" className="h-6 w-6" noZoom />} href="/learn/sdks/generators/go/custom-code">
-    </Card>
-    <Card title="Java" icon={<img src="./images/icons/java-light.svg" className="h-6 w-6" noZoom />} href="/learn/sdks/generators/java/custom-code">
-    </Card>
-    <Card title=".NET" icon={<img src="./images/icons/csharp-light.svg" className="h-6 w-6" noZoom />} href="/sdks/generators/csharp/custom-code">
-    </Card>
-    <Card title="PHP" icon={<img src="./images/icons/php-light.svg" className="h-6 w-6" noZoom />} href="/sdks/generators/php/custom-code">
-    </Card>
-    <Card title="Ruby" icon={<img src="./images/icons/ruby-light.svg" className="h-6 w-6" noZoom />} href="/sdks/generators/ruby/custom-code">
-    </Card>
-  </CardGroup>
+Replay automatically preserves the edits you make to your generated SDK across regenerations. When you commit a change to generated code, Replay scans your repo's history since the last `[fern-generated]` commit and stores each customer commit as a tracked patch in `.fern/replay.lock`. On the next `fern generate`, those patches are reapplied to the freshly generated SDK via 3-way merge, and the result lands as a `[fern-replay]` commit on top of `[fern-generated]` in the regeneration PR:
+
+```text title="Regeneration PR"
+* abc123 (HEAD -> main) [fern-replay] Apply customizations
+* 789abc [fern-generated] Update SDK to spec rev 0451
+* 234bcd Add helpers on top of User type
+* ...
+```
+
+If the generator and your customization changed the same lines, Replay reports the conflict in the PR body. Run [`fern replay resolve`](/learn/cli-api-reference/cli-reference/commands#fern-replay-resolve) locally to walk through it.
+
+### Disable Replay
+
+To disable Replay for a specific generator, set `replay.enabled: false` in `generators.yml`. See the [`replay` reference](/learn/sdks/reference/generators-yml#replay) for global and per-generator configuration.
+
+## Customization patterns by language
+
+Each SDK generator has its own conventions for adding custom code: how to extend the generated client, where helpers go, how to declare dependencies. See the guide for your language:
+
+<CardGroup cols={4}>
+  <Card title="TypeScript" icon={<img src="./images/icons/ts-light.svg" alt="TypeScript logo" className="h-6 w-6" noZoom />} href="/sdks/generators/typescript/custom-code" />
+  <Card title="Python" icon={<img src="./images/icons/python-light.svg" className="h-6 w-6" noZoom />} href="/sdks/generators/python/custom-code" />
+  <Card title="Go" icon={<img src="./images/icons/go-light.svg" className="h-6 w-6" noZoom />} href="/learn/sdks/generators/go/custom-code" />
+  <Card title="Java" icon={<img src="./images/icons/java-light.svg" className="h-6 w-6" noZoom />} href="/learn/sdks/generators/java/custom-code" />
+  <Card title=".NET" icon={<img src="./images/icons/csharp-light.svg" className="h-6 w-6" noZoom />} href="/sdks/generators/csharp/custom-code" />
+  <Card title="PHP" icon={<img src="./images/icons/php-light.svg" className="h-6 w-6" noZoom />} href="/sdks/generators/php/custom-code" />
+  <Card title="Ruby" icon={<img src="./images/icons/ruby-light.svg" className="h-6 w-6" noZoom />} href="/sdks/generators/ruby/custom-code" />
+</CardGroup>
