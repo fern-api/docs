@@ -1,11 +1,9 @@
 name: Sync Translations
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'fern/products/**/*.mdx'
+  # Run nightly at 6 AM UTC
+  schedule:
+    - cron: '0 6 * * *'
   workflow_dispatch:
 
 permissions:
@@ -19,7 +17,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
-          fetch-depth: 2
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Set up Python
@@ -36,23 +34,21 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Get EN MDX files changed in this push
-          CHANGED_EN_FILES=$(git diff --name-only HEAD~1 HEAD -- 'fern/products/**/*.mdx' || true)
-
-          if [ -z "$CHANGED_EN_FILES" ]; then
-            echo "No EN MDX files changed, nothing to do"
-            exit 0
-          fi
-
+          # For each zh translation file, check if its EN source has a newer
+          # commit than the zh file. If so, the translation is stale.
           export STALE_EN_FILES=""
-          while IFS= read -r en_file; do
-            [ -z "$en_file" ] && continue
-            zh_file="fern/translations/zh/${en_file#fern/}"
-            if [ -f "$zh_file" ]; then
-              echo "Stale: $zh_file (EN source changed: $en_file)"
+          for zh_file in $(find fern/translations/zh/products -name '*.mdx' 2>/dev/null); do
+            en_file="fern/${zh_file#fern/translations/zh/}"
+            [ -f "$en_file" ] || continue
+
+            en_date=$(git log -1 --format=%ct -- "$en_file" 2>/dev/null || echo 0)
+            zh_date=$(git log -1 --format=%ct -- "$zh_file" 2>/dev/null || echo 0)
+
+            if [ "$en_date" -gt "$zh_date" ]; then
+              echo "Stale: $zh_file (EN updated $(date -d @"$en_date" -u +%Y-%m-%d), zh last updated $(date -d @"$zh_date" -u +%Y-%m-%d))"
               STALE_EN_FILES="$STALE_EN_FILES $en_file"
             fi
-          done <<< "$CHANGED_EN_FILES"
+          done
           export STALE_EN_FILES
 
           if [ -z "$STALE_EN_FILES" ]; then
