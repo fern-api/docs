@@ -1,0 +1,67 @@
+name: Sync Translations
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'fern/products/**/*.mdx'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    name: Remove stale translations
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          fetch-depth: 2
+
+      - name: Find and remove stale translation files
+        run: |
+          set -euo pipefail
+
+          # Get EN MDX files changed in this push
+          CHANGED_EN_FILES=$(git diff --name-only HEAD~1 HEAD -- 'fern/products/**/*.mdx' || true)
+
+          if [ -z "$CHANGED_EN_FILES" ]; then
+            echo "No EN MDX files changed, nothing to do"
+            exit 0
+          fi
+
+          STALE_FILES=""
+          while IFS= read -r en_file; do
+            [ -z "$en_file" ] && continue
+            # Map EN path to zh translation path:
+            # fern/products/docs/pages/foo.mdx -> fern/translations/zh/products/docs/pages/foo.mdx
+            zh_file="fern/translations/zh/${en_file#fern/}"
+            if [ -f "$zh_file" ]; then
+              echo "Stale: $zh_file (EN source changed: $en_file)"
+              STALE_FILES="$STALE_FILES $zh_file"
+            fi
+          done <<< "$CHANGED_EN_FILES"
+
+          if [ -z "$STALE_FILES" ]; then
+            echo "No stale translation files found"
+            exit 0
+          fi
+
+          # shellcheck disable=SC2086
+          git rm $STALE_FILES
+          echo "stale_found=true" >> "$GITHUB_ENV"
+
+      - name: Commit and push
+        if: env.stale_found == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore: remove stale zh translations for updated EN pages
+
+          Automatically removes zh translation files whose EN source was
+          updated. These pages will fall back to auto-translation from the
+          current EN source until new translations are provided."
+          git push
