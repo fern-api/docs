@@ -1,14 +1,14 @@
 ---
-title: Fern 定义中的示例
-subtitle: 使用 Fern 定义添加 API 示例，这些示例会显示在 SDK 注释、API 参考文档和 Postman 集合中。
-sidebar-title: Fern 定义中的示例
+title: Fern Definition 中的示例 
+subtitle: 使用 Fern Definition 添加 API 示例，这些示例将显示在 SDK 的注释、API 参考文档以及 Postman 集合中。
+noindex: true
 ---
 
-您可以为类型和端点添加示例。示例会显示为 SDK 中的注释、文档的请求和响应部分，以及 Postman 集合中。
+您可以为类型和端点添加示例。示例会显示在您的 SDK 注释、文档的请求和响应以及 Postman 集合中。
 
 ## 验证
 
-Fern CLI 会验证您的示例是否与预期的类型匹配。以下内容无法编译：
+Fern CLI 会验证您的示例是否匹配预期的类型。以下代码将无法编译：
 
 ```yaml
 types:
@@ -18,16 +18,16 @@ types:
       - value: hello # 不是整数
 ```
 
-```bash CLI 错误消息
+```bash CLI 错误信息
 [api]: example.yml -> types -> UserId -> examples[0]
-       期望示例为整数。示例值为："hello"
+       预期示例为整数类型。示例值为: "hello"
 ```
 
 ## 引用示例
 
 您可以引用来自其他类型、端点或错误的示例。
 
-就像类型一样，您可以组合示例。要引用来自其他类型的示例，请使用 `$`。
+就像类型一样，您可以组合示例。要引用来自另一个类型的示例，请使用 `$`。
 
 ```yaml {14}
 types:
@@ -82,12 +82,12 @@ types:
           isResidential: false
 ```
 
-<CodeBlock title = "生成的 TypeScript SDK">
+<CodeBlock title="生成的 TypeScript SDK">
 ```typescript
 /**
- * 代表一个邮寄地址。
+ * Represents a shipping address.
  * 
- * 白宫地址
+ * The White House address
  * @example {
  *  street1: "1600 Pennsylvania Avenue NW",
  *  city: "Washington DC",
@@ -97,7 +97,7 @@ types:
  *  isResidential: true
  * }
  * 
- * * 帝国大厦地址
+ * * The Empire State Building address
  * @example {
  *  street1: "350 5th Ave",
  *  street2: "Attn: Maintenance Department",
@@ -134,9 +134,9 @@ type ShipTo = {
             estimatedDeliveryDate: "2024-01-13"
 ```
 
-### 联合
+### 联合类型
 
-#### 有区分的联合
+#### 可区分联合
 
 ```yml
 types:
@@ -156,12 +156,12 @@ types:
       likesToMeow: boolean
 ```
 
-<CodeBlock title = "生成的 TypeScript SDK">
+<CodeBlock title="生成的 TypeScript SDK">
 ```typescript
 /**
- * 代表一个动物，可以是狗或猫。
+ * Represents an animal, which can be either a Dog or a Cat.
  *
- * 狗的示例：
+ * Example of a Dog:
  * @example {
  *  type: "dog",
  *  likesToWoof: true
@@ -171,7 +171,7 @@ type Animal = Dog | Cat;
 ```
 </CodeBlock>
 
-#### 无区分的联合
+#### 不可区分联合
 
 ```yml
 types:
@@ -191,12 +191,12 @@ types:
       likesToMeow: boolean
 ```
 
-<CodeBlock title = "生成的 TypeScript SDK">
+<CodeBlock title="生成的 TypeScript SDK">
 ```typescript
 /**
- * 代表一个动物，可以是狗或猫。
+ * Represents an Animal, which can be either a Dog or a Cat.
  *
- * 动物作为猫的示例：
+ * Example of an Animal as a Cat:
  * @example {
  *  likesToMeow: true
  * }
@@ -210,7 +210,7 @@ type Animal = Dog | Cat;
 ```yml
 types:
   UserId:
-    docs: 用户的唯一标识符
+    docs: A unique identifier for a user
     type: string
     examples:
       - value: user-id-123
@@ -219,7 +219,7 @@ types:
 <CodeBlock title="生成的 TypeScript SDK">
   ```typescript 
   /** 
-  * 用户的唯一标识符 * 
+  * A unique identifier for a user * 
   * @example "user-id-123" 
   */ 
   type UserId = string; 
@@ -228,7 +228,8 @@ types:
 
 ## 端点示例
 
-您可以为端点添加成功和错误响应的示例。示例可以引用类型的示例以避免重复。
+您可以为端点添加成功和错误响应的示例。
+示例可以引用类型的示例以避免重复。
 
 ```yml
 service:
@@ -236,7 +237,7 @@ service:
   base-path: ""
   endpoints:
     CreateShippingLabel:
-      docs: 创建新的运输标签。
+      docs: Create a new shipping label.
       method: POST
       path: /shipping
       request: CreateShippingLabelRequest
@@ -245,7 +246,7 @@ service:
         - NotAuthorized
         - InsufficientFunds
       examples:
-        # 不引用其他示例的成功响应。
+        # A successful response that doesn't reference other examples.
         - request:
             orderId: "online_789"
             weightInOunces: 5
@@ -256,12 +257,12 @@ service:
               trackingNumber: "1Z26W8370303469306"
               price: 2.50
 
-        # 使用引用的成功响应。
+        # A successful response that uses references.
         - request: $CreateShippingLabelRequest.SuccessfulRequest
           response:
             body: $ShippingLabel.Default
 
-        # 错误响应。
+        # An error response.
         - request: $CreateShippingLabelRequest.InsufficientFundsRequest
           response:
             error: InsufficientFunds
@@ -312,9 +313,9 @@ errors:
     type: InsufficientFundsBody
 ```
 
-### 带请求头的示例
+### 包含请求头的示例
 
-当您在 `api.yml` 中定义了[全局请求头](/api-definitions/ferndef/api-yml/global-headers#global-headers)时，必须在示例中包含它们：
+当您在 `api.yml` 中[定义了全局请求头](/api-definitions/ferndef/api-yml/global-headers#global-headers)时，必须在示例中包含它们：
 
 ```yml {15-16}
 service:
@@ -322,7 +323,7 @@ service:
   base-path: ""
   endpoints:
     CreateShippingLabel:
-      docs: 创建新的运输标签。
+      docs: Create a new shipping label.
       method: POST
       path: /shipping
       request: CreateShippingLabelRequest
@@ -352,7 +353,7 @@ service:
   base-path: ""
   endpoints:
     TrackShipment:
-      docs: 跟踪货物的状态。
+      docs: Track the status of a shipment.
       method: GET
       path: /shipping/{trackingNumber}
       path-parameters: 

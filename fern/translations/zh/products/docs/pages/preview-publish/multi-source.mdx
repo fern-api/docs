@@ -1,65 +1,64 @@
 ---
 title: 多源文档
 subtitle: 让多个团队从各自的仓库发布到同一个文档站点。
-description: 了解如何设置多源文档，让独立团队使用 Fern 在共享域名下发布，并保持品牌一致。
-sidebar-title: 多源文档
+description: 了解如何设置多源文档，让独立团队使用一致的品牌在共享域上发布，使用 Fern。
 ---
 
 <Markdown src="/snippets/enterprise-plan.mdx" />
 
-多源文档将单个文档站点发布到一个自定义域名，并拆分为多个子路径。每个子路径来自各自的仓库，因此团队可以独立发布更新，同时由共享的[全局主题](/learn/docs/customization/global-themes)保持站点品牌一致。
+多源文档将单个文档站点发布到自定义域，分成多个子路径。每个子路径都来自自己的仓库，因此团队可以独立发布更新，而共享的[全局主题](/learn/docs/customization/global-themes)保持整个站点品牌的一致性。
 
 ## 工作原理
 
-每个仓库在其 `docs.yml` 中声明共享域名下的唯一基础路径。从该仓库运行 `fern generate --docs` 仅更新它对应的子路径——其他子路径保持不变。
+每个仓库在其 `docs.yml` 中声明一个在共享域下的唯一基础路径。从该仓库运行 `fern generate --docs` 仅更新其子路径——其他所有子路径保持不变。
 
-要使其正常工作，需要三处配置：
+有三个配置使其工作：
 
-1. 在每个仓库 `docs.yml` 的实例上设置 **`multi-source: true`**，并使 `url` 和 `custom-domain` 以同一基础路径结尾。
-2. **[全局主题](/learn/docs/customization/global-themes)** 存放在专用的控制仓库中，并按名称从每个源仓库的 `docs.yml` 中引用。
-3. [Fern Dashboard](https://dashboard.buildwithfern.com) 中的**多仓库设置**控制该域名的默认路径以及搜索 / Ask AI 范围。
+1. **`multi-source: true`** 在每个仓库的 `docs.yml` 中的实例上设置，其中 `url` 和 `custom-domain` 以相同的基础路径结尾。
+2. **[全局主题](/learn/docs/customization/global-themes)** 存在于专用的控制仓库中，并通过名称从每个源仓库的 `docs.yml` 中引用。
+3. **多仓库设置** 在 [Fern Dashboard](https://dashboard.buildwithfern.com) 中控制域的默认路径和搜索/Ask AI 范围。
 
-例如，NVIDIA 的文档拆分到多个独立仓库中，每个仓库都发布到 `docs.nvidia.com` 上各自的子路径：
+例如，NVIDIA 的文档分布在多个独立仓库中，每个仓库都发布到 `docs.nvidia.com` 上自己的子路径：
 
 - [docs.nvidia.com/nvcf](https://docs.nvidia.com/nvcf)
 - [docs.nvidia.com/brev](https://docs.nvidia.com/brev)
 - [docs.nvidia.com/aiperf](https://docs.nvidia.com/aiperf)
 - [docs.nvidia.com/nemo/curator](https://docs.nvidia.com/nemo/curator)
 
-每个子路径独立发布，但终端用户看到的是一个统一的站点。
+每个子路径都是独立发布的，但最终用户看到的是一个统一的站点。
 
 <Tip>
-  根域名 `docs.nvidia.com` 本身是 Fern 配置之外的独立站点——多源仅覆盖子路径。Fern 发布的着陆页是可选的（[示例](#example-a-live-multi-source-site)），任意数量的子路径组合都可以，包括只有两个。
+  根 `docs.nvidia.com` 本身是 Fern 设置之外的单独站点——多源仅涵盖子路径。Fern 发布的着陆页是可选的（[示例](#example-a-live-multi-source-site)），任何子路径组合都可以，包括仅两个。
 </Tip>
 
 ## 设置多源文档
 
 <Steps>
 
-<Step title="为全局主题创建一个控制仓库">
+<Step title="为全局主题创建控制仓库">
 
-控制仓库是一个专门的 Fern 项目，用于存放您的全局主题——共享的 logo、颜色、字体、布局以及每个源仓库都会继承的站点级设置。在它的 `docs.yml` 中定义这些设置，然后导出并上传主题：
+控制仓库是一个专用的 Fern 项目，保存你的全局主题——每个源仓库继承的共享 logo、颜色、字体、布局和站点级设置。在其 `docs.yml` 中定义这些设置，然后导出并上传主题：
 
 ```bash
 fern docs theme export
 fern docs theme upload --name my-org-theme
 ```
 
-完整的设置指南以及主题控制的字段列表，请参阅[全局主题](/learn/docs/customization/global-themes)。
+查看[全局主题](/learn/docs/customization/global-themes)获取完整设置指南和主题控制的字段列表。
 
 </Step>
 
 <Step title="配置每个仓库">
 
-每个子路径都有自己的仓库（通常由不同团队拥有），与第一步中的控制仓库相互独立。在每个仓库的 `docs.yml` 中：
+每个子路径都有自己的仓库（通常由不同团队拥有），与步骤 1 中的控制仓库分开。在每个仓库的 `docs.yml` 中：
 
 - 通过名称引用全局主题：`global-theme: my-org-theme`。
-- 声明一个带 `multi-source: true` 的实例，并在共享域名上指定唯一的基础路径。该基础路径必须出现在 `url` 和 `custom-domain` 的末尾。
+- 声明一个带有 `multi-source: true` 和在共享域上唯一基础路径的实例。该基础路径必须出现在 `url` 和 `custom-domain` 的末尾。
 
-例如，下面是同一共享域名上的两个仓库——一个在 `/product-a`，一个在 `/product-b`：
+例如，这里是同一共享域上的两个仓库——一个在 `/product-a`，一个在 `/product-b`：
 
 <Tabs>
-<Tab title="Product A 仓库">
+<Tab title="产品 A 仓库">
 ```yaml docs.yml
 global-theme: my-org-theme
 
@@ -69,7 +68,7 @@ instances:
     multi-source: true
 ```
 </Tab>
-<Tab title="Product B 仓库">
+<Tab title="产品 B 仓库">
 ```yaml docs.yml
 global-theme: my-org-theme
 
@@ -91,20 +90,20 @@ instances:
 fern generate --docs
 ```
 
-只更新该仓库拥有的子路径。其他子路径不受影响。
+只有该仓库拥有的子路径会被更新。其他所有子路径都不受影响。
 
 </Step>
 
-<Step title="在 Dashboard 中配置域名设置">
+<Step title="在 Dashboard 中配置域设置">
 
-打开 [Fern Dashboard](https://dashboard.buildwithfern.com) 并选择您的顶级域名（例如 `docs.example.com`）——这些设置作用于整个域名，而不是单个子路径。在 **Settings** 标签页中，找到 **Multi-repo settings** 卡片。
+打开 [Fern Dashboard](https://dashboard.buildwithfern.com) 并选择你的顶级域（例如 `docs.example.com`）——这些设置适用于整个域，而不是每个子路径。在 **Settings** 标签页中，导航到 **Multi-repo settings** 卡片。
 
 配置以下内容：
 
-- **Default path**（默认路径，*可选*）——设置用户访问域名根路径时被引导到哪里。当一个 Fern 管理的页面应作为根路径时设置此项。例如，如果您的主页位于 `/home` 子路径，则将默认路径设置为 `/home`，以便 `docs.example.com` 重定向到 `docs.example.com/home`。如果根路径不由 Fern 管理（如 NVIDIA 的 `docs.nvidia.com`，那是 Fern 配置之外的一个独立营销站点），请跳过此项。
-- **Search / Ask AI behavior**——控制 [Ask Fern](/learn/docs/ai-features/ask-fern/overview) 和搜索在子路径之间的工作方式。提供两种模式：
-  - **Hierarchical**（分层）——在 `/subpath` 下的搜索仅返回 `/subpath` 及其下的结果。当每个子路径覆盖不同的产品、用户期望范围受限的结果时使用。
-  - **Unified**（统一）——在任意子路径下的搜索都会返回所有子路径的结果。当各子路径属于同一产品的不同部分、用户希望获得跨范围的结果时使用。
+- **默认路径** *（可选）*——设置用户访问域的根目录时的着陆页。当 Fern 管理的页面应该作为根页面时设置此选项。例如，如果你的主页位于 `/home` 子路径，将默认路径设置为 `/home`，这样 `docs.example.com` 就会重定向到 `docs.example.com/home`。如果根目录不是 Fern 管理的，比如 NVIDIA 的 `docs.nvidia.com`（Fern 设置之外的单独营销站点），则跳过此设置。
+- **搜索 / Ask AI 行为**——控制 [Ask Fern](/learn/docs/ai-features/ask-fern/overview) 和搜索如何在子路径之间工作。有两种模式可用：
+  - **层级模式**——在 `/subpath` 下的搜索仅返回来自 `/subpath` 及其下层的结果。当每个子路径涵盖不同产品且用户期望范围限定的结果时使用。
+  - **统一模式**——在任何子路径下的搜索返回来自所有子路径的结果。当子路径是单个产品的各个部分且用户受益于跨领域结果时使用。
 
 <Frame>
 ![Fern Dashboard 中的多源设置](./images/multi-repo.png)
@@ -114,13 +113,13 @@ fern generate --docs
 
 </Steps>
 
-## 示例：一个真实的多源站点
+## 示例：实时多源站点
 
 <Tip>
-浏览实时站点 [multi-source.docs.buildwithfern.com](https://multi-source.docs.buildwithfern.com)，源代码位于 [fern-api/docs-examples/multi-source](https://github.com/fern-api/docs-examples/tree/main/multi-source)。
+在 [multi-source.docs.buildwithfern.com](https://multi-source.docs.buildwithfern.com) 浏览实时站点，在 [fern-api/docs-examples/multi-source](https://github.com/fern-api/docs-examples/tree/main/multi-source) 查看源码。
 </Tip>
 
-这是与 NVIDIA 设置不同的另一种形态：根路径是一个 Fern 管理的主页，下面是各团队的子路径。该示例在一个共享域名上使用六个独立的 `fern/` 项目——`/` 上的主页、带两个嵌套子项的 `/seeds` 团队中心，以及独立的 `/greenhouses` 和 `/nursery` 团队：
+这是 NVIDIA 设置的替代形式：在根目录有一个 Fern 管理的主页，下面有团队子路径。该示例在一个共享域上使用六个独立的 `fern/` 项目——在 `/` 的主页、带有两个嵌套子项的 `/seeds` 团队中心，以及独立的 `/greenhouses` 和 `/nursery` 团队：
 
 <Files>
   <Folder name="multi-source.docs.buildwithfern.com" defaultOpen>
@@ -135,12 +134,12 @@ fern generate --docs
 </Files>
 
 <Note>
-单位是每个子路径一个 `fern/` 文件夹，而不是每个子路径一个仓库。每个子路径一个仓库（通常每个团队一个）的布局是最常见的形式，但在单个仓库中放置多个 `fern/` 文件夹也可以。
+单位是每个子路径一个 `fern/` 文件夹，而不是每个子路径一个仓库。每个仓库一个子路径的布局（通常每个团队一个）是最常见的形式，但单个仓库中的多个 `fern/` 文件夹也可以工作。
 </Note>
 
-这六个项目都共享 `global-theme: plantstore-theme` 并设置了 `multi-source: true`——它们仅在基础路径上有所不同。子路径本身可以包含嵌套子路径：`/seeds/sunflower` 和 `/seeds/tomato` 是位于 `/seeds` 之下的独立发布的项目。
+所有六个项目都共享 `global-theme: plantstore-theme` 并设置 `multi-source: true`——它们仅在基础路径上有所不同。子路径本身可以包含嵌套的子路径：`/seeds/sunflower` 和 `/seeds/tomato` 是位于 `/seeds` 下的独立发布项目。
 
-该示例使用 Fern 的预览域名（`*.docs.buildwithfern.com`），因此未设置 `custom-domain`。生产部署通常会为每个实例添加 `custom-domain: docs.example.com/...`。
+该示例使用 Fern 的预览域（`*.docs.buildwithfern.com`），所以没有设置 `custom-domain`。生产部署通常会为每个实例添加 `custom-domain: docs.example.com/...`。
 
 <Tabs>
 <Tab title="主页">
@@ -161,13 +160,13 @@ navigation:
 ```jsx home.mdx
 <CardGroup>
   <Card title="Seeds" icon="fa-regular fa-seedling" href="/seeds">
-    一个带嵌套子项的中心，子项位于 `/seeds/sunflower` 和 `/seeds/tomato`。
+    一个在 `/seeds/sunflower` 和 `/seeds/tomato` 有嵌套子项的中心。
   </Card>
   <Card title="Greenhouses" icon="fa-regular fa-warehouse" href="/greenhouses">
-    气候控制和监测。
+    气候控制和监控。
   </Card>
   <Card title="Nursery" icon="fa-regular fa-leaf" href="/nursery">
-    植物养护与繁殖。
+    植物护理和繁殖。
   </Card>
 </CardGroup>
 ```
@@ -181,9 +180,9 @@ instances:
     multi-source: true
 
 navigation:
-  - section: Getting started
+  - section: 开始使用
     contents:
-      - page: Overview
+      - page: 概览
         path: ./pages/overview.mdx
 ```
 </Tab>
@@ -196,9 +195,9 @@ instances:
     multi-source: true
 
 navigation:
-  - section: Getting started
+  - section: 开始使用
     contents:
-      - page: Overview
+      - page: 概览
         path: ./pages/overview.mdx
 ```
 </Tab>
@@ -211,9 +210,9 @@ instances:
     multi-source: true
 
 navigation:
-  - section: Getting started
+  - section: 开始使用
     contents:
-      - page: Overview
+      - page: 概览
         path: ./pages/overview.mdx
 ```
 </Tab>
@@ -222,9 +221,9 @@ navigation:
 ## 属性
 
 <ParamField path="instances.multi-source" type="boolean" required={false} default={false}>
-  设为 `true` 时，CLI 使用基础路径感知的发布方式，让多个仓库可以共存于同一个自定义域名下。启用此项时，`url` 和 `custom-domain` 必须共享相同的基础路径。
+  当为 `true` 时，CLI 使用基础路径感知发布，使多个仓库可以在一个自定义域下共存。启用此功能时，`url` 和 `custom-domain` 必须共享相同的基础路径。
 </ParamField>
 
 <ParamField path="global-theme" type="string" required={false}>
-  要应用的[全局主题](/learn/docs/customization/global-themes)的名称。CLI 在发布时从 Fern 的注册表中获取该主题，并将其品牌字段合并到本地 `docs.yml` 中。完整字段列表请参阅[主题控制的内容](/learn/docs/customization/global-themes#what-the-theme-controls)。
+  要应用的[全局主题](/learn/docs/customization/global-themes)的名称。CLI 在发布时从 Fern 的注册表获取指定主题，并将其品牌字段合并到本地 `docs.yml` 中。查看[主题控制的内容](/learn/docs/customization/global-themes#what-the-theme-controls)获取完整字段列表。
 </ParamField>

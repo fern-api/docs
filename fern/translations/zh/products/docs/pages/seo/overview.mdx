@@ -1,49 +1,54 @@
 ---
-title: SEO 与 GEO 概述
-description: 了解 Fern 为搜索引擎优化 (SEO) 和生成式引擎优化 (GEO) 提供的内置功能，以最大化您文档的覆盖范围和可发现性。
-sidebar-title: SEO 和 GEO 概览
+title: SEO 和 GEO 概述
+description: 了解 Fern 内置的搜索引擎优化（SEO）和生成式引擎优化（GEO）功能，最大化您文档的覆盖面和可发现性。
 ---
 
-Fern 开箱即用地为传统搜索引擎和 AI 驱动的工具优化您的文档。SEO 确保您的页面在 Google、Bing 和其他搜索引擎中获得良好排名，而 GEO（生成式引擎优化）确保 ChatGPT、Claude 和 Cursor 等 AI 工具能够有效地使用和引用您的内容。
+
+Fern 开箱即用地为传统搜索引擎和 AI 驱动的工具优化您的文档。SEO 确保您的页面在 Google、Bing 和其他搜索引擎中排名良好，而 GEO（生成式引擎优化）确保 ChatGPT、Claude 和 Cursor 等 AI 工具能够有效地消费和引用您的内容。
 
 ## Fern 自动处理的内容
 
-无需任何配置，Fern 即可为每个页面生成元标签、社交预览、规范 URL、简洁的链接地址，并通过 [`llms.txt`](/learn/docs/ai-features/llms-txt) 生成 AI 优化的内容。
+无需任何配置，Fern 为每个页面生成元标签、社交预览、规范 URL、简洁的 URL slug，并通过 [`llms.txt`](/learn/docs/ai-features/llms-txt) 生成 AI 优化的内容。
 
-Fern 还为您的文档站点生成遵循 [Google 网站地图最佳实践](https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap) 的 `sitemap.xml`。每个页面条目都包含一个 `<lastmod>` 时间戳，仅在页面内容实际发生变化时更新。像空白或大小写等微小的格式差异会被忽略。这些时间戳对读者不可见，仅供搜索引擎用于优先爬取最近更新的页面。
+Fern 还为您的文档网站生成 `sitemap.xml`，遵循 [Google 的站点地图最佳实践](https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap)。每个页面条目都包含一个 `<lastmod>` 时间戳，只有在页面内容实际更改时才会更新。空格或大小写等微小格式差异会被忽略。这些时间戳对读者不可见，专门供搜索引擎使用以优先抓取最近更新的页面。
 
 <Info>
-  网站地图时间戳与 [`last-updated` 前置元数据字段](/learn/docs/configuration/page-level-settings#last-updated) 是分开的，后者在页面页脚为读者显示可见的日期。
+  站点地图时间戳与 [`last-updated` 前置内容字段](/learn/docs/configuration/page-level-settings#last-updated) 是分开的，后者在页面页脚为读者显示可见日期。
 </Info>
 
+网站根目录提供默认的 `robots.txt`，允许所有爬虫访问并指向您的 `sitemap.xml`。要选择性地允许或禁止特定的 AI 爬虫、限制敏感部分，或通过 Cloudflare 内容信号策略发送训练和搜索偏好信号，请[提供自定义 `robots.txt`](/learn/docs/seo/robots-txt)。
+
 <llms-only>
-### 网站地图实现细节
+### Sitemap implementation details
 
-Fern 使用两个内部表跟踪内容变化：一个用于 URL 链接地址，一个用于 markdown 源文件。多个源文件（例如，更新日志条目）可以映射到单个链接地址。
+Fern tracks content changes using two internal tables: one for URL slugs and one for markdown source files. Multiple source files (e.g., changelog entries) can map to a single slug.
 
-在每次发布时，系统会：
-1. 从导航树中将每个页面解析为其 URL 链接地址。
-2. 计算每个页面规范化 markdown 内容的 SHA-256 哈希值。
-3. 将哈希值与存储的值进行比较——仅更新或插入已更改或新的页面，并清理过时的条目。
-4. 更新日志条目映射到其父更新日志页面的链接地址，因为它们在单个页面上以哈希片段的形式呈现。
+On each publish, the system:
+1. Resolves each page to its URL slug from the navigation tree.
+2. Computes a SHA-256 hash of each page's normalized markdown content.
+3. Compares hashes against stored values — only changed or new pages are upserted, and stale entries are cleaned up.
+4. Changelog entries map to their parent changelog page's slug since they render on a single page with hash fragments.
 
-规范化在哈希之前会删除空白、版权符号和大小写，以避免因微小格式差异而导致的误报变化检测。
+Normalization strips whitespace, copyright symbols, and capitalization before hashing to avoid false-positive change detection from trivial formatting differences.
 
-网站地图路由获取存储的链接地址数据，构建 URL 到时间戳的查找表，并将时间戳添加到每个网站地图 XML 条目中。如果域尚无数据，网站地图会优雅地省略时间戳而不是失败。
+The sitemap route fetches stored slug data, builds a URL-to-timestamp lookup, and adds the timestamp to each sitemap XML entry. If no data exists for a domain yet, the sitemap omits timestamps gracefully rather than failing.
 </llms-only>
 
 ## 自定义您的 SEO
 
 当您需要更多控制时，可以配置：
 
-<CardGroup cols={3}>
+<CardGroup cols={2}>
   <Card title="SEO 元数据" icon="fa-duotone fa-tags" href="/learn/docs/seo/setting-seo-metadata">
     为搜索引擎配置标题、描述和社交预览
   </Card>
-  <Card title="链接地址" icon="fa-duotone fa-link" href="/learn/docs/seo/configuring-slugs">
+  <Card title="URL Slug" icon="fa-duotone fa-link" href="/learn/docs/seo/configuring-slugs">
     自定义 URL 路径以获得简洁、有意义的页面地址
   </Card>
   <Card title="重定向" icon="fa-duotone fa-arrow-right-arrow-left" href="/learn/docs/seo/redirects">
-    在页面移动时设置重定向以保持 SEO 权重
+    设置重定向以在页面移动时保持 SEO 权重
+  </Card>
+  <Card title="自定义 robots.txt" icon="fa-duotone fa-robot" href="/learn/docs/seo/robots-txt">
+    提供自定义 `robots.txt` 来控制搜索引擎和 AI 爬虫如何访问您的内容
   </Card>
 </CardGroup>

@@ -1,7 +1,6 @@
 ---
 title: 配置重定向
-subtitle: 了解如何在 Fern Docs 中配置重定向。设置精确路径重定向和正则表达式模式，以便在页面移动时保持 SEO 权重。
-sidebar-title: 配置重定向
+subtitle: 学习如何在 Fern Docs 中配置重定向。设置精确路径重定向和正则表达式模式，以在页面移动时保留 SEO 权重。
 ---
 
 
@@ -10,17 +9,23 @@ sidebar-title: 配置重定向
 <Markdown src="/products/docs/snippets/redirects.mdx" />
 
 <Tip>
-  要向侧边栏导航添加外部链接，请参见[导航](/learn/docs/configuration/navigation#links)。
+  要在侧边栏导航中添加外部链接，请参阅[导航](/learn/docs/configuration/navigation#links)。
 </Tip>
 
+## 捕获缺失的重定向
+
+[`missing-redirects` 规则](/learn/docs/configuration/site-level-settings#check-configuration)由 [`fern check`](/learn/cli-api-reference/cli-reference/commands#fern-check) 运行，它将从您的本地 YAML 构建的导航树与您站点最近**发布**的状态进行比较，并标记那些之前发布的 URL，这些 URL 现在无法解析且不在 `redirects:` 条目中。这可以在页面开始为现有入站链接返回 404 错误之前，捕获您已移动或删除的页面。
+
+使用 `docs.yml` 中的 [`missing-redirects` 规则](/learn/docs/configuration/site-level-settings#check-configuration)调整严重级别。
+
 <llms-only>
-## 常见错误
+## Common errors
 
-以下错误由 `fern check` 和 `fern generate --docs` 发现。
+Errors below are surfaced by `fern check` and `fern generate --docs`.
 
-### Page "X" was moved from "/old" to "/new". The old URL will return 404 without a redirect.
+### Page "X" was moved from "/old" to "/new". The old URL will return 404 without a redirect. Consider adding a redirect in docs.yml to preserve existing links.
 
-页面的[slug](/learn/docs/seo/configuring-slugs)相对于文档的上一个[已发布版本](/learn/docs/preview-publish/publishing-your-docs)发生了更改。在 `docs.yml` 中添加[重定向](/learn/docs/configuration/site-level-settings#redirects-configuration)，以便现有链接继续有效：
+A page's [slug](/learn/docs/seo/configuring-slugs) changed relative to the last [published version](/learn/docs/preview-publish/publishing-your-docs) of your docs. Add a [redirect](/learn/docs/configuration/site-level-settings#redirects-configuration) in `docs.yml` so existing links keep working:
 
 ```yaml title="docs.yml"
 redirects:
@@ -28,9 +33,9 @@ redirects:
     destination: /new
 ```
 
-### Page "X" was removed. The previously published URL "/old" will return 404 without a redirect.
+### Page "X" was removed. The previously published URL "/old" will return 404 without a redirect. Consider adding a redirect in docs.yml to preserve existing links.
 
-[已发布的页面](/learn/docs/preview-publish/publishing-your-docs)在[导航](/learn/docs/configuration/navigation)中不再存在。添加[重定向](/learn/docs/configuration/site-level-settings#redirects-configuration)到另一个相关页面，以避免破坏传入链接：
+A [published page](/learn/docs/preview-publish/publishing-your-docs) no longer exists in the [navigation](/learn/docs/configuration/navigation). Add a [redirect](/learn/docs/configuration/site-level-settings#redirects-configuration) to another relevant page to avoid breaking incoming links:
 
 ```yaml title="docs.yml"
 redirects:
@@ -40,22 +45,22 @@ redirects:
 
 ### Redirect from "/path" to "/path" creates an infinite loop (source equals destination).
 
-[重定向](/learn/docs/configuration/site-level-settings#redirects-configuration)指向自身——对 `/path` 的请求会被重定向到 `/path`，如此无限循环。要么删除重定向（如果 `/path` 是一个有效页面），要么将 `destination` 指向不同的 URL。
+A [redirect](/learn/docs/configuration/site-level-settings#redirects-configuration) points at itself — a request to `/path` would be redirected to `/path`, and so on forever. Either delete the redirect (if `/path` is a valid page) or point `destination` at a different URL.
 
 ```yaml title="docs.yml"
 redirects:
   - source: /path
-    destination: /new-path  # 必须与 `source` 不同
+    destination: /new-path  # must differ from `source`
 ```
 
 ### Circular redirect chain detected: /a → /b → /a
 
-两个或更多[重定向](/learn/docs/configuration/site-level-settings#redirects-configuration)形成循环：`/a` 重定向到 `/b`，而 `/b` 重定向回 `/a`（直接或通过更多跳转）。浏览器会在它们之间无限反弹。将链中的每个 `source` 直接指向最终目的地，这样就没有 `destination` 本身是另一个 `source`。
+Two or more [redirects](/learn/docs/configuration/site-level-settings#redirects-configuration) form a cycle: `/a` redirects to `/b`, and `/b` redirects back to `/a` (directly or through more hops). The browser would bounce between them indefinitely. Point every `source` in the chain at the final destination directly, so no `destination` is itself another `source`.
 
 ```yaml title="docs.yml"
 redirects:
   - source: /a
-    destination: /c  # 跳过 `/b`，直接到达最终页面
+    destination: /c  # skip `/b` and go straight to the final page
   - source: /b
     destination: /c
 ```

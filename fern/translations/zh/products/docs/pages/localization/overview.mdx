@@ -1,14 +1,13 @@
 ---
 title: 本地化
-subtitle: 从单一源文件发布多语言文档
-sidebar-title: 简介
+subtitle: 从单个源发布多语言文档
 ---
 
-Fern 让您能够从一组源文件发布多语言文档。读者可以从标题中的下拉菜单切换语言，[搜索](/learn/docs/customization/search)会限定在当前激活的语言范围内，每个区域设置都有自己的 URL，便于搜索引擎单独索引。
+Fern 让你从一套源文件发布多语言文档。读者可以从标题栏的下拉菜单切换语言，[搜索](/learn/docs/customization/search)功能限定在当前语言范围内，每个语言环境都有独立的 URL，便于搜索引擎分别索引。
 
-您可以像往常一样维护默认语言页面。当您运行 `fern generate --docs` 时，Fern 会在构建过程中自动将它们翻译成每种配置的语言，因此您的网站会在每次重建时都包含最新的翻译。
+你像往常一样维护默认语言页面。当你运行 `fern generate --docs` 时，Fern 会在构建过程中自动将它们翻译为每个配置的语言，因此你的站点每次重建时都会更新翻译。
 
-<Frame caption="在 [i18n 示例网站](https://i18n.docs.buildwithfern.com/) 上查看实时效果（[源码](https://github.com/fern-api/docs-examples/tree/main/i18n/fern)）。">
+<Frame caption="在 [i18n 示例站点](https://i18n.docs.buildwithfern.com/) 查看实际效果 ([源码](https://github.com/fern-api/docs-examples/tree/main/i18n/fern))。">
   <video
     src="i18n.mp4"
     autoPlay
@@ -20,41 +19,72 @@ Fern 让您能够从一组源文件发布多语言文档。读者可以从标题
 </Frame>
 
 <Note>
-  本地化功能目前处于 alpha 阶段并在积极开发中。自动翻译、Ask Fern 和翻译后的 `fern check` 错误提示仍在开发中。
+  本地化功能正在积极开发中。自动翻译、Ask Fern、`fern check` 错误和 API 参考页面仍在开发中。
 
-  如果您有兴趣为您的文档实现本地化，请[联系我们](mailto:support@buildwithfern.com)。
+  如果你有兴趣为你的文档实施本地化功能，请[联系我们](mailto:support@buildwithfern.com)。
 </Note>
 
+## 早期访问设置
 
-<Accordion title="抢先体验设置">
-
-下面的手动设置目前可以正常工作。一旦本地化功能正式发布，大部分步骤将会自动为您处理。
+下面的手动设置目前可以使用。一旦本地化功能正式发布，大部分步骤将自动处理。
 
 <Steps>
 
+<Step title="升级 Fern CLI">
+
+本地化功能需要最新版本的 CLI。
+
+```bash
+fern upgrade
+```
+
+</Step>
+
+<Step title="在 `docs.yml` 中声明语言">
+
+在你的 `docs.yml` 中添加 `translations` 键，列出每种支持的语言。将其中一种语言标记为默认语言。
+
+```yaml docs.yml
+translations:
+  - lang: en
+    default: true
+  - lang: ja
+  - lang: zh
+```
+
+Fern 支持两字母 [ISO 639-1](https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes) 代码（如 `en`、`ja`、`zh`）和完整的 [BCP 47](https://en.wikipedia.org/wiki/IETF_language_tag) 区域标签（如 `ja-JP`、`pt-BR`、`zh-Hans-CN`）。
+
+</Step>
+
 <Step title="添加翻译文件夹">
 
-在您的 `fern` 目录下创建一个 `translations` 文件夹，为每种语言创建一个使用其 [ISO 639-1 代码](https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes)的子文件夹（例如 `fr`、`ja`）。在每个语言文件夹中镜像您的 `pages/` 结构。
+在你的 `fern` 目录中创建一个 `translations` 文件夹。在 `docs.yml` 中声明的每种语言都需要一个与其区域代码匹配的子文件夹。该文件夹包含翻译内容和导航覆盖设置。
 
 <Files>
   <Folder name="fern" defaultOpen>
     <File name="fern.config.json" />
     <File name="docs.yml" />
-    <Folder name="pages" defaultOpen>
-      <File name="introduction.mdx" />
-      <File name="getting-started.mdx" />
+    <Folder name="products" defaultOpen>
+      <Folder name="docs">
+        <File name="docs.yml" />
+      </Folder>
     </Folder>
     <Folder name="translations" defaultOpen highlighted>
-      <Folder name="fr" defaultOpen>
-        <Folder name="pages" defaultOpen>
-          <File name="introduction.mdx" />
-          <File name="getting-started.mdx" />
-        </Folder>
-      </Folder>
       <Folder name="ja" defaultOpen>
-        <Folder name="pages" defaultOpen>
-          <File name="introduction.mdx" />
-          <File name="getting-started.mdx" />
+        <Folder name="fern" defaultOpen>
+          <File name="docs.yml" />
+          <Folder name="products">
+            <Folder name="docs">
+              <File name="docs.yml" />
+            </Folder>
+          </Folder>
+        </Folder>
+        <Folder name="products">
+          <Folder name="docs">
+            <Folder name="pages">
+              <File name="introduction.mdx" />
+            </Folder>
+          </Folder>
         </Folder>
       </Folder>
     </Folder>
@@ -63,46 +93,89 @@ Fern 让您能够从一组源文件发布多语言文档。读者可以从标题
 
 </Step>
 
-<Step title="在 `docs.yml` 中声明语言">
+<Step title="翻译导航">
 
-添加一个 `translations` 键，列出每种支持的语言。第一个条目是默认语言。
+对于你拥有的每个[基础配置 YAML](/learn/docs/configuration/overview) 文件——`docs.yml`、产品文件、版本文件——在 `fern/translations/{locale}/` 下相同的相对路径创建匹配的文件并复制其结构。
 
-```yaml docs.yml {4-7}
-instances:
-  - url: your-org.docs.buildwithfern.com
+在条目中，只包含你想要翻译的字段（`display-name`、`subtitle`、`section`、`page`）；任何你省略的内容都会回退到基础文件。当页面名称是英语术语如 `markdown` 或 `api-catalog` 时，添加 `slug:` 来固定基础 URL。[示例 PR](https://github.com/fern-api/docs/pull/5203/files)
 
-translations:
-  - lang: en
-  - lang: fr
-  - lang: ja
+<Tabs>
+<Tab title="产品切换器">
+```yaml fern/translations/ja/fern/docs.yml
+products:
+  - display-name: ホーム
+    path: ./products/home/home.yml
+    subtitle: 開発者体験を向上させる製品
+
+  - slug: sdks
+    display-name: SDK
+    path: ./products/sdks/sdks.yml
+    subtitle: 複数の言語でクライアントライブラリを生成
+
+  - slug: docs
+    display-name: ドキュメント
+    path: ./products/docs/docs.yml
+    subtitle: 美しいインタラクティブなドキュメントサイトを生成
 ```
+</Tab>
+<Tab title="侧边栏导航">
+```yaml fern/translations/ja/fern/products/docs/docs.yml
+navigation:
+  - section: はじめに
+    contents:
+      - page: 概要
+      - page: クイックスタート
+        slug: quickstart
+  - section: AI 機能
+    contents:
+      - page: 概要
+      - page: Markdown アクセス
+        slug: markdown
+      - page: API カタログ検出
+        slug: api-catalog
+      - section: llms-txt
+        contents:
+          - page: 概要
+            slug: llms-txt
+          - page: Agent 指示
+```
+</Tab>
+</Tabs>
+
+<Warning>
+  字段级回退仅适用于条目内。如果某个页面在基础导航中但在本地化 YAML 中缺失，本地化 URL 将提供默认语言页面——即使存在翻译的 `.mdx` 文件。在这里也要注册每个你[翻译](#translate-page-content)的页面。
+</Warning>
 
 </Step>
 
-<Step title="添加您的翻译内容">
+<Step title="翻译页面内容">
 
-每个翻译后的 `.mdx` 文件都对应其源页面的内容。使用 `sidebar-title` 前言字段来覆盖每种语言的侧边栏条目：
+在 `fern/translations/{locale}/products/` 中放置翻译的 `.mdx` 文件，保持与原始文件结构一致。使用 `sidebar-title` 前置元数据字段为每种语言覆盖侧边栏条目：
 
-```mdx translations/fr/pages/introduction.mdx
+```mdx fern/translations/ja/products/docs/pages/getting-started/overview.mdx
 ---
-sidebar-title: Introduction
+sidebar-title: 概要
 ---
 
-Bienvenue dans la documentation.
+Fernドキュメントへようこそ。
 ```
+
+<Tip>
+  你只需翻译你想要本地化的文件。任何在本地化导航中注册但没有匹配 `.mdx` 文件的页面会自动回退到默认语言文件。
+
+  仅添加翻译的 `.mdx` 文件不足以本地化页面——该页面还必须在[本地化导航 YAML](#translate-your-navigation) 中有条目。没有本地化导航条目，即使存在翻译文件，页面也会回退到默认语言。
+</Tip>
 
 </Step>
 
-<Step title="生成您的文档">
+<Step title="生成你的文档">
 
 ```bash
 fern generate --docs
 ```
 
-当您重新生成文档时，Fern 会获取翻译，渲染语言切换器，并为每个区域设置生成站点地图条目。您也可以使用 `fern docs dev` 在本地预览翻译。
+Fern 会获取翻译，在标题栏中渲染语言切换器，并为每个语言环境生成站点地图条目。你也可以使用 `fern docs dev` 在本地预览翻译。
 
 </Step>
 
 </Steps>
-
-</Accordion>

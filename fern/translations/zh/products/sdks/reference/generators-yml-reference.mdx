@@ -1,14 +1,13 @@
 ---
 title: generators.yml 配置模式
 description: Fern SDK 生成的完整 generators.yml 配置参考。配置身份验证、发布、GitHub 集成和特定语言设置。
-sidebar-title: generators.yml 配置模式
 max-toc-depth: 3
 ---
 
-`generators.yml` 文件有两个作用：它声明您的 API 定义（OpenAPI/AsyncAPI 必需），并配置 SDK 生成，包括生成哪些语言、发布位置以及如何自定义每个 SDK。
+`generators.yml` 文件有两个目的：声明您的 API 定义（OpenAPI/AsyncAPI 必需），以及配置 SDK 生成，包括生成哪些语言、发布位置和如何自定义每个 SDK。
 
 <Tip>
-  要在编辑器中启用智能 YAML 验证和自动补全功能，请在 `generators.yml` 文件顶部添加模式指令。
+  要在编辑器中启用智能 YAML 验证和自动补全，请在 `generators.yml` 文件顶部添加模式指令。
 </Tip>
 
 ```yaml title="generators.yml" maxLines=10
@@ -29,13 +28,13 @@ whitelabel:
     token: "ghp_xxxxxxxxxxxx"
 
 metadata:
-  description: "MyAPI 官方 SDK"
+  description: "Official SDK for MyAPI"
   authors:
-    - name: "SDK 团队"
+    - name: "SDK Team"
       email: "sdk@mycompany.com"
 
 readme:
-  introduction: "欢迎使用 MyAPI SDK"
+  introduction: "Welcome to the MyAPI SDK"
   apiReferenceLink: "https://docs.myapi.com"
   defaultEndpoint:
     method: "GET"
@@ -61,27 +60,27 @@ groups:
 
 ## `auth-schemes`
 
-为您的 SDK 和 [API 浏览器](/learn/docs/api-references/api-explorer) 定义身份验证方法，您的端点可以引用这些方法。在 `generators.yml` 中定义的身份验证方案优先于[在规范中定义的身份验证方案](/learn/api-definitions/openapi/authentication)。
+为您的 SDK 和 [API Explorer](/learn/docs/api-references/api-explorer) 定义身份验证方法，您的端点可以引用这些方法。在 `generators.yml` 中定义的身份验证方案优先于[在规范中定义的身份验证方案](/learn/api-definitions/openapi/authentication)。
 
-定义身份验证方案后，必须使用 [`api.auth`](#auth) 将其作为默认值应用于所有端点。或者，如果需要针对不同语言的不同身份验证行为，可以[为单个 SDK 定义身份验证](#override-api-authentication-settings)。
+定义身份验证方案后，您必须使用 [`api.auth`](#auth) 将其作为默认值应用于所有端点。或者，如果您需要每种语言的不同身份验证行为，您可以[为单个 SDK 定义身份验证](#override-api-authentication-settings)。
 
 ```yaml title="generators.yml" maxLines=10
 auth-schemes:
-  # 用户定义的方案名称 - 最小配置的 OAuth
+  # 用户定义的方案名称 - OAuth 最小配置
   simple-oauth:
     scheme: oauth
     type: client-credentials
     get-token:
       endpoint: "auth.token"
     
-  # 用户定义的方案名称 - 自定义配置的 Header 身份验证
+  # 用户定义的方案名称 - 自定义配置的头部认证
   custom-header:
     name: "Custom Auth"
     header: "X-Custom-Auth"
     prefix: "Custom "
     env: "CUSTOM_TOKEN"
     
-  # 用户定义的方案名称 - Basic 身份验证
+  # 用户定义的方案名称 - Basic 认证
   http-basic:
     scheme: basic
     
@@ -90,7 +89,7 @@ auth-schemes:
     scheme: bearer
 ```
 
-选择自定义 header（API 密钥）、HTTP Basic、Bearer token 或 OAuth 2.0 身份验证：
+从自定义头部（API keys）、HTTP Basic、Bearer token 或 OAuth 2.0 身份验证中选择：
 
 <AccordionGroup>
 <Accordion title="Header">
@@ -117,17 +116,17 @@ auth-schemes:
 
 ## `api`
 
-定义 API 规范（OpenAPI、AsyncAPI 等）以及如何解析它。对于 Fern 定义，不需要 API 引用 — [Fern 自动检测您的规范](/sdks/overview/project-structure#generatorsyml)。
+定义 API 规范（OpenAPI、AsyncAPI 等）以及如何解析它。
 
 ```yaml title="generators.yml" maxLines=10
 api:
   settings:
-    inline-path-parameters: true # 应用于所有 OpenAPI 规范
+    inline-path-parameters: true # 适用于所有 OpenAPI 规范
   specs:
     - openapi: "./openapi.yml"
       namespace: "v1"
       settings:
-        title-as-schema-name: true # 仅应用于此 OpenAPI 规范
+        title-as-schema-name: true # 仅适用于此 OpenAPI 规范
     - asyncapi: "./events.yml"
       namespace: "events"
   headers:
@@ -138,34 +137,34 @@ api:
 ```
 
 <ParamField path="auth" type="string" toc={true}>
-  为所有端点设置默认身份验证方案。该值必须引用在 [`auth-schemes`](#auth-schemes) 中定义的方案名称。这将覆盖[在 OpenAPI 规范中定义的](/learn/api-definitions/openapi/authentication)任何安全方案。
+  为所有端点设置默认身份验证方案。该值必须引用在 [`auth-schemes`](#auth-schemes) 中定义的方案名称。这会覆盖[在 OpenAPI 规范中定义的安全方案](/learn/api-definitions/openapi/authentication)。
 
   ```yaml title="generators.yml"
-  # 将其作为所有端点的默认值
+  # 将其作为所有端点的默认值应用
   api:
     auth: BearerAuth # 在 auth-schemes 中定义
     specs:
       - openapi: ./openapi.yml
   ```
 
-  使用此配置，所有生成的 SDK 都将要求使用 `BearerAuth` 方案进行身份验证：
+  使用此配置，所有生成的 SDK 将需要使用 `BearerAuth` 方案进行身份验证：
 
   ```ts index.ts
   // 使用 process.env.PLANTSTORE_API_KEY
   const client = new PlantStoreClient();
 
-  // 或显式提供 API 密钥
+  // 或显式提供 API key
   const client = new PlantStoreClient({
     apiKey: "your-api-key"
   });
   ```
   <Tip>
-    您还可以使用[生成器级别的 `api.auth`](#override-api-authentication-settings) 设置为单个生成器覆盖身份验证。
+    您也可以使用[生成器级别的 `api.auth`](#override-api-authentication-settings) 设置为单个生成器覆盖身份验证。
   </Tip>
 </ParamField>
 
 <ParamField path="headers" type="string or list of objects" toc={true}>
-  包含在所有 API 请求中的全局 header。这是在 OpenAPI 规范中配置[全局 header](/learn/api-definitions/openapi/extensions/global-headers) 的替代方案。您可以将 header 指定为简单的字符串值，或作为具有代码生成附加配置的对象。
+  包含在所有 API 请求中的全局头部。这是在 OpenAPI 规范中配置[全局头部](/learn/api-definitions/openapi/extensions/global-headers)的替代方案。您可以将头部指定为简单字符串值或带有代码生成附加配置的对象。
 
   <AccordionGroup>
   <Accordion title="简单字符串值">
@@ -177,18 +176,18 @@ api:
       X-App-Version: "1.0.0"
   ```
   </Accordion>
-  <Accordion title="带类型信息的高级配置">
+  <Accordion title="带有类型信息的高级配置">
 
   ```yaml title="generators.yml"
   api:
     - openapi: ./path/to/openapi
       headers: 
         X-Version: 
-          # 在生成的 SDK 代码中使用的变量名称。
-          # 如果未指定，使用 header 名称。
+          # 在生成的 SDK 代码中使用的变量名。
+          # 如果未指定，使用头部名称。
           name: version 
-          # 用于代码生成的 header 值类型
-          # （例如，"string"、"literal<'value'>"、"number"）。
+          # 用于代码生成的头部值的类型
+          # (例如，"string", "literal<'value'>", "number")。
           type: literal<"1234">
   ```
   </Accordion>
@@ -200,14 +199,14 @@ api:
 </ParamField>
 
 <ParamField path="settings" type="object" toc={true}>
-  应用于给定类型的所有规范（例如，所有 OpenAPI 规范）的设置。可以在规范或生成器级别覆盖。优先级：生成器级别设置覆盖规范级别设置，规范级别设置覆盖全局设置。
+  适用于给定类型的所有规范的设置（例如，所有 OpenAPI 规范）。可以在规范或生成器级别被覆盖。优先级：生成器级别设置覆盖规范级别设置，规范级别设置覆盖全局设置。
 
-  例如，使用此功能确保所有 OpenAPI 规范的解析行为一致。有关可用设置，请参阅下面的[规范类型](#specification-types)文档。
+  例如，使用此设置确保所有 OpenAPI 规范的一致解析行为。有关可用设置，请参见下面的[规范类型](#specification-types)文档。
 </ParamField>
 
 ### 规范类型
 
-每种规范类型（OpenAPI、AsyncAPI 等）都支持各种配置选项，包括规范文件位置、命名空间、覆盖和特定类型的设置。
+每种规范类型（OpenAPI、AsyncAPI 等）支持各种配置选项，包括规范文件位置、命名空间、覆盖和特定类型的设置。
 
 <AccordionGroup>
 <Accordion title="OpenAPI">
@@ -233,11 +232,11 @@ api:
 </ParamField>
 
 <ParamField path="origin" type="string" toc={true}>
-  用于拉取更新的 API 定义源 URL。
+  用于拉取更新的 API 定义源的 URL。
 </ParamField>
 
 <ParamField path="overrides" type="string | list of strings" toc={true}>
-  AsyncAPI [覆盖](/learn/api-definitions/asyncapi/overrides)文件的路径，或按顺序应用的多个覆盖文件的路径列表。
+  AsyncAPI [覆盖](/learn/api-definitions/asyncapi/overrides)文件的路径，或多个顺序应用的覆盖文件的路径列表。
 
   ```yaml
   # 单个覆盖文件
@@ -267,7 +266,7 @@ api:
 </ParamField>
 
 <ParamField path="settings.respect-nullable-schemas" type="boolean" default="true" toc={true}>
-  在 API 定义设置中保留可为 null 的模式。当为 false 时，可为 null 的模式被视为可选的。
+  在 API 定义设置中保留可空模式。当为 false 时，可空模式被视为可选的。
 </ParamField>
 
 <ParamField path="settings.idiomatic-request-names" type="boolean" default="true" toc={true}>
@@ -275,15 +274,15 @@ api:
 </ParamField>
 
 <ParamField path="settings.wrap-references-to-nullable-in-optional" type="boolean" default="false" toc={true}>
-  控制是否将对可为 null 模式的引用包装在可选类型中。当为 false 时，可为 null 的引用被视为可以为 null 的必需字段。
+  控制是否将对可空模式的引用包装在可选类型中。当为 false 时，可空引用被视为可以为 null 的必需字段。
 </ParamField>
 
 <ParamField path="settings.coerce-optional-schemas-to-nullable" type="boolean" default="false" toc={true}>
-  控制在代码生成期间是否将可选模式强制转换为可为 null 类型。当为 false 时，可选和可为 null 被视为不同的概念。
+  控制在代码生成期间是否将可选模式强制转换为可空类型。当为 false 时，可选和可空被视为不同的概念。
 </ParamField>
 
 <ParamField path="settings.group-environments-by-host" type="boolean" default="false" toc={true}>
-  启用时，按主机将服务器分组到统一环境中，使具有多个协议（REST、WebSocket 等）的 API 能够共享环境配置。环境 URL ID 使用服务器名称，仅在需要解决冲突时才添加路径或协议后缀。
+  启用时，将按主机将服务器分组到统一环境中，使具有多种协议（REST、WebSocket 等）的 API 能够共享环境配置。环境 URL ID 使用服务器名称，仅在需要解决冲突时才添加路径或协议后缀。
 
 </ParamField>
 </Accordion>
@@ -297,7 +296,7 @@ api:
 </ParamField>
 
 <ParamField path="overrides" type="string | list of strings" toc={true}>
-  OpenRPC [覆盖](/learn/api-definitions/openrpc/overrides)文件的路径，或按顺序应用的多个覆盖文件的路径列表。
+  OpenRPC [覆盖](/learn/api-definitions/openrpc/overrides)文件的路径，或多个顺序应用的覆盖文件的路径列表。
 
   ```yaml
   # 单个覆盖文件
@@ -330,7 +329,7 @@ api:
 
 ## `whitelabel`
 
-发布不带 Fern 品牌的生成 SDK 的配置。启用时，从生成的代码中删除所有对 Fern 的提及，并允许在您自己的品牌下发布。
+发布生成的 SDK 时不带 Fern 品牌的配置。启用后，从生成的代码中删除所有 Fern 的提及，并允许在您自己的品牌下发布。
 
 ```yaml title="generators.yml"
 whitelabel:
@@ -340,13 +339,13 @@ whitelabel:
     token: "ghp_xxxxxxxxxxxx"
 ```
 <ParamField path="username" type="string" required={true} toc={true}>
-  用于提交和将白标 SDK 代码发布到 GitHub 存储库的 GitHub 用户名。这应该是对您的目标存储库具有写入权限的帐户的用户名。
+  用于提交和发布白标 SDK 代码到 GitHub 仓库的 GitHub 用户名。这应该是对目标仓库具有写入权限的账户的用户名。
 </ParamField>
 <ParamField path="email" type="string" required={true} toc={true}>
-  与 GitHub 帐户关联的电子邮件地址。此电子邮件将在发布白标 SDK 代码时在 Git 提交中使用，并应与您的 GitHub 帐户设置中配置的电子邮件匹配。
+  与 GitHub 账户关联的电子邮件地址。发布白标 SDK 代码时，该电子邮件将用于 Git 提交，应与 GitHub 账户设置中配置的电子邮件匹配。
 </ParamField>
 <ParamField path="token" type="string" required={true} toc={true}>
-  具有适当存储库访问权限的 GitHub 个人访问令牌 (PAT)。令牌应具有 `repo` 范围权限，以允许读取和写入存储库来发布白标 SDK。
+  具有适当仓库访问权限的 GitHub Personal Access Token (PAT)。令牌应具有 `repo` 范围权限，以允许读取和写入您的仓库以发布白标 SDK。
 </ParamField>
 
 
@@ -355,7 +354,7 @@ whitelabel:
 
 ```yaml title="generators.yml"
 metadata:
-  description: "我的 API SDK"
+  description: "My API SDK"
   authors:
     - name: "John Doe"
       email: "john@example.com"
@@ -364,28 +363,28 @@ metadata:
 ```
 
 <ParamField path="description" type="string" required={false} toc={true}>
-  将包含在包元数据中的 SDK 简要描述。此描述帮助用户在包存储库中发现您的 SDK 时了解您的 SDK 的功能。
+  SDK 的简要描述，将包含在包元数据中。此描述帮助用户在包注册表中发现您的 SDK 时理解它的功能。
 </ParamField>
 
 ### `authors`
-  将在生成的 SDK 包元数据中被认可的作者列表。
+  将在生成的 SDK 包元数据中获得荣誉的作者列表。
 
 <ParamField path="name" type="string" required={true} toc={true}>
-  在 SDK 包元数据中被认可的作者的全名。
+  将在 SDK 包元数据中获得荣誉的作者的全名。
 </ParamField>
 
 <ParamField path="email" type="string" required={true} toc={true}>
-  作者的电子邮件地址。这将包含在包元数据中，包管理器可能会使用它作为联系信息。
+  作者的电子邮件地址。这将包含在包元数据中，包管理器可能将其用作联系信息。
 </ParamField>
 
 ## `readme`
 
-控制所有 SDK 中生成的 README 文件的内容，允许您自定义 SDK 文档的内容和结构。
+控制所有 SDK 生成的 README 文件的内容，允许您自定义 SDK 文档的内容和结构。
 
 <Markdown src="/products/sdks/snippets/readme-options.mdx" />
 
 ## `default-group`
-未指定时使用的生成器组。
+未指定生成器组时使用的默认生成器组。
 
 ```yaml
 default-group: "production"
@@ -396,19 +395,19 @@ default-group: "production"
 
 ## `autorelease`
 
-全局启用或禁用 [Fern Autorelease](/learn/sdks/overview/autorelease) 以进行自动化 SDK 发布。或者，您可以[为单个 SDK 配置自动发布](#autorelease-2)。
+全局启用或禁用 [Fern Autorelease](/learn/sdks/overview/autorelease) 以实现自动化 SDK 发布。或者，您可以[为单个 SDK 配置自动发布](#autorelease-2)。
 
 ```yaml title="generators.yml"
 autorelease: true
 ```
 
 <ParamField path="autorelease" type="boolean" default={false} required={false} toc={true}>
-  设置为 `true` 启用自动发布，`false` 禁用它。[每个生成器的设置](#autorelease-2)覆盖此全局配置。
+  设置为 `true` 启用 Autorelease，`false` 禁用它。[每个生成器的设置](#autorelease-2)覆盖此全局配置。
 </ParamField>
 
 ## `aliases`
 
-定义映射到多个生成器组的快捷方式，允许您使用单个命令运行多个组。当您运行 `fern generate --group <alias>` 时，别名中的所有组并行运行。您也可以将别名设置为 `default-group`。
+定义映射到多个生成器组的快捷方式，允许您使用单个命令运行多个组。当您运行 `fern generate --group <alias>` 时，别名中的所有组会并行运行。您也可以将别名设置为您的 `default-group`。
 
 ```yaml title="generators.yml" {1-4}
 aliases:
@@ -432,12 +431,12 @@ groups:
 ```
 
 <ParamField path="aliases" type="map<string, list<string>>" required={false} toc={true}>
-  一个映射，其中每个键是别名名称，值是组名称列表。每个组名称必须引用在 `groups` 部分中定义的组。
+  一个映射，其中每个键是别名名称，值是组名列表。每个组名必须引用 `groups` 部分中定义的组。
 </ParamField>
 
 ## `groups`
 
-组织用户定义的生成器集合，通常按环境（如"production"、"staging"）或语言（如"typescript"、"python"）分组。您还可以创建[别名](#aliases)以使用单个命令运行多个组。
+组织用户定义的生成器集合，通常按环境（如"production"、"staging"）或语言（如"typescript"、"python"）分组。您也可以创建[别名](#aliases)以使用单个命令运行多个组。
 
 ```yaml title="generators.yml" maxLines=10
 groups:
@@ -454,9 +453,9 @@ groups:
           repository: your-organization/company-typescript
           mode: "pull-request"
     metadata:
-      description: "MyAPI 的 TypeScript SDK"
+      description: "TypeScript SDK for MyAPI"
       authors:
-        - name: "SDK 团队"
+        - name: "SDK Team"
           email: "sdk@myorg.com"
     reviewers:
       teams:
@@ -464,16 +463,16 @@ groups:
 ```
 
 <ParamField path="audiences" type="list of strings" required={false} toc={true}>
-  基于受众标签过滤生成的 SDK 中包含的 API 元素。只有在您的 API 规范中标记为指定受众的端点、模式和属性才会被包含。没有此过滤器，无论端点的受众标签如何，都会包含所有端点。
+  根据受众标签过滤生成的 SDK 中包含的 API 元素。只有在您的 API 规范中标记有指定受众的端点、模式和属性才会被包含。没有此过滤器，所有端点都会被包含，无论其受众标签如何。
 
-  要使用受众，首先使用 [OpenAPI 中的 `x-fern-audiences`](/learn/api-definitions/openapi/extensions/audiences) 或 [Fern 定义中的 `audiences`](/learn/api-definitions/ferndef/audiences) 标记您的 API 元素，然后在这里指定要包含的受众。
+  要使用受众，首先在 OpenAPI 中使用 [`x-fern-audiences`](/learn/api-definitions/openapi/extensions/audiences) 标记您的 API 元素，然后在此处指定要包含的受众。
 
-  对于 OpenAPI，您还可以使用 [`settings.filter`](#settingsfilter) 在规范级别配置基于路径的过滤。
+  对于 OpenAPI，您也可以在规范级别使用 [`settings.filter`](#settingsfilter) 配置基于路径的过滤。
 </ParamField>
 
 ### `reviewers`
 
-为单个 SDK 设置代码审查者。或者，您可以[为所有 SDK 全局配置审查者](#reviewers-4)。
+为单个 SDK 设置代码审查员。或者，您可以[为所有 SDK 全局配置审查员](#reviewers-4)。
 
 <Markdown src="/products/sdks/snippets/reviewers-params.mdx" />
 
@@ -489,7 +488,7 @@ groups:
       - name: fernapi/fern-typescript-sdk
         version: <Markdown src="/snippets/version-number-ts.mdx"/>
         smart-casing: true
-  python-sdk: # 具有自定义注册表的自托管
+  python-sdk: # 使用自定义注册表的自托管
     generators:
       - image:
           name: fern-python-sdk
@@ -508,22 +507,22 @@ Fern 生成器包名称（例如，`fernapi/fern-typescript-sdk`）。与 `image
 <ParamField path="smart-casing" type="boolean" default="false">
 启用智能大小写转换，保留数字和常见编程模式：
 - 数字保持不变（例如，`v2` 而不是 `v_2`，`getUsersV2` 而不是 `getUsersV_2`）
-- 首字母缩略词得到保留（例如，`CustomerID` 而不是 `CustomerId`）
-- 首字母缩写词保持正确（例如，`HTTPSConnection` 保持 `HTTPSConnection`）
+- 缩写词被保留（例如，`CustomerID` 而不是 `CustomerId`）
+- 首字母缩略词保持正确（例如，`HTTPSConnection` 保持为 `HTTPSConnection`）
 </ParamField>
 
 <ParamField path="image" type="object" required={false} toc={true}>
 在[自托管生成](/learn/sdks/deep-dives/self-hosted)期间，使用 `image` 而不是 `name` 从[自定义容器注册表](/learn/sdks/deep-dives/self-hosted#custom-container-registry)拉取生成器（远程生成不支持自定义注册表）。与 `name` 互斥。
 
-CLI 在拉取时构造完整的镜像引用为 `{registry}/{name}:{version}`。例如，使用 `registry: ghcr.io/your-org`、`name: fern-python-sdk` 和 `version: 4.0.0`，CLI 拉取 `ghcr.io/your-org/fern-python-sdk:4.0.0`。
+拉取时，CLI 将完整镜像引用构造为 `{registry}/{name}:{version}`。例如，使用 `registry: ghcr.io/your-org`、`name: fern-python-sdk` 和 `version: 4.0.0`，CLI 拉取 `ghcr.io/your-org/fern-python-sdk:4.0.0`。
 </ParamField>
 
 <ParamField path="image.name" type="string" required={true}>
-一个已识别的 Fern 生成器名称（例如，`fern-python-sdk`）。IR 版本解析需要此项。
+公认的 Fern 生成器名称（例如，`fern-python-sdk`）。IR 版本解析需要。
 </ParamField>
 
 <ParamField path="image.registry" type="string" required={true}>
-容器注册表主机名和可选命名空间（例如，`ghcr.io/your-org`）。CLI 在拉取时构造完整的镜像引用为 `{registry}/{name}:{version}`。例如，使用 `registry: ghcr.io/your-org`、`name: fern-python-sdk` 和 `version: 4.0.0`，CLI 拉取 `ghcr.io/your-org/fern-python-sdk:4.0.0`。
+容器注册表主机名和可选命名空间（例如，`ghcr.io/your-org`）。拉取时，CLI 将完整镜像引用构造为 `{registry}/{name}:{version}`。例如，使用 `registry: ghcr.io/your-org`、`name: fern-python-sdk` 和 `version: 4.0.0`，CLI 拉取 `ghcr.io/your-org/fern-python-sdk:4.0.0`。
 </ParamField>
 
 #### `config`
@@ -536,7 +535,7 @@ groups:
     generators:
       - name: fernapi/fern-typescript-sdk
         version: <Markdown src="/snippets/version-number-ts.mdx"/>
-        config: # TypeScript 特定的配置选项
+        config: # TypeScript 特定配置选项
           namespaceExport: AcmePayments
           noSerdeLayer: false
 ```
@@ -565,7 +564,7 @@ groups:
 
 #### `output`
 
-发布生成的 SDK 的位置。
+生成的 SDK 发布位置。
 
 ```yaml title="generators.yml"
 groups:
@@ -593,7 +592,7 @@ output:
 ```
 
 <ParamField path="location" type="'npm'" required={true}>
-设置为"npm"以发布到 NPM
+设置为 "npm" 进行 NPM 发布
 </ParamField>
 
 <ParamField path="url" type="string" required={false} default="npmjs.com">
@@ -605,12 +604,12 @@ NPM 包名称（例如，"@myorg/api-sdk"）
 </ParamField>
 
 <ParamField path="token" type="string" required={false}>
-用于发布的 NPM 身份验证令牌
+用于发布的 NPM 认证令牌
 </ParamField>
 </Accordion>
 <Accordion title="Maven">
 
-将 Java SDK 发布到 Maven 存储库。
+将 Java SDK 发布到 Maven 仓库。
 
 ```yaml title="generators.yml"
 output:
@@ -625,27 +624,27 @@ output:
 ```
 
 <ParamField path="location" type="'maven'" required={true}>
-设置为"maven"以发布到 Maven
+设置为 "maven" 进行 Maven 发布
 </ParamField>
 
 <ParamField path="url" type="string" required={false} default="npmjs.com">
-Maven 存储库 URL（可选，默认为 Maven Central）
+Maven 仓库 URL（可选，默认为 Maven Central）
 </ParamField>
 
 <ParamField path="coordinate" type="string" required={true}>
-"groupId:artifactId"格式的 Maven 工件坐标
+"groupId:artifactId" 格式的 Maven 工件坐标
 </ParamField>
 
 <ParamField path="username" type="string" required={false}>
-存储库身份验证用户名
+仓库身份验证用户名
 </ParamField>
 
 <ParamField path="password" type="string" required={false}>
-存储库身份验证密码
+仓库身份验证密码
 </ParamField>
 
 <ParamField path="signature" type="object" required={false}>
-包签名的 GPG 签名配置
+用于包签名的 GPG 签名配置
 </ParamField>
 
 <ParamField path="signature.keyId" type="string" required={true}>
@@ -676,7 +675,7 @@ output:
 ```
 
 <ParamField path="location" type="'pypi'" required={true}>
-设置为"pypi"以发布到 PyPI
+设置为 "pypi" 进行 PyPI 发布
 </ParamField>
 
 <ParamField path="url" type="string" required={false}>
@@ -688,15 +687,15 @@ Python 包名称（例如，"myorg-api-sdk"）
 </ParamField>
 
 <ParamField path="token" type="string" required={false}>
-用于发布的 PyPI 身份验证令牌
+用于发布的 PyPI 认证令牌
 </ParamField>
 
 <ParamField path="username" type="string" required={false}>
-PyPI 用户名（令牌身份验证的替代方案）
+PyPI 用户名（令牌认证的替代方案）
 </ParamField>
 
 <ParamField path="password" type="string" required={false}>
-PyPI 密码（令牌身份验证的替代方案）
+PyPI 密码（令牌认证的替代方案）
 </ParamField>
 
 <ParamField path="metadata" type="objecta" required={false}>
@@ -704,7 +703,7 @@ PyPI 密码（令牌身份验证的替代方案）
 </ParamField>
 
 <ParamField path="metadata.keywords" type="list of string" required={false}>
-用于 PyPI 搜索和发现的包关键字
+用于 PyPI 搜索和发现的包关键词
 </ParamField>
 
 <ParamField path="metadata.documentation-link" type="string" required={false}>
@@ -718,7 +717,7 @@ PyPI 密码（令牌身份验证的替代方案）
 
 <Accordion title="NuGet">
 
-将 .NET SDK 发布到 NuGet 存储库。
+将 .NET SDK 发布到 NuGet 仓库。
 
 ```yaml title="generators.yml"
 output:
@@ -728,7 +727,7 @@ output:
 ```
 
 <ParamField path="location" type="'nuget'" required={true}>
-设置为"nuget"以发布到 NuGet
+设置为 "nuget" 进行 NuGet 发布
 </ParamField>
 
 <ParamField path="url" type="string" required={false}>
@@ -755,7 +754,7 @@ output:
 ```
 
 <ParamField path="location" type="'rubygems'" required={true}>
-设置为"rubygems"以发布到 RubyGems
+设置为 "rubygems" 进行 RubyGems 发布
 </ParamField>
 
 <ParamField path="url" type="string" required={false}>
@@ -770,7 +769,7 @@ Ruby gem 包名称（例如，"myorg_api_sdk"）
 用于发布的 RubyGems API 密钥（需要"Push rubygem"权限）
 </ParamField>
 
-> **注意**: RubyGems API 密钥需要"Push rubygem"权限，理想情况下还需要"index"和"yank rubygem"权限。如果启用了 MFA，请确保 MFA 设置不要求为 API 密钥使用提供 MFA。
+> **注意**：RubyGems API 密钥需要"Push rubygem"权限，理想情况下还需要"index"和"yank rubygem"权限。如果启用了 MFA，请确保 MFA 设置不要求 API 密钥使用时进行 MFA。
 </Accordion>
 <Accordion title="Postman">
 
@@ -785,7 +784,7 @@ output:
 ```
 
 <ParamField path="location" type="'postman'" required={true}>
-设置为"postman"以发布到 Postman
+设置为 "postman" 进行 Postman 发布
 </ParamField>
 
 <ParamField path="api-key" type="string" required={true}>
@@ -797,7 +796,7 @@ output:
 </ParamField>
 
 <ParamField path="collection-id" type="string" required={false}>
-要更新的现有集合 ID（如果未指定则创建新集合）
+要更新的现有集合 ID（如果未指定，则创建新集合）
 </ParamField>
 </Accordion>
 <Accordion title="本地文件系统">
@@ -811,26 +810,26 @@ output:
 ```
 
 <ParamField path="location" type="'local-file-system'" required={true}>
-设置为"local-file-system"以本地输出
+设置为 "local-file-system" 进行本地输出
 </ParamField>
 
 <ParamField path="path" type="string" required={true}>
-生成的文件将保存的本地目录路径
+生成文件将保存到的本地目录路径
 </ParamField>
 </Accordion>
 </AccordionGroup>
 
 #### `github`
 
-使用 `github` 配置指定如何在 GitHub 中生成 SDK。
-指定 `mode` 以指定 Fern 如何处理您的代码更改。对于云生成，使用 `repository` 指定 GitHub 存储库。对于[自托管生成](/learn/sdks/deep-dives/self-hosted)，改用 `uri` 和 `token`。
+使用 `github` 配置指定您的 SDK 如何在 GitHub 中生成。
+指定 `mode` 来确定 Fern 如何处理您的代码更改。对于云生成，使用 `repository` 指定 GitHub 仓库。对于[自托管生成](/learn/sdks/deep-dives/self-hosted)，请改用 `uri` 和 `token`。
 
-<Note>确保在您的目标存储库上安装了 [Fern GitHub 应用](https://github.com/apps/fern-api)（自托管生成不需要）</Note>
+<Note>确保在目标仓库上安装了 [Fern GitHub app](https://github.com/apps/fern-api)（自托管生成不需要）</Note>
 
 <AccordionGroup>
-<Accordion title="Release（默认）">
+<Accordion title="发布（默认）">
 
-Fern 生成您的代码，提交到 main 分支，并标记新版本。
+Fern 生成您的代码，提交到默认分支（或您指定的 `branch`），并标记新版本。
 
 ```yml {6-17}
 groups: 
@@ -844,14 +843,14 @@ groups:
 ```
 
 <ParamField path="repository" type="string" required={true} toc={true}>
-您在 GitHub 中的存储库名称。
+您在 GitHub 中的仓库名称。
 </ParamField>
 
 <ParamField path="mode" type="'release'" required={false} toc={true}>
 </ParamField>
 
 <ParamField path="branch" type="string" required={false} toc={true}>
-您在 GitHub 中的分支名称。
+如果指定，Fern 在此分支而不是默认分支上提交和标记版本。分支必须已存在。使用此选项从单个仓库发布版本化 SDK（例如，`v1` 和 `v2`）。
 </ParamField>
 
 <ParamField path="license" type="'MIT' | 'Apache-2.0' | 'Custom License Name'" required={false} toc={true}>
@@ -859,12 +858,12 @@ groups:
 </ParamField>
 
 <ParamField path="reviewers" type="{ teams: list<string>, users: list<string> }" required={false} toc={true}>
-指定哪些团队和用户应审查生成的代码。请参阅[审查者配置](#reviewers-1)。
+指定哪些团队和用户应该审查生成的代码。请参见[审查员配置](#reviewers-1)。
 </ParamField>
 </Accordion>
-<Accordion title="Pull request（推荐）">
+<Accordion title="拉取请求（推荐）">
 
-Fern 生成您的代码，提交到新分支，并打开 PR 进行审查。要发布，您必须合并 PR 并标记 GitHub 版本。
+Fern 生成您的代码，提交到新分支，并打开 PR 供审查。要发布，您必须合并 PR 并标记 GitHub 版本。
 
 ```yml {6-8}
 groups: 
@@ -878,7 +877,7 @@ groups:
 ```
 
 <ParamField path="repository" type="string" required={true} toc={true}>
-您在 GitHub 中的存储库名称。
+您在 GitHub 中的仓库名称。
 </ParamField>
 
 <ParamField path="mode" type="'pull-request'" required={false} toc={true}>
@@ -893,10 +892,10 @@ groups:
 </ParamField>
 
 <ParamField path="reviewers" type="list of objects" required={false} toc={true}>
-指定哪些团队和用户应审查生成的代码。请参阅[审查者配置](#reviewers-1)。
+指定哪些团队和用户应该审查生成的代码。请参见[审查员配置](#reviewers-1)。
 </ParamField>
 </Accordion>
-<Accordion title="Push">
+<Accordion title="推送">
 
 Fern 生成您的代码并将其推送到您指定的分支。
 
@@ -909,10 +908,10 @@ groups:
         github: 
           repository: "your-org/your-repo-name"
           mode: "push"
-          branch: "your-branch-name" # `mode: push` 必需
+          branch: "your-branch-name" # `mode: push` 需要
 ```
 <ParamField path="repository" type="string" required={true} toc={true}>
-您在 GitHub 中的存储库名称。
+您在 GitHub 中的仓库名称。
 </ParamField>
 
 <ParamField path="mode" type="'push'" required={false} toc={true}>
@@ -927,7 +926,7 @@ groups:
 </ParamField>
 
 <ParamField path="reviewers" type="{ teams: list<string>, users: list<string> }" required={false} toc={true}>
-指定哪些团队和用户应审查生成的代码。请参阅[审查者配置](#reviewers-1)。
+指定哪些团队和用户应该审查生成的代码。请参见[审查员配置](#reviewers-1)。
 </ParamField>
 </Accordion>
 <Accordion title="自托管">
@@ -948,15 +947,15 @@ groups:
 ```
 
 <ParamField path="uri" type="string" required={true} toc={true}>
-您的 GitHub 存储库的完整 URL（例如，`https://github.com/your-org/your-repo`）。
+您的 GitHub 仓库的完整 URL（例如，`https://github.com/your-org/your-repo`）。
 </ParamField>
 
 <ParamField path="token" type="string" required={true} toc={true}>
-具有存储库写入权限的 GitHub 个人访问令牌。使用环境变量引用（例如，`${GITHUB_TOKEN}`）。
+具有仓库写入权限的 GitHub Personal Access Token。使用环境变量引用（例如，`${GITHUB_TOKEN}`）。
 </ParamField>
 
 <ParamField path="mode" type="'push' | 'pull-request'" required={false} toc={true}>
-如何发布更改：`push` 直接提交到分支，`pull-request` 打开 PR 进行审查。
+如何发布更改：`push` 直接提交到分支，`pull-request` 打开 PR 供审查。
 </ParamField>
 
 <ParamField path="branch" type="string" required={false} toc={true}>
@@ -967,7 +966,7 @@ groups:
 
 #### `metadata`
 
-指定单个 SDK 的元数据。或者，您可以[为所有 SDK 全局配置元数据](#metadata)。
+为单个 SDK 指定元数据。或者，您可以[为所有 SDK 全局配置元数据](#metadata)。
 
 ```yml title="generators.yml" {6-10}
 groups: 
@@ -976,14 +975,14 @@ groups:
       - name: fernapi/fern-typescript-sdk
       ...
         metadata: 
-          package-description: "您的 SDK 描述"
+          package-description: "Description of your SDK"
           email: "sdk@example.com"
           reference-url: "https://docs.example.com/sdks"
           license: "MIT"
 ```
 
 <ParamField path="package-description" type="string" required={false} toc={true}>
-您生成的 SDK 功能及其关键特性的简要描述。这出现在 `package.json` 描述字段和包注册表列表中。
+您生成的 SDK 功能及其主要特性的简要描述。这将出现在 `package.json` 描述字段和包注册表列表中。
 </ParamField>
 
 <ParamField path="email" type="string" required={false} toc={true}>
@@ -991,7 +990,7 @@ groups:
 </ParamField>
 
 <ParamField path="reference-url" type="string" required={false} toc={true}>
-指向 SDK 的综合文档、API 参考或入门指南的 URL。
+指向 SDK 综合文档、API 参考或入门指南的 URL。
 </ParamField>
 
 <ParamField path="author" type="string" required={false} toc={true}>
@@ -1016,7 +1015,7 @@ groups:
 ```
 
 <ParamField path="autorelease" type="boolean" default={false} required={false} toc={true}>
-  设置为 `true` 为此生成器启用自动发布，`false` 禁用它。每个生成器的设置覆盖全局 [`autorelease`](#autorelease-1) 配置。
+  设置为 `true` 为此生成器启用 Autorelease，`false` 禁用它。每个生成器的设置覆盖全局 [`autorelease`](#autorelease-1) 配置。
 </ParamField>
 
 #### `snippets`
@@ -1060,7 +1059,7 @@ groups:
 要使用的身份验证方案。可以是字符串引用（`"bearer-token"`）或方案对象（`scheme: "bearer-token"`）。
 </ParamField>
 </Accordion>
-<Accordion title="多个身份验证选项">
+<Accordion title="多种身份验证选项">
 
 允许用户使用多种方法中的任何一种进行身份验证：
 
@@ -1079,7 +1078,7 @@ groups:
 ```
 
 <ParamField path="any" type="list<string | { scheme: string }>" required={true} toc={true}>
-用户可以选择任何一种方法的身份验证方案列表。每个项可以是字符串引用（`"api-key"`）或方案对象（`scheme: "api-key"`）。
+身份验证方案列表，用户可以选择任何一种方法。每个项目可以是字符串引用（`"api-key"`）或方案对象（`scheme: "api-key"`）。
 </ParamField>
 </Accordion>
 
@@ -1103,18 +1102,18 @@ groups:
 ```
 
 <AccordionGroup>
-<Accordion title="Header 身份验证">
+<Accordion title="头部认证">
 
 <Markdown src="/products/sdks/snippets/header-auth-params.mdx" />
 </Accordion>
 
-<Accordion title="Basic 身份验证">
+<Accordion title="Basic 认证">
 
 <Markdown src="/products/sdks/snippets/basic-auth-params.mdx" />
 
 </Accordion>
 
-<Accordion title="Bearer Token 身份验证">
+<Accordion title="Bearer Token 认证">
 
 <Markdown src="/products/sdks/snippets/bearer-auth-params.mdx" />
 </Accordion>
@@ -1139,6 +1138,6 @@ groups:
 
 ### `reviewers`
 
-为所有 SDK 全局设置代码审查者。或者，您可以[为单个 SDK 配置审查者](#reviewers)。
+为所有 SDK 全局设置代码审查员。或者，您可以[为单个 SDK 配置审查员](#reviewers)。
 
 <Markdown src="/products/sdks/snippets/reviewers-params.mdx" />

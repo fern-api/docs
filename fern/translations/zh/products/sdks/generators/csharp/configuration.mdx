@@ -1,7 +1,6 @@
 ---
 title: .NET 配置
 description: 使用 Fern 配置您的 C# .NET SDK 生成器。自定义客户端类名、命名空间、错误处理和分页设置。
-sidebar-title: .NET 配置
 ---
 
 您可以在 `generators.yml` 中自定义 C#/.NET SDK 生成器的行为：
@@ -17,11 +16,11 @@ groups:
 ```
 
 <ParamField path="base-api-exception-class-name" type="string" required={false} toc={true}>
-自定义基础 API 异常类的名称，所有特定于 API 的异常都将从该类继承。这允许您定义自定义的基础异常类名称，以便更好地与现有的错误处理模式集成。
+自定义所有特定 API 异常将继承的基础 API 异常类的名称。这允许您定义自定义的基础异常类名，以便更好地与现有的错误处理模式集成。
 </ParamField>
 
 <ParamField path="base-exception-class-name" type="string" required={false} toc={true}>
-指定所有生成的异常都将从其继承的基础异常类的名称。这为所有 SDK 异常提供了一个通用的父类，使异常处理模式保持一致。
+指定所有生成的异常将继承的基础异常类的名称。这为所有 SDK 异常提供了一个公共的父类，实现一致的异常处理模式。
 </ParamField>
 
 <ParamField path="client-class-name" type="string" required={false} toc={true}>
@@ -29,11 +28,15 @@ groups:
 </ParamField>
 
 <ParamField path="custom-pager-name" type="string" required={false} toc={true}>
-自定义用于处理分页 API 响应的分页助手类的名称。这允许您指定符合您命名约定的自定义名称。
+自定义用于处理分页 API 响应的分页辅助类的名称。这允许您指定符合您命名约定的自定义名称。
+</ParamField>
+
+<ParamField path="default-timeout-in-seconds" type="number | 'infinity'" default="30" required={false} toc={true}>
+网络请求的默认超时时间，以秒为单位。设置为 `infinity` 可禁用默认超时。SDK 用户仍然可以通过传递 `RequestOptions.Timeout` 来[按请求覆盖此设置](/learn/sdks/deep-dives/sdk-user-features#customization-options)。
 </ParamField>
 
 <ParamField path="enable-forward-compatible-enums" type="boolean" required={false} toc={true}>
-启用时，生成可以处理未知值的枚举类型。这允许 SDK 处理可能添加到 API 的新枚举值，而不会破坏现有的客户端代码，从而提高向前兼容性。
+启用后，生成可以处理未知值的枚举类型。这允许 SDK 处理可能添加到 API 中的新枚举值，而不会破坏现有的客户端代码，提高前向兼容性。
 </ParamField>
 
 <ParamField path="environment-class-name" type="string" required={false} toc={true}>
@@ -41,7 +44,7 @@ groups:
 </ParamField>
 
 <ParamField path="explicit-namespaces" type="boolean" required={false} toc={true}>
-启用时，在整个 SDK 中生成带有显式命名空间声明的代码。这有助于避免命名冲突并提高大型项目中代码的清晰度。
+启用后，在整个 SDK 中生成带有显式命名空间声明的代码。这有助于避免命名冲突并提高大型项目中代码的清晰度。
 </ParamField>
 
 <ParamField path="exported-client-class-name" type="string" required={false} toc={true}>
@@ -49,35 +52,50 @@ groups:
 </ParamField>
 
 <ParamField path="generate-error-types" type="boolean" required={false} toc={true}>
-启用时，为不同的 API 错误生成特定的错误类型类。这提供了强类型的错误处理，而不是使用通用的异常类型。
+启用后，为不同的 API 错误生成特定的错误类型类。这提供强类型错误处理，而不是使用通用异常类型。
 </ParamField>
 
 <ParamField path="generate-mock-server-tests" type="boolean" default="true" required={false} toc={true}>
-生成[模拟服务器（连线）测试](/learn/sdks/deep-dives/testing#mock-server-tests)以验证 SDK 是否按预期发送和接收 HTTP 请求。
+生成[模拟服务器（网络）测试](/learn/sdks/deep-dives/testing#mock-server-tests)以验证 SDK 按预期发送和接收 HTTP 请求。
 </ParamField>
 
 <ParamField path="include-exception-handler" type="boolean" required={false} toc={true}>
-启用时，在生成的 SDK 中包含内置的异常处理实用程序。这为常见的错误处理场景提供了便利方法。
+启用后，在生成的 SDK 中包含内置异常处理工具。这为常见的错误处理场景提供便利方法。
 </ParamField>
 
 <ParamField path="inline-path-parameters" type="boolean" required={false} toc={true}>
-启用时，路径参数将作为请求对象的属性包含在内，而不是作为单独的方法参数传递。这创建了一个更统一的请求结构，其中所有参数都组合在一起。
+启用后，路径参数将作为请求对象的属性包含，而不是作为单独的方法参数传递。这创建了一个更统一的请求结构，将所有参数分组在一起。
+</ParamField>
+
+<ParamField path="maxRetries" type="number" required={false} toc={true}>
+失败请求的默认重试次数。未设置时，生成的 SDK 使用其自己的内置默认值。SDK 用户仍然可以通过请求选项按请求覆盖此设置。
 </ParamField>
 
 <ParamField path="namespace" type="string" required={false} toc={true}>
 指定所有生成的 .NET 代码的根命名空间。这决定了用户在使用 SDK 时将导入的命名空间层次结构。
 </ParamField>
 
+<ParamField path="offset-semantics" type="'item-index' | 'page-index'" required={false} toc={true}>
+控制如何为[自动分页](/learn/sdks/deep-dives/auto-pagination)端点解释偏移参数。
+
+*    `item-index`: 偏移计算单个项目（例如，偏移 20 跳过前 20 个项目）。
+*    `page-index`: 偏移计算页面（例如，偏移 3 跳到第 3 页）。
+</ParamField>
+
+<ParamField path="omit-fern-headers" type="boolean" default="false" required={false} toc={true}>
+启用后，生成的 SDK 从 HTTP 请求中省略 `X-Fern-Language`、`X-Fern-SDK-Name` 和 `X-Fern-SDK-Version` 标头。
+</ParamField>
+
 <ParamField path="package-id" type="string" required={false} toc={true}>
-设置生成的 SDK 的 NuGet 包标识符。这在将 SDK 发布到 NuGet 或其他包存储库时使用。
+设置生成的 SDK 的 NuGet 包标识符。这在将 SDK 发布到 NuGet 或其他包仓库时使用。
 </ParamField>
 
 <ParamField path="read-only-memory-types" type="List<string>" required={false} toc={true}>
-指定应该使用 ReadOnlyMemory&lt;T&gt; 而不是常规数组或集合生成的类型列表。这可以通过减少内存分配来提高大数据传输的性能。
+指定应使用 ReadOnlyMemory&lt;T&gt; 而不是常规数组或集合生成的类型列表。通过减少内存分配，这可以改善大数据传输的性能。
 </ParamField>
 
 <ParamField path="redact-response-body-on-error" type="boolean" required={false} toc={true}>
-启用时，防止原始响应体泄漏到异常消息和日志中。反序列化错误异常传递 `null` 而不是原始响应体，基础 API 异常类包含一个自定义的 `ToString()` 覆盖，它排除响应体。
+启用后，防止原始响应正文泄漏到异常消息和日志中。反序列化错误异常传递 `null` 而不是原始响应正文，基础 API 异常类包含排除响应正文的自定义 `ToString()` 重写。
 </ParamField>
 
 <ParamField path="root-client-class-access" type="'public' | 'internal'" required={false} toc={true}>
@@ -85,9 +103,9 @@ groups:
 </ParamField>
 
 <ParamField path="root-namespace-for-core-classes" type="boolean" required={false} toc={true}>
-启用时，将核心 SDK 类（如基础客户端类和实用程序）放置在根命名空间中，而不是嵌套命名空间中。这可以简化常用类型的导入。
+启用后，将核心 SDK 类（如基础客户端类和工具）放置在根命名空间而不是嵌套命名空间中。这可以简化常用类型的导入。
 </ParamField>
 
 <ParamField path="use-discriminated-unions" type="boolean" required={false} toc={true}>
-启用时，为可以包含多种不同对象类型的 API 响应生成判别联合类型。这为多态响应提供了类型安全的处理。
+启用后，为可以包含多种不同对象类型的 API 响应生成区分联合类型。这为多态响应提供类型安全的处理。
 </ParamField>

@@ -1,15 +1,14 @@
 ---
 title: 自定义 robots.txt
-description: 在文档站点根目录提供自定义 robots.txt，以控制搜索引擎和 AI 爬虫如何访问您的内容。
-sidebar-title: 自定义 robots.txt
+description: 在您的文档站点根目录提供自定义 robots.txt 来控制搜索引擎和 AI 爬虫如何访问您的内容。
 ---
 
-默认情况下，Fern 在文档站点根目录提供自动生成的 `robots.txt`，允许所有爬虫并指向您的 `sitemap.xml`。使用 [`docs.yml` 中的 `agents.robots-txt` 键](/learn/docs/configuration/site-level-settings#agentsrobots-txt)以提供您自己的文件——这有助于选择允许或禁止特定的 AI 爬虫、限制敏感部分的访问，或通过 [Cloudflare 内容信号策略](https://blog.cloudflare.com/content-signals-policy/)表明偏好。
+默认情况下，Fern 在您的文档站点根目录提供一个自动生成的 `robots.txt`，允许所有爬虫并指向您的 `sitemap.xml`。使用 [`docs.yml` 中的 `agents.robots-txt` 键](/learn/docs/configuration/site-level-settings#agentsrobots-txt) 来提供您自己的文件——这对于选择接受或拒绝特定的 AI 爬虫、限制敏感部分或使用 [Cloudflare 内容信号策略](https://blog.cloudflare.com/content-signals-policy/) 表明偏好非常有用。
 
-`robots.txt` 仅是建议性的：遵守协议的爬虫会尊重您的 `Disallow` 和 `Allow` 指令，但忽略该协议的机器人仍可访问这些路径。对于必须保持私密的内容，请[使用身份验证](/learn/docs/authentication/overview)。
+`robots.txt` 只是建议性的：合规的爬虫会遵循您的 `Disallow` 和 `Allow` 指令，但忽略协议的机器人仍然可以访问这些路径。对于必须保持私有的内容，[请使用身份验证](/learn/docs/authentication/overview)。
 
 <Note>
-  `robots.txt` 决定哪些爬虫可以访问您的站点以及您广播什么 AI 训练信号。它的搭档 [`llms.txt` 和 `llms-full.txt`](/learn/docs/ai-features/llms-txt) 决定 AI agent 在爬取后接收到的内容。
+  `robots.txt` 决定哪些爬虫可以访问您的站点以及您广播什么 AI 训练信号。它的配套文件 [`llms.txt` 和 `llms-full.txt`](/learn/docs/ai-features/llms-txt) 则影响 AI 代理爬取后接收到的内容。
 </Note>
 
 ## 配置
@@ -22,7 +21,7 @@ agents:
   robots-txt: ./robots.txt
 ```
 
-路径相对于 `docs.yml`。
+路径是相对于 `docs.yml` 的。
 
 </Step>
 
@@ -33,29 +32,29 @@ agents:
 User-Agent: Googlebot
 Allow: /
 
-# 限制某个 AI 爬虫访问私有路径
+# 限制 AI 爬虫访问私有路径
 User-Agent: GPTBot
 Disallow: /private
 
 # 通过 Cloudflare 内容信号声明 AI 使用偏好
 Content-Signal: ai-train=yes, search=yes, ai-input=yes
 
-# 将爬虫指向您的 sitemap——Fern 默认的 robots.txt 包含此项，
-# 因此当您用自定义文件替换默认值时，请记得加回此行
+# 为爬虫指向您的站点地图——Fern 的默认 robots.txt 包含此项，
+# 所以在用自定义文件替换默认文件时需要添加回来
 Sitemap: https://docs.example.com/sitemap.xml
 ```
 <Tip>
-  请将命名机器人（如 `GPTBot`、`Googlebot`）放在任何通配符组之前——Fern 在提供文件时会追加自己的 `User-Agent: *` 块。
+  将命名的机器人（如 `GPTBot`、`Googlebot`）放在文件中任何通配符组之前——Fern 在提供文件时会附加自己的 `User-Agent: *` 块。
 </Tip>
 
 </Step>
 
 <Step title="Fern 提供您的文件">
 
-您的文件按原样在 `/robots.txt` 提供。Fern 在末尾追加一个受管理的块，禁止内部 API 路由：
+您的文件会在 `/robots.txt` 原样提供。Fern 会在末尾附加一个托管块，禁止内部 API 路由：
 
 ```txt
-# Fern 管理的路由——自动禁止
+# Fern 托管的路由——自动禁止
 User-Agent: *
 Disallow: /api/fern-docs/
 ```

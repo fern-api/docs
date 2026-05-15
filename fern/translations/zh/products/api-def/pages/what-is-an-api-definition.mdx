@@ -1,21 +1,20 @@
 ---
 title: 什么是 API 定义？
-description: 描述 API 提供方和 API 消费者之间的契约
-sidebar-title: 什么是 API 定义？
+description: 描述 API 提供者和 API 消费者之间的契约
 ---
 
-
-API 定义是对您的 API 结构的机器可读规范，包括**端点**、**请求和响应模式**，以及**身份验证**要求。API 定义能够自动生成这些工件，而不需要手动保持 SDK 和文档与 API 变更的同步。
+API 定义是对你的 API 结构的机器可读规范，包括**端点**、**请求和响应模式**以及**身份验证**要求。API 定义能够自动生成这些制品，无需手动保持 SDK 和文档与 API 变更的同步。
 
 Fern 集成了多种 API 定义格式：
 
 <AccordionGroup>
   <Accordion
-    title="OpenAPI（REST 和 Webhook API）"
+    title="OpenAPI (REST 和 Webhook API)"
   >
-    OpenAPI 原称 Swagger，是最受欢迎的 API 定义格式。[OpenAPI](https://swagger.io/specification/) 可用于记录 RESTful API，并在 YAML 或 JSON 文件中定义。
+    原名为 Swagger，[OpenAPI](https://swagger.io/specification/) 是最流行的 API 定义格式。
+    OpenAPI 可用于记录 RESTful API，并在 YAML 或 JSON 文件中定义。
 
-    在[此处](https://github.com/swagger-api/swagger-petstore/blob/master/src/main/resources/openapi.yaml)查看 Petstore API 的 OpenAPI 规范示例
+    查看 Petstore API 的 OpenAPI 规范示例[这里](https://github.com/swagger-api/swagger-petstore/blob/master/src/main/resources/openapi.yaml)
   
     ```yaml maxLines={0}
     openapi: 3.0.2
@@ -100,9 +99,9 @@ Fern 集成了多种 API 定义格式：
     ```
   </Accordion>
   <Accordion
-    title="AsyncAPI（WebSocket API）"
+    title="AsyncAPI (WebSocket API)"
   >
-    [AsyncAPI](https://v2.asyncapi.com/docs) 是用于定义事件驱动 API 的规范。它用于记录使用 WebSocket、MQTT 和其他消息传递协议的 API。
+    [AsyncAPI](https://v2.asyncapi.com/docs) 是用于定义事件驱动 API 的规范。它用于记录使用 WebSockets、MQTT 和其他消息传递协议的 API。
 
     查看下面聊天应用程序的 AsyncAPI 规范示例：
 
@@ -153,9 +152,9 @@ Fern 集成了多种 API 定义格式：
     
   </Accordion>
   <Accordion
-    title="OpenRPC（JSON-RPC API）"
+    title="OpenRPC (JSON-RPC API)"
   >
-    [OpenRPC](https://open-rpc.org/) 是用于描述 JSON-RPC 2.0 API 的规范。它为 JSON-RPC 生态系统提供了交互式文档和代码生成工具。
+    [OpenRPC](https://open-rpc.org/) 是用于描述 JSON-RPC 2.0 API 的规范。它为 JSON-RPC 生态系统提供交互式文档和代码生成工具。
 
     查看下面加密钱包服务的 OpenRPC 规范示例：
 
@@ -194,10 +193,10 @@ Fern 集成了多种 API 定义格式：
               value: 42.5
     ```
   </Accordion>
-  <Accordion title="gRPC（RPC API）">
-    [gRPC](https://grpc.io/) 是由 Google 开发的现代开源 RPC 框架。它使用 Protocol Buffers 作为接口定义语言，支持多种编程语言，并具有高效的二进制序列化功能。
+  <Accordion title="gRPC (RPC API)">
+    [gRPC](https://grpc.io/) 是由 Google 开发的现代开源 RPC 框架。它使用 Protocol Buffers 作为接口定义语言，支持多种编程语言和高效的二进制序列化。
 
-    gRPC API 使用 Protocol Buffer（.proto）文件定义，这些文件指定服务和消息类型。查看下面的 gRPC 服务定义示例：
+    gRPC API 使用 Protocol Buffer (.proto) 文件定义，这些文件指定服务和消息类型。查看下面的 gRPC 服务定义示例：
 
     ```proto maxLines={0}
     syntax = "proto3";
@@ -260,66 +259,11 @@ Fern 集成了多种 API 定义格式：
     }
     ```
   </Accordion>
-  <Accordion
-    title="Fern Definition（REST、Webhook 和 WebSocket API）"
-  >
-    Fern Definition 是我们对更简单 API 定义格式的理解。它采用**最佳实践**设计，同时支持 **RESTful 和事件驱动 API**，并针对 **SDK 生成**进行了优化。
-
-    <Note>
-      Fern Definition 受到了 [Amazon](https://smithy.io/2.0/index.html)、[Google](https://grpc.io/)、[Palantir](https://blog.palantir.com/introducing-conjure-palantirs-toolchain-for-http-json-apis-2175ec172d32)、Twilio 和 Stripe 等公司内部 API Definition 格式的启发。这些公司**拒绝了** OpenAPI 并构建了自己的版本。
-    </Note>
-
-    查看下面的 Fern Definition 示例：
-
-    ```yaml maxLines={0}
-    types:
-      MovieId: string
-
-      Movie:
-        properties:
-          id: MovieId
-          title: string
-          rating:
-            type: double
-            docs: The rating scale is one to five stars
-
-      CreateMovieRequest:
-        properties:
-          title: string
-          rating: double
-
-    service:
-      auth: false
-      base-path: /movies
-      endpoints:
-        createMovie:
-          docs: Add a movie to the database
-          method: POST
-          path: /create-movie
-          request: CreateMovieRequest
-          response: MovieId
-
-        getMovie:
-          method: GET
-          path: /{movieId}
-          path-parameters:
-            movieId: MovieId
-          response: Movie
-          errors:
-            - MovieDoesNotExistError
-
-    errors:
-      MovieDoesNotExistError:
-        status-code: 404
-        type: MovieId
-    ```
-
-  </Accordion>
-</AccordionGroup>
+  </AccordionGroup>
 
 ## 为什么要创建 API 定义？
 
-一旦您拥有 API 定义，Fern 就会将其用作输入来生成诸如 SDK 和 API 参考文档等工件。每当您更新 API 定义时，都可以重新生成这些工件以确保它们始终保持最新状态。
+一旦你有了 API 定义，Fern 就会将其作为输入来生成制品，如 SDK 和 API 参考文档。每次更新 API 定义时，你都可以重新生成这些制品，确保它们始终保持最新状态。
 
 <CardGroup cols={2}>
   <Card
@@ -327,27 +271,27 @@ Fern 集成了多种 API 定义格式：
     icon="brands github"
     href="/sdks/overview/introduction"
   >
-    多语言客户端库，自动与您的 API 保持同步。
+    多种语言的客户端库，自动与你的 API 保持同步。
   </Card>
   <Card
     title="文档"
     icon="regular browser"
     href="/docs/getting-started/overview"
   >
-    具有代码示例和实时测试功能的交互式 API 文档。
+    包含代码示例和实时测试功能的交互式 API 文档。
   </Card>
   <Card
-    title="Postman Collection"
+    title="Postman 集合"
     icon={<img src="https://cdn.worldvectorlogo.com/logos/postman.svg" alt="Postman logo"/>}
     href="/docs/integrations/postman"
   >
     预填充示例请求和响应的即用型集合。
   </Card>
   <Card
-    title="服务器样板代码"
+    title="服务器模板"
     icon={<img src="https://cdn.worldvectorlogo.com/logos/fastapi-1.svg" alt="FastAPI logo" />}
     href="/api-definitions/openapi/frameworks/fastapi"
   >
-    用于 FastAPI 的 Pydantic 模型或用于 Spring Boot 应用程序的控制器。
+    适用于 FastAPI 的 Pydantic 模型或 Spring Boot 应用程序的控制器。
   </Card>
 </CardGroup>
