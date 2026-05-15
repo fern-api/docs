@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   sync:
-    name: Remove stale translations
+    name: Update stale translations
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -21,7 +21,17 @@ jobs:
         with:
           fetch-depth: 2
 
-      - name: Find and remove stale translation files
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install anthropic
+
+      - name: Find and re-translate stale translation files
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           set -euo pipefail
 
@@ -33,35 +43,95 @@ jobs:
             exit 0
           fi
 
-          STALE_FILES=""
+          export STALE_EN_FILES=""
           while IFS= read -r en_file; do
             [ -z "$en_file" ] && continue
-            # Map EN path to zh translation path:
-            # fern/products/docs/pages/foo.mdx -> fern/translations/zh/products/docs/pages/foo.mdx
             zh_file="fern/translations/zh/${en_file#fern/}"
             if [ -f "$zh_file" ]; then
               echo "Stale: $zh_file (EN source changed: $en_file)"
-              STALE_FILES="$STALE_FILES $zh_file"
+              STALE_EN_FILES="$STALE_EN_FILES $en_file"
             fi
           done <<< "$CHANGED_EN_FILES"
+          export STALE_EN_FILES
 
-          if [ -z "$STALE_FILES" ]; then
+          if [ -z "$STALE_EN_FILES" ]; then
             echo "No stale translation files found"
             exit 0
           fi
 
-          # shellcheck disable=SC2086
-          git rm $STALE_FILES
-          echo "stale_found=true" >> "$GITHUB_ENV"
+          python3 << 'PYEOF'
+          import os, sys, time
+          import anthropic
+
+          SYSTEM_PROMPT = """You are translating Fern developer documentation from English to Simplified Chinese (zh).
+
+          Rules:
+          1. Translate ALL prose, headings, frontmatter (title, description, sidebar-title, headline), callout text, and step titles to Chinese.
+          2. DO NOT translate:
+             - Code blocks (content inside ``` fences)
+             - Component tag names (<Steps>, <Accordion>, <Note>, <Frame>, <CodeBlock>, <Tabs>, <Tab>, etc.)
+             - Component prop names and values (e.g. title="...", href="...", src="...", language="...")
+             - URLs, file paths, import paths
+             - Variable names, API endpoints, CLI commands, package names
+             - YAML/JSON keys in code blocks
+             - <Markdown src="..."/> includes
+             - <llms-only> and <llms-ignore> tags (keep them as-is)
+             - Content inside <llms-only> blocks (keep in English as it's for AI agents)
+          3. Translate component prop values ONLY when they contain human-readable display text:
+             - Translate: title="Getting started" → title="开始使用"
+             - Do NOT translate: href="/learn/docs/...", src="./image.png", language="python"
+          4. Keep the same MDX structure, whitespace, and formatting as the original.
+          5. Keep frontmatter YAML structure exactly the same (same keys, just translate values).
+          6. For technical terms commonly kept in English in Chinese tech docs, keep them in English or use the standard Chinese translation with the English term in parentheses on first use. Examples:
+             - SDK, API, CLI, MDX, YAML, JSON, OpenAPI, gRPC → keep in English
+             - endpoint → 端点 or keep as endpoint
+             - middleware → 中间件
+          7. Output ONLY the translated MDX content. No explanations, no markdown fences around the output."""
+
+          client = anthropic.Anthropic()
+          stale = os.environ.get("STALE_EN_FILES", "").split()
+          updated = 0
+
+          for en_file in stale:
+              zh_file = "fern/translations/zh/" + en_file.removeprefix("fern/")
+              with open(en_file) as f:
+                  en_content = f.read()
+
+              print(f"Translating: {en_file} -> {zh_file}")
+              try:
+                  resp = client.messages.create(
+                      model="claude-sonnet-4-20250514",
+                      max_tokens=16000,
+                      system=SYSTEM_PROMPT,
+                      messages=[{"role": "user", "content": f"Translate this MDX documentation page to Simplified Chinese:\n\n{en_content}"}],
+                  )
+                  zh_content = resp.content[0].text
+
+                  os.makedirs(os.path.dirname(zh_file), exist_ok=True)
+                  with open(zh_file, "w") as f:
+                      f.write(zh_content)
+                      if not zh_content.endswith("\n"):
+                          f.write("\n")
+                  updated += 1
+                  time.sleep(1)
+              except Exception as e:
+                  print(f"  ERROR translating {en_file}: {e}", file=sys.stderr)
+
+          print(f"Updated {updated}/{len(stale)} translation files")
+          if updated > 0:
+              with open(os.environ["GITHUB_ENV"], "a") as f:
+                  f.write("stale_found=true\n")
+          PYEOF
 
       - name: Commit and push
         if: env.stale_found == 'true'
         run: |
+          git add fern/translations/zh/
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "chore: remove stale zh translations for updated EN pages
+          git commit -m "chore: re-translate stale zh translations for updated EN pages
 
-          Automatically removes zh translation files whose EN source was
-          updated. These pages will fall back to auto-translation from the
-          current EN source until new translations are provided."
+          Automatically re-translates zh translation files whose EN source was
+          updated, keeping pre-computed translations in sync with the latest
+          English content."
           git push
