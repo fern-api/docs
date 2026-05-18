@@ -5,13 +5,11 @@ description: Mark API endpoint availability in OpenAPI with `x-fern-availability
 ---
 
 
-The `x-fern-availability` extension is used to mark the availability of an endpoint within your OpenAPI definition. The availability information propagates into the generated Fern Docs website as visual tags, SDKs, and [CLIs](/learn/cli-generator/get-started/openapi-extensions#availability-badges).
-
-You can configure the `availability` of sections in your API Reference documentation in your [`docs.yml` file](/learn/docs/configuration/site-level-settings). 
+The `x-fern-availability` extension marks the availability of an endpoint within your OpenAPI definition. The availability information propagates into the generated Fern Docs website as visual tags, SDKs, and [CLIs](/learn/cli-generator/get-started/openapi-extensions#availability-badges).
 
 ## Endpoint
 
-The options are:
+Set `x-fern-availability` on an endpoint to one of the following values:
 
 | Value | Description | Tag |
 | --- | --- | --- |
@@ -31,44 +29,17 @@ paths:
       x-fern-availability: deprecated
 ```
 
-This renders as:
+### API Reference output
+
+The endpoint renders with the corresponding tag in your API Reference docs.
 
 <Frame caption="A deprecated endpoint">
 ![Screenshot of API Reference endpoint with tag showing deprecated](https://fern-image-hosting.s3.amazonaws.com/fern/x-fern-availability-example.png)
 </Frame>
 
-### Custom message
+### SDK output
 
-You can include a message using the extended object syntax. The message propagates into generated SDK doc comments (e.g., `@deprecated Use PATCH /plants/{plantId} instead.`).
-
-```yaml title="openapi.yml" {4-6}
-paths:
-  /plants/{plantId}:
-    put:
-      x-fern-availability:
-        status: deprecated
-        message: Use PATCH /plants/{plantId} instead.
-```
-
-## Section
-
-<Markdown src="/products/api-def/snippets/availability.mdx" />
-
-## SDK output
-
-Availability values propagate into generated SDKs as doc comments on client methods (JSDoc in TypeScript, docstrings in Python, Javadoc in Java, etc.). IDEs surface these as warnings and strikethrough styling.
-
-```yaml title="openapi.yml"
-paths:
-  /plants:
-    post:
-      x-fern-availability: beta
-      operationId: createPlant
-  /plants/{plantId}:
-    get:
-      x-fern-availability: deprecated
-      operationId: getPlant
-```
+Availability values propagate into [generated SDKs](/learn/sdks/deep-dives/sdk-user-features#availability) as doc comments on client methods (JSDoc in TypeScript, docstrings in Python, Javadoc in Java, etc.). IDEs surface these as warnings and strikethrough styling so SDK users see at a glance which endpoints to avoid.
 
 ```typescript title="Generated TypeScript SDK"
 export class PlantsClient {
@@ -79,3 +50,20 @@ export class PlantsClient {
     public getPlant( ... ): Promise<Plant> { ... }
 }
 ```
+
+To add a custom message to the doc comment (e.g., `@deprecated Use PATCH /plants/{plantId} instead.`), use the extended object syntax:
+
+```yaml title="openapi.yml" {4-6}
+paths:
+  /plants/{plantId}:
+    put:
+      x-fern-availability:
+        status: deprecated
+        message: Use PATCH /plants/{plantId} instead.
+```
+
+
+## Section
+
+<Markdown src="/products/api-def/snippets/availability.mdx" />
+
