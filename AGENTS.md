@@ -10,6 +10,15 @@
 - Never fabricate information. If you don't know something, say so.
 - Link between related pages and sections. When you mention a concept that's documented elsewhere, cross-reference it so users can find their way naturally.
 
+## Voice
+
+Keep prose dry and direct. State requirements and behavior plainly.
+
+- **Cut hedges and second-person nudges.** "just", "simply", "make sure you", "you'll want to". Prefer "X requires Y" over "make sure you have Y so you can do X".
+- **Cut connective filler.** "so that", "in order to", "be sure to" when a flat sentence works.
+- **Avoid em dash overuse.** At most one em dash per short paragraph. Before reaching for a second dash, try a colon (for a list or expansion) or parentheses (for an aside). Multiple dashes in close succession read as AI-generated.
+- **No conversational framing in callouts and step descriptions.** "Localization requires the latest CLI version" beats "Localization is under active development, so make sure you're on the latest CLI before configuring it."
+
 ## Link checking
 
 Internal links between documentation pages use **URL paths built from the YAML config**, not file paths on disk or relative paths.
@@ -125,6 +134,16 @@ Then read each candidate to find the natural insertion point. Common targets:
 | New page | Only if the feature has substantial standalone content that doesn't fit elsewhere. |
 
 Default to the lightest form that works. New pages and new sections add maintenance surface; inline sentences and Notes don't.
+
+### Phrase inline links naturally
+
+When the form is inline (the common case), put the link on a natural noun phrase inside the sentence that's already making the point. Don't append a "see [page]" sentence, and don't wrap a one-line pointer in a standalone `<Tip>` whose only job is to host the link.
+
+- Good: "Fern emits a set of [analytics events](/learn/docs/integrations/analytics/events) and forwards them to your providers."
+- Bad: "Fern emits events. See the [analytics events reference](/learn/docs/integrations/analytics/events) for the list."
+- Bad: A standalone `<Tip>` containing only "For more, see [analytics events reference](/learn/...)."
+
+Reserve `<Tip>` and `<Card>` callouts for genuinely orthogonal pointers — a tutorial, a related concept that isn't part of the current narrative — not as wrappers for a link that already belongs in the prose.
 
 ### Frame by function, not by plumbing
 
