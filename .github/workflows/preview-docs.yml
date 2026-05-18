@@ -8,27 +8,43 @@ on:
 
 jobs:
   run:
-    if: github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]'
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write # Only for commenting
       contents: read # For checking out code
     steps:
+      - name: Check for FERN_TOKEN
+        id: check-token
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+        run: |
+          if [ -z "$FERN_TOKEN" ]; then
+            echo "FERN_TOKEN is not available (e.g. Dependabot PRs). Skipping preview."
+            echo "has_token=false" >> $GITHUB_OUTPUT
+          else
+            echo "has_token=true" >> $GITHUB_OUTPUT
+          fi
+
       - name: Checkout repository
+        if: steps.check-token.outputs.has_token == 'true'
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           fetch-depth: 0  # Fetch full history for git diff
           persist-credentials: false
 
       - name: Checkout PR
+        if: steps.check-token.outputs.has_token == 'true'
         run: |
           git fetch origin pull/${{ github.event.pull_request.number }}/head:pr-${{ github.event.pull_request.number }}
           git checkout pr-${{ github.event.pull_request.number }}
 
       - name: Setup Fern CLI
+        if: steps.check-token.outputs.has_token == 'true'
         uses: fern-api/setup-fern-cli@d07601425e9c9ede8745d71ca75c4c462d98755d # v1
 
       - name: Generate preview URL
+        if: steps.check-token.outputs.has_token == 'true'
         id: generate-docs
         env:
           FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
@@ -41,6 +57,7 @@ jobs:
           echo "Preview URL: $URL"
 
       - name: Get page links for changed MDX files
+        if: steps.check-token.outputs.has_token == 'true'
         id: page-links
         env:
           FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
@@ -70,6 +87,7 @@ jobs:
           fi
 
       - name: Create comment content
+        if: steps.check-token.outputs.has_token == 'true'
         run: |
           echo ":herb: **Preview your docs:** <${STEPS_GENERATE_DOCS_OUTPUTS_PREVIEW_URL}>" > comment.md
           
@@ -83,6 +101,7 @@ jobs:
           STEPS_PAGE_LINKS_OUTPUTS_PAGE_LINKS: ${{ steps.page-links.outputs.page_links }}
 
       - name: Post PR comment
+        if: steps.check-token.outputs.has_token == 'true'
         uses: thollander/actions-comment-pull-request@1d3973dc4b8e1399c0620d3f2b1aa5e795465308 # v2.4.3
         with:
           filePath: comment.md
