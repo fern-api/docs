@@ -37,29 +37,13 @@ This renders as:
 ![Screenshot of API Reference endpoint with tag showing deprecated](https://fern-image-hosting.s3.amazonaws.com/fern/x-fern-availability-example.png)
 </Frame>
 
-You can also provide a custom message with the extended syntax:
+## Section
 
-```yaml title="x-fern-availability with message in openapi.yml" {4-6}
-paths:
-  /pet:
-    put:
-      x-fern-availability:
-        status: deprecated
-        message: Use PATCH /pet instead.
-```
+<Markdown src="/products/api-def/snippets/availability.mdx" />
 
 ## SDK output
 
-Availability values propagate into generated TypeScript SDKs as JSDoc tags on client methods. IDEs surface these tags as warnings and strikethrough styling, so SDK consumers see availability status directly in their editor.
-
-| Availability | JSDoc tag |
-| --- | --- |
-| `deprecated` | `@deprecated` |
-| `deprecated` (with message) | `@deprecated Use PATCH /pet instead.` |
-| `beta`, `pre-release` | `@beta This endpoint is in pre-release and may change.` |
-| `in-development` | `@beta This endpoint is in development and may change.` |
-
-For example, given this OpenAPI definition:
+In generated TypeScript SDKs, availability values become JSDoc tags on client methods. IDEs surface these as warnings and strikethrough styling.
 
 ```yaml title="openapi.yml"
 paths:
@@ -67,39 +51,33 @@ paths:
     post:
       x-fern-availability: beta
       operationId: createPlant
-      summary: Add a plant to the catalog.
   /plants/{plantId}:
     get:
       x-fern-availability: deprecated
       operationId: getPlant
 ```
 
-The generated TypeScript SDK client includes availability in the JSDoc comments:
-
 ```typescript title="Generated TypeScript SDK"
 export class PlantsClient {
-    /**
-     * @beta This endpoint is in pre-release and may change.
-     *
-     * Add a plant to the catalog.
-     */
-    public createPlant(
-        request: CreatePlantRequest,
-        requestOptions?: PlantsClient.RequestOptions,
-    ): Promise<PlantId> { ... }
+    /** @beta This endpoint is in pre-release and may change. */
+    public createPlant( ... ): Promise<PlantId> { ... }
 
-    /**
-     * @deprecated
-     */
-    public getPlant(
-        plantId: PlantId,
-        requestOptions?: PlantsClient.RequestOptions,
-    ): Promise<Plant> { ... }
+    /** @deprecated */
+    public getPlant( ... ): Promise<Plant> { ... }
 }
 ```
 
-For a real-world example, see the [Square TypeScript SDK](https://github.com/square/square-nodejs-sdk/blob/master/src/api/resources/employees/client/Client.ts), where the deprecated `employees.list` and `employees.get` methods are marked with `@deprecated`.
+You can include a message with `deprecated` using the extended syntax:
 
-## Section
+```yaml title="openapi.yml" {4-6}
+paths:
+  /plants/{plantId}:
+    put:
+      x-fern-availability:
+        status: deprecated
+        message: Use PATCH /plants/{plantId} instead.
+```
 
-<Markdown src="/products/api-def/snippets/availability.mdx" />
+This generates `@deprecated Use PATCH /plants/{plantId} instead.` in the JSDoc.
+
+For a real-world example, see the [Square TypeScript SDK](https://github.com/square/square-nodejs-sdk/blob/master/src/api/resources/employees/client/Client.ts) where deprecated endpoints are marked with `@deprecated`.
