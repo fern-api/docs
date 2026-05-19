@@ -16,7 +16,8 @@ This guide migrates an SDK from `release` or `push` output mode to `pull-request
 ## Before you start
 
 - Install the [Fern GitHub App](https://github.com/apps/fern-api) on your SDK repositories.
-- Update to the latest Fern CLI and SDK generator versions (`fern upgrade`).
+- Update to the latest Fern CLI: `fern upgrade`.
+- Update to the latest SDK generator versions: `fern generator upgrade`.
 
 ## Phase 1: Move publishing secrets to the SDK repo
 
@@ -187,7 +188,7 @@ After your first real customization, verify Replay's behavior end-to-end:
 
 Replay never modifies files destructively. Your `main` branch always has correct code, so rolling back is straightforward.
 
-**Quick disable.** If you only want to stop Replay and stay in `pull-request` mode, delete `.fern/replay.lock` from the SDK repo and commit. The next `fern generate` runs without Replay; PRs land in the same shape as before, just without the `[fern-replay]` commit.
+**Quick disable.** To stop Replay while staying in `pull-request` mode, set `replay.enabled: false` in your `generators.yml` (see the [`replay` reference](/learn/sdks/reference/generators-yml#replay)). The next `fern generate` skips the patch detection and application phase; PRs land in the same shape as before, just without the `[fern-replay]` commit.
 
 **Full revert to `release` or `push` mode:**
 
@@ -230,5 +231,5 @@ Re-add the credentials you removed in Phase 1.
 
 ## Known caveats
 
-- **Closed-without-merge replay PRs.** If a replay PR is closed without merging, the next generation detects the abandoned state and re-anchors automatically. No manual cleanup needed.
-- **Force pushes and rewritten history.** Replay handles force-pushed branches via a fallback detection path. Existing patches still apply correctly.
+- **Closed-without-merge replay PRs.** If a replay PR is closed without merging, the next generation re-derives its anchor from the current branch history. No manual cleanup needed.
+- **Force pushes and rewritten history.** Replay re-derives its scan anchor from `git log` on every run, so force-pushed branches continue to work and existing patches still apply correctly.
