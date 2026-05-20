@@ -10,16 +10,20 @@ og:title: OpenAPI request + response examples
 Fern generates realistic examples automatically using [AI-generated examples](/learn/docs/ai-features/ai-examples), enabled by default. Use `x-fern-examples` to manually define specific example values. Manual examples take priority over AI-generated ones. You can also [disable AI examples entirely](/learn/docs/configuration/site-level-settings#ai-examplesenabled).
 </Note>
 
-Use `x-fern-examples` when you need to associate specific request and response pairs or define multiple named examples for an endpoint. While OpenAPI has several example fields, it provides no way to link a request with its corresponding response. If you need your examples to work with non-Fern OpenAPI tools, use [`fern api enrich`](/learn/cli-api-reference/cli-reference/commands#fern-api-enrich) to convert `x-fern-examples` into native OpenAPI example fields.
+Use `x-fern-examples` to associate specific request and response pairs or define multiple named examples for an endpoint. OpenAPI has several example fields, but provides no way to link a request with its corresponding response.
 
-`x-fern-examples` is an array where each element can contain `path-parameters`, `query-parameters`, `headers`, `request`, and `response` values that are all associated. Optionally, add a `name` field to provide a descriptive label for each example.
+## Structure
 
-If you [defined global headers via the `x-fern-global-headers` extension](/api-definitions/openapi/extensions/global-headers), you must include the headers in your examples.
+`x-fern-examples` is an array. Each element can contain `path-parameters`, `query-parameters`, `headers`, `request`, and `response` values that are all associated. Optionally, add a `name` field to provide a descriptive label.
 
-Structure `request` and `response` as follows:
+- `request` holds the request body properties directly.
+- `response` requires a nested `body` key containing the response body properties.
 
-- `request` — the request body properties, placed directly under `request`.
-- `response` — requires a nested `body` key containing the response body properties.
+<Tip>
+  Examples must include any headers declared with the [`x-fern-global-headers` extension](/api-definitions/openapi/extensions/global-headers). Place them under `headers` alongside `path-parameters` and `request`.
+</Tip>
+
+An endpoint with path parameters:
 
 ```yaml title="openapi.yml"
 paths:
@@ -27,22 +31,21 @@ paths:
     get:
       x-fern-examples:
         - name: Get user 1234 # Optional descriptive label
+          headers:
+            custom_api_key: "capi_12345" # header defined using x-global-header extension
+            userpool_id: "pool_67890"    # header defined using x-global-header extension
           path-parameters:
             userId: user-1234
           response:
             body:
               name: Foo
               ssn: 1234
-        - path-parameters:
-            userId: user-4567
-          response:
-            body:
-              name: Foo
-              ssn: 4567
-        - name: Headers example
-          headers:
-            custom_api_key: "capi_12345" # header defined using x-global-header extension
-            userpool_id: "pool_67890"    # header defined using x-global-header extension
+```
+
+An endpoint with a request body:
+
+```yaml title="openapi.yml"
+paths:
   /users:
     post:
       x-fern-examples:
@@ -57,9 +60,9 @@ paths:
               email: alice@example.com
 ```
 
-### Code samples
+## Code samples
 
-Fern generators automatically add SDK code samples. If you'd like to specify custom code samples for your example, use `code-samples`.
+Fern generators automatically add SDK code samples. To specify custom code samples for an example, use `code-samples`.
 
 ```yaml title="openapi.yml" {11-16}
 paths:
@@ -79,3 +82,7 @@ paths:
 
                 client.users.get("user-1234")
 ```
+
+## Convert to native OpenAPI examples
+
+To make `x-fern-examples` work with non-Fern OpenAPI tools, run [`fern api enrich`](/learn/cli-api-reference/cli-reference/commands#fern-api-enrich) to convert them into native OpenAPI example fields.
