@@ -29,6 +29,25 @@ If your docs are hosted on a subpath (like `buildwithfern.com/learn`), include t
   Parameters suffixed with an asterisk (`*`) match zero or more path segments, capturing everything that follows in the URL. Use this when redirecting entire folder structures while preserving nested paths.
 </Info>
 
+### Match order
+
+Redirects are evaluated top-to-bottom. The **first** matching rule wins — later rules that also match the same path are ignored. Place more specific patterns before broader ones:
+
+  <CodeBlock title="docs.yml">
+    ```yml
+    redirects:
+      # Specific path first — matches /docs/api/billing/overview, etc.
+      - source: "/docs/api/billing/:slug*"
+        destination: "/docs/reference/billing/:slug*"
+
+      # Broader catch-all second — matches everything else under /docs/api/
+      - source: "/docs/api/:slug*"
+        destination: "/docs/reference/:slug*"
+    ```
+  </CodeBlock>
+
+If the broader pattern were listed first, it would catch all requests under `/docs/api/` — including `/docs/api/billing/` paths — and the more specific rule would never apply.
+
 <ParamField path="source" type="string" required={true}>
   The relative path you want to redirect from (e.g., `/old-path`). Must be a relative path, not an absolute URL. Must not include search parameters (e.g., `?key=value`).
 </ParamField>

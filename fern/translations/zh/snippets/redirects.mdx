@@ -29,6 +29,25 @@
   带有星号 (`*`) 后缀的参数匹配零个或多个路径段，捕获 URL 中后面的所有内容。在重定向整个文件夹结构时使用此功能以保留嵌套路径。
 </Info>
 
+### 匹配顺序
+
+重定向按从上到下的顺序进行评估。**第一个**匹配的规则生效——后续匹配相同路径的规则将被忽略。将更具体的模式放在更宽泛的模式之前：
+
+  <CodeBlock title="docs.yml">
+    ```yml
+    redirects:
+      # 先放具体路径——匹配 /docs/api/billing/overview 等
+      - source: "/docs/api/billing/:slug*"
+        destination: "/docs/reference/billing/:slug*"
+
+      # 再放宽泛的通配符——匹配 /docs/api/ 下的其他所有内容
+      - source: "/docs/api/:slug*"
+        destination: "/docs/reference/:slug*"
+    ```
+  </CodeBlock>
+
+如果将更宽泛的模式放在前面，它将捕获 `/docs/api/` 下的所有请求——包括 `/docs/api/billing/` 路径——而更具体的规则将永远不会生效。
+
 <ParamField path="source" type="string" required={true}>
   您要重定向的相对路径（例如，`/old-path`）。必须是相对路径，而不是绝对 URL。不能包含搜索参数（例如，`?key=value`）。
 </ParamField>
