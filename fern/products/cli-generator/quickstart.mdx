@@ -8,7 +8,7 @@ availability: beta
 The CLI generator is in early access. [Reach out](https://buildwithfern.com/book-demo?type=cli) to get started.
 </Note>
 
-This guide walks through generating a CLI from an OpenAPI spec and running it locally. By the end you will have a compiled binary that maps every API endpoint to a subcommand.
+This guide walks through generating a CLI from an OpenAPI spec and running it locally. By the end you will have a compiled binary that [maps every API endpoint to a subcommand](/learn/cli-generator/get-started/openapi-extensions#command-structure), with [authentication](/learn/cli-generator/get-started/authentication), [output formatting](/learn/cli-generator/get-started/features#output-formatting), and [pagination](/learn/cli-generator/get-started/features#pagination) wired up from your spec.
 
 ## Prerequisites
 
@@ -16,7 +16,11 @@ This guide walks through generating a CLI from an OpenAPI spec and running it lo
 - [Rust toolchain](https://rustup.rs/) (stable)
 - An OpenAPI 3.x spec with at least one endpoint
 
-## 1. Initialize a Fern project
+## Setup
+
+<Steps>
+
+<Step title="Initialize a Fern project">
 
 ```bash
 mkdir my-api-config && cd my-api-config
@@ -24,12 +28,14 @@ fern init --organization my-org
 ```
 
 This creates a `fern/` directory containing the default configuration files.
+</Step>
 
-## 2. Add your OpenAPI spec
+<Step title="Add your OpenAPI spec">
 
-Place your spec at `fern/openapi.yml` (or any path you reference in the next step). The spec must include at least one path and should declare `securitySchemes` under `components` if you want the CLI to handle authentication.
+Place your spec at `fern/openapi.yml` (or any path you reference in the next step). The spec must include at least one path, and any `securitySchemes` declared under `components` become the credentials the CLI [reads at runtime](/learn/cli-generator/get-started/authentication).
+</Step>
 
-## 3. Configure the generator
+<Step title="Configure the generator">
 
 Replace the contents of `fern/generators.yml`:
 
@@ -49,16 +55,18 @@ groups:
         config:
           binaryName: my-cli
 ```
+</Step>
 
-## 4. Generate the CLI
+<Step title="Generate the CLI">
 
 ```bash
 fern generate --group cli
 ```
 
 Fern reads the OpenAPI spec, runs the CLI generator, and writes a complete Rust project to the output path.
+</Step>
 
-## 5. Build and run
+<Step title="Build and run">
 
 ```bash
 cd ../my-cli
@@ -66,18 +74,14 @@ cargo build
 ./target/debug/my-cli --help
 ```
 
-The `--help` output shows the full command tree: top-level commands derived from OpenAPI tags, subcommands from individual operations, plus built-in utilities like `completion` and `man`.
+The `--help` output shows the full command tree: top-level commands derived from OpenAPI tags, subcommands from individual operations, and built-in utilities like `completion` and `man`.
+</Step>
 
-## What the generated CLI includes
+<Step title="Customize the output">
 
-Every generated CLI ships with:
+- Rename commands, hide endpoints, or patch metadata without forking your spec by layering [overrides and overlays](/learn/cli-generator/get-started/customization#overrides-and-overlays) onto `generators.yml`.
+- Ship one binary that drives multiple APIs by listing them under `api.specs` with [multi-spec merging](/learn/cli-generator/get-started/customization#multi-spec-merging).
+- Add subcommands that don't map to an endpoint — login flows, config helpers, local utilities — with [custom commands](/learn/cli-generator/get-started/customization#custom-commands).
+</Step>
 
-- **Subcommands** mapped from your API's endpoints, grouped by OpenAPI tags
-- **[Authentication](/learn/cli-generator/get-started/authentication)** configured from your spec's `securitySchemes`
-- **[Output formatting](/learn/cli-generator/get-started/features)** via `--format json|table|yaml|csv`
-- **Dry-run mode** (`--dry-run`) to preview requests without sending them
-- **Auto-pagination** for endpoints annotated with `x-fern-pagination`
-- **Shell completions** via the `completion` subcommand (Bash, Zsh, Fish, PowerShell)
-- **Man pages** via the `man` subcommand
-- **TLS and proxy configuration** via environment variables scoped to your binary name
-
+</Steps>
