@@ -144,25 +144,11 @@ In `vercel.json`:
   "rewrites": [
     {
       "source": "/docs",
-      "destination": "https://app.buildwithfern.com/docs",
-      "has": [
-        {
-          "type": "header",
-          "key": "x-fern-host",
-          "value": "mydomain.com"
-        }
-      ]
+      "destination": "https://app.buildwithfern.com/docs"
     },
     {
       "source": "/docs/:path*",
-      "destination": "https://app.buildwithfern.com/docs/:path*",
-      "has": [
-        {
-          "type": "header",
-          "key": "x-fern-host",
-          "value": "mydomain.com"
-        }
-      ]
+      "destination": "https://app.buildwithfern.com/docs/:path*"
     }
   ]
 }
@@ -187,9 +173,27 @@ module.exports = {
 };
 ```
 </Step>
-<Step title="Pass `x-fern-host` via middleware (Next.js only)">
+<Step title="Set `x-fern-host` via middleware">
 
-Vercel forwards the `Host` header automatically, but Next.js rewrites don't propagate `x-fern-host` from the rewrite config. Add a [middleware function](https://vercel.com/docs/functions/middleware) that sets `x-fern-host` on requests under `/docs`.
+Vercel rewrites don't provide a way to add custom request headers to the upstream. Add a [middleware](https://nextjs.org/docs/app/building-your-application/routing/middleware) file to set `x-fern-host` on proxied requests:
+
+```ts middleware.ts
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+
+export function middleware(request: NextRequest) {
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-fern-host", "mydomain.com");
+
+  return NextResponse.next({
+    request: { headers: requestHeaders },
+  });
+}
+
+export const config = {
+  matcher: ["/docs", "/docs/:path*"],
+};
+```
 </Step>
 </Steps>
 
@@ -266,7 +270,7 @@ Alternatively, set **Honor Origin Cache-Control** to **Yes** so Akamai respects 
 
 ```caddyfile
 mydomain.com {
-    handle_path /docs* {
+    handle /docs* {
         reverse_proxy https://app.buildwithfern.com {
             header_up Host app.buildwithfern.com
             header_up x-fern-host mydomain.com
