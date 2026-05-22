@@ -8,7 +8,7 @@ When you host Fern docs on a [subpath](/learn/docs/preview-publish/setting-up-yo
 A working reverse proxy does two things:
 
 1. **Routes requests** from your subpath to Fern's origin, with the `x-fern-host` header set so Fern identifies your site.
-2. **Disables caching** of HTML responses so visitors always receive the latest deployment.
+2. **Disables caching** of HTML responses so visitors always receive the current deployment.
 
 ## Routing
 
@@ -81,7 +81,7 @@ CloudFront automatically sets the `Host` header to the origin domain.
 - Cache policy: `CachingDisabled` (AWS managed policy)
 - Origin request policy: `AllViewer` (forwards all headers, query strings, and cookies)
 
-If you need fine-grained control instead of `CachingDisabled`, create a custom cache policy with TTL values set to `0` and forward the `Host` and `x-fern-host` headers.
+If you need fine-grained control instead of `CachingDisabled`, create a custom cache policy with time-to-live (TTL) values set to `0` and forward the `Host` and `x-fern-host` headers.
 
 </Tab>
 <Tab title="Netlify">
@@ -181,7 +181,7 @@ location /docs {
 ```
 
 <Warning>
-Nginx does not natively support [Brotli](https://github.com/google/brotli) decompression. The `Accept-Encoding` override above prevents HTTP/2 transfer errors caused by Fern's default Brotli-compressed responses.
+Nginx doesn't natively support [Brotli](https://github.com/google/brotli) decompression. The `Accept-Encoding` override above prevents HTTP/2 transfer errors caused by Fern's default Brotli-compressed responses.
 </Warning>
 
 </Tab>
@@ -221,12 +221,12 @@ mydomain.com {
 
 ## Caching
 
-Fern sets `Cache-Control: public, max-age=0, must-revalidate` on HTML responses, which tells your proxy not to cache page content. Most providers respect this header by default. However, if your provider overrides origin cache headers or applies a default TTL, you must explicitly disable caching for the proxied path.
+Fern sets `Cache-Control: public, max-age=0, must-revalidate` on HTML responses, which tells your proxy not to cache page content. Most providers respect this header by default. However, if your provider overrides origin cache headers or applies its own time-to-live, you must explicitly disable caching for the proxied path.
 
 Caching stale HTML causes visitors to load a page that references JavaScript and CSS files from an older deployment. Those files no longer exist, so the page fails to hydrate and may display an error.
 
 <Warning>
-Do not cache HTML responses from Fern. Static assets (`/_next/static/*`) are served directly by Fern's CDN with long-lived cache headers and do not pass through your proxy.
+Don't cache HTML responses from Fern. Static assets (`/_next/static/*`) are served directly by Fern's CDN with long-lived cache headers and don't pass through your proxy.
 </Warning>
 
 ### Provider-specific caching
@@ -245,16 +245,16 @@ For Workers, the example in the [Routing](#routing) section already passes throu
 
 Use the AWS managed `CachingDisabled` cache policy on the `/docs*` behavior. This policy sets `min-TTL`, `max-TTL`, and `default-TTL` to `0`, so CloudFront always fetches a fresh response from Fern.
 
-If you use a custom cache policy instead, set all TTL values to `0`:
+If you use a custom cache policy instead, set all time-to-live (TTL) values to `0`:
 
 | Setting | Value |
 |---|---|
-| Minimum TTL | `0` |
-| Maximum TTL | `0` |
-| Default TTL | `0` |
+| Minimum time-to-live | `0` |
+| Maximum time-to-live | `0` |
+| Default time-to-live | `0` |
 
 <Warning>
-CloudFront ignores `CDN-Cache-Control` and `Surrogate-Control` headers. It only reads the standard `Cache-Control` header. A custom cache policy with a non-zero `default-TTL` will cache responses regardless of the origin's `Cache-Control: max-age=0` directive.
+CloudFront ignores `CDN-Cache-Control` and `Surrogate-Control` headers. It only reads the standard `Cache-Control` header. A custom cache policy with a non-zero default time-to-live caches responses regardless of the origin's `Cache-Control: max-age=0` directive.
 </Warning>
 
 </Tab>
@@ -298,14 +298,14 @@ Alternatively, set "Honor Origin Cache-Control" to **Yes** so Akamai respects Fe
 </Tab>
 <Tab title="Caddy">
 
-Caddy does not cache responses by default. No additional configuration is needed unless you have explicitly enabled caching with a `cache` directive or external module.
+Caddy doesn't cache responses by default. No additional configuration is needed unless you have explicitly enabled caching with a `cache` directive or external module.
 
 </Tab>
 </Tabs>
 
 ## Verify your setup
 
-After configuring your proxy, confirm that requests are routed correctly and responses are not cached.
+After configuring your proxy, confirm that requests are routed correctly and responses aren't cached.
 
 ```bash
 # Check that the page loads and x-fern-host is recognized
