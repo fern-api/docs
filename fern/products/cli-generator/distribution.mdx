@@ -1,0 +1,131 @@
+---
+title: Distribution
+description: Build release binaries and publish your generated CLI via GitHub Releases, npm, Homebrew, or curl.
+availability: beta
+---
+
+<Note title="Early access">
+The CLI generator is in early access. [Reach out](https://buildwithfern.com/book-demo?type=cli) to get started.
+</Note>
+
+The generated CLI is a standard Rust project. This page covers building optimized binaries, choosing a TLS backend, and publishing through common distribution channels.
+
+## Building
+
+### Debug build
+
+```bash
+cargo build
+./target/debug/my-cli --help
+```
+
+A debug build compiles in ~15 seconds on an M-series Mac. The binary is unoptimized and includes debug symbols.
+
+### Release build
+
+```bash
+cargo build --release
+./target/release/my-cli --help
+```
+
+Release builds enable optimizations and produce smaller binaries. The generated project includes a `[profile.dist]` section with `lto = "thin"` for further size reduction during distribution builds.
+
+## TLS backend
+
+The generated `Cargo.toml` ships with two TLS feature flags:
+
+| Feature | Default | Description |
+| --- | --- | --- |
+| `native-tls` | Yes | Uses the OS's native TLS stack (Secure Transport on macOS, SChannel on Windows, OpenSSL on Linux). Honors the OS certificate store. |
+| `rustls` | No | Uses the pure-Rust rustls crate with Mozilla's bundled webpki roots. Produces self-contained static binaries with no system OpenSSL dependency. |
+
+To build with `rustls` instead of the default:
+
+```bash
+cargo build --release --no-default-features --features rustls
+```
+
+Use `rustls` when:
+- Targeting musl-based Linux (Alpine, scratch Docker images)
+- Cross-compiling for ARM or other architectures
+- Distributing to environments where system OpenSSL is unavailable or outdated
+
+<Note>
+The `rustls` backend does not read the OS certificate store. Users who need custom CA certificates must set the `<NAME>_CA_BUNDLE` environment variable. See [Features](/learn/cli-generator/get-started/features#tls-proxies-and-ca-bundles) for details.
+</Note>
+
+## cargo-dist
+
+The generated project includes a `dist-workspace.toml` pre-configured for [cargo-dist](https://opensource.axo.dev/cargo-dist/), which automates cross-platform binary builds and GitHub Releases.
+
+The shipped configuration targets:
+
+| Platform | Target triple |
+| --- | --- |
+| macOS (Apple Silicon) | `aarch64-apple-darwin` |
+| macOS (Intel) | `x86_64-apple-darwin` |
+| Linux (x86_64, glibc) | `x86_64-unknown-linux-gnu` |
+| Linux (x86_64, musl) | `x86_64-unknown-linux-musl` |
+| Linux (ARM64, glibc) | `aarch64-unknown-linux-gnu` |
+| Linux (ARM64, musl) | `aarch64-unknown-linux-musl` |
+| Windows (x86_64) | `x86_64-pc-windows-msvc` |
+
+Included installers: shell script (Unix), PowerShell (Windows), and npm.
+
+### Setting up cargo-dist
+
+1. Install cargo-dist:
+
+```bash
+cargo install cargo-dist
+```
+
+2. Edit `dist-workspace.toml` to set your npm scope and package name (the generator strips Fern's defaults):
+
+```toml title="dist-workspace.toml"
+npm-scope = "@my-org"
+npm-package = "my-cli"
+```
+
+3. Preview the release plan:
+
+```bash
+cargo dist plan
+```
+
+4. Generate the CI workflow:
+
+```bash
+cargo dist init
+```
+
+This creates a `.github/workflows/release.yml` that triggers on Git tags matching `v*`. When you push a tag, cargo-dist builds binaries for all configured targets and publishes them as a GitHub Release with installers.
+
+## Publishing channels
+
+### GitHub Releases
+
+cargo-dist handles this automatically. Each tagged release includes:
+- Platform-specific archives (`.tar.gz` for Unix, `.zip` for Windows)
+- A shell installer script (`curl -fsSL <url> | sh`)
+- A PowerShell installer script
+
+### npm
+
+With the npm installer enabled in `dist-workspace.toml`, cargo-dist publishes a thin npm wrapper that downloads the correct binary for the user's platform:
+
+```bash
+npm install -g @my-org/my-cli
+```
+
+### Homebrew
+
+To distribute via Homebrew, create a tap repository and add a formula that points to the GitHub Release archives. cargo-dist can generate Homebrew formulas with additional configuration — see the [cargo-dist Homebrew docs](https://opensource.axo.dev/cargo-dist/book/installers/homebrew.html).
+
+## `.gitignore`
+
+The generator does not include a `.gitignore` in the output. After the first build, add one to avoid committing the `target/` directory (~80 MB):
+
+```gitignore title=".gitignore"
+/target
+```

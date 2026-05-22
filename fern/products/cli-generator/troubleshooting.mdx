@@ -1,0 +1,118 @@
+---
+title: Troubleshooting
+description: Solutions for common issues when generating, building, and running a CLI.
+availability: beta
+---
+
+<Note title="Early access">
+The CLI generator is in early access. [Reach out](https://buildwithfern.com/book-demo?type=cli) to get started.
+</Note>
+
+## Generated files appear in the wrong directory
+
+The `path` field under `local-file-system` resolves relative to the `fern/` directory, not the repository root. For a standard layout where the config repo and output repo are siblings:
+
+```
+~/projects/
+├── my-api-config/
+│   └── fern/
+│       └── generators.yml    ← path resolves from here
+└── my-cli/                   ← intended output
+```
+
+Use `path: ../../my-cli` (two levels up), not `path: ../my-cli`.
+
+See the [Quickstart](/learn/cli-generator/get-started/quickstart) for a full directory layout diagram.
+
+## `--help` does not show authentication
+
+The CLI derives auth from the `security` block and `components.securitySchemes` in your OpenAPI spec. If `--help` shows no `Authentication:` section:
+
+1. Verify the spec has a top-level `security` array referencing at least one scheme:
+
+```yaml title="openapi.yml"
+security:
+  - BearerAuth: []
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+```
+
+2. Run `fern generate --group cli` again after updating the spec.
+
+See [Authentication](/learn/cli-generator/get-started/authentication) for the full list of supported schemes and how they map to environment variables.
+
+## Build fails with missing OpenSSL
+
+On Linux, the default `native-tls` feature requires OpenSSL development headers. If the build fails with errors about missing `openssl/ssl.h` or `pkg-config`:
+
+**Option A**: Install OpenSSL development packages:
+
+```bash
+# Debian / Ubuntu
+sudo apt-get install -y pkg-config libssl-dev
+
+# Fedora / RHEL
+sudo dnf install -y openssl-devel pkg-config
+```
+
+**Option B**: Switch to the `rustls` TLS backend, which has no system dependencies:
+
+```bash
+cargo build --no-default-features --features rustls
+```
+
+See [Distribution](/learn/cli-generator/get-started/distribution#tls-backend) for trade-offs between the two backends.
+
+## `fern check` reports unexpected keys
+
+If `fern check` errors about unrecognized fields in `generators.yml`, the Fern CLI version is likely too old to know about the `fernapi/fern-cli` generator:
+
+```bash
+fern upgrade
+```
+
+This updates to the latest CLI version. Verify with `fern --version` (v5.37.9 or later required).
+
+## `/target/` directory accidentally committed
+
+The generator does not ship a `.gitignore` in the output. After the first build, add one:
+
+```gitignore title=".gitignore"
+/target
+```
+
+To remove an already-committed `target/` directory from Git history without deleting the local files:
+
+```bash
+echo '/target' >> .gitignore
+git rm -r --cached target/
+git add .gitignore
+git commit -m "Remove target/ from tracking"
+```
+
+## `generators.yml` vs `generators.yaml`
+
+Fern expects `generators.yml` (not `.yaml`). If the CLI cannot find your configuration, check the file extension.
+
+## Binary name conflicts with existing commands
+
+If the generated binary name conflicts with a system command (e.g., `test`, `time`), set a different name in `generators.yml`:
+
+```yaml
+config:
+  binaryName: my-api-cli
+```
+
+The `binaryName` also controls the environment variable prefix, so choose a name that produces readable env vars (e.g., `my-api-cli` → `MY_API_CLI_BEARER_AUTH_TOKEN`).
+
+## Generation succeeds but `cargo build` fails
+
+If `fern generate` completes but `cargo build` fails:
+
+1. **Rust toolchain version**: The generated project requires a stable Rust toolchain. Run `rustup update stable`.
+2. **Stale `Cargo.lock`**: If you previously generated with a different generator version, delete `Cargo.lock` and rebuild: `cargo build`.
+3. **Feature flag mismatch**: If you added features to `Cargo.toml` manually, verify they are compatible with the current template version.

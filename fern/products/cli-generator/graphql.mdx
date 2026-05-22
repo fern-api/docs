@@ -1,0 +1,95 @@
+---
+title: GraphQL support
+description: Generate a CLI from a GraphQL introspection schema.
+availability: beta
+---
+
+<Note title="Early access">
+The CLI generator is in early access. [Reach out](https://buildwithfern.com/book-demo?type=cli) to get started.
+</Note>
+
+The CLI generator supports GraphQL schemas in addition to OpenAPI. The generated CLI maps GraphQL `Query` types to read-only subcommands and `Mutation` types to write subcommands, with arguments derived from each field's input types.
+
+## How it works
+
+Instead of deriving commands from OpenAPI paths and tags, the GraphQL path:
+
+- Parses the introspection schema to discover `Query` and `Mutation` fields
+- Creates a subcommand for each field, grouped under `query` and `mutation` top-level commands
+- Maps field arguments to CLI flags
+- Sends GraphQL requests to the configured endpoint
+
+The same runtime features apply: output formatting (`--format json|table|yaml|csv`), dry-run mode, TLS/proxy configuration, and authentication.
+
+## Quickstart
+
+### 1. Add a GraphQL spec to your Fern project
+
+Place your GraphQL introspection schema (JSON) in the `fern/` directory.
+
+### 2. Configure the generator
+
+```yaml title="fern/generators.yml"
+api:
+  specs:
+    - openapi: openapi.yml
+default-group: cli
+groups:
+  cli:
+    generators:
+      - name: fernapi/fern-cli
+        version: 0.5.0
+        output:
+          location: local-file-system
+          path: ../../my-cli
+        config:
+          binaryName: my-cli
+```
+
+GraphQL specs can be combined with OpenAPI specs in the same CLI using [multi-spec workspaces](/learn/cli-generator/get-started/configuration#multi-spec-workspaces). Use `namespace` to keep the command trees separate:
+
+```yaml title="fern/generators.yml"
+api:
+  specs:
+    - openapi: rest-api.yml
+    - openapi: graphql-schema.json
+      namespace: graphql
+```
+
+### 3. Generate, build, and run
+
+```bash
+fern generate --group cli
+cd ../my-cli
+cargo build
+./target/debug/my-cli --help
+```
+
+## Command tree structure
+
+For a schema with:
+
+```graphql
+type Query {
+  user(id: ID!): User
+  users(limit: Int): [User]
+}
+
+type Mutation {
+  createUser(input: CreateUserInput!): User
+  deleteUser(id: ID!): Boolean
+}
+```
+
+The generated CLI produces:
+
+```bash
+my-cli query user --params '{"id": "123"}'
+my-cli query users --params '{"limit": 10}'
+my-cli mutation create-user --json '{"input": {"name": "Alice"}}'
+my-cli mutation delete-user --params '{"id": "123"}'
+```
+
+## Combining with OpenAPI
+
+When a GraphQL spec is namespaced alongside an OpenAPI spec, both command trees are accessible from the same binary. See [Customization](/learn/cli-generator/get-started/customization) for details on multi-spec merging.

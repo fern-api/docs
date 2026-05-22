@@ -1,0 +1,116 @@
+---
+title: Configuration reference
+description: All generators.yml settings for the fernapi/fern-cli generator.
+availability: beta
+---
+
+<Note title="Early access">
+The CLI generator is in early access. [Reach out](https://buildwithfern.com/book-demo?type=cli) to get started.
+</Note>
+
+The CLI generator is configured through your `generators.yml` file. This page covers every available setting.
+
+## Minimal configuration
+
+```yaml title="fern/generators.yml"
+api:
+  specs:
+    - openapi: openapi.yml
+default-group: cli
+groups:
+  cli:
+    generators:
+      - name: fernapi/fern-cli
+        version: 0.5.0
+        output:
+          location: local-file-system
+          path: ../../my-cli
+        config:
+          binaryName: my-cli
+```
+
+## `config` block
+
+Settings under `config:` control the generated CLI's identity and behavior.
+
+### `binaryName`
+
+<ParamField path="config.binaryName" type="string">
+The name of the compiled binary. Controls three things:
+
+1. The Rust binary target (`[[bin]] name` in `Cargo.toml` → `target/debug/<binaryName>`)
+2. The environment variable prefix for runtime configuration — the binary name is uppercased with hyphens mapped to underscores (e.g., `my-cli` → `MY_CLI_BASE_URL`, `MY_CLI_BEARER_AUTH_TOKEN`)
+3. The output subdirectory under `cli/` where `main.rs` is placed
+
+When omitted, the generator derives the name from the API's display name (kebab-cased). Multi-spec workspaces must set this field explicitly.
+
+Choose this value carefully: changing it later breaks shell scripts that reference environment variables or the binary path.
+</ParamField>
+
+## Output location
+
+The `output` block determines where the generated Rust project is written.
+
+### Local file system
+
+```yaml
+output:
+  location: local-file-system
+  path: ../../my-cli
+```
+
+The `path` resolves relative to the `fern/` directory, not the repository root. See the [Quickstart](/learn/cli-generator/get-started/quickstart) for a detailed directory layout diagram.
+
+### GitHub
+
+```yaml
+output:
+  location: github
+  repo: my-org/my-cli
+```
+
+Fern pushes the generated CLI source to the specified GitHub repository. This is the recommended setup for automated releases: when your spec changes, Fern opens a PR against your CLI repo with the updated source.
+
+## Multi-spec workspaces
+
+A single CLI can combine multiple OpenAPI specs into one command tree. Each spec can optionally be placed under a namespace:
+
+```yaml title="fern/generators.yml"
+api:
+  specs:
+    - openapi: core.yml
+    - openapi: billing.yml
+      namespace: billing
+default-group: cli
+groups:
+  cli:
+    generators:
+      - name: fernapi/fern-cli
+        version: 0.5.0
+        output:
+          location: local-file-system
+          path: ../../my-cli
+        config:
+          binaryName: my-cli
+```
+
+Specs without a `namespace` merge flat at the top level of the command tree. Specs with a `namespace` appear under a subcommand:
+
+```bash
+my-cli users list              # from core.yml
+my-cli billing invoices list   # from billing.yml
+```
+
+When a namespace matches a top-level resource in the incoming spec, the CLI hoists that resource's methods to avoid repetition (`billing billing invoices list` becomes `billing invoices list`).
+
+<Note>
+`binaryName` is required for multi-spec workspaces — there is no automatic derivation when multiple specs are present.
+</Note>
+
+## OpenAPI extensions
+
+The CLI generator reads several [Fern OpenAPI extensions](/learn/cli-generator/get-started/openapi-extensions) to shape the command tree, filter operations, add availability badges, and rename flags. Apply these directly in your spec or through [overlays](/learn/api-definitions/openapi/overlays).
+
+## Authentication
+
+Authentication is configured through your OpenAPI spec's `securitySchemes`, not through `generators.yml`. See [Authentication](/learn/cli-generator/get-started/authentication) for supported schemes, credential sources, and env-var naming.
