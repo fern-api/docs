@@ -461,7 +461,6 @@ export default function FernFooter() {
                 <a href="https://buildwithfern.com/blog" className="fern-cf-link">Blog</a>
                 <a href="/learn/home#get-support" className="fern-cf-link">Support</a>
                 <a href="https://buildwithfern.com/pricing" className="fern-cf-link">Pricing</a>
-                <a href="https://buildwithfern.com/slack" className="fern-cf-link">Slack</a>
               </div>
             </div>
 

@@ -3,14 +3,102 @@ title: Configure redirects
 subtitle: Learn how to configure redirects in Fern Docs. Set up exact path redirects and regex patterns to preserve SEO equity when pages move.
 ---
 
+Redirects map old URLs to new ones so inbound links and search rankings survive when pages move, change slugs, or are deleted. 
 
-## Redirects
+## Set up redirects
+
+Configure redirects in `docs.yml` using exact paths or regex patterns, pointing at either internal paths or external URLs.
+
+If your docs are hosted on a subpath (like `buildwithfern.com/learn`), include the subpath in both the source and destination paths.
+
+<CodeBlock title="docs.yml">
+  ```yml
+  redirects:
+    # Exact path redirects
+    - source: "/old-path"
+      destination: "/new-path"
+    - source: "/old-folder/path"
+      destination: "/new-folder/path"
+    - source: "/old-folder/path"
+      destination: "https://www.example.com/fern" # External destination
+    - source: "/temporary-redirect"
+      destination: "/new-location"
+      permanent: false # Use 307 (temporary) instead of 308 (permanent)
+
+    # Regex-based redirects
+    - source: "/old-folder/:slug" # Matches single segments: /old-folder/foo
+      destination: "/new-folder/:slug"
+    - source: "/old-folder/:slug*" # Matches multiple segments: /old-folder/foo/bar/baz
+      destination: "/new-folder/:slug*"
+  ```
+</CodeBlock>
+
+<Info>
+  Parameters suffixed with an asterisk (`*`) match zero or more path segments, capturing everything that follows in the URL. Use this when redirecting entire folder structures while preserving nested paths.
+</Info>
+
+Redirects are evaluated top-to-bottom and the first match wins:
+
+<CodeBlock title="docs.yml">
+  ```yml
+  redirects:
+    # Specific path first — matches /docs/api/billing/overview, etc.
+    - source: "/docs/api/billing/:slug*"
+      destination: "/docs/reference/billing/:slug*"
+
+    # Broader catch-all second — matches everything else under /docs/api/
+    - source: "/docs/api/:slug*"
+      destination: "/docs/reference/:slug*"
+  ```
+</CodeBlock>
+
+A broader pattern listed before a more specific one prevents the specific rule from ever matching.
+
+## Properties
 
 <Markdown src="/products/docs/snippets/redirects.mdx" />
 
-<Tip>
-  To add external links to your sidebar navigation, see [Navigation](/learn/docs/configuration/navigation#links).
-</Tip>
+## Best practices
+
+For optimal site performance, only add redirects when necessary. Avoid using redirects for behavior that Fern already handles automatically, such as 404 handling and version routing.
+
+<AccordionGroup>
+<Accordion title="404 handling">
+
+Don't create redirects to send broken links to your homepage:
+
+```yaml title="docs.yml"
+redirects:
+  - source: /docs/event-notifications
+    destination: / # Don't do this
+```
+
+Instead, [enable automatic homepage redirects in your `docs.yml`](/docs/configuration/site-level-settings#settings-configuration) to send broken links to your homepage rather than showing a 404 page:
+
+```yaml title="docs.yml"
+settings:
+  hide-404-page: true
+```
+
+</Accordion>
+<Accordion title="Versioning and redirects">
+
+If you have [versions](/docs/configuration/versions) configured, your default version uses unversioned paths (`/docs/getting-started`), while other versions use versioned paths (`/docs/v2/getting-started`). Fern automatically handles version routing by redirecting broken versioned links to the default version and managing canonical URLs.
+
+Avoid redirecting from unversioned to versioned URLs:
+
+```yaml title="docs.yml"
+redirects:
+  - source: /docs/event-notifications
+    destination: /docs/v2/event-notifications # Don't do this
+```
+
+Manually overriding the default versioning behavior can lead to unexpected redirect patterns.
+
+If you frequently need to redirect from the default version to another version, consider changing which version is set as default in your versions configuration.
+
+</Accordion>
+</AccordionGroup>
 
 ## Catching missing redirects
 

@@ -1,0 +1,270 @@
+---
+title: Reverse proxy setup
+description: Configure a reverse proxy to serve Fern docs from a subpath on your domain, with provider-specific instructions for routing and caching.
+---
+
+When you host Fern docs on a [subpath](/learn/docs/preview-publish/setting-up-your-domain) like `mydomain.com/docs`, your infrastructure must proxy requests from that path to Fern's origin. Subdomain setups (`docs.mydomain.com`) use a CNAME record instead and don't require a reverse proxy.
+
+## How it works
+
+A working reverse proxy does two things:
+
+1. **Routes requests** from your subpath to Fern's origin at `app.buildwithfern.com`, preserving the original path. The `x-fern-host` header tells Fern which docs site to serve.
+2. **Disables caching** of HTML responses so visitors always receive the current deployment.
+
+Every proxied request needs two headers:
+
+| Header | Value | Purpose |
+|---|---|---|
+| `x-fern-host` | Your bare domain without the subpath (e.g. `mydomain.com`, not `mydomain.com/docs`) | Tells Fern which docs site to serve |
+| `Host` | `app.buildwithfern.com` | Routes the request to Fern's origin |
+
+Fern sets `Cache-Control: public, max-age=0, must-revalidate` on HTML responses, which most providers respect by default. If yours overrides origin cache headers or applies its own time-to-live, explicitly disable caching for the proxied path.
+
+<Warning>
+Don't cache HTML responses from Fern. Cached HTML references JavaScript and CSS from older deployments — those files no longer exist, so pages fail to load. Static assets (`/_next/static/*`) are served directly by Fern's CDN and don't pass through your proxy.
+</Warning>
+
+## Set up your provider
+
+
+<AccordionGroup>
+<Accordion title="Cloudflare Workers">
+
+<Steps>
+<Step title="Create the Worker">
+
+Create a [Cloudflare Worker](https://developers.cloudflare.com/workers/) that intercepts requests to your docs subpath and proxies them to Fern:
+
+```js
+const SUBPATH = "/docs";
+const FERN_HOST = "mydomain.com";
+
+export default {
+  async fetch(request) {
+    const url = new URL(request.url);
+
+    if (
+      url.pathname !== SUBPATH &&
+      !url.pathname.startsWith(`${SUBPATH}/`)
+    ) {
+      return new Response("Not found", { status: 404 });
+    }
+
+    const upstreamUrl = new URL(request.url);
+    upstreamUrl.protocol = "https:";
+    upstreamUrl.hostname = "app.buildwithfern.com";
+    upstreamUrl.port = "";
+
+    const proxiedRequest = new Request(upstreamUrl, request);
+    proxiedRequest.headers.set("x-fern-host", FERN_HOST);
+
+    return fetch(proxiedRequest);
+  },
+};
+```
+
+Replace `SUBPATH` and `FERN_HOST` with your subpath and bare domain.
+</Step>
+<Step title="Attach the Worker to a route">
+
+In the Cloudflare dashboard under **Workers Routes**, attach the Worker to a route pattern like `mydomain.com/docs/*`.
+</Step>
+<Step title="Check for conflicting cache rules">
+
+The Worker forwards Fern's `Cache-Control` header, so caching works automatically. In the Cloudflare dashboard, confirm that no Page Rule or Cache Rule sets "Cache Level: Cache Everything" for `/docs*` — if one exists, remove it or override it with "Cache Level: Bypass."
+</Step>
+</Steps>
+</Accordion>
+
+<Accordion title="AWS CloudFront">
+
+<Steps>
+<Step title="Add a Fern origin">
+
+Add an origin to your CloudFront distribution pointing to `app.buildwithfern.com` (HTTPS only, port 443). Add a custom origin header:
+
+| Header name | Value |
+|---|---|
+| `x-fern-host` | `mydomain.com` |
+
+CloudFront automatically sets the `Host` header to the origin domain.
+</Step>
+<Step title="Create a cache behavior for `/docs*`">
+
+Set the behavior to:
+
+- **Origin**: the Fern origin you just created
+- **Cache policy**: `CachingDisabled` (AWS managed policy)
+- **Origin request policy**: `AllViewer` (forwards all headers, query strings, and cookies)
+
+To use a custom cache policy instead of `CachingDisabled`, set min, max, and default TTL to `0` and forward `Host` and `x-fern-host`.
+</Step>
+</Steps>
+
+<Warning>
+CloudFront ignores `CDN-Cache-Control` and `Surrogate-Control` — only the standard `Cache-Control` header is read. A custom cache policy with a non-zero default TTL caches responses regardless of Fern's `Cache-Control: max-age=0` directive.
+</Warning>
+</Accordion>
+
+<Accordion title="Netlify">
+
+<Steps>
+<Step title="Add a rewrite rule">
+
+In `netlify.toml` (or `_redirects`):
+
+```toml netlify.toml
+[[redirects]]
+  from = "/docs/*"
+  to = "https://app.buildwithfern.com/docs/:splat"
+  status = 200
+  force = true
+
+  [redirects.headers]
+    x-fern-host = "mydomain.com"
+```
+</Step>
+</Steps>
+
+<Note>
+Netlify rewrites with `status = 200` act as a reverse proxy — the visitor's browser sees your domain while the content comes from Fern. Netlify respects the origin's `Cache-Control` header, so no extra caching configuration is needed.
+</Note>
+</Accordion>
+
+<Accordion title="Vercel">
+
+<Steps>
+<Step title="Add a route with a transform">
+
+Use a [route with a transform rule](https://vercel.com/changelog/transform-rules-are-now-available-in-vercel-json) to rewrite the path and set `x-fern-host` in one step:
+
+```json vercel.json
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "routes": [
+    {
+      "src": "/docs(/.*)?",
+      "dest": "https://app.buildwithfern.com/docs$1",
+      "transforms": [
+        {
+          "type": "request.headers",
+          "op": "set",
+          "target": { "key": "x-fern-host" },
+          "args": "mydomain.com"
+        }
+      ]
+    }
+  ]
+}
+```
+</Step>
+</Steps>
+
+<Note>
+Vercel respects the origin's `Cache-Control` header for rewrite destinations, so no extra caching configuration is needed.
+</Note>
+</Accordion>
+
+<Accordion title="Nginx">
+
+<Steps>
+<Step title="Add a `location` block">
+
+```nginx
+location /docs {
+    proxy_pass https://app.buildwithfern.com;
+    proxy_set_header Host app.buildwithfern.com;
+    proxy_set_header x-fern-host mydomain.com;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_ssl_server_name on;
+
+    # Prevent encoding issues with Brotli responses
+    proxy_set_header Accept-Encoding "gzip, deflate";
+
+    # Do not cache HTML
+    proxy_no_cache 1;
+    proxy_cache_bypass 1;
+    add_header Cache-Control "public, max-age=0, must-revalidate" always;
+}
+```
+</Step>
+</Steps>
+
+<Warning>
+Nginx doesn't natively support [Brotli](https://github.com/google/brotli) decompression. The `Accept-Encoding` override above prevents HTTP/2 transfer errors caused by Fern's default Brotli-compressed responses.
+</Warning>
+</Accordion>
+
+<Accordion title="Akamai">
+
+<Steps>
+<Step title="Add a routing rule">
+
+In a **Site Delivery** or **Ion** property, add a rule matching path `/docs*`:
+
+- **Origin Server**: `app.buildwithfern.com`
+- **Forward Host Header**: Origin Hostname
+
+Add a **Modify Outgoing Request Header** behavior:
+
+| Action | Header name | Value |
+|---|---|---|
+| Add | `x-fern-host` | `mydomain.com` |
+</Step>
+<Step title="Disable caching on the rule">
+
+Add a **Caching** behavior to the same rule:
+
+| Setting | Value |
+|---|---|
+| Caching Option | No Store |
+
+Alternatively, set **Honor Origin Cache-Control** to **Yes** so Akamai respects Fern's `Cache-Control: public, max-age=0, must-revalidate` header.
+</Step>
+</Steps>
+</Accordion>
+
+<Accordion title="Caddy">
+
+<Steps>
+<Step title="Add to your Caddyfile">
+
+```caddyfile
+mydomain.com {
+    handle /docs* {
+        reverse_proxy https://app.buildwithfern.com {
+            header_up Host app.buildwithfern.com
+            header_up x-fern-host mydomain.com
+        }
+    }
+}
+```
+</Step>
+</Steps>
+
+<Note>
+Caddy doesn't cache responses by default, so no extra caching configuration is needed unless you've explicitly enabled caching with a `cache` directive or external module.
+</Note>
+</Accordion>
+</AccordionGroup>
+
+## Verify your setup
+
+Run these checks against your live subpath:
+
+```bash
+# Check that the page loads and x-fern-host is recognized
+curl -sI https://mydomain.com/docs | head -20
+
+# Verify Cache-Control on the HTML response
+curl -sI https://mydomain.com/docs | grep -i cache-control
+# Expected: cache-control: public, max-age=0, must-revalidate
+
+# Verify the page is not cached by your proxy (age should be 0 or absent)
+curl -sI https://mydomain.com/docs | grep -i "^age:"
+```
+
+If the `age` header is present and non-zero, your proxy is serving a cached response. Revisit your provider's configuration to ensure HTML caching is disabled.

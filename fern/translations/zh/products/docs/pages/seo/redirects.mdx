@@ -4,13 +4,102 @@ subtitle: 学习如何在 Fern Docs 中配置重定向。设置精确路径重�
 ---
 
 
-## 重定向
+重定向将旧 URL 映射到新 URL，以便在页面移动、更改 slug 或被删除时，入站链接和搜索排名得以保留。
+
+## 设置重定向
+
+在 `docs.yml` 中使用精确路径或正则表达式模式进行配置，可指向内部路径或外部 URL。
+
+如果您的文档托管在子路径上（如 `buildwithfern.com/learn`），请在源路径和目标路径中都包含该子路径。
+
+<CodeBlock title="docs.yml">
+  ```yml
+  redirects:
+    # 精确路径重定向
+    - source: "/old-path"
+      destination: "/new-path"
+    - source: "/old-folder/path"
+      destination: "/new-folder/path"
+    - source: "/old-folder/path"
+      destination: "https://www.example.com/fern" # 外部目标
+    - source: "/temporary-redirect"
+      destination: "/new-location"
+      permanent: false # 使用 307（临时）而不是 308（永久）
+
+    # 基于正则表达式的重定向
+    - source: "/old-folder/:slug" # 匹配单个段：/old-folder/foo
+      destination: "/new-folder/:slug"
+    - source: "/old-folder/:slug*" # 匹配多个段：/old-folder/foo/bar/baz
+      destination: "/new-folder/:slug*"
+  ```
+</CodeBlock>
+
+<Info>
+  带有星号 (`*`) 后缀的参数匹配零个或多个路径段，捕获 URL 中后面的所有内容。在重定向整个文件夹结构时使用此功能以保留嵌套路径。
+</Info>
+
+重定向按从上到下的顺序进行评估，第一个匹配的规则生效：
+
+<CodeBlock title="docs.yml">
+  ```yml
+  redirects:
+    # 先放具体路径——匹配 /docs/api/billing/overview 等
+    - source: "/docs/api/billing/:slug*"
+      destination: "/docs/reference/billing/:slug*"
+
+    # 再放宽泛的通配符——匹配 /docs/api/ 下的其他所有内容
+    - source: "/docs/api/:slug*"
+      destination: "/docs/reference/:slug*"
+  ```
+</CodeBlock>
+
+将更宽泛的模式放在更具体的模式之前会阻止具体规则匹配。
+
+## 属性
 
 <Markdown src="/products/docs/snippets/redirects.mdx" />
 
-<Tip>
-  要在侧边栏导航中添加外部链接，请参阅[导航](/learn/docs/configuration/navigation#links)。
-</Tip>
+## 最佳实践
+
+为了获得最佳的站点性能，只在必要时添加重定向。避免对 Fern 已经自动处理的行为使用重定向，例如 404 处理和版本路由。
+
+<AccordionGroup>
+<Accordion title="404 处理">
+
+不要创建重定向将损坏的链接发送到您的主页：
+
+```yaml title="docs.yml"
+redirects:
+  - source: /docs/event-notifications
+    destination: / # 不要这样做
+```
+
+相反，[在您的 `docs.yml` 中启用自动主页重定向](/docs/configuration/site-level-settings#settings-configuration)，将损坏的链接发送到您的主页，而不是显示 404 页面：
+
+```yaml title="docs.yml"
+settings:
+  hide-404-page: true
+```
+
+</Accordion>
+<Accordion title="版本控制和重定向">
+
+如果您配置了[版本](/docs/configuration/versions)，您的默认版本使用无版本路径（`/docs/getting-started`），而其他版本使用有版本路径（`/docs/v2/getting-started`）。Fern 通过将损坏的有版本链接重定向到默认版本并管理规范 URL 来自动处理版本路由。
+
+避免从无版本 URL 重定向到有版本 URL：
+
+```yaml title="docs.yml"
+redirects:
+  - source: /docs/event-notifications
+    destination: /docs/v2/event-notifications # 不要这样做
+```
+
+手动覆盖默认版本控制行为可能导致意外的重定向模式。
+
+如果您经常需要从默认版本重定向到另一个版本，请考虑在版本配置中更改哪个版本设置为默认版本。
+
+</Accordion>
+</AccordionGroup>
 
 ## 捕获缺失的重定向
 

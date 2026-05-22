@@ -1,0 +1,74 @@
+## 5.37.0
+**`(feat):`** Propagate the per-spec `namespace:` declared in `generators.yml`
+through the raw specs manifest mounted into generator containers.
+`RawSpecsManifestEntry` now carries an optional `namespace` field
+populated from `OpenAPISpec.namespace` (also `OpenRPCSpec.namespace`
+and `GraphQLSpec.namespace`). Enables generators that opt into
+`generatorWantsSpecs` to route multi-spec workspaces by their
+workspace-declared namespace instead of inferring one from the
+runner-assigned filename. The new `fernapi/fern-cli` generator
+uses this to emit `.spec_under("<ns>", ...)` in the generated
+`main.rs` when the user namespaces their specs.
+
+
+**`(fix):`** Skip copying zero-byte `snippet.json` stubs from the workspace
+temp dir into the user's generated output. The local workspace
+runner pre-creates an empty `snippet.json` file and bind-mounts
+it into the generator container so the generator can optionally
+write per-endpoint code samples. Generators that emit a CLI
+binary (or any output without call-site snippets) leave it empty
+— copying the empty stub left a confusing 0-byte `snippet.json`
+in the user's output. The runner now stat's the tmp file and
+skips the copy when it's empty.
+
+
+## 5.36.1
+**`(fix):`** Fix OpenAPI 3.1 importer to inherit path-level parameters (headers, query params) into operations.
+Previously, only operation-level parameters were processed, causing path-level headers like
+`Accept: application/json` to be silently dropped.
+
+
+## 5.36.0
+**`(feat):`** cli-v2: add `fern update` command for installing and switching between CLI
+versions. Includes `fern update`, `fern update list`, `fern update use
+<version>`, `fern update --check`, and `fern update --to <version>`. Versions
+are stored in `~/.cache/fern/v1/versions/<version>/` and tracked in
+`~/.fernrc` under the new `cli` field. A new opt-in `--versions` flag was
+added to `fern cache clear`; the default behavior continues to leave
+installed CLI binaries untouched. `fern cache show` now reports the versions
+cache alongside IR and logs. After every successful command, the CLI runs a
+rate-limited (24-hour) probe against the release feed and prints a one-line
+nag when a newer version is available.
+
+
+## 5.35.5
+**`(chore):`** Bump @fern-api/venus-api-sdk from 0.22.34 to 4.0.0, fixing a bug where
+Authorization headers were silently dropped on org GET endpoints.
+
+
+## 5.35.4
+**`(fix):`** Report response property references on non-object responses as definition reference errors instead of internal errors.
+
+
+## 5.35.3
+**`(fix):`** Treat missing type declarations during IR generation as user reference errors instead of reportable resolver failures.
+
+
+## 5.35.2
+**`(fix):`** Bump @fern-api/generator-cli to 0.9.35, which disables minimatch negation
+on `.fernignore` patterns so a stray `!pattern` no longer silently inverts
+the match and discards generator output.
+
+
+## 5.35.1
+**`(fix):`** Fix OpenAPI `respect-readonly-schemas` so that endpoint response types correctly
+reference the `Read` variant (e.g. `WebhookRead` instead of `Webhook`) when the
+same schema is used in both request and response contexts.
+
+
+## 5.35.0
+**`(feat):`** Add support for user-provided examples in GraphQL specs. Users can now specify
+an `examples` field in their GraphQL spec configuration pointing to a YAML file
+containing named examples (with query, variables, and response) for each operation.
+
+
