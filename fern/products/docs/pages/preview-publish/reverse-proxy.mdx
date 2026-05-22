@@ -135,64 +135,28 @@ Netlify rewrites with `status = 200` act as a reverse proxy — the visitor's br
 <Accordion title="Vercel">
 
 <Steps>
-<Step title="Configure rewrites">
+<Step title="Add a route with a transform">
 
-In `vercel.json`:
+Use a [route with a transform rule](https://vercel.com/changelog/transform-rules-are-now-available-in-vercel-json) to rewrite the path and set `x-fern-host` in one step:
 
 ```json vercel.json
 {
-  "rewrites": [
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "routes": [
     {
-      "source": "/docs",
-      "destination": "https://app.buildwithfern.com/docs"
-    },
-    {
-      "source": "/docs/:path*",
-      "destination": "https://app.buildwithfern.com/docs/:path*"
+      "src": "/docs(/.*)?",
+      "dest": "https://app.buildwithfern.com/docs$1",
+      "transforms": [
+        {
+          "type": "request.headers",
+          "op": "set",
+          "target": { "key": "x-fern-host" },
+          "args": "mydomain.com"
+        }
+      ]
     }
   ]
 }
-```
-
-For Next.js, use `next.config.js` rewrites instead:
-
-```js next.config.js
-module.exports = {
-  async rewrites() {
-    return [
-      {
-        source: "/docs",
-        destination: "https://app.buildwithfern.com/docs",
-      },
-      {
-        source: "/docs/:path*",
-        destination: "https://app.buildwithfern.com/docs/:path*",
-      },
-    ];
-  },
-};
-```
-</Step>
-<Step title="Set `x-fern-host` via middleware">
-
-Vercel rewrites don't provide a way to add custom request headers to the upstream. Add a [middleware](https://nextjs.org/docs/app/building-your-application/routing/middleware) file to set `x-fern-host` on proxied requests:
-
-```ts middleware.ts
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
-
-export function middleware(request: NextRequest) {
-  const requestHeaders = new Headers(request.headers);
-  requestHeaders.set("x-fern-host", "mydomain.com");
-
-  return NextResponse.next({
-    request: { headers: requestHeaders },
-  });
-}
-
-export const config = {
-  matcher: ["/docs", "/docs/:path*"],
-};
 ```
 </Step>
 </Steps>
