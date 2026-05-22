@@ -1,0 +1,101 @@
+---
+title: Quickstart
+description: Generate a working CLI binary from an OpenAPI spec in five steps.
+availability: beta
+---
+
+<Note title="Early access">
+The CLI generator is in early access. [Reach out](https://buildwithfern.com/book-demo?type=cli) to get started.
+</Note>
+
+This guide walks through generating a CLI from an OpenAPI spec and running it locally. By the end you will have a compiled binary that maps every API endpoint to a subcommand.
+
+## Prerequisites
+
+- [Fern CLI](https://www.npmjs.com/package/fern-api) v5.37.9 or later (`npm install -g fern-api`)
+- [Rust toolchain](https://rustup.rs/) (stable)
+- An OpenAPI 3.x spec with at least one endpoint
+
+## 1. Initialize a Fern project
+
+```bash
+mkdir my-api-config && cd my-api-config
+fern init --organization my-org
+```
+
+This creates a `fern/` directory containing the default configuration files.
+
+## 2. Add your OpenAPI spec
+
+Place your spec at `fern/openapi.yml` (or any path you reference in the next step). The spec must include at least one path and should declare `securitySchemes` under `components` if you want the CLI to handle authentication.
+
+## 3. Configure the generator
+
+Replace the contents of `fern/generators.yml`:
+
+```yaml title="fern/generators.yml"
+api:
+  specs:
+    - openapi: openapi.yml
+default-group: cli
+groups:
+  cli:
+    generators:
+      - name: fernapi/fern-cli
+        version: 0.5.0
+        output:
+          location: local-file-system
+          path: ../../my-cli
+        config:
+          binaryName: my-cli
+```
+
+<Warning title="Output paths resolve relative to fern/, not the repo root">
+The `path` field under `local-file-system` resolves relative to the `fern/` directory, not the repository root. For the standard layout where the config repo and output repo are siblings:
+
+```
+~/projects/
+├── my-api-config/
+│   └── fern/
+│       ├── fern.config.json
+│       ├── generators.yml    ← path resolves from here
+│       └── openapi.yml
+└── my-cli/                   ← target output repo
+```
+
+Writing to the sibling `my-cli/` requires `path: ../../my-cli` — one level up out of `fern/`, another level up out of `my-api-config/`.
+
+A common mistake is using `path: ../my-cli`, which resolves to `my-api-config/my-cli/` instead of the intended sibling directory.
+</Warning>
+
+## 4. Generate the CLI
+
+```bash
+fern generate --group cli
+```
+
+Fern reads the OpenAPI spec, runs the CLI generator, and writes a complete Rust project to the output path.
+
+## 5. Build and run
+
+```bash
+cd ../my-cli
+cargo build
+./target/debug/my-cli --help
+```
+
+The `--help` output shows the full command tree: top-level commands derived from OpenAPI tags, subcommands from individual operations, plus built-in utilities like `completion` and `man`.
+
+## What the generated CLI includes
+
+Every generated CLI ships with:
+
+- **Subcommands** mapped from your API's endpoints, grouped by OpenAPI tags
+- **[Authentication](/learn/cli-generator/get-started/authentication)** configured from your spec's `securitySchemes`
+- **[Output formatting](/learn/cli-generator/get-started/features)** via `--format json|table|yaml|csv`
+- **Dry-run mode** (`--dry-run`) to preview requests without sending them
+- **Auto-pagination** for endpoints annotated with `x-fern-pagination`
+- **Shell completions** via the `completion` subcommand (Bash, Zsh, Fish, PowerShell)
+- **Man pages** via the `man` subcommand
+- **TLS and proxy configuration** via environment variables scoped to your binary name
+
