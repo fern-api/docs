@@ -31,34 +31,34 @@ The `x-fern-host` value is the bare domain without the subpath. For `mydomain.co
 Create a [Cloudflare Worker](https://developers.cloudflare.com/workers/) that intercepts requests to your docs subpath and proxies them to Fern.
 
 ```js
-const FERN_ORIGIN = "https://app.buildwithfern.com";
+const SUBPATH = "/docs";
+const FERN_HOST = "mydomain.com";
 
 export default {
   async fetch(request) {
     const url = new URL(request.url);
 
-    // Only proxy requests under /docs
-    if (!url.pathname.startsWith("/docs")) {
-      return fetch(request);
+    if (
+      url.pathname !== SUBPATH &&
+      !url.pathname.startsWith(`${SUBPATH}/`)
+    ) {
+      return new Response("Not found", { status: 404 });
     }
 
-    const targetUrl = new URL(url.pathname + url.search, FERN_ORIGIN);
+    const upstreamUrl = new URL(request.url);
+    upstreamUrl.protocol = "https:";
+    upstreamUrl.hostname = "app.buildwithfern.com";
+    upstreamUrl.port = "";
 
-    const headers = new Headers(request.headers);
-    headers.set("x-fern-host", url.hostname);
-    headers.set("Host", "app.buildwithfern.com");
+    const proxiedRequest = new Request(upstreamUrl, request);
+    proxiedRequest.headers.set("x-fern-host", FERN_HOST);
 
-    return fetch(targetUrl.toString(), {
-      method: request.method,
-      headers,
-      body: request.body,
-      redirect: "manual",
-    });
+    return fetch(proxiedRequest);
   },
 };
 ```
 
-Attach the Worker to a route pattern like `mydomain.com/docs/*` in the Cloudflare dashboard under **Workers Routes**.
+Replace `SUBPATH` and `FERN_HOST` with your subpath and bare domain. Attach the Worker to a route pattern like `mydomain.com/docs/*` in the Cloudflare dashboard under **Workers Routes**.
 
 </Tab>
 <Tab title="AWS CloudFront">
