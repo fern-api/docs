@@ -23,6 +23,8 @@ Keep prose dry and direct. State requirements and behavior plainly.
 
 Internal links between documentation pages use **URL paths built from the YAML config**, not file paths on disk or relative paths.
 
+**Before writing any internal link, open the target product's `docs.yml` and walk from the product slug down to the page.** Directory paths on disk are not a reliable hint — folders can be absent from the URL, and section slugs frequently differ from folder names.
+
 ### URL format
 
 ```
@@ -74,9 +76,13 @@ The correct link is:
 <!-- WRONG: guessed URL from file path (section slug differs from folder name) -->
 [LLMs.txt](/learn/docs/ai/llms-txt)
 
+<!-- WRONG: includes folder segments that aren't part of any docs.yml section -->
+[Rich media](/learn/docs/component-library/writing-content/markdown-media)
+
 <!-- CORRECT: URL from YAML config -->
 [Overview](/learn/docs/getting-started/overview)
 [LLMs.txt](/learn/docs/ai-features/llms-txt)
+[Rich media](/learn/docs/writing-content/markdown-media)
 ```
 
 ### Steps to construct a link
