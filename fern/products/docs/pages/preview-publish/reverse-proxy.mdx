@@ -82,28 +82,49 @@ The Worker forwards Fern's `Cache-Control` header, so caching works automaticall
 <Steps>
 <Step title="Add a Fern origin">
 
-Add an origin to your CloudFront distribution pointing to `app.buildwithfern.com` (HTTPS only, port 443). Add a custom origin header:
+In your CloudFront distribution, go to **Origins** and create a new origin:
+
+| Setting | Value |
+|---|---|
+| **Origin domain** | `app.buildwithfern.com` |
+| **Protocol** | HTTPS only |
+| **HTTPS port** | 443 |
+| **Minimum origin SSL protocol** | TLSv1.2 |
+
+Under **Add custom header**, add:
 
 | Header name | Value |
 |---|---|
 | `x-fern-host` | `mydomain.com` |
 
-CloudFront automatically sets the `Host` header to the origin domain.
+Replace `mydomain.com` with your bare domain (without the subpath).
 </Step>
-<Step title="Create a cache behavior for `/docs*`">
+<Step title="Create a cache behavior for your docs path">
 
-Set the behavior to:
+Go to **Behaviors** and create a new behavior:
 
-- **Origin**: the Fern origin you just created
-- **Cache policy**: `CachingDisabled` (AWS managed policy)
-- **Origin request policy**: `AllViewer` (forwards all headers, query strings, and cookies)
+| Setting | Value |
+|---|---|
+| **Path pattern** | `/docs*` |
+| **Origin** | The Fern origin you just created |
+| **Viewer protocol policy** | Redirect HTTP to HTTPS |
+| **Cache policy** | `CachingDisabled` (AWS managed) |
+| **Origin request policy** | `AllViewerExceptHostHeader` (AWS managed) |
 
-To use a custom cache policy instead of `CachingDisabled`, set min, max, and default TTL to `0` and forward `Host` and `x-fern-host`.
+`AllViewerExceptHostHeader` forwards all viewer headers, query strings, and cookies to the origin while letting CloudFront set the `Host` header to `app.buildwithfern.com`. This is required — Fern's origin uses the `Host` header for routing and rejects requests with an unrecognized host.
+
+<Warning>
+Do not use the `AllViewer` origin request policy. It forwards the viewer's `Host` header (your domain) instead of the origin's, which causes Fern's origin to return errors or raw React Server Component payloads instead of HTML.
+</Warning>
+</Step>
+<Step title="Verify the behavior order">
+
+CloudFront evaluates behaviors in order. Ensure your `/docs*` behavior appears **above** the default (`*`) behavior so docs requests are routed to Fern's origin rather than your primary site.
 </Step>
 </Steps>
 
 <Warning>
-CloudFront ignores `CDN-Cache-Control` and `Surrogate-Control` — only the standard `Cache-Control` header is read. A custom cache policy with a non-zero default TTL caches responses regardless of Fern's `Cache-Control: max-age=0` directive.
+CloudFront ignores `CDN-Cache-Control` and `Surrogate-Control` — only the standard `Cache-Control` header is read. If you use a custom cache policy instead of `CachingDisabled`, set the default, minimum, and maximum TTL to `0`. A non-zero default TTL caches HTML responses regardless of Fern's `Cache-Control: max-age=0` directive, which causes pages to break after Fern deploys an update.
 </Warning>
 </Accordion>
 
@@ -256,8 +277,9 @@ Caddy doesn't cache responses by default, so no extra caching configuration is n
 Run these checks against your live subpath:
 
 ```bash
-# Check that the page loads and x-fern-host is recognized
-curl -sI https://mydomain.com/docs | head -20
+# Confirm the page returns HTML (not an error or RSC payload)
+curl -sI https://mydomain.com/docs | grep -i content-type
+# Expected: content-type: text/html; charset=utf-8
 
 # Verify Cache-Control on the HTML response
 curl -sI https://mydomain.com/docs | grep -i cache-control
@@ -266,5 +288,7 @@ curl -sI https://mydomain.com/docs | grep -i cache-control
 # Verify the page is not cached by your proxy (age should be 0 or absent)
 curl -sI https://mydomain.com/docs | grep -i "^age:"
 ```
+
+If `content-type` is `text/x-component` instead of `text/html`, your proxy is forwarding the viewer's `Host` header to Fern's origin. Ensure the `Host` header sent to the origin is `app.buildwithfern.com`.
 
 If the `age` header is present and non-zero, your proxy is serving a cached response. Revisit your provider's configuration to ensure HTML caching is disabled.
