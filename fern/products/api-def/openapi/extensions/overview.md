@@ -4,7 +4,7 @@ headline: Extensions overview (OpenAPI)
 description: Learn about OpenAPI extensions in Fern. Customize authentication, SDK methods, versioning, and more for better API specs.
 ---
 
-Fern supports a variety of OpenAPI extensions that enhance your API specification and generate higher-quality SDKs.
+Fern supports a variety of OpenAPI extensions that enhance your API specification and generate higher-quality SDKs and [CLIs](/learn/cli-generator/get-started/openapi-extensions).
 
 You can apply these extensions in two ways: by overlaying them in a separate file or by embedding them directly in your OpenAPI specification. See [Overlays](/learn/api-definitions/openapi/overlays) for more information.
 
