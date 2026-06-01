@@ -440,7 +440,7 @@ export default function FernFooter() {
               <div className="fern-cf-column-links">
                 <a href="/learn/sdks/overview/introduction" className="fern-cf-link">SDKs</a>
                 <a href="/learn/docs/getting-started/overview" className="fern-cf-link">Docs</a>
-                <a href="/learn/docs/ai-features/ask-fern/overview" className="fern-cf-link">Ask Fern</a>
+                <a href="/learn/docs/ai-features/ask-fern/overview" className="fern-cf-link">Ask AI</a>
                 <a href="/learn/cli-api-reference/cli-reference/overview" className="fern-cf-link">CLI Reference</a>
               </div>
             </div>

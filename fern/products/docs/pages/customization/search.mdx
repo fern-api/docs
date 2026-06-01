@@ -3,13 +3,12 @@ title: Search configuration
 description: Configure search for your Fern docs using Algolia DocSearch. Learn how search filters work, how results are ranked, and how to integrate with Algolia.
 ---
 
-
-Fern uses [Algolia DocSearch](https://docsearch.algolia.com/) to power search for your documentation. 
+Fern uses [Algolia DocSearch](https://docsearch.algolia.com/) to power search for your documentation.
 DocSearch is designed specifically for documentation sites to help users find what they need.
 
 ## How search works
 
-DocSearch scans your Fern site's content and builds an index to generate search results. 
+DocSearch scans your Fern site's content and builds an index to generate search results.
 It includes built-in dropdown filters that appear dynamically based on your site's configuration, letting users refine their searches:
 
 - **Product:** Narrows results to a specific product in your documentation (for sites with multiple [products](/learn/docs/configuration/products))
@@ -21,30 +20,26 @@ It includes built-in dropdown filters that appear dynamically based on your site
 - **Availability:** Filters API results by availability status, including Stable, Beta, and Deprecated
 
 <Frame caption="Fern's own docs site shows Product, Content type, and HTTP method filters. Other filters, like Version, don't appear because this site doesn't use versioned docs.">
-  <video
-    src="search.mp4"
-    autoPlay
-    loop
-    playsInline
-    muted
-  >
-  </video>
+  <video src="search.mp4" autoPlay loop playsInline muted></video>
 </Frame>
 
 <Note>
-    Pages with the `nofollow` or `noindex` [frontmatter](/learn/docs/configuration/page-level-settings#indexing-properties) are excluded from the Algolia DocSearch index and won't appear in search results.
+  Pages with the `nofollow` or `noindex`
+  [frontmatter](/learn/docs/configuration/page-level-settings#indexing-properties)
+  are excluded from the Algolia DocSearch index and won't appear in search
+  results.
 </Note>
 
 For sites with [localized docs](/learn/docs/localization/overview), search is automatically scoped to the reader's active language. For [multi-source sites](/learn/docs/preview-publish/multi-source-docs), search scope across sub-paths (hierarchical vs. unified) is configured per-domain in the [Fern Dashboard](https://dashboard.buildwithfern.com).
 
-If you're using [Ask Fern](/learn/docs/ai-features/ask-fern/overview) (AI search), the search box also functions as your site's chat window.
+If you're using [Ask AI](/learn/docs/ai-features/ask-fern/overview) (AI search), the search box also functions as your site's chat window.
 
 ### Scope search by product or version
 
 For sites with multiple [products](/learn/docs/configuration/products) or [versions](/learn/docs/configuration/versions), the `settings.search` object in `docs.yml` scopes search results to the reader's current context (their active product and version). Two options are available:
 
-- [`prioritize-current-product`](/learn/docs/configuration/site-level-settings#settingssearchprioritize-current-product) — *Softer*. Boosts current-context results in ranking but still surfaces matches from other products and versions.
-- [`default-filter-by-current-product`](/learn/docs/configuration/site-level-settings#settingssearchdefault-filter-by-current-product) — *Stricter*. Hides results outside the current context by default; users can remove the filter from the search UI to broaden their search.
+- [`prioritize-current-product`](/learn/docs/configuration/site-level-settings#settingssearchprioritize-current-product) — _Softer_. Boosts current-context results in ranking but still surfaces matches from other products and versions.
+- [`default-filter-by-current-product`](/learn/docs/configuration/site-level-settings#settingssearchdefault-filter-by-current-product) — _Stricter_. Hides results outside the current context by default; users can remove the filter from the search UI to broaden their search.
 
 Most sites pick one. For example, to boost current-context results without hiding anything else:
 
@@ -55,7 +50,10 @@ settings:
 ```
 
 <Note>
-These settings apply to keyword search only. [Ask Fern](/learn/docs/ai-features/ask-fern/overview) queries the same Algolia index and benefits from its global ranking, but doesn't receive the per-product boost from `prioritize-current-product`.
+  These settings apply to keyword search only. [Ask
+  AI](/learn/docs/ai-features/ask-fern/overview) queries the same Algolia index
+  and benefits from its global ranking, but doesn't receive the per-product
+  boost from `prioritize-current-product`.
 </Note>
 
 ## How results are ranked
@@ -81,6 +79,7 @@ Fern configures Algolia's ranking to prioritize matches in high-signal attribute
     | 11 | Code snippets | [Code blocks](/learn/docs/writing-content/components/code-blocks) embedded in the page |
 
     All attributes use `unordered` matching, meaning that the position of the query terms within an attribute doesn't affect ranking. For example, a match at the end of a page title ranks the same as a match at the beginning.
+
   </Accordion>
   <Accordion title="Tiebreaking">
     When multiple results have the same text relevance score, Fern applies custom ranking rules as tiebreakers:
@@ -90,6 +89,7 @@ Fern configures Algolia's ranking to prioritize matches in high-signal attribute
     3. **Page position (ascending):** Content closer to the top of a page ranks above content further down. For example, a heading match near the top of a page outranks a section match further down on the same page.
 
     Additionally, Fern deduplicates results by canonical pathname, so each page appears at most once in the results. The version index and page position tiebreakers determine which record represents the page when duplicates exist.
+
   </Accordion>
   <Accordion title="Page hierarchy">
     The navigation hierarchy of your documentation doesn't directly affect search ranking. A nested page ranks the same as a top-level page for text relevance purposes. However, within a single page, heading depth does matter: matches in h1 headings rank above h2, h2 above h3, and so on. The heading hierarchy is stored per record, so Algolia can distinguish between a match in a top-level section and one in a subsection.
@@ -98,6 +98,7 @@ Fern configures Algolia's ranking to prioritize matches in high-signal attribute
     If a query returns no results, Algolia progressively removes common documentation terms to broaden the search. The following words are treated as optional when no exact matches are found: `endpoint`, `api`, `guide`, `documentation`, `doc`, `parameter`, `webhook`, `websocket`, `http`, `code`, and `snippet`.
 
     For example, a search for `webhook endpoint` that returns no results is retried as `webhook` and `endpoint` individually.
+
   </Accordion>
 </AccordionGroup>
 
@@ -112,9 +113,11 @@ Once you have your credentials, you can make requests to Algolia's API to search
 Contact the Fern team to get your specific application ID and index name. Credentials are provided on a per-customer basis to maintain security.
 
 <Note>
-    **Note:** Keep your Algolia credentials secure and avoid exposing them in client-side code. Consider implementing a backend proxy to make the Algolia requests.
+  **Note:** Keep your Algolia credentials secure and avoid exposing them in
+  client-side code. Consider implementing a backend proxy to make the Algolia
+  requests.
 </Note>
 
-## Using an alternative search 
+## Using an alternative search
 
 You can override Fern's search with your own solution using [custom JavaScript](/learn/docs/building-and-customizing-your-docs/custom-css-global-js#custom-javascript) and your Algolia credentials.
