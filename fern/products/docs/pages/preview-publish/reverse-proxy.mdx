@@ -146,6 +146,22 @@ In `netlify.toml` (or `_redirects`):
     x-fern-host = "mydomain.com"
 ```
 </Step>
+<Step title="Disable rate limiting for the docs path">
+
+Fern revalidates your docs site by warming page caches with concurrent requests (up to 250 at a time). Netlify's [traffic rules](https://docs.netlify.com/security/secure-access/traffic-rules/) can interpret this as abusive traffic and block the requests, causing revalidation to fail.
+
+If you have rate limiting enabled under **Security** > **Traffic rules** in the Netlify dashboard, add a rule that excludes your docs subpath (`/docs/*`) from rate limiting.
+
+</Step>
+<Step title="Check the proxy timeout">
+
+Fern's revalidation endpoint (`/api/fern-docs/revalidate`) streams a long-running response while warming page caches. Netlify's default proxy timeout for rewrites can terminate this stream before warming completes.
+
+On **Pro** plans and below, the proxy timeout is **26 seconds** — too short for sites with more than a few hundred pages. **Business** and **Enterprise** plans support up to **15 minutes**, which is sufficient for most sites.
+
+If revalidation consistently fails with a "terminated" status, the proxy timeout is the most likely cause. Upgrade to a plan with a longer timeout or contact [Netlify support](https://www.netlify.com/support/) to increase the limit.
+
+</Step>
 </Steps>
 
 <Note>
