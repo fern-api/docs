@@ -127,7 +127,7 @@ Then read each candidate to find the natural insertion point. Common targets:
 
 - **Behavior pages** — e.g., a feature affects search → cross-link from `customization/search.mdx`.
 - **Dashboard pages** — e.g., a feature has dashboard settings → cross-link from `dashboard/pages/`.
-- **Adjacent feature pages** — e.g., Ask Fern, RBAC, localization, when scope or behavior overlaps.
+- **Adjacent feature pages** — e.g., Ask AI, RBAC, localization, when scope or behavior overlaps.
 - **Overview / landing pages** — sometimes a card on a hub page is warranted; usually only when the feature is a top-level setup step, not a configuration detail.
 
 ### Pick the form
