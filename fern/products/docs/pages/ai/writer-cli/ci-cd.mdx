@@ -1,0 +1,156 @@
+---
+title: Automate with CI/CD
+description: Use the Fern Writer CLI in GitHub Actions to auto-document pull requests and API changes.
+---
+
+Integrate the [Fern Writer CLI](/learn/docs/ai-features/fern-writer-cli/install) into your CI/CD pipeline to trigger documentation updates automatically when code changes land.
+
+## Auto-document pull requests
+
+This workflow triggers Fern Writer whenever a pull request that modifies your API spec is merged:
+
+```yaml title=".github/workflows/fern-writer-on-merge.yml"
+name: Auto-document merged PRs
+
+on:
+  pull_request:
+    types: [closed]
+    paths:
+      - "openapi/**"
+      - "fern/**"
+
+jobs:
+  update-docs:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Fern Writer CLI
+        run: npm install -g fern-writer
+
+      - name: Trigger Fern Writer
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+        run: |
+          RESULT=$(fern-writer sessions create \
+            --json "{\"prompt\": \"Document the changes from PR #${{ github.event.pull_request.number }}: ${{ github.event.pull_request.title }}\", \"github_repo\": \"${{ github.repository }}\"}" \
+            --format json)
+
+          SESSION_ID=$(echo "$RESULT" | jq -r '.session_id')
+          echo "Session started: $SESSION_ID"
+
+      - name: Poll for completion
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+        run: |
+          SESSION_ID=$(fern-writer sessions list --params '{"limit": 1}' --format json | jq -r '.sessions[0].session_id')
+
+          for i in $(seq 1 360); do
+            STATUS=$(fern-writer sessions status \
+              --params "{\"session_id\": \"$SESSION_ID\"}" \
+              --format json)
+
+            STATE=$(echo "$STATUS" | jq -r '.status')
+            PR_URL=$(echo "$STATUS" | jq -r '.pr_url // empty')
+
+            if [ -n "$PR_URL" ]; then
+              echo "Docs PR created: $PR_URL"
+              exit 0
+            fi
+
+            if [ "$STATE" = "stopped" ] || [ "$STATE" = "failed" ]; then
+              echo "Session ended with status: $STATE"
+              exit 1
+            fi
+
+            sleep 30
+          done
+
+          echo "Timed out waiting for session"
+          exit 1
+```
+
+### Setup
+
+<Steps>
+<Step title="Add your Fern token">
+
+Go to your repository's **Settings > Secrets and variables > Actions** and add `FERN_TOKEN` as a repository secret. Get your token with `fern token` from the [Fern CLI](/learn/cli-api-reference/cli-reference/commands#fern-token).
+
+</Step>
+<Step title="Install the Fern GitHub App">
+
+The [Fern GitHub App](https://github.com/apps/fern-api) must be installed on the repository so Fern Writer can open pull requests.
+
+</Step>
+<Step title="Configure trigger paths">
+
+Adjust the `paths` filter in the workflow to match where your API definitions live. Common patterns:
+
+```yaml
+paths:
+  - "openapi/**"       # OpenAPI specs
+  - "fern/**"          # Fern definitions
+  - "swagger/**"       # Swagger files
+  - "*.proto"          # Protobuf definitions
+```
+
+</Step>
+</Steps>
+
+## Trigger on API spec changes
+
+For repositories where the API spec is the source of truth, trigger on pushes to the default branch:
+
+```yaml title=".github/workflows/fern-writer-on-spec-change.yml"
+name: Update docs on spec change
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "openapi/openapi.yml"
+
+jobs:
+  update-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Fern Writer CLI
+        run: npm install -g fern-writer
+
+      - name: Trigger Fern Writer
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+        run: |
+          fern-writer sessions create \
+            --json '{"prompt": "The API spec has been updated. Review the changes and update the documentation accordingly.", "github_repo": "${{ github.repository }}"}'
+```
+
+## Manual dispatch
+
+Add `workflow_dispatch` for on-demand runs from the GitHub UI:
+
+```yaml title=".github/workflows/fern-writer-manual.yml"
+name: Trigger Fern Writer
+
+on:
+  workflow_dispatch:
+    inputs:
+      prompt:
+        description: "What should Fern Writer do?"
+        required: true
+        type: string
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Fern Writer CLI
+        run: npm install -g fern-writer
+
+      - name: Trigger Fern Writer
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+        run: |
+          fern-writer sessions create \
+            --json '{"prompt": "${{ github.event.inputs.prompt }}", "github_repo": "${{ github.repository }}"}'
+```

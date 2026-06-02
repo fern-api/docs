@@ -1,0 +1,132 @@
+---
+title: Fern Writer CLI
+description: Install and use the Fern Writer CLI to trigger documentation updates from your terminal.
+---
+
+The Fern Writer CLI lets you trigger [Fern Writer](/learn/docs/ai-features/fern-writer) sessions directly from your terminal. It wraps the Fern Writer API into subcommands for creating sessions, polling status, and listing past runs.
+
+<Note>
+The CLI generator is in early access. [Reach out](https://buildwithfern.com/contact) to get started.
+</Note>
+
+## Prerequisites
+
+- A [Fern token](/learn/cli-api-reference/cli-reference/commands#fern-token) for your organization
+- The [Fern GitHub App](https://github.com/apps/fern-api) installed on the target repository
+
+## Install
+
+<Tabs>
+<Tab title="macOS">
+```bash
+brew install fern-writer
+```
+</Tab>
+<Tab title="npm">
+```bash
+npm install -g fern-writer
+```
+</Tab>
+<Tab title="Linux">
+```bash
+curl -fsSL fern.sh/install | sh
+```
+</Tab>
+</Tabs>
+
+## Authentication
+
+Set your Fern token as an environment variable:
+
+```bash
+export FERN_TOKEN=<your-fern-token>
+```
+
+Alternatively, pass it directly via the `--api-token` flag on any command.
+
+## Usage
+
+### Create a session
+
+Start a Fern Writer session against a repository:
+
+```bash
+fern-writer sessions create \
+  --json '{"prompt": "Document the new /plants endpoint added in PR #42", "github_repo": "acme/docs"}'
+```
+
+Returns a `session_id` and initial status:
+
+```json
+{
+  "session_id": "sess_abc123",
+  "status": "new"
+}
+```
+
+### Check session status
+
+Poll a session until it completes and returns a pull request URL:
+
+```bash
+fern-writer sessions status \
+  --params '{"session_id": "sess_abc123"}'
+```
+
+```json
+{
+  "session_id": "sess_abc123",
+  "status": "completed",
+  "pr_url": "https://github.com/acme/docs/pull/87"
+}
+```
+
+### List sessions
+
+List recent sessions, optionally filtered by repository:
+
+```bash
+fern-writer sessions list
+
+# Filter by repository
+fern-writer sessions list --params '{"github_repo": "acme/docs"}'
+
+# Include stopped sessions
+fern-writer sessions list --params '{"include_stopped": true}'
+```
+
+### Output formatting
+
+All commands support the `--format` flag:
+
+```bash
+# Table view
+fern-writer sessions list --format table
+
+# CSV export
+fern-writer sessions list --format csv > sessions.csv
+
+# YAML
+fern-writer sessions status --params '{"session_id": "sess_abc123"}' --format yaml
+```
+
+### Dry-run mode
+
+Preview the HTTP request without sending it:
+
+```bash
+fern-writer sessions create \
+  --json '{"prompt": "Update the quickstart guide", "github_repo": "acme/docs"}' \
+  --dry-run
+```
+
+## Exit codes
+
+| Code | Meaning |
+| ---- | --------------- |
+| `0` | Success |
+| `1` | API error (4xx/5xx) |
+| `2` | Auth error (missing or invalid token) |
+| `3` | Validation error (bad arguments or JSON) |
+
+Errors are emitted as structured JSON on stderr.

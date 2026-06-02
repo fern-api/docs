@@ -1,0 +1,126 @@
+---
+title: Scheduled documentation runs
+description: Run Fern Writer on a schedule to keep documentation in sync with your codebase.
+---
+
+Schedule the [Fern Writer CLI](/learn/docs/ai-features/fern-writer-cli/install) to run periodically, catching documentation drift before it compounds.
+
+## GitHub Actions cron schedule
+
+Use a [scheduled workflow](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#schedule) to run Fern Writer at a fixed interval:
+
+```yaml title=".github/workflows/fern-writer-scheduled.yml"
+name: Scheduled docs review
+
+on:
+  schedule:
+    # Every Monday at 9:00 UTC
+    - cron: "0 9 * * 1"
+  workflow_dispatch: {}
+
+jobs:
+  review-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Fern Writer CLI
+        run: npm install -g fern-writer
+
+      - name: Trigger Fern Writer
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+        run: |
+          fern-writer sessions create \
+            --json '{"prompt": "Review the documentation for accuracy. Check that all API endpoints are documented, code examples are correct, and no pages reference deprecated behavior.", "github_repo": "${{ github.repository }}"}'
+
+      - name: Wait for completion
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+        run: |
+          # Get the most recent session
+          SESSION_ID=$(fern-writer sessions list \
+            --params '{"limit": 1}' \
+            --format json | jq -r '.sessions[0].session_id')
+
+          for i in $(seq 1 360); do
+            STATUS=$(fern-writer sessions status \
+              --params "{\"session_id\": \"$SESSION_ID\"}" \
+              --format json)
+
+            STATE=$(echo "$STATUS" | jq -r '.status')
+            PR_URL=$(echo "$STATUS" | jq -r '.pr_url // empty')
+
+            if [ -n "$PR_URL" ]; then
+              echo "Docs PR created: $PR_URL"
+              exit 0
+            fi
+
+            if [ "$STATE" = "stopped" ] || [ "$STATE" = "failed" ]; then
+              echo "Session ended with status: $STATE"
+              exit 0
+            fi
+
+            sleep 30
+          done
+```
+
+### Common cron patterns
+
+| Schedule | Cron expression | Description |
+| --- | --- | --- |
+| Weekly | `0 9 * * 1` | Every Monday at 9:00 UTC |
+| Biweekly | `0 9 1,15 * *` | 1st and 15th of each month |
+| Daily | `0 6 * * *` | Every day at 6:00 UTC |
+| After releases | Use `workflow_dispatch` | Trigger manually post-release |
+
+## System cron job
+
+For environments outside GitHub Actions, use a system cron job:
+
+```bash title="crontab -e"
+# Run Fern Writer every Monday at 9:00 AM UTC
+0 9 * * 1 FERN_TOKEN=<your-token> fern-writer sessions create --json '{"prompt": "Review docs for accuracy and completeness.", "github_repo": "acme/docs"}' >> /var/log/fern-writer.log 2>&1
+```
+
+### Wrapper script
+
+For more control over logging and error handling:
+
+```bash title="fern-writer-scheduled.sh"
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO="acme/docs"
+PROMPT="Review the documentation for accuracy. Check that all API endpoints are documented and code examples compile."
+LOG_FILE="/var/log/fern-writer.log"
+
+echo "[$(date -u)] Starting scheduled Fern Writer run" >> "$LOG_FILE"
+
+RESULT=$(fern-writer sessions create \
+  --json "{\"prompt\": \"$PROMPT\", \"github_repo\": \"$REPO\"}" \
+  --format json 2>>"$LOG_FILE")
+
+SESSION_ID=$(echo "$RESULT" | jq -r '.session_id')
+echo "[$(date -u)] Session created: $SESSION_ID" >> "$LOG_FILE"
+```
+
+```bash title="crontab -e"
+0 9 * * 1 FERN_TOKEN=<your-token> /path/to/fern-writer-scheduled.sh
+```
+
+## Prompt examples
+
+Tailor the prompt to your scheduled run's purpose:
+
+```bash
+# General review
+"Review the documentation for accuracy and completeness."
+
+# Post-release audit
+"A new release was shipped. Check that all new endpoints are documented and changelog is up to date."
+
+# Style enforcement
+"Review all documentation pages for consistent formatting, correct code examples, and proper use of components."
+
+# Stale content detection
+"Identify any documentation pages that reference deprecated APIs, removed features, or outdated configuration options."
+```
