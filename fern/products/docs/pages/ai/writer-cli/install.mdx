@@ -55,33 +55,34 @@ fern-writer --version
 Set your Fern token as an environment variable:
 
 ```bash
-export FERN_TOKEN=<your-fern-token>
+export FERN_WRITER_TOKEN=<your-fern-token>
 ```
 
 For CI environments, store the token as a repository secret and reference it:
 
 ```bash
-FERN_TOKEN=${{ secrets.FERN_TOKEN }} fern-writer sessions create ...
+FERN_WRITER_TOKEN=${{ secrets.FERN_TOKEN }} fern-writer scribe-api create-scribe-session ...
 ```
 
 ## Usage
+
+All Fern Writer commands live under the `scribe-api` subcommand.
 
 ### Create a session
 
 Start a Fern Writer session against a repository:
 
 ```bash
-fern-writer sessions create \
-  --json '{"prompt": "Document the new /plants endpoint added in PR #42", "github_repo": "acme/docs"}'
+fern-writer scribe-api create-scribe-session \
+  --prompt "Document the new /plants endpoint added in PR #42" \
+  --github-repo "acme/docs"
 ```
 
-Returns a `session_id` and initial status:
+You can also pass the request body as JSON:
 
-```json
-{
-  "session_id": "sess_abc123",
-  "status": "new"
-}
+```bash
+fern-writer scribe-api create-scribe-session \
+  --json '{"prompt": "Document the new /plants endpoint", "github_repo": "acme/docs"}'
 ```
 
 ### Check session status
@@ -89,16 +90,8 @@ Returns a `session_id` and initial status:
 Poll a session until it completes and returns a pull request URL:
 
 ```bash
-fern-writer sessions status \
-  --params '{"session_id": "sess_abc123"}'
-```
-
-```json
-{
-  "session_id": "sess_abc123",
-  "status": "completed",
-  "pr_url": "https://github.com/acme/docs/pull/87"
-}
+fern-writer scribe-api get-scribe-session-status-endpoint \
+  --session-id "sess_abc123"
 ```
 
 ### List sessions
@@ -106,13 +99,13 @@ fern-writer sessions status \
 List recent sessions, optionally filtered by repository:
 
 ```bash
-fern-writer sessions list
+fern-writer scribe-api list-scribe-sessions
 
 # Filter by repository
-fern-writer sessions list --params '{"github_repo": "acme/docs"}'
+fern-writer scribe-api list-scribe-sessions --github-repo "acme/docs"
 
 # Include stopped sessions
-fern-writer sessions list --params '{"include_stopped": true}'
+fern-writer scribe-api list-scribe-sessions --include-stopped true
 ```
 
 ### Output formatting
@@ -120,14 +113,14 @@ fern-writer sessions list --params '{"include_stopped": true}'
 All commands support the `--format` flag:
 
 ```bash
-# Table view (default for terminals)
-fern-writer sessions list --format table
+# Table view
+fern-writer scribe-api list-scribe-sessions --format table
 
-# JSON (default for piped output, agent-friendly)
-fern-writer sessions list --format json
+# JSON (default)
+fern-writer scribe-api list-scribe-sessions --format json
 
 # CSV export
-fern-writer sessions list --format csv > sessions.csv
+fern-writer scribe-api list-scribe-sessions --format csv > sessions.csv
 ```
 
 ### Dry-run mode
@@ -135,18 +128,19 @@ fern-writer sessions list --format csv > sessions.csv
 Preview the HTTP request without sending it:
 
 ```bash
-fern-writer sessions create \
-  --json '{"prompt": "Update the quickstart guide", "github_repo": "acme/docs"}' \
+fern-writer scribe-api create-scribe-session \
+  --prompt "Update the quickstart guide" \
+  --github-repo "acme/docs" \
   --dry-run
 ```
 
-## Exit codes
+## Environment variables
 
-| Code | Meaning |
+| Variable | Purpose |
 | ---- | --------------- |
-| `0` | Success |
-| `1` | API error (4xx/5xx) |
-| `2` | Auth error (missing or invalid token) |
-| `3` | Validation error (bad arguments or JSON) |
+| `FERN_WRITER_TOKEN` | Bearer token for authentication |
+| `FERN_WRITER_BASE_URL` | Override the API base URL |
+| `FERN_WRITER_TIMEOUT_SECS` | Total request timeout |
+| `FERN_WRITER_PROXY` | HTTP(S) proxy URL |
 
 Errors are emitted as structured JSON on stderr.

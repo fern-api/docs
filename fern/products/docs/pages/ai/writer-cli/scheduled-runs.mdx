@@ -23,27 +23,28 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install Fern Writer CLI
-        run: npm install -g fern-writer
+        run: npm install -g @fern-api/fern-writer
 
       - name: Trigger Fern Writer
         env:
-          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+          FERN_WRITER_TOKEN: ${{ secrets.FERN_TOKEN }}
         run: |
-          fern-writer sessions create \
-            --json '{"prompt": "Review the documentation for accuracy. Check that all API endpoints are documented, code examples are correct, and no pages reference deprecated behavior.", "github_repo": "${{ github.repository }}"}'
+          fern-writer scribe-api create-scribe-session \
+            --prompt "Review the documentation for accuracy. Check that all API endpoints are documented, code examples are correct, and no pages reference deprecated behavior." \
+            --github-repo "${{ github.repository }}"
 
       - name: Wait for completion
         env:
-          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+          FERN_WRITER_TOKEN: ${{ secrets.FERN_TOKEN }}
         run: |
           # Get the most recent session
-          SESSION_ID=$(fern-writer sessions list \
-            --params '{"limit": 1}' \
+          SESSION_ID=$(fern-writer scribe-api list-scribe-sessions \
+            --limit 1 \
             --format json | jq -r '.sessions[0].session_id')
 
           for i in $(seq 1 360); do
-            STATUS=$(fern-writer sessions status \
-              --params "{\"session_id\": \"$SESSION_ID\"}" \
+            STATUS=$(fern-writer scribe-api get-scribe-session-status-endpoint \
+              --session-id "$SESSION_ID" \
               --format json)
 
             STATE=$(echo "$STATUS" | jq -r '.status')
@@ -78,7 +79,7 @@ For environments outside GitHub Actions, use a system cron job:
 
 ```bash title="crontab -e"
 # Run Fern Writer every Monday at 9:00 AM UTC
-0 9 * * 1 FERN_TOKEN=<your-token> fern-writer sessions create --json '{"prompt": "Review docs for accuracy and completeness.", "github_repo": "acme/docs"}' >> /var/log/fern-writer.log 2>&1
+0 9 * * 1 FERN_WRITER_TOKEN=<your-token> fern-writer scribe-api create-scribe-session --prompt "Review docs for accuracy and completeness." --github-repo "acme/docs" >> /var/log/fern-writer.log 2>&1
 ```
 
 ### Wrapper script
@@ -95,8 +96,9 @@ LOG_FILE="/var/log/fern-writer.log"
 
 echo "[$(date -u)] Starting scheduled Fern Writer run" >> "$LOG_FILE"
 
-RESULT=$(fern-writer sessions create \
-  --json "{\"prompt\": \"$PROMPT\", \"github_repo\": \"$REPO\"}" \
+RESULT=$(fern-writer scribe-api create-scribe-session \
+  --prompt "$PROMPT" \
+  --github-repo "$REPO" \
   --format json 2>>"$LOG_FILE")
 
 SESSION_ID=$(echo "$RESULT" | jq -r '.session_id')
@@ -104,7 +106,7 @@ echo "[$(date -u)] Session created: $SESSION_ID" >> "$LOG_FILE"
 ```
 
 ```bash title="crontab -e"
-0 9 * * 1 FERN_TOKEN=<your-token> /path/to/fern-writer-scheduled.sh
+0 9 * * 1 FERN_WRITER_TOKEN=<your-token> /path/to/fern-writer-scheduled.sh
 ```
 
 ## Prompt examples

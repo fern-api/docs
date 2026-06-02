@@ -25,14 +25,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install Fern Writer CLI
-        run: npm install -g fern-writer
+        run: npm install -g @fern-api/fern-writer
 
       - name: Trigger Fern Writer
         env:
-          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+          FERN_WRITER_TOKEN: ${{ secrets.FERN_TOKEN }}
         run: |
-          RESULT=$(fern-writer sessions create \
-            --json "{\"prompt\": \"Document the changes from PR #${{ github.event.pull_request.number }}: ${{ github.event.pull_request.title }}\", \"github_repo\": \"${{ github.repository }}\"}" \
+          RESULT=$(fern-writer scribe-api create-scribe-session \
+            --prompt "Document the changes from PR #${{ github.event.pull_request.number }}: ${{ github.event.pull_request.title }}" \
+            --github-repo "${{ github.repository }}" \
             --format json)
 
           SESSION_ID=$(echo "$RESULT" | jq -r '.session_id')
@@ -40,13 +41,13 @@ jobs:
 
       - name: Poll for completion
         env:
-          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+          FERN_WRITER_TOKEN: ${{ secrets.FERN_TOKEN }}
         run: |
-          SESSION_ID=$(fern-writer sessions list --params '{"limit": 1}' --format json | jq -r '.sessions[0].session_id')
+          SESSION_ID=$(fern-writer scribe-api list-scribe-sessions --limit 1 --format json | jq -r '.sessions[0].session_id')
 
           for i in $(seq 1 360); do
-            STATUS=$(fern-writer sessions status \
-              --params "{\"session_id\": \"$SESSION_ID\"}" \
+            STATUS=$(fern-writer scribe-api get-scribe-session-status-endpoint \
+              --session-id "$SESSION_ID" \
               --format json)
 
             STATE=$(echo "$STATUS" | jq -r '.status')
@@ -115,14 +116,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install Fern Writer CLI
-        run: npm install -g fern-writer
+        run: npm install -g @fern-api/fern-writer
 
       - name: Trigger Fern Writer
         env:
-          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+          FERN_WRITER_TOKEN: ${{ secrets.FERN_TOKEN }}
         run: |
-          fern-writer sessions create \
-            --json '{"prompt": "The API spec has been updated. Review the changes and update the documentation accordingly.", "github_repo": "${{ github.repository }}"}'
+          fern-writer scribe-api create-scribe-session \
+            --prompt "The API spec has been updated. Review the changes and update the documentation accordingly." \
+            --github-repo "${{ github.repository }}"
 ```
 
 ## Manual dispatch
@@ -145,12 +147,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install Fern Writer CLI
-        run: npm install -g fern-writer
+        run: npm install -g @fern-api/fern-writer
 
       - name: Trigger Fern Writer
         env:
-          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+          FERN_WRITER_TOKEN: ${{ secrets.FERN_TOKEN }}
         run: |
-          fern-writer sessions create \
-            --json '{"prompt": "${{ github.event.inputs.prompt }}", "github_repo": "${{ github.repository }}"}'
+          fern-writer scribe-api create-scribe-session \
+            --prompt "${{ github.event.inputs.prompt }}" \
+            --github-repo "${{ github.repository }}"
 ```
