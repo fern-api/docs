@@ -1,0 +1,183 @@
+---
+title: Releases
+description: Automate SDK releases with the Fern CLI GitHub Action. Configure your repository and set up CI to generate and publish SDKs on every push.
+---
+
+
+After [structuring your project](/learn/sdks/overview/project-structure) and configuring your generators, set up a CI workflow to automate SDK releases. This page covers the complete configuration for a release-ready repository and the GitHub Action that drives it.
+
+## Repository configuration
+
+A release-ready Fern configuration repository contains three files in the `fern/` directory:
+
+<Files>
+  <Folder name="my-api" defaultOpen>
+    <Folder name=".github" defaultOpen>
+      <Folder name="workflows" defaultOpen>
+        <File name="ci.yml" comment="Release workflow" />
+      </Folder>
+    </Folder>
+    <Folder name="fern" defaultOpen>
+      <File name="fern.config.json" comment="Organization and CLI version" />
+      <File name="generators.yml" comment="API spec location and generator config" />
+      <File name="openapi.yml" comment="Your API definition" />
+    </Folder>
+  </Folder>
+</Files>
+
+### `fern.config.json`
+
+Pin the CLI version for deterministic builds:
+
+```json title="fern/fern.config.json"
+{
+  "organization": "your-org",
+  "version": "5.44.3"
+}
+```
+
+### `generators.yml`
+
+Declare your API spec and configure generators with a `github` block to enable releases:
+
+```yaml title="fern/generators.yml"
+api:
+  specs:
+    - openapi: openapi.yml
+
+groups:
+  ts-sdk:
+    generators:
+      - name: fernapi/fern-typescript-sdk
+        version: 3.12.3
+        output:
+          location: npm
+          package-name: "@your-org/sdk"
+          token: OIDC
+        github:
+          repository: your-org/your-typescript-sdk
+          mode: release
+        config:
+          namespaceExport: YourClient
+```
+
+The `github` block controls how Fern delivers generated code:
+
+| Field | Description |
+|-------|-------------|
+| `repository` | Target GitHub repository for the generated SDK |
+| `mode` | `release` (default), `pull-request`, or `push` |
+| `branch` | Target branch (required for `push` mode) |
+
+See the [`generators.yml` reference](/learn/sdks/reference/generators-yml#github) for the full set of options.
+
+<Note>
+The [Fern GitHub App](https://github.com/apps/fern-api) must be installed on your target SDK repository.
+</Note>
+
+## GitHub Action for releases
+
+The [`fern-api/setup-fern-cli`](https://github.com/marketplace/actions/setup-fern-cli) GitHub Action installs the Fern CLI in your workflow. Pair it with `fern generate` to automate SDK releases on every push to your default branch.
+
+### Basic workflow
+
+```yaml title=".github/workflows/ci.yml"
+name: Generate SDKs
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+
+      - name: Setup Fern CLI
+        uses: fern-api/setup-fern-cli@v1
+
+      - name: Generate SDKs
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+        run: fern generate
+```
+
+This workflow:
+1. Checks out your configuration repository
+2. Installs Node.js (required by the Fern CLI)
+3. Installs the Fern CLI via the `setup-fern-cli` action
+4. Runs `fern generate` to regenerate SDKs and push to the configured repositories
+
+### With a specific version
+
+Pin the Fern CLI to a specific version for reproducible builds:
+
+```yaml
+- name: Setup Fern CLI
+  uses: fern-api/setup-fern-cli@v1
+  with:
+    version: "5.44.3"
+```
+
+### Versioned releases
+
+To publish a specific version, pass `--version` to `fern generate`:
+
+```yaml title=".github/workflows/release.yml"
+name: Release SDK
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to publish (e.g., 1.0.0)"
+        required: true
+        type: string
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+
+      - name: Setup Fern CLI
+        uses: fern-api/setup-fern-cli@v1
+
+      - name: Generate and release
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+        run: fern generate --group ts-sdk --version ${{ inputs.version }} --log-level debug
+```
+
+Trigger this workflow from the **Actions** tab in GitHub to release a specific version on demand.
+
+## Authentication
+
+The workflows above require a `FERN_TOKEN` repository secret. Generate one by running:
+
+```bash
+fern token
+```
+
+Add the token as a repository secret named `FERN_TOKEN` under **Settings > Secrets and variables > Actions** in your configuration repository.
+
+## Release modes
+
+The `mode` field in `generators.yml` determines what happens after generation:
+
+| Mode | Behavior | When to publish |
+|------|----------|-----------------|
+| `release` | Commits to the default branch and tags a release | Automatic — publishing triggers on the tag |
+| `pull-request` | Opens a PR for review | Merge the PR, then [tag a release](https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository) |
+| `push` | Pushes to the specified branch | [Tag a release](https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository) from the branch |
+
+For `pull-request` and `push` modes, the generated SDK repository contains a CI workflow (`.github/workflows/ci.yml`) that publishes the package when a GitHub release is tagged.
