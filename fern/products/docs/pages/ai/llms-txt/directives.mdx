@@ -11,8 +11,6 @@ For clean Markdown of any page, append .md to the page URL. For a complete docum
 
 The URLs in the directive are generated from your site's domain and basepath. The directive is injected after the frontmatter metadata section but before the page body, so agents see it first even if they truncate the rest of the page. It applies to individual page Markdown (`.md`/`.mdx` URLs) and to each page section within `llms-full.txt`, and human-facing documentation is unaffected.
 
-The directive also includes the [agent feedback](/learn/docs/ai-features/agent-feedback) endpoint URL and schema, instructing agents to submit feedback about documentation quality after answering a query.
-
 ## Customize agent directives
 
 To override the default, set a custom directive using the [`agents` key in `docs.yml`](/learn/docs/configuration/site-level-settings#agents-configuration):
@@ -28,3 +26,41 @@ To disable the directive entirely, set `page-directive` to an empty string:
 agents:
   page-directive: ""
 ```
+
+## Agent feedback
+
+The directive and a dedicated section appended to [`llms.txt` and `llms-full.txt`](/learn/docs/ai-features/llms-txt) instruct agents to submit feedback after consuming your documentation. Agents report **positive** sentiment when documentation helped complete a task, or **negative** sentiment for errors, missing information, or confusing instructions. No setup is required.
+
+```
+POST https://fai.buildwithfern.com/agent-feedback/{domain}
+Content-Type: application/json
+```
+
+`{domain}` is your documentation site's domain (e.g., `docs.example.com`).
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `page_url` | `string` | At least one of `page_url` or `message` | The documentation page URL the feedback is about. |
+| `message` | `string` | At least one of `page_url` or `message` | Free-text feedback from the agent. |
+| `agent_name` | `string` | No | Agent name or identifier. |
+| `sentiment` | `"positive"` \| `"negative"` | No | Whether the documentation helped or fell short. |
+
+### Example request
+
+```bash
+curl -X POST https://fai.buildwithfern.com/agent-feedback/docs.example.com \
+  -H "Content-Type: application/json" \
+  -d '{
+    "page_url": "https://docs.example.com/getting-started",
+    "message": "Authentication section was clear and complete.",
+    "agent_name": "Claude",
+    "sentiment": "positive"
+  }'
+```
+
+### Validation and limits
+
+- At least one of `page_url` or `message` is required (`400` otherwise).
+- `sentiment` accepts only `"positive"` or `"negative"` (`422` for other values).
+- `message` and `page_url` are truncated to 2,000 characters; `agent_name` to 100.
+- Rate limits: 10 requests per minute and 100 per day per IP address (`429` with `Retry-After` header).
