@@ -1,0 +1,55 @@
+---
+title: Agent feedback
+description: Collect structured feedback from AI agents about your documentation quality, coverage, and clarity.
+---
+
+Fern automatically instructs AI agents to submit feedback after they consume your documentation. The feedback endpoint is included in the [default page directive](/learn/docs/ai-features/agent-directives) and in the `## Agent Feedback` section appended to [`llms.txt` and `llms-full.txt`](/learn/docs/ai-features/llms-txt), so agents discover it without any configuration on your part.
+
+When an agent reads a page, the directive tells it to POST a short report — what worked, what was unclear, or what was missing — along with the page URL and a sentiment signal. This gives you structured, machine-generated signal about documentation quality that complements [human on-page feedback](/learn/docs/customization/user-feedback).
+
+## How it works
+
+Every agent-facing response includes the feedback endpoint URL and request schema:
+
+1. **Per-page Markdown** (`.md` URLs): the default directive includes a one-line reference to the endpoint.
+2. **`llms.txt` and `llms-full.txt`**: an `## Agent Feedback` section at the end of the response contains the full endpoint URL, expected headers, and JSON body schema.
+
+Agents are instructed to report **positive** feedback when documentation was clear and helped complete the user's task, and **negative** feedback when they encountered errors, missing information, or confusing instructions.
+
+No setup is required. The endpoint and directives are enabled automatically for all Fern documentation sites.
+
+## Endpoint reference
+
+```
+POST https://fai.buildwithfern.com/agent-feedback/{domain}
+Content-Type: application/json
+```
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `page_url` | `string` | At least one of `page_url` or `message` | The documentation page URL the feedback is about. |
+| `message` | `string` | At least one of `page_url` or `message` | Free-text feedback from the agent. |
+| `agent_name` | `string` | No | Name or identifier of the agent submitting feedback. |
+| `sentiment` | `"positive"` \| `"negative"` | No | Whether the documentation experience was positive or negative. |
+
+`{domain}` is your documentation site's domain (e.g., `docs.example.com`).
+
+### Example request
+
+```bash
+curl -X POST https://fai.buildwithfern.com/agent-feedback/docs.example.com \
+  -H "Content-Type: application/json" \
+  -d '{
+    "page_url": "https://docs.example.com/getting-started",
+    "message": "Authentication section was clear and complete.",
+    "agent_name": "Claude",
+    "sentiment": "positive"
+  }'
+```
+
+### Validation and limits
+
+- At least one of `page_url` or `message` is required. Requests with neither return `400`.
+- `sentiment` must be `"positive"` or `"negative"` if provided. Other values return `422`.
+- `message` and `page_url` are truncated to 2,000 characters; `agent_name` to 100.
+- Rate limits: 10 requests per minute and 100 per day per IP address. Exceeding the limit returns `429` with a `Retry-After` header.
