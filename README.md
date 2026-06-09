@@ -118,6 +118,6 @@ If you want to **add a new page or make a large structural change**:
 - [File an issue in GitHub](https://github.com/fern-api/docs/issues) and assign [@devalog](https://github.com/devalog). We'll review your issue to make sure your proposed page fits with Fern's overall documentation strategy and isn't duplicating any ongoing work. 
 
 For **all other changes**:
--  Submit a PR directly with your suggested changes. A Fern docs member will review and confirm.
+- Submit a PR directly with your suggested changes. A Fern docs member will review and confirm.
 
 If you see something that is wrong or outdated in the documentation but don't know how to fix it, [file an issue](https://github.com/fern-api/docs/issues) or reach out to [@devalog](https://github.com/devalog).
