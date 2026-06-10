@@ -33,3 +33,92 @@ The skill routes agents to task-specific references in a `references/` directory
 | `references/products.md` | Setting up a product switcher, adding a product, or refactoring navigation into the products format. |
 
 This routing keeps context small. An agent writing a changelog entry loads `references/changelog.md` and skips the products guide entirely.
+
+## Host custom skills from your docs site
+
+Fern docs sites can also serve author-supplied [Agent Skills](https://github.com/cloudflare/agent-skills-discovery-rfc) at the standard `/.well-known/skills/` and `/.well-known/agent-skills/` endpoints. This lets users discover and install your skills with:
+
+```bash
+npx skills add https://your-docs-domain.com
+```
+
+No `docs.yml` configuration is required. Place your skill bundle inside the `fern/` folder and Fern uploads it during `fern generate --docs`. The docs site serves the files as-is.
+
+### Directory layout
+
+Place skills under `.well-known/skills/` (v0.1.0 layout) or `.well-known/agent-skills/` (current v0.2.0 spec) inside your Fern docs folder. Both paths are supported and can coexist.
+
+```bash title="Project structure"
+fern/
+  docs.yml
+  .well-known/
+    agent-skills/
+      index.json              # discovery manifest (required)
+      code-review/
+        SKILL.md              # skill instructions
+      deploy/
+        SKILL.md
+        references/
+          api.md              # supporting files (optional)
+```
+
+Each skill lives in its own subdirectory containing at minimum a `SKILL.md` file. Supporting files (references, archives) can be nested alongside it.
+
+### Discovery manifest
+
+The `index.json` file at the root of the skills directory is required. It enumerates all available skills so clients can discover them in a single request. For the current v0.2.0 spec:
+
+```json title="fern/.well-known/agent-skills/index.json"
+{
+  "$schema": "https://schemas.agentskills.io/discovery/0.2.0/schema.json",
+  "skills": [
+    {
+      "name": "code-review",
+      "type": "skill-md",
+      "description": "Review code for bugs, security issues, and best practices.",
+      "url": "/.well-known/agent-skills/code-review/SKILL.md",
+      "digest": "sha256:c4d5e6f7..."
+    }
+  ]
+}
+```
+
+For the legacy v0.1.0 layout under `.well-known/skills/`, the manifest follows the same structure without the `$schema` field.
+
+### SKILL.md format
+
+Each `SKILL.md` requires YAML frontmatter with `name` and `description`:
+
+```markdown title="fern/.well-known/agent-skills/code-review/SKILL.md"
+---
+name: code-review
+description: Review code for bugs, security issues, and best practices.
+---
+
+# Code Review
+
+When reviewing code, check for...
+```
+
+### Validation
+
+`fern check` validates skill bundles at upload time. It reports errors for:
+
+- A missing or unparseable `index.json`
+- A `SKILL.md` with missing or invalid frontmatter
+
+Frontmatter requirements for each `SKILL.md`:
+
+| Field | Rules |
+|-------|-------|
+| `name` | Kebab-case (lowercase letters, numbers, hyphens). Max 64 characters. Must match the parent directory name. |
+| `description` | Non-empty. Max 1,024 characters. |
+
+### Accessing skills
+
+After publishing, skills are available at:
+
+- `https://your-docs-domain.com/.well-known/agent-skills/index.json` (discovery manifest)
+- `https://your-docs-domain.com/.well-known/agent-skills/<skill-name>/SKILL.md` (individual skill)
+
+For sites with a basepath like `/docs`, the endpoints live under that basepath (e.g., `https://example.com/docs/.well-known/agent-skills/index.json`).
