@@ -1,44 +1,34 @@
 ---
 title: Agent skills
-description: Install official Fern skills to teach coding agents how to build docs sites, design APIs, and configure SDK generation.
+description: Install the fern-docs agent skill to teach coding agents how to author and edit Fern documentation sites.
 ---
 
-[Agent skills](https://www.skills.sh) are reusable instruction sets that teach coding agents (Claude Code, Cursor, Codex, Copilot, and others) how to work in a specific tool or framework. Fern publishes official skills in the [`fern-api/skills`](https://github.com/fern-api/skills) repository so agents can follow Fern conventions without custom prompting.
+The `fern-docs` [agent skill](https://www.skills.sh) teaches coding agents (Claude Code, Cursor, Codex, Copilot, and others) how to author Fern documentation: `docs.yml` configuration, navigation, MDX pages, custom components, landing pages, and changelog entries. It ships in the [`fern-api/skills`](https://github.com/fern-api/skills) repository and loads automatically when an agent's task involves docs authoring. The agent sees a short description up front and pulls in the full skill only when the task matches.
 
 ## Install
-
-Install all Fern skills into your project with one command:
-
-```bash
-npx skills add fern-api/skills --all
-```
-
-The CLI detects your agent and writes skills to the correct location (`.claude/skills/`, `.agents/skills/`, etc.).
-
-To install a single skill, pass `--skill`:
 
 ```bash
 npx skills add fern-api/skills --skill fern-docs
 ```
 
-Add `-g` to install globally instead of into the current project.
+The [skills CLI](https://www.skills.sh) detects your agent and writes the skill to the correct location (`.claude/skills/`, `.agents/skills/`, etc.). Add `-g` to install globally instead of into the current project.
 
-## Available skills
+## What the skill covers
 
-| Skill | Description |
-|-------|-------------|
-| `fern-docs` | Building Fern docs sites: `docs.yml` configuration, navigation, MDX pages, custom components, landing pages, and changelog entries. |
+The skill's `SKILL.md` is an index that agents read first. It contains:
 
-Once installed, agents load the relevant skill automatically when the task matches. Asking an agent to "add a changelog entry" or "build out the docs" pulls in `fern-docs` without additional configuration.
+- **Voice and writing principles** for Fern documentation (concise, dry, no hedges)
+- **Link construction rules** for building internal URLs from `docs.yml` config rather than file paths
+- **Cross-referencing guidelines** for connecting related pages
+- **Pointers to Fern resources** the agent can query at runtime: the [MCP server](/learn/docs/ai-features/mcp-server), [Markdown-format page URLs](/learn/docs/ai-features/markdown), and [`llms.txt`](/learn/docs/ai-features/llms-txt)
 
-## How skills work
+## References
 
-Skills use progressive disclosure. The agent sees only a short name and description up front, then loads the full skill content when the current task matches. A request to write a docs page loads `fern-docs`; an unrelated coding task loads nothing.
+The skill routes agents to task-specific references in a `references/` directory. Each reference is a focused guide for one type of docs task. The agent reads the matching reference before writing, rather than working from the index alone.
 
-Each skill contains:
+| Reference | Loaded when |
+|-----------|-------------|
+| `references/changelog.md` | Writing or editing a changelog entry: file naming, frontmatter tags, entry format, and the docs-link Button pattern. |
+| `references/products.md` | Setting up a product switcher, adding a product, or refactoring navigation into the products format. |
 
-- **When to use it** and what it covers
-- **The workflow to follow**, including file conventions, config patterns, and common footguns
-- **Curated links** to the relevant Fern documentation pages
-
-Skills complement Fern's other AI access methods. While [`llms.txt`](/learn/docs/ai-features/llms-txt) and [Markdown access](/learn/docs/ai-features/markdown) give agents raw documentation content, and the [MCP server](/learn/docs/ai-features/mcp-server) provides a query interface, skills give agents opinionated procedural guidance for specific tasks.
+This routing keeps context small. An agent writing a changelog entry loads `references/changelog.md` and skips the products guide entirely.
