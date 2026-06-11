@@ -1,10 +1,14 @@
 ---
-title: Agent skills
-description: Install the fern-docs agent skill, host custom skills from your docs site, and configure the install skills modal.
+title: fern-docs skill
+description: Install the fern-docs agent skill to teach coding agents how to author and edit Fern Docs sites.
 availability: beta
 ---
 
-The `fern-docs` [agent skill](https://www.skills.sh) teaches coding agents (Claude Code, Cursor, Codex, Copilot, and others) how to work with Fern Docs. It ships in the [`fern-api/skills`](https://github.com/fern-api/skills) repository and loads automatically when an agent's task involves docs authoring.
+The `fern-docs` [agent skill](https://www.skills.sh) teaches coding agents (Claude Code, Cursor, Codex, Copilot, and others) how to work with Fern Docs. It ships in the [`fern-api/skills`](https://github.com/fern-api/skills) repository and loads automatically when an agent's task involves docs authoring. 
+
+<Tip>
+    Your docs site can also [host your own skills](/learn/docs/ai-features/host-skills) for your users to discover and install.
+</Tip>
 
 ## Install
 
@@ -33,140 +37,3 @@ The skill routes agents to task-specific references in a `references/` directory
 | `references/products.md` | Setting up a product switcher, adding a product, or refactoring navigation into the products format. |
 
 This routing keeps context small. An agent writing a changelog entry loads `references/changelog.md` and skips the products guide entirely.
-
-## Host custom skills from your docs site
-
-Fern docs sites can serve your own [Agent Skills](https://www.skills.sh) so users can discover and install them with `npx skills add https://your-docs-domain.com`. There are two parts: configuring the "Install skills" modal and serving the skill files at well-known endpoints.
-
-### Configure the modal
-
-Add an "Install skills" button to the [page action bar](/learn/docs/configuration/site-level-settings#page-actions-configuration) by setting `page-actions.options.skills` in `docs.yml`. The button opens a modal with a copyable install command, a list of available skills, and an optional link to the source repository.
-
-```yaml docs.yml
-page-actions:
-  options:
-    skills:
-      title: Plant API Skills
-      description: Skills for working with the Plant Store API.
-      repository: https://github.com/your-org/plant-api-skills
-      install-command: npx skills add https://your-docs-domain.com
-      skills:
-        - name: plant-care
-          description: Guide for diagnosing and treating common plant diseases.
-          url: https://github.com/your-org/plant-api-skills/tree/main/plant-care
-        - name: garden-planner
-          description: Plan garden layouts and planting schedules.
-```
-
-| Field | Description |
-|-------|-------------|
-| `title` | Overrides the modal title. |
-| `description` | Overrides the modal description. |
-| `learn-more-url` | URL for a "Learn more" link in the modal. |
-| `repository` | Source repository shown as a "View source" button. |
-| `install-command` | Command(s) shown as a copyable block. Defaults to `npx skills add https://<your-domain>` when omitted. Accepts a string or a list of strings for multi-step installs. |
-| `skills` | List of skills displayed in the modal. Each entry has `name` (required), `description` (optional), and `url` (optional link to skill source). |
-
-For the full parameter reference, see [Install skills action](/learn/docs/configuration/site-level-settings#install-skills-action).
-
-### Serve skill files at well-known endpoints
-
-For `npx skills add https://your-docs-domain.com` to work, the docs site needs to serve a skill bundle at the standard `/.well-known/skills/` or `/.well-known/agent-skills/` endpoints. Place the bundle inside your `fern/` folder and the CLI uploads it during `fern generate --docs`. No `docs.yml` configuration is required for serving.
-
-The `https://` scheme is required in the install command: a bare domain is treated as a GitHub repository shorthand.
-
-When the site serves a well-known manifest, the modal fetches it on first open and replaces the config-driven skill list with the manifest contents. This keeps the modal in sync with what `npx skills add` installs.
-
-#### Directory layout
-
-Place skills under `.well-known/skills/` (v0.1.0 layout) or `.well-known/agent-skills/` (current v0.2.0 spec) inside your Fern docs folder. Both paths are supported and can coexist.
-
-```bash title="Project structure"
-fern/
-  docs.yml
-  .well-known/
-    agent-skills/
-      index.json              # discovery manifest (required)
-      plant-care/
-        SKILL.md              # skill instructions
-      garden-planner/
-        SKILL.md
-        references/
-          api.md              # supporting files (optional)
-```
-
-Each skill lives in its own subdirectory containing at minimum a `SKILL.md` file. Supporting files (references, archives) can be nested alongside it.
-
-#### Discovery manifest
-
-The `index.json` file at the root of the skills directory is required. It enumerates all available skills so clients can discover them in a single request.
-
-The v0.2.0 spec (`/.well-known/agent-skills/`) uses `url` and `digest` per skill:
-
-```json title="fern/.well-known/agent-skills/index.json"
-{
-  "$schema": "https://schemas.agentskills.io/discovery/0.2.0/schema.json",
-  "skills": [
-    {
-      "name": "plant-care",
-      "type": "skill-md",
-      "description": "Guide for diagnosing and treating common plant diseases.",
-      "url": "/.well-known/agent-skills/plant-care/SKILL.md",
-      "digest": "sha256:c4d5e6f7..."
-    }
-  ]
-}
-```
-
-The legacy v0.1.0 layout (`/.well-known/skills/`) uses a `files` array instead:
-
-```json title="fern/.well-known/skills/index.json"
-{
-  "skills": [
-    {
-      "name": "plant-care",
-      "description": "Guide for diagnosing and treating common plant diseases.",
-      "files": ["SKILL.md"]
-    }
-  ]
-}
-```
-
-#### SKILL.md format
-
-Each `SKILL.md` requires YAML frontmatter with `name` and `description`:
-
-```markdown title="fern/.well-known/agent-skills/plant-care/SKILL.md"
----
-name: plant-care
-description: Guide for diagnosing and treating common plant diseases.
----
-
-# Plant Care
-
-When diagnosing a plant issue, check for...
-```
-
-#### Validation
-
-`fern check` validates skill bundles at upload time. It reports errors for:
-
-- A missing or unparseable `index.json`
-- A `SKILL.md` with missing or invalid frontmatter
-
-Frontmatter requirements for each `SKILL.md`:
-
-| Field | Rules |
-|-------|-------|
-| `name` | Kebab-case (lowercase letters, numbers, hyphens). Max 64 characters. Must match the parent directory name. |
-| `description` | Non-empty. Max 1,024 characters. |
-
-#### Accessing skills
-
-After publishing, skills are available at:
-
-- `https://your-docs-domain.com/.well-known/agent-skills/index.json` (discovery manifest)
-- `https://your-docs-domain.com/.well-known/agent-skills/<skill-name>/SKILL.md` (individual skill)
-- `https://your-docs-domain.com/.well-known/skills/index.json` (legacy v0.1.0 manifest)
-
-For sites with a basepath like `/docs`, the endpoints live under that basepath (e.g., `https://example.com/docs/.well-known/agent-skills/index.json`).

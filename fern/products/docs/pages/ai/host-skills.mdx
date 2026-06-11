@@ -1,0 +1,127 @@
+---
+title: Custom skills
+description: Serve author-supplied agent skills from your Fern docs site and configure the Install skills button.
+availability: beta
+---
+
+Fern Docs sites can serve your own [Agent Skills](https://www.skills.sh) so your users can discover and install them with the [skills CLI](https://www.skills.sh). You can also add an "Install skills" button to your docs UI that opens a modal with the install command and your skill list. 
+
+<Note>
+  This is separate from installing Fern's own [`fern-docs` skill](/learn/docs/ai-features/agent-skills) into your agent.
+</Note>
+
+<Steps toc={true} tocDepth={2}>
+  <Step title="Lay out the bundle">
+
+Place your skills in your `fern/` folder under `.well-known/agent-skills/` (the current v0.2.0 spec) or `.well-known/skills/` (the legacy v0.1.0 layout). Both are supported and can coexist. Each skill is a subdirectory holding at least a `SKILL.md`, with optional supporting files alongside it.
+
+<Files>
+  <Folder name="fern" defaultOpen>
+    <File name="docs.yml" />
+    <Folder name=".well-known" defaultOpen>
+      <Folder name="agent-skills" defaultOpen>
+        <File name="index.json" comment="discovery manifest (required)" />
+        <Folder name="plant-care" defaultOpen>
+          <File name="SKILL.md" comment="skill instructions" />
+        </Folder>
+        <Folder name="garden-planner" defaultOpen>
+          <File name="SKILL.md" />
+          <Folder name="references" defaultOpen>
+            <File name="api.md" comment="supporting files (optional)" />
+          </Folder>
+        </Folder>
+      </Folder>
+    </Folder>
+  </Folder>
+</Files>
+
+  </Step>
+  <Step title="Write each SKILL.md">
+
+Each `SKILL.md` needs YAML frontmatter with `name` and `description`, following the [Agent Skills spec](https://agentskills.io):
+
+```markdown title="fern/.well-known/agent-skills/plant-care/SKILL.md"
+---
+name: plant-care
+description: Guide for diagnosing and treating common plant diseases.
+---
+
+# Plant Care
+
+When diagnosing a plant issue, check for...
+```
+
+  </Step>
+  <Step title="Add the discovery manifest">
+
+The `index.json` at the root of the skills directory is required. It enumerates every skill so clients can discover them in a single request, referencing each by `url` and `digest`:
+
+```json title="fern/.well-known/agent-skills/index.json"
+{
+  "$schema": "https://schemas.agentskills.io/discovery/0.2.0/schema.json",
+  "skills": [
+    {
+      "name": "plant-care",
+      "type": "skill-md",
+      "description": "Guide for diagnosing and treating common plant diseases.",
+      "url": "/.well-known/agent-skills/plant-care/SKILL.md",
+      "digest": "sha256:c4d5e6f7..."
+    }
+  ]
+}
+```
+
+The legacy v0.1.0 manifest lists a `files` array per skill instead of `url` and `digest`.
+
+  </Step>
+  <Step title="Publish">
+
+Fern uploads the bundle during `fern generate --docs` and serves the files as-is — no `docs.yml` configuration is required. `fern check` validates the bundle at upload time, flagging a missing or unparseable `index.json` and any `SKILL.md` whose frontmatter doesn't conform to the spec.
+
+Once published, skills are served at:
+
+- `https://your-docs-domain.com/.well-known/agent-skills/index.json` (discovery manifest)
+- `https://your-docs-domain.com/.well-known/agent-skills/<skill-name>/SKILL.md` (individual skill)
+- `https://your-docs-domain.com/.well-known/skills/index.json` (legacy v0.1.0 manifest)
+
+For sites with a basepath like `/docs`, the endpoints live under that basepath (e.g., `https://example.com/docs/.well-known/agent-skills/index.json`).
+
+  </Step>
+  <Step title="Install the skills">
+
+With the bundle published, anyone can install your skills with:
+
+```bash
+npx skills add https://your-docs-domain.com
+```
+
+The `https://` scheme is required: a bare domain is treated as a GitHub repository shorthand.
+
+  </Step>
+  <Step title="Configure the Install skills button">
+
+Surface your skills in the docs UI by adding an "Install skills" button to the [page action bar](/learn/docs/configuration/site-level-settings#page-actions-configuration). Set `page-actions.options.skills` in `docs.yml` and the button opens a modal with a copyable install command, the list of available skills, and an optional link to the source repository.
+
+```yaml docs.yml
+page-actions:
+  options:
+    skills:
+      title: Plant API Skills
+      description: Skills for working with the Plant Store API.
+      repository: https://github.com/your-org/plant-api-skills
+      install-command: npx skills add https://your-docs-domain.com
+      skills:
+        - name: plant-care
+          description: Guide for diagnosing and treating common plant diseases.
+          url: https://github.com/your-org/plant-api-skills/tree/main/plant-care
+        - name: garden-planner
+          description: Plan garden layouts and planting schedules.
+```
+</Step>
+</Steps>
+
+## Install skills properties
+
+Configure the Install skills button under `page-actions.options.skills` in `docs.yml`.
+
+<Markdown src="/products/docs/snippets/install-skills-properties.mdx" />
