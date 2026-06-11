@@ -1,6 +1,6 @@
 ---
 title: Agent skills
-description: Install the fern-docs agent skill to teach coding agents how to author and edit Fern Docs sites.
+description: Install the fern-docs agent skill, host custom skills from your docs site, and configure the install skills modal.
 availability: beta
 ---
 
@@ -139,3 +139,36 @@ After publishing, skills are available at:
 - `https://your-docs-domain.com/.well-known/skills/index.json` (legacy v0.1.0 manifest)
 
 For sites with a basepath like `/docs`, the endpoints live under that basepath (e.g., `https://example.com/docs/.well-known/agent-skills/index.json`).
+
+## Configure the install skills modal
+
+Add an "Install skills" button to the page action bar by configuring `page-actions.options.skills` in `docs.yml`. The button opens a modal with a copyable install command and a list of available skills.
+
+```yaml docs.yml
+page-actions:
+  options:
+    skills:
+      title: Plant API Skills
+      description: Skills for working with the Plant Store API.
+      repository: https://github.com/your-org/plant-api-skills
+      install-command: npx skills add https://your-docs-domain.com
+      skills:
+        - name: plant-care
+          description: Guide for diagnosing and treating common plant diseases.
+          url: https://github.com/your-org/plant-api-skills/tree/main/plant-care
+        - name: garden-planner
+          description: Plan garden layouts and planting schedules.
+```
+
+| Field | Description |
+|-------|-------------|
+| `title` | Overrides the modal title. |
+| `description` | Overrides the modal description. |
+| `learn-more-url` | URL for a "Learn more" link in the modal. |
+| `repository` | Source repository shown as a "View source" button. |
+| `install-command` | Command(s) shown as a copyable block. Defaults to `npx skills add https://<your-domain>` when omitted. Accepts a string or a list of strings for multi-step installs. |
+| `skills` | List of skills displayed in the modal. Each entry has `name` (required), `description` (optional), and `url` (optional link to skill source). |
+
+When the site also serves a well-known manifest (from a [skill bundle](#directory-layout)), the modal fetches it on first open and replaces the config-driven list with the manifest contents. This keeps the modal in sync with what `npx skills add` installs.
+
+For the full parameter reference, see [Install skills action](/learn/docs/configuration/site-level-settings#install-skills-action).
