@@ -36,11 +36,13 @@ This routing keeps context small. An agent writing a changelog entry loads `refe
 
 ## Host custom skills from your docs site
 
-Fern docs sites can also serve author-supplied [Agent Skills](https://github.com/cloudflare/agent-skills-discovery-rfc) at the standard `/.well-known/skills/` and `/.well-known/agent-skills/` endpoints. This lets users discover and install your skills with:
+Fern docs sites can also serve author-supplied [Agent Skills](https://www.skills.sh) at the standard `/.well-known/skills/` and `/.well-known/agent-skills/` endpoints. This lets users discover and install your skills with:
 
 ```bash
 npx skills add https://your-docs-domain.com
 ```
+
+The `https://` scheme is required — a bare domain is treated as a GitHub repository shorthand.
 
 No `docs.yml` configuration is required. Place your skill bundle inside the `fern/` folder and Fern uploads it during `fern generate --docs`. The docs site serves the files as-is.
 
@@ -54,9 +56,9 @@ fern/
   .well-known/
     agent-skills/
       index.json              # discovery manifest (required)
-      code-review/
+      plant-care/
         SKILL.md              # skill instructions
-      deploy/
+      garden-planner/
         SKILL.md
         references/
           api.md              # supporting files (optional)
@@ -66,38 +68,52 @@ Each skill lives in its own subdirectory containing at minimum a `SKILL.md` file
 
 ### Discovery manifest
 
-The `index.json` file at the root of the skills directory is required. It enumerates all available skills so clients can discover them in a single request. For the current v0.2.0 spec:
+The `index.json` file at the root of the skills directory is required. It enumerates all available skills so clients can discover them in a single request.
+
+The v0.2.0 spec (`/.well-known/agent-skills/`) uses `url` and `digest` per skill:
 
 ```json title="fern/.well-known/agent-skills/index.json"
 {
   "$schema": "https://schemas.agentskills.io/discovery/0.2.0/schema.json",
   "skills": [
     {
-      "name": "code-review",
+      "name": "plant-care",
       "type": "skill-md",
-      "description": "Review code for bugs, security issues, and best practices.",
-      "url": "/.well-known/agent-skills/code-review/SKILL.md",
+      "description": "Guide for diagnosing and treating common plant diseases.",
+      "url": "/.well-known/agent-skills/plant-care/SKILL.md",
       "digest": "sha256:c4d5e6f7..."
     }
   ]
 }
 ```
 
-For the legacy v0.1.0 layout under `.well-known/skills/`, the manifest follows the same structure without the `$schema` field.
+The legacy v0.1.0 layout (`/.well-known/skills/`) uses a `files` array instead:
+
+```json title="fern/.well-known/skills/index.json"
+{
+  "skills": [
+    {
+      "name": "plant-care",
+      "description": "Guide for diagnosing and treating common plant diseases.",
+      "files": ["SKILL.md"]
+    }
+  ]
+}
+```
 
 ### SKILL.md format
 
 Each `SKILL.md` requires YAML frontmatter with `name` and `description`:
 
-```markdown title="fern/.well-known/agent-skills/code-review/SKILL.md"
+```markdown title="fern/.well-known/agent-skills/plant-care/SKILL.md"
 ---
-name: code-review
-description: Review code for bugs, security issues, and best practices.
+name: plant-care
+description: Guide for diagnosing and treating common plant diseases.
 ---
 
-# Code Review
+# Plant Care
 
-When reviewing code, check for...
+When diagnosing a plant issue, check for...
 ```
 
 ### Validation
@@ -120,5 +136,6 @@ After publishing, skills are available at:
 
 - `https://your-docs-domain.com/.well-known/agent-skills/index.json` (discovery manifest)
 - `https://your-docs-domain.com/.well-known/agent-skills/<skill-name>/SKILL.md` (individual skill)
+- `https://your-docs-domain.com/.well-known/skills/index.json` (legacy v0.1.0 manifest)
 
 For sites with a basepath like `/docs`, the endpoints live under that basepath (e.g., `https://example.com/docs/.well-known/agent-skills/index.json`).
