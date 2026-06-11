@@ -36,17 +36,48 @@ This routing keeps context small. An agent writing a changelog entry loads `refe
 
 ## Host custom skills from your docs site
 
-Fern docs sites can also serve author-supplied [Agent Skills](https://www.skills.sh) at the standard `/.well-known/skills/` and `/.well-known/agent-skills/` endpoints. This lets users discover and install your skills with:
+Fern docs sites can serve your own [Agent Skills](https://www.skills.sh) so users can discover and install them with `npx skills add https://your-docs-domain.com`. There are two parts: configuring the "Install skills" modal and serving the skill files at well-known endpoints.
 
-```bash
-npx skills add https://your-docs-domain.com
+### Configure the modal
+
+Add an "Install skills" button to the [page action bar](/learn/docs/configuration/site-level-settings#page-actions-configuration) by setting `page-actions.options.skills` in `docs.yml`. The button opens a modal with a copyable install command, a list of available skills, and an optional link to the source repository.
+
+```yaml docs.yml
+page-actions:
+  options:
+    skills:
+      title: Plant API Skills
+      description: Skills for working with the Plant Store API.
+      repository: https://github.com/your-org/plant-api-skills
+      install-command: npx skills add https://your-docs-domain.com
+      skills:
+        - name: plant-care
+          description: Guide for diagnosing and treating common plant diseases.
+          url: https://github.com/your-org/plant-api-skills/tree/main/plant-care
+        - name: garden-planner
+          description: Plan garden layouts and planting schedules.
 ```
 
-The `https://` scheme is required — a bare domain is treated as a GitHub repository shorthand.
+| Field | Description |
+|-------|-------------|
+| `title` | Overrides the modal title. |
+| `description` | Overrides the modal description. |
+| `learn-more-url` | URL for a "Learn more" link in the modal. |
+| `repository` | Source repository shown as a "View source" button. |
+| `install-command` | Command(s) shown as a copyable block. Defaults to `npx skills add https://<your-domain>` when omitted. Accepts a string or a list of strings for multi-step installs. |
+| `skills` | List of skills displayed in the modal. Each entry has `name` (required), `description` (optional), and `url` (optional link to skill source). |
 
-No `docs.yml` configuration is required for serving. Place your skill bundle inside the `fern/` folder and Fern uploads it during `fern generate --docs`. The docs site serves the files as-is. To surface an "Install skills" button in the [page action bar](/learn/docs/configuration/site-level-settings#install-skills-action), add a [`page-actions.options.skills`](/learn/docs/configuration/site-level-settings#install-skills-action) config to your `docs.yml`.
+For the full parameter reference, see [Install skills action](/learn/docs/configuration/site-level-settings#install-skills-action).
 
-### Directory layout
+### Serve skill files at well-known endpoints
+
+For `npx skills add https://your-docs-domain.com` to work, the docs site needs to serve a skill bundle at the standard `/.well-known/skills/` or `/.well-known/agent-skills/` endpoints. Place the bundle inside your `fern/` folder and the CLI uploads it during `fern generate --docs`. No `docs.yml` configuration is required for serving.
+
+The `https://` scheme is required in the install command: a bare domain is treated as a GitHub repository shorthand.
+
+When the site serves a well-known manifest, the modal fetches it on first open and replaces the config-driven skill list with the manifest contents. This keeps the modal in sync with what `npx skills add` installs.
+
+#### Directory layout
 
 Place skills under `.well-known/skills/` (v0.1.0 layout) or `.well-known/agent-skills/` (current v0.2.0 spec) inside your Fern docs folder. Both paths are supported and can coexist.
 
@@ -66,7 +97,7 @@ fern/
 
 Each skill lives in its own subdirectory containing at minimum a `SKILL.md` file. Supporting files (references, archives) can be nested alongside it.
 
-### Discovery manifest
+#### Discovery manifest
 
 The `index.json` file at the root of the skills directory is required. It enumerates all available skills so clients can discover them in a single request.
 
@@ -101,7 +132,7 @@ The legacy v0.1.0 layout (`/.well-known/skills/`) uses a `files` array instead:
 }
 ```
 
-### SKILL.md format
+#### SKILL.md format
 
 Each `SKILL.md` requires YAML frontmatter with `name` and `description`:
 
@@ -116,7 +147,7 @@ description: Guide for diagnosing and treating common plant diseases.
 When diagnosing a plant issue, check for...
 ```
 
-### Validation
+#### Validation
 
 `fern check` validates skill bundles at upload time. It reports errors for:
 
@@ -130,7 +161,7 @@ Frontmatter requirements for each `SKILL.md`:
 | `name` | Kebab-case (lowercase letters, numbers, hyphens). Max 64 characters. Must match the parent directory name. |
 | `description` | Non-empty. Max 1,024 characters. |
 
-### Accessing skills
+#### Accessing skills
 
 After publishing, skills are available at:
 
@@ -139,36 +170,3 @@ After publishing, skills are available at:
 - `https://your-docs-domain.com/.well-known/skills/index.json` (legacy v0.1.0 manifest)
 
 For sites with a basepath like `/docs`, the endpoints live under that basepath (e.g., `https://example.com/docs/.well-known/agent-skills/index.json`).
-
-## Configure the install skills modal
-
-Add an "Install skills" button to the page action bar by configuring `page-actions.options.skills` in `docs.yml`. The button opens a modal with a copyable install command and a list of available skills.
-
-```yaml docs.yml
-page-actions:
-  options:
-    skills:
-      title: Plant API Skills
-      description: Skills for working with the Plant Store API.
-      repository: https://github.com/your-org/plant-api-skills
-      install-command: npx skills add https://your-docs-domain.com
-      skills:
-        - name: plant-care
-          description: Guide for diagnosing and treating common plant diseases.
-          url: https://github.com/your-org/plant-api-skills/tree/main/plant-care
-        - name: garden-planner
-          description: Plan garden layouts and planting schedules.
-```
-
-| Field | Description |
-|-------|-------------|
-| `title` | Overrides the modal title. |
-| `description` | Overrides the modal description. |
-| `learn-more-url` | URL for a "Learn more" link in the modal. |
-| `repository` | Source repository shown as a "View source" button. |
-| `install-command` | Command(s) shown as a copyable block. Defaults to `npx skills add https://<your-domain>` when omitted. Accepts a string or a list of strings for multi-step installs. |
-| `skills` | List of skills displayed in the modal. Each entry has `name` (required), `description` (optional), and `url` (optional link to skill source). |
-
-When the site also serves a well-known manifest (from a [skill bundle](#directory-layout)), the modal fetches it on first open and replaces the config-driven list with the manifest contents. This keeps the modal in sync with what `npx skills add` installs.
-
-For the full parameter reference, see [Install skills action](/learn/docs/configuration/site-level-settings#install-skills-action).
