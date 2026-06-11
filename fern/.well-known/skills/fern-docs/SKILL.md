@@ -17,7 +17,8 @@ task before writing. Don't work from this page alone when a reference exists.
 
 Fern's configuration evolves. Look things up rather than guessing.
 
-- **Docs:** https://buildwithfern.com/learn/docs/getting-started/overview
+- **Docs:** https://buildwithfern.com/learn/docs/getting-started/overview.md
+  (append `.md` to any docs URL for clean markdown to fetch)
 - **Page index:** https://buildwithfern.com/learn/llms.txt
 - **MCP server** — connect your agent to Fern's live docs and query it for any
   syntax or behavior you're unsure of. The endpoint works with any MCP client;
@@ -32,6 +33,7 @@ Fern's configuration evolves. Look things up rather than guessing.
 | Task | Read |
 |------|------|
 | Writing or editing a changelog entry | `references/changelog.md` |
+| Setting up a product switcher, adding a product, or refactoring nav into products | `references/products.md` |
 
 ## Core principles
 

@@ -3,7 +3,7 @@
 A changelog entry announces a shipped change to users. Each entry is a dated
 `.mdx` file; the filename date is the title. This reference covers how to *write*
 an entry. For setup (folder location, `docs.yml` wiring, RSS, navigation), see
-the official docs: https://buildwithfern.com/learn/docs/configuration/changelogs
+the official docs: https://buildwithfern.com/learn/docs/configuration/changelogs.md
 
 ## File and naming
 
