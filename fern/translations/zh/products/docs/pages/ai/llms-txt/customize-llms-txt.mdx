@@ -11,7 +11,7 @@ description: 使用 noindex 排除页面、使用 llms-only 和 llms-ignore 标�
 
 ### 仅供 AI 使用的内容
 
-`<llms-only>` 内容仅出现在外部代理（如 Claude、ChatGPT 或 Cursor）直接获取的 LLM 服务端点上：`/llms.txt`、`/llms-full.txt`，以及每个页面的 [`.md`/`.mdx` 源文件](/learn/docs/ai-features/markdown)。它在所有面向人类的界面中都是隐藏的，包括渲染页面、[复制页面](/learn/docs/configuration/site-level-settings#page-actions-configuration)、搜索小部件和 [Ask Fern](/learn/docs/ai-features/ask-fern/overview)。
+`<llms-only>` 内容仅出现在外部代理（如 Claude、ChatGPT 或 Cursor）直接获取的 LLM 服务端点上：`/llms.txt` 以及每个页面的 [`.md`/`.mdx` 源文件](/learn/docs/ai-features/markdown)。它在所有面向人类的界面中都是隐藏的，包括渲染页面、[复制页面](/learn/docs/configuration/site-level-settings#page-actions-configuration)、搜索小部件和 [Ask Fern](/learn/docs/ai-features/ask-fern/overview)。
 
 使用 `<llms-only>` 适用于：
 - 对 AI 有用但冗长的技术上下文，如实现细节或架构说明
@@ -20,7 +20,7 @@ description: 使用 noindex 排除页面、使用 llms-only 和 llms-ignore 标�
 
 ### 仅供人类使用的内容
 
-`<llms-ignore>` 内容出现在所有面向人类的界面上，包括渲染页面、[复制页面](/learn/docs/configuration/site-level-settings#page-actions-configuration)、搜索小部件和 [Ask Fern](/learn/docs/ai-features/ask-fern/overview)（它会索引并可以像任何其他页面内容一样引用它）。它会从 LLM 服务端点（`/llms.txt`、`/llms-full.txt` 和每个页面的 `.md`/`.mdx` 源文件）中被去除。
+`<llms-ignore>` 内容出现在所有面向人类的界面上，包括渲染页面、[复制页面](/learn/docs/configuration/site-level-settings#page-actions-configuration)、搜索小部件和 [Ask Fern](/learn/docs/ai-features/ask-fern/overview)（它会索引并可以像任何其他页面内容一样引用它）。它会从 LLM 服务端点（`/llms.txt` 和每个页面的 `.md`/`.mdx` 源文件）中被去除。
 
 使用 `<llms-ignore>` 适用于：
 - 营销 CTA 或促销内容
@@ -83,12 +83,12 @@ Replace `my-org/fern-docs` with your desired owner and repository name. Use `--p
 
 ## 过滤端点输出
 
-使用 `lang` 和 `excludeSpec` 查询参数过滤 `llms.txt` 和 `llms-full.txt` 输出，以减少令牌使用量。参数也可以组合使用。
+使用 `lang` 和 `excludeSpec` 查询参数过滤 `llms.txt` 输出，以减少令牌使用量。参数也可以组合使用。
 
 ```txt 示例
 /llms.txt?lang=python
-/llms-full.txt?excludeSpec=true
-/llms-full.txt?lang=python&excludeSpec=true
+/llms.txt?excludeSpec=true
+/llms.txt?lang=python&excludeSpec=true
 ```
 
 <ParamField path="lang" type="'node' | 'python' | 'java' | 'ruby' | 'go' | 'csharp' | 'swift'">
@@ -101,7 +101,7 @@ Replace `my-org/fern-docs` with your desired owner and repository name. Use `--p
 
 ## 排除整个页面
 
-您可以通过[在页面的 frontmatter 中添加 `noindex: true`](/learn/docs/seo/setting-seo-metadata#noindex) 来从 LLM 端点（`llms.txt` 和 `llms-full.txt`）排除整个页面。标记为 `noindex` 的页面不会被搜索引擎索引，但在您的侧边栏导航中仍然可见，并且仍可以通过 URL 直接访问。要同时从导航中隐藏页面，请参阅[隐藏内容](/learn/docs/customization/hiding-content)。
+您可以通过[在页面的 frontmatter 中添加 `noindex: true`](/learn/docs/seo/setting-seo-metadata#noindex) 来从 LLM 端点（`llms.txt`）排除整个页面。标记为 `noindex` 的页面不会被搜索引擎索引，但在您的侧边栏导航中仍然可见，并且仍可以通过 URL 直接访问。要同时从导航中隐藏页面，请参阅[隐藏内容](/learn/docs/customization/hiding-content)。
 
 ```mdx docs/pages/internal-notes.mdx
 ---
@@ -112,16 +112,13 @@ noindex: true
 
 ## 提供自定义文件
 
-要提供您自己的 `llms.txt` 或 `llms-full.txt` 而不是自动生成的版本，请在 [`docs.yml` 中的 `agents` 键下](/learn/docs/configuration/site-level-settings#agents-configuration)指向您的文件：
+要提供您自己的 `llms.txt` 而不是自动生成的版本，请在 [`docs.yml` 中的 `agents` 键下](/learn/docs/configuration/site-level-settings#agents-configuration)指向您的文件：
 
 ```yaml docs.yml
 agents:
   llms-txt: ./path/to/llms.txt
-  llms-full-txt: ./path/to/llms-full.txt
 ```
 
-路径相对于 `docs.yml` 文件。CLI 验证每个文件是否存在并将其作为您的文档部署的一部分上传。您的自定义文件在根级别的 `/llms.txt` 和 `/llms-full.txt` 端点提供。嵌套路径（例如 `/api-reference/llms.txt`）继续使用自动生成的输出。
-
-您可以提供其中一个或两个文件。您未指定的任何文件都回退到自动生成的版本。
+路径相对于 `docs.yml` 文件。CLI 验证文件是否存在并将其作为您的文档部署的一部分上传。您的自定义文件在根级别的 `/llms.txt` 端点提供。嵌套路径（例如 `/api-reference/llms.txt`）继续使用自动生成的输出。
 
 要控制*哪些*爬虫访问您的站点而不是*它们接收什么*，请改为提供[自定义 `robots.txt`](/learn/docs/seo/robots-txt)。
