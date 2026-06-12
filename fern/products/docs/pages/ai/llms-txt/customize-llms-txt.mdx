@@ -11,7 +11,7 @@ Within pages, use `<llms-only>` and `<llms-ignore>` tags to control what content
 
 ### Content for AI only
 
-`<llms-only>` content appears only on the LLM-serving endpoints that external agents (like Claude, ChatGPT, or Cursor) fetch directly: `/llms.txt`, `/llms-full.txt`, and each page's [`.md`/`.mdx` source](/learn/docs/ai-features/markdown). It's hidden from every human-facing surface, including the rendered page, [Copy page](/learn/docs/configuration/site-level-settings#page-actions-configuration), the search widget, and [Ask Fern](/learn/docs/ai-features/ask-fern/overview).
+`<llms-only>` content appears only on the LLM-serving endpoints that external agents (like Claude, ChatGPT, or Cursor) fetch directly: `/llms.txt` and each page's [`.md`/`.mdx` source](/learn/docs/ai-features/markdown). It's hidden from every human-facing surface, including the rendered page, [Copy page](/learn/docs/configuration/site-level-settings#page-actions-configuration), the search widget, and [Ask Fern](/learn/docs/ai-features/ask-fern/overview).
 
 Use `<llms-only>` for:
 - Technical context that's verbose but helpful for AI, like implementation details or architecture notes
@@ -20,7 +20,7 @@ Use `<llms-only>` for:
 
 ### Content for humans only
 
-`<llms-ignore>` content appears on every human-facing surface, including the rendered page, [Copy page](/learn/docs/configuration/site-level-settings#page-actions-configuration), the search widget, and [Ask Fern](/learn/docs/ai-features/ask-fern/overview) (which indexes and can cite it like any other page content). It's stripped from the LLM-serving endpoints (`/llms.txt`, `/llms-full.txt`, and each page's `.md`/`.mdx` source).
+`<llms-ignore>` content appears on every human-facing surface, including the rendered page, [Copy page](/learn/docs/configuration/site-level-settings#page-actions-configuration), the search widget, and [Ask Fern](/learn/docs/ai-features/ask-fern/overview) (which indexes and can cite it like any other page content). It's stripped from the LLM-serving endpoints (`/llms.txt` and each page's `.md`/`.mdx` source).
 
 Use `<llms-ignore>` for:
 - Marketing CTAs or promotional content
@@ -83,12 +83,12 @@ To preview and debug what AI sees for any page, you can append `.md` or `.mdx` t
 
 ## Filter endpoint output
 
-Filter `llms.txt` and `llms-full.txt` output with the `lang` and `excludeSpec` query parameters to reduce token usage. Parameters can also be combined.
+Filter `llms.txt` output with the `lang` and `excludeSpec` query parameters to reduce token usage. Parameters can also be combined.
 
 ```txt Example
 /llms.txt?lang=python
-/llms-full.txt?excludeSpec=true
-/llms-full.txt?lang=python&excludeSpec=true
+/llms.txt?excludeSpec=true
+/llms.txt?lang=python&excludeSpec=true
 ```
 
 <ParamField path="lang" type="'node' | 'python' | 'java' | 'ruby' | 'go' | 'csharp' | 'swift'">
@@ -101,7 +101,7 @@ Filter `llms.txt` and `llms-full.txt` output with the `lang` and `excludeSpec` q
 
 ## Exclude whole pages
 
-You can exclude whole pages from LLM endpoints (`llms.txt` and `llms-full.txt`) by [adding `noindex: true`](/learn/docs/seo/setting-seo-metadata#noindex) to the page's frontmatter. Pages marked `noindex` aren't indexed by search engines but remain visible in your sidebar navigation and can still be accessed directly by URL. To also hide a page from navigation, see [Hiding content](/learn/docs/customization/hiding-content).
+You can exclude whole pages from LLM endpoints (`llms.txt`) by [adding `noindex: true`](/learn/docs/seo/setting-seo-metadata#noindex) to the page's frontmatter. Pages marked `noindex` aren't indexed by search engines but remain visible in your sidebar navigation and can still be accessed directly by URL. To also hide a page from navigation, see [Hiding content](/learn/docs/customization/hiding-content).
 
 ```mdx docs/pages/internal-notes.mdx
 ---
@@ -112,16 +112,13 @@ noindex: true
 
 ## Serve custom files
 
-To serve your own `llms.txt` or `llms-full.txt` instead of the auto-generated versions, point to your files under the [`agents` key in `docs.yml`](/learn/docs/configuration/site-level-settings#agents-configuration):
+To serve your own `llms.txt` instead of the auto-generated version, point to your file under the [`agents` key in `docs.yml`](/learn/docs/configuration/site-level-settings#agents-configuration):
 
 ```yaml docs.yml
 agents:
   llms-txt: ./path/to/llms.txt
-  llms-full-txt: ./path/to/llms-full.txt
 ```
 
-Paths are relative to the `docs.yml` file. The CLI validates that each file exists and uploads it as part of your docs deployment. Your custom files are served at the root-level `/llms.txt` and `/llms-full.txt` endpoints. Nested paths (e.g., `/api-reference/llms.txt`) continue to use the auto-generated output.
-
-You can provide one or both files. Any file you don't specify falls back to the auto-generated version.
+The path is relative to the `docs.yml` file. The CLI validates that the file exists and uploads it as part of your docs deployment. Your custom file is served at the root-level `/llms.txt` endpoint. Nested paths (e.g., `/api-reference/llms.txt`) continue to use the auto-generated output.
 
 To control *which* crawlers reach your site rather than *what* they receive, serve a [custom `robots.txt`](/learn/docs/seo/robots-txt) instead.
