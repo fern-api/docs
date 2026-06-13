@@ -6,15 +6,19 @@ description: Generate MDX documentation pages from your Python or C++ library so
 
 The library docs generator parses your **Python or C++** library source code and generates MDX documentation pages for modules, classes, functions, methods, and parameters. Generated pages are added to your Fern Docs site with hierarchical navigation.
 
-Cross-links are automatic. When a fully-qualified identifier appears in a code block — for example, in a class signature or type annotation — the generator links it to the page documenting that symbol, so readers can jump straight to the definition.
+Cross-links are automatic. When a fully qualified identifier appears in a code block — for example, in a class signature or type annotation — the generator links it to the page documenting that symbol, so readers can jump straight to the definition.
 
 ## Configuration
 
 <Steps>
 <Step title="Define your libraries in `docs.yml`">
 
-Add a `libraries` entry to your `docs.yml` file. Each library needs an `input` source (the repo to parse), an `output.path` (where generated MDX files are written), and a `lang` (`python` or `cpp`).
+Add a `libraries` entry to your `docs.yml` file. Each library needs an `input` source, an `output.path` (where generated MDX files are written), and a `lang` (`python` or `cpp`).
 
+The input source can be a `git` URL (parsed remotely on Fern's servers) or a local `path` (parsed on your machine with Docker via the [`--local` flag](#local-generation)).
+
+<Tabs>
+<Tab title="git input (remote)">
 ```yaml docs.yml
 libraries:
   plant-core:
@@ -27,6 +31,21 @@ libraries:
     config:
       doxyfile: ./Doxyfile # optional, C++ only
 ```
+</Tab>
+<Tab title="path input (local)">
+```yaml docs.yml
+libraries:
+  plant-core:
+    input:
+      path: ../plant-core-cpp # relative to fern/ directory
+    output:
+      path: ./static/plant-core-docs
+    lang: cpp
+    config:
+      doxyfile: ./Doxyfile # optional, C++ only
+```
+</Tab>
+</Tabs>
 
 <Info>
   You can define [multiple libraries](#multiple-libraries-example) in the same file.
@@ -57,7 +76,13 @@ Run the CLI command to generate MDX files from your library source code:
 fern docs md generate
 ```
 
-The command clones the repository, parses the source code, and writes MDX files to the output directory.
+For `git` inputs, the command sends the repository URL to Fern's servers for parsing. For `path` inputs, pass `--local` to run the parser on your machine via Docker:
+
+```bash
+fern docs md generate --local
+```
+
+Local generation requires [Docker](https://docs.docker.com/get-started/get-docker/) and doesn't require authentication (`fern login`). The CLI pulls the parser image automatically on first run.
 
 <Tip>
 If you have multiple libraries configured, `fern docs md generate` processes all libraries in parallel. Use `--library plant-sdk` to generate docs for a specific library only.
@@ -133,14 +158,35 @@ For example, splitting `./static/plant-sdk-docs` into `getting-started/` and `re
 
 You can also edit page content by modifying the MDX files directly — generated pages are [standard MDX](/learn/docs/writing-content/markdown-basics), so you can add prose, examples, callouts, or any [component](/learn/docs/writing-content/components/overview). Re-running `fern docs md generate` overwrites everything in `output.path`, so commit your customizations first, and keep hand-edited pages outside the output directory if you plan to regenerate.
 
+## Local generation
+
+The `--local` flag runs the parser Docker images on your machine instead of Fern's servers. This is useful for iterating on documentation without pushing to a remote repository, and works fully offline after the initial image pull.
+
+`--local` only supports `path` inputs. `git` inputs are always parsed remotely. The matrix:
+
+| Input | Flag | Result |
+|---|---|---|
+| `path:` | `--local` | Parsed locally via Docker |
+| `git:` | _(none)_ | Parsed remotely on Fern's servers |
+| `git:` | `--local` | Error: `git` inputs are remote-only |
+| `path:` | _(none)_ | Error: `path` inputs require `--local` |
+
+<Note>
+For C++ libraries, the parser mounts your `path` directory as the source root. If your Doxyfile sets `INPUT` to subdirectories, the effective scope is your `path` combined with those Doxyfile `INPUT` entries. Ensure the Doxyfile's `INPUT` paths are relative to the root of the mounted directory.
+</Note>
+
 ## Configuration reference
 
-<ParamField path="input.git" type="string" required={true}>
-  GitHub URL of the repository containing the library source code.
+<ParamField path="input.git" type="string">
+  GitHub URL of the repository containing the library source code. Parsed remotely on Fern's servers. Mutually exclusive with `input.path`.
 </ParamField>
 
 <ParamField path="input.subpath" type="string">
-  Path within the repository to the library source. Useful for monorepos.
+  Path within the repository to the library source. Only valid with `input.git`. Useful for monorepos.
+</ParamField>
+
+<ParamField path="input.path" type="string">
+  Local filesystem path to the library source, relative to the `fern/` directory. Requires `--local` flag. Mutually exclusive with `input.git`.
 </ParamField>
 
 <ParamField path="output.path" type="string" required={true}>
@@ -152,5 +198,5 @@ You can also edit page content by modifying the MDX files directly — generated
 </ParamField>
 
 <ParamField path="config.doxyfile" type="string">
-  Path to a custom Doxyfile. C++ only.
+  Path to a custom [Doxyfile](https://www.doxygen.nl/manual/config.html). C++ only. For local generation, the Doxyfile's `INPUT` paths are resolved relative to the `input.path` directory.
 </ParamField>
