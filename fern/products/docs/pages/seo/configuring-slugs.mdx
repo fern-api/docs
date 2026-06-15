@@ -112,9 +112,9 @@ landing-page:
   slug: /welcome
 ```
 
-### Override a page's entire URL path
+### Override with a frontmatter slug
 
-A `slug` set in docs.yml replaces only that item's segment, preserving the parent hierarchy. A `slug` set in page frontmatter overrides the **entire** URL path from the docs root, ignoring the navigation hierarchy completely.
+A `slug` set in docs.yml replaces only that item's segment, preserving the parent hierarchy. A `slug` set in page frontmatter replaces the **section and folder hierarchy** for that page, but preserves any product or version prefix.
 
 ```yaml title="docs.yml" {3, 6}
 navigation:
@@ -128,7 +128,7 @@ navigation:
 
 With only docs.yml slugs, the page URL is `plantstore.docs.buildwithfern.com/start/quick` — the hierarchy is preserved.
 
-To override the full path, set `slug` in the page's frontmatter:
+To override the path within the current product/version scope, set `slug` in the page's frontmatter:
 
 ```markdown title="quickstart.mdx"
 ---
@@ -136,9 +136,40 @@ slug: quickstart
 ---
 ```
 
-The page is now at `plantstore.docs.buildwithfern.com/quickstart` — the section hierarchy is bypassed entirely. The page still appears in the sidebar under "Get Started", but its URL no longer reflects that structure.
+The page is now at `plantstore.docs.buildwithfern.com/quickstart` — the section hierarchy is bypassed. The page still appears in the sidebar under "Get Started", but its URL no longer reflects that structure.
 
-Use frontmatter `slug` when a page needs a short, memorable URL independent of its sidebar position (e.g., a top-level quickstart, a campaign landing page, or a page that moved but must keep its old URL).
+#### Behavior with products and versions
+
+When a page lives inside a [product](/learn/docs/configuration/navigation#add-a-product) or [version](/learn/docs/configuration/navigation#add-a-version), the frontmatter slug replaces only the section/folder portion of the URL. The product and version slugs are always preserved.
+
+```yaml title="docs.yml"
+products:
+  - display-name: Platform
+    slug: platform
+    navigation:
+      - tab: guides
+        layout:
+          - section: Get Started
+            contents:
+              - page: Quickstart
+                path: ./docs/pages/quickstart.mdx
+```
+
+```markdown title="quickstart.mdx"
+---
+slug: quickstart
+---
+```
+
+The resulting URL is `example.docs.buildwithfern.com/platform/quickstart` — **not** `/quickstart`. The product slug `platform` is retained; only the section and tab hierarchy is bypassed.
+
+The same applies to versions: a page in version "v2" of product "platform" with frontmatter `slug: quickstart` resolves to `/platform/v2/quickstart`.
+
+<Note>
+  A frontmatter slug cannot escape the product or version prefix. To move a page to the absolute root of your docs, place it outside any product or version in your navigation structure.
+</Note>
+
+Use frontmatter `slug` when a page needs a short, memorable URL independent of its sidebar position within a product (e.g., a top-level quickstart, a campaign landing page, or a page that moved but must keep its old URL).
 
 See [frontmatter configuration](/learn/docs/configuration/page-level-settings#slug) for additional details.
 
