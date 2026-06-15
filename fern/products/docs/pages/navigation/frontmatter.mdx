@@ -99,10 +99,10 @@ navigation:
 ## Subtitle
 
 <ParamField path="subtitle" type="string" required={false}>
-  Renders as a subtitle on the page. If `description` is not set, `subtitle` is also used as the meta description tag and in [`llms.txt`](/learn/docs/ai-features/llms-txt#page-descriptions).
+  Renders as visible text below the page title. This is an on-page element — readers see it directly. If [`description`](#meta-description) is not set, `subtitle` is also used as the HTML meta description and in [`llms.txt`](/learn/docs/ai-features/llms-txt#page-descriptions).
 </ParamField>
 
-For example, scroll to the top of this page you're visiting now and you'll see the subtitle "Set titles, add meta descriptions, and more".
+For example, scroll to the top of this page you're visiting now and you'll see the subtitle "Set titles, descriptions, slugs, layout, and visibility using frontmatter".
 
 ## Last updated
 
@@ -165,7 +165,9 @@ The key difference is:
 ## Meta description
 
 <ParamField path="description" type="string" required={false}>
-  Set the [meta description](https://web.dev/learn/html/metadata#description) for a page. Like the page title, the meta description is important for SEO. It impacts the text that search engines display about your page in search results snippets. It can also influence search engine indexing and ranking. For more information, see [Google's guidelines for meta descriptions](https://developers.google.com/search/docs/appearance/snippet#meta-descriptions). The description is also used in [`llms.txt`](/learn/docs/ai-features/llms-txt#page-descriptions).
+  Sets the HTML [meta description](https://web.dev/learn/html/metadata#description) for SEO. This text appears in search engine result snippets and in [`llms.txt`](/learn/docs/ai-features/llms-txt#page-descriptions). It is **not** displayed on the page itself — use [`subtitle`](#subtitle) for visible on-page text. If unset, falls back to `subtitle`.
+
+  If [`og:description`](#seo-metadata) is not set, `description` is also used as the OpenGraph description for social sharing previews. For more on meta descriptions and SEO, see [Google's guidelines](https://developers.google.com/search/docs/appearance/snippet#meta-descriptions).
 </ParamField>
 
 <CodeBlock title="Example meta description">
@@ -176,6 +178,22 @@ description: Learn how to authenticate your API requests using API keys, OAuth 2
 ---
 ```
 </CodeBlock>
+
+### How `subtitle`, `description`, and `og:description` relate
+
+These three fields control different outputs. Set whichever combination your page needs:
+
+| Field | Where it appears | Fallback when unset |
+|-------|-----------------|---------------------|
+| `subtitle` | Visible text below the page title | — |
+| `description` | HTML `<meta name="description">` tag, search snippets, `llms.txt` | Falls back to `subtitle` |
+| `og:description` | Social sharing previews (OpenGraph) | Falls back to `description` |
+
+In most cases, setting `description` is sufficient — it covers both SEO and social sharing. Add `subtitle` when you also want visible on-page text, and `og:description` only when the social preview should differ from the meta description.
+
+<Note>
+**Migrating from Mintlify?** In Mintlify, the frontmatter `description` field renders as visible subtitle text and doubles as `og:description`. In Fern, these are separate: use `subtitle` for visible page text and `description` for the HTML meta description.
+</Note>
 
 ## Edit this page
 
@@ -394,7 +412,7 @@ nofollow: false
 </ParamField>
 
 <ParamField path="og:description" type="string" required={false}>
-  The description of your page as it should appear when your content is shared.
+  The description shown in social sharing previews (e.g., Slack, Twitter, Facebook). If unset, falls back to [`description`](#meta-description).
 </ParamField>
 
 <ParamField path="og:url" type="string" required={false}>
