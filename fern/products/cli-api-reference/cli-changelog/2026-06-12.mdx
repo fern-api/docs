@@ -1,0 +1,44 @@
+## 5.47.6
+**`(fix):`** Fix frontmatter values with leading zeros being corrupted during docs publish.
+`grayMatter.stringify()` in `parseImagePaths` would strip quotes from values
+like `'001999'` (non-octal digits), causing downstream YAML 1.2 parsers to
+interpret them as integers and lose leading zeros.
+
+
+## 5.47.5
+**`(fix):`** Fix v3 OpenAPI importer dropping types that are only referenced through a
+`list`/`map` of a `$ref` when audience filtering is enabled. Array and map
+aliases now record the referenced named type in `referencedTypes` (matching
+how object properties already do), so audience reachability no longer prunes
+the referenced type and leaves a dangling reference. This restores the
+"Show N variants" UI in docs for discriminated unions referenced via a list
+(e.g. Cohere's v2 chat `messages` field under an audience filter).
+
+
+## 5.47.4
+**`(fix):`** Group GraphQL queries by parent field in the sidebar; mutations and subscriptions remain flat. Field path is now included on all GraphQL operations for correct snippet nesting.
+
+
+**`(fix):`** Include field-level arguments when converting GraphQL object types and interfaces
+to FDR format. Previously, arguments were only captured for top-level query/mutation
+fields but not for nested object type fields (e.g., Image.url(width, height, lossy)).
+Namespace grouping types (object types whose fields are all promoted to top-level
+operations) are no longer double-registered as plain type definitions.
+
+
+## 5.47.3
+**`(fix):`** Use string literal for `this.name` in error classes instead of
+`this.constructor.name`, which gets mangled by minifiers.
+
+
+**`(fix):`** Fix text/* content types (e.g. text/csv, text/xml) being silently converted
+to text/plain during OpenAPI export. The original media type is now preserved
+through the IR via a new optional `contentType` field on `TextResponse`.
+
+
+## 5.47.2
+**`(fix):`** Stop dropping custom scalars in the GraphQL converter. Custom scalars (e.g. `DateTime`,
+`URL`, `EmailAddress`) are now emitted as named alias types in the `types` map with a stable
+id, and references to them point to that id so the type can be linked to in documentation.
+
+

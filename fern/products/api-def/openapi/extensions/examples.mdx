@@ -6,15 +6,15 @@ og:title: OpenAPI request + response examples
 ---
 
 
-<Note>
-Fern generates realistic examples automatically using [AI-generated examples](/learn/docs/ai-features/ai-examples), enabled by default. Use `x-fern-examples` to manually define specific example values. Manual examples take priority over AI-generated ones. You can also [disable AI examples entirely](/learn/docs/configuration/site-level-settings#ai-examplesenabled).
-</Note>
+Fern generates realistic examples automatically using [AI-generated examples](/learn/docs/ai-features/ai-examples), enabled by default. Use `x-fern-examples` to manually define specific values, associate request and response pairs that OpenAPI's separate example fields can't link, or define multiple named examples for an endpoint. 
 
-Use `x-fern-examples` to associate specific request and response pairs or define multiple named examples for an endpoint. OpenAPI has several example fields, but provides no way to link a request with its corresponding response.
+Manual examples take priority over AI-generated ones, and you can [disable AI examples entirely](/learn/docs/configuration/site-level-settings#ai-examplesenabled).
 
 ## Structure
 
 `x-fern-examples` is an array. Each element can contain `path-parameters`, `query-parameters`, `headers`, `request`, and `response` values that are all associated. Optionally, add a `name` field to provide a descriptive label.
+
+The `request` and `response` values use different shapes:
 
 - `request` holds the request body properties directly.
 - `response` requires a nested `body` key containing the response body properties.
@@ -32,8 +32,8 @@ paths:
       x-fern-examples:
         - name: Get user 1234 # Optional descriptive label
           headers:
-            custom_api_key: "capi_12345" # header defined using x-global-header extension
-            userpool_id: "pool_67890"    # header defined using x-global-header extension
+            custom_api_key: "capi_12345" # header defined using x-fern-global-headers extension
+            userpool_id: "pool_67890"    # header defined using x-fern-global-headers extension
           path-parameters:
             userId: user-1234
           response:
@@ -64,6 +64,13 @@ paths:
 
 Fern generators automatically add SDK code samples. To specify custom code samples for an example, use `code-samples`.
 
+Each code sample uses one of two keys to identify the language:
+
+- `sdk` — for a language that maps to a Fern-supported SDK tab: `curl`, `python`, `javascript`, `typescript`, `go`, `ruby`, `csharp`, `java`, `js`, `node`, `ts`, `nodets`, `golang`, `dotnet`, `jvm`, `c#`.
+- `language` — for any other language, or when you want to include an `install` command.
+
+<Tabs>
+<Tab title="Using sdk">
 ```yaml title="openapi.yml" {11-16}
 paths:
   /users/{userId}:
@@ -82,6 +89,30 @@ paths:
 
                 client.users.get("user-1234")
 ```
+</Tab>
+<Tab title="Using language">
+```yaml title="openapi.yml" {11-18}
+paths:
+  /users/{userId}:
+    get:
+      x-fern-examples:
+        - path-parameters:
+            userId: user-1234
+          response:
+            body:
+              name: Foo
+              ssn: 1234
+          code-samples:
+            - language: php
+              install: composer require acme/sdk
+              code: |
+                use Acme\Client;
+
+                $client = new Client();
+                $client->users->get("user-1234");
+```
+</Tab>
+</Tabs>
 
 ## Convert to native OpenAPI examples
 

@@ -1,0 +1,43 @@
+name: Approve Changelog PR
+
+on:
+  repository_dispatch:
+    types: [approve-changelog-pr]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  approve:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate and approve PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.client_payload.pull_number }}
+        run: |
+          # Validate PR number is numeric
+          if ! echo "$PR_NUMBER" | grep -qE '^[0-9]+$'; then
+            echo "::error::Invalid PR number: not numeric"
+            exit 1
+          fi
+
+          # Validate the PR exists and is from an expected automated branch
+          PR_JSON=$(gh pr view "$PR_NUMBER" --repo fern-api/docs --json headRefName,author)
+          BRANCH=$(echo "$PR_JSON" | jq -r '.headRefName')
+
+          ALLOWED_BRANCHES="update-changelogs update-self-hosted-changelog"
+          MATCH=false
+          for b in $ALLOWED_BRANCHES; do
+            if [ "$BRANCH" = "$b" ]; then
+              MATCH=true
+              break
+            fi
+          done
+
+          if [ "$MATCH" != "true" ]; then
+            echo "::error::PR branch '$BRANCH' is not in the allowlist"
+            exit 1
+          fi
+
+          gh pr review "$PR_NUMBER" --repo fern-api/docs --approve

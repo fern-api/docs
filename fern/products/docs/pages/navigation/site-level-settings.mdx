@@ -816,7 +816,7 @@ settings:
 
 ## Page actions configuration
 
-Configure the page action buttons that appear throughout your documentation. By default, **Copy Page** (`copy-page`), **View as Markdown** (`view-as-markdown`), **Ask AI** (`ask-ai`), **ChatGPT** (`chatgpt`), **Claude** (`claude`), **Claude Code** (`claude-code`), and **Cursor** (`cursor`) are enabled.
+Configure the page action buttons that appear throughout your documentation. `page-actions.options` holds two kinds of actions: built-in actions you toggle on or off with a boolean, and configurable actions — the [Install skills action](#install-skills-action) and [custom page actions](#custom-page-actions) — that you define with their own settings. Set `page-actions.default` to choose which action shows first.
 
 To hide page actions on an individual page, use the [`hide-page-actions` frontmatter property](/learn/docs/configuration/page-level-settings#page-actions).
 
@@ -830,8 +830,12 @@ page-actions:
 ```
 
 <ParamField path="page-actions.default" type="string" required={false} toc={true}>
-  The default page action to display. Options: `copy-page`, `view-as-markdown`, `ask-ai`, `chatgpt`, `claude`, `claude-code`, `cursor`, `vscode`.
+  The default page action to display. Options: `copy-page`, `view-as-markdown`, `ask-ai`, `chatgpt`, `claude`, `claude-code`, `cursor`, `vscode`, `install-skills`.
 </ParamField>
+
+### Built-in actions
+
+Toggle the built-in actions on or off with a boolean. **Copy Page** (`copy-page`), **View as Markdown** (`view-as-markdown`), **Ask AI** (`ask-ai`), **ChatGPT** (`chatgpt`), **Claude** (`claude`), **Claude Code** (`claude-code`), and **Cursor** (`cursor`) are enabled by default.
 
 <ParamField path="page-actions.options.copy-page" type="boolean" required={false} default="true" toc={true}>
   When enabled, displays a button that allows users to copy the entire page content to their clipboard for easy sharing or reference. To control what content appears in the copied output, use [`<llms-ignore>`](/learn/docs/ai-features/customize-llm-output#content-for-humans-only) tags.
@@ -864,6 +868,25 @@ page-actions:
 <ParamField path="page-actions.options.vscode" type="boolean" required={false} default="false" toc={true}>
   When enabled, displays an "Open in VS Code" button that allows users to open the page content in Visual Studio Code for editing and development. Requires [Ask Fern](/learn/docs/ai-features/ask-fern/overview) to be enabled.
 </ParamField>
+
+### Install skills action
+
+Add an "Install skills" button to the page action bar that opens a modal showing how to install your site's [custom skills](/learn/docs/ai-features/host-skills). The modal displays a copyable install command, the list of available skills, and links to the skill source.
+
+```yaml docs.yml
+page-actions:
+  options:
+    skills:
+      title: Plant API Skills
+      description: Skills for working with the Plant Store API.
+      repository: https://github.com/your-org/plant-api-skills
+      skills:
+        - name: plant-care
+          description: Guide for diagnosing and treating common plant diseases.
+          url: https://github.com/your-org/plant-api-skills/tree/main/plant-care
+```
+
+<Markdown src="/products/docs/snippets/install-skills-properties.mdx" />
 
 ### Custom page actions
 
@@ -1193,19 +1216,18 @@ ai-search:
 
 ## Agents configuration
 
-Configure directives and custom files for [AI agent consumption](/learn/docs/ai-features/llms-txt). By default, Fern auto-generates `llms.txt` and `llms-full.txt` and prepends a directive to every page served to AI agents. Use the `agents` key to customize this behavior:
+Configure directives and custom files for [AI agent consumption](/learn/docs/ai-features/llms-txt). By default, Fern auto-generates `llms.txt` and prepends a directive to every page served to AI agents. Use the `agents` key to customize this behavior:
 
 ```yaml docs.yml
 agents:
   page-directive: "For a complete page index, fetch https://docs.example.com/llms.txt"
   page-description-source: description
   llms-txt: ./path/to/llms.txt
-  llms-full-txt: ./path/to/llms-full.txt
   robots-txt: ./path/to/robots.txt
 ```
 
 <ParamField path="agents.page-directive" type="string" required={false} toc={true}>
-  Text prepended to each page's Markdown output when served to AI agents. The directive is injected after the frontmatter metadata section but before the page body. Human-facing documentation is unaffected. When not set, a default directive is used that points agents to your site's `.md` URLs, `llms.txt`, and `llms-full.txt`. Set to an empty string to disable the directive entirely.
+  Text prepended to each page's Markdown output when served to AI agents. The directive is injected after the frontmatter metadata section but before the page body. Human-facing documentation is unaffected. When not set, a default directive is used that points agents to your site's `.md` URLs and `llms.txt`. Set to an empty string to disable the directive entirely.
 </ParamField>
 
 <ParamField path="agents.page-description-source" type="'description' | 'subtitle'" required={false} default="description" toc={true}>
@@ -1214,10 +1236,6 @@ agents:
 
 <ParamField path="agents.llms-txt" type="string" required={false} toc={true}>
   Path to a custom `llms.txt` file, relative to `docs.yml`. When set, this file is served at the root-level `/llms.txt` endpoint instead of the auto-generated version. Nested paths continue to use the auto-generated output.
-</ParamField>
-
-<ParamField path="agents.llms-full-txt" type="string" required={false} toc={true}>
-  Path to a custom `llms-full.txt` file, relative to `docs.yml`. When set, this file is served at the root-level `/llms-full.txt` endpoint instead of the auto-generated version. Nested paths continue to use the auto-generated output.
 </ParamField>
 
 <ParamField path="agents.robots-txt" type="string" required={false} toc={true}>

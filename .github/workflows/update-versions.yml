@@ -5,6 +5,11 @@ on:
     - cron: "0 * * * *"
   workflow_dispatch:
 
+# These scope secrets.GITHUB_TOKEN
+permissions:
+  pull-requests: write
+  contents: write
+
 jobs:
   update-versions:
     if: github.repository == 'fern-api/docs'
@@ -40,22 +45,24 @@ jobs:
         id: cpr
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "update versions from docker hub"
           title: "Update versions from docker hub"
           branch: update-versions
           base: main
           delete-branch: true
       - name: Enable Pull Request Automerge
-        if: steps.cpr.outputs.pull-request-operation == 'created'
+        if: steps.cpr.outputs.pull-request-operation == 'created' || steps.cpr.outputs.pull-request-operation == 'updated'
         uses: peter-evans/enable-pull-request-automerge@a660677d5469627102a1c1e11409dd063606628d # v3
         with:
+          token: ${{ secrets.FERN_SUPPORT_GH_ACTIONS_PAT }}
           pull-request-number: ${{ steps.cpr.outputs.pull-request-number }}
           merge-method: squash
-      - name: Approving PR
-        if: steps.cpr.outputs.pull-request-operation == 'created'
+      - name: Approve PR
+        if: steps.cpr.outputs.pull-request-operation == 'created' || steps.cpr.outputs.pull-request-operation == 'updated'
         env:
-          GH_TOKEN: ${{ secrets.FERN_GITHUB_TOKEN }}
-          STEPS_CPR_OUTPUTS_PULL_REQUEST_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
+          GH_TOKEN: ${{ secrets.FERN_SUPPORT_GH_ACTIONS_PAT }}
+          PR_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
         run: |
-          echo "Approving PR"
-          gh pr review ${STEPS_CPR_OUTPUTS_PULL_REQUEST_NUMBER} --approve
+          echo "Approving PR #${PR_NUMBER}"
+          gh pr review "${PR_NUMBER}" --approve
