@@ -1,0 +1,268 @@
+name: Feedback Writer
+
+on:
+  schedule:
+    # Every Monday at 9:00 AM UTC
+    - cron: "0 9 * * 1"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Preview prompts without starting Fern Writer runs"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "true"
+          - "false"
+      days:
+        description: "Number of days of feedback to look back (default: 7)"
+        required: false
+        default: "7"
+        type: string
+      max_runs:
+        description: "Maximum number of Fern Writer runs to start (default: 5)"
+        required: false
+        default: "5"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  process-feedback:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Process unhelpful feedback and start Fern Writer runs
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          POSTHOG_API_KEY: ${{ secrets.POSTHOG_ANALYTICS_API_KEY }}
+          POSTHOG_PROJECT_ID: ${{ secrets.POSTHOG_ANALYTICS_PROJECT_ID }}
+          FAI_API_TOKEN: ${{ secrets.FAI_API_TOKEN }}
+          FAI_SERVER_URL: ${{ secrets.FAI_SERVER_URL }}
+        with:
+          script: |
+            const POSTHOG_API_KEY = process.env.POSTHOG_API_KEY;
+            const POSTHOG_PROJECT_ID = process.env.POSTHOG_PROJECT_ID;
+            const FAI_API_TOKEN = process.env.FAI_API_TOKEN;
+            const FAI_SERVER_URL = process.env.FAI_SERVER_URL || "https://fai.buildwithfern.com";
+
+            const DRY_RUN = "${{ inputs.dry_run }}" === "true";
+            const LOOKBACK_DAYS = parseInt("${{ inputs.days }}" || "7", 10);
+            const MAX_RUNS = parseInt("${{ inputs.max_runs }}" || "5", 10);
+
+            const DOCS_DOMAIN = "buildwithfern.com";
+            const DOCS_PATH_PREFIX = "/learn";
+            const GITHUB_REPO = "fern-api/docs";
+
+            // ── Step 1: Query PostHog for unhelpful feedback ──
+
+            if (!POSTHOG_API_KEY || !POSTHOG_PROJECT_ID) {
+              core.setFailed("POSTHOG_ANALYTICS_API_KEY and POSTHOG_ANALYTICS_PROJECT_ID secrets are required.");
+              return;
+            }
+
+            if (!DRY_RUN && !FAI_API_TOKEN) {
+              core.setFailed("FAI_API_TOKEN secret is required for non-dry-run execution.");
+              return;
+            }
+
+            const hogqlQuery = `
+              SELECT
+                to_date(timestamp) as date,
+                COALESCE(properties.$current_url, '') as current_url,
+                COALESCE(properties.message, '') as user_feedback,
+                COALESCE(properties.feedback, '') as selection,
+                properties.satisfied as was_helpful,
+                timestamp
+              FROM events
+              WHERE
+                event = 'feedback_submitted'
+                AND (
+                  (properties.$host = '${DOCS_DOMAIN}' AND properties.$pathname LIKE '${DOCS_PATH_PREFIX}%')
+                  OR (properties.$host = 'www.${DOCS_DOMAIN}' AND properties.$pathname LIKE '${DOCS_PATH_PREFIX}%')
+                )
+                AND properties.satisfied = false
+                AND timestamp >= toStartOfDay(now() - interval ${LOOKBACK_DAYS} day)
+                AND timestamp < now()
+              ORDER BY timestamp DESC
+              LIMIT 500
+            `;
+
+            core.info(`Querying PostHog for unhelpful feedback from the last ${LOOKBACK_DAYS} days...`);
+
+            const posthogResponse = await fetch(
+              `https://us.posthog.com/api/projects/${POSTHOG_PROJECT_ID}/query/`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${POSTHOG_API_KEY}`,
+                },
+                body: JSON.stringify({
+                  query: { kind: "HogQLQuery", query: hogqlQuery },
+                }),
+              }
+            );
+
+            if (!posthogResponse.ok) {
+              const errorText = await posthogResponse.text().catch(() => "");
+              core.setFailed(`PostHog query failed: ${posthogResponse.status} ${posthogResponse.statusText} — ${errorText}`);
+              return;
+            }
+
+            const posthogData = await posthogResponse.json();
+            const rows = posthogData.results || [];
+            core.info(`Found ${rows.length} unhelpful feedback entries.`);
+
+            if (rows.length === 0) {
+              core.info("No unhelpful feedback found. Nothing to do.");
+              return;
+            }
+
+            // ── Step 2: Group feedback by page URL ──
+
+            const feedbackByPage = new Map();
+
+            for (const row of rows) {
+              const currentUrl = row[1];
+              const userFeedback = row[2];
+              const selection = row[3];
+
+              // Extract the page path from the full URL
+              let pagePath;
+              try {
+                const url = new URL(currentUrl);
+                pagePath = url.pathname;
+              } catch {
+                pagePath = currentUrl;
+              }
+
+              // Normalize: strip trailing slash, query params, and anchors
+              pagePath = pagePath.replace(/\/$/, "").split("?")[0].split("#")[0];
+
+              if (!pagePath || pagePath === DOCS_PATH_PREFIX) {
+                continue;
+              }
+
+              if (!feedbackByPage.has(pagePath)) {
+                feedbackByPage.set(pagePath, []);
+              }
+
+              feedbackByPage.get(pagePath).push({
+                feedback: userFeedback?.trim() || null,
+                reason: selection?.replace(/-/g, " ").trim() || null,
+              });
+            }
+
+            core.info(`Feedback spans ${feedbackByPage.size} distinct pages.`);
+
+            // ── Step 3: Rank pages by feedback count and build prompts ──
+
+            const pages = [...feedbackByPage.entries()]
+              .map(([path, entries]) => ({ path, entries, count: entries.length }))
+              .sort((a, b) => b.count - a.count)
+              .slice(0, MAX_RUNS);
+
+            const prompts = pages.map(({ path, entries, count }) => {
+              const fullUrl = `https://${DOCS_DOMAIN}${path}`;
+
+              const feedbackLines = entries
+                .filter((e) => e.feedback)
+                .map((e) => `- "${e.feedback}"${e.reason ? ` (reason: ${e.reason})` : ""}`)
+                .slice(0, 10);
+
+              const reasonCounts = {};
+              for (const e of entries) {
+                const r = e.reason || "no reason given";
+                reasonCounts[r] = (reasonCounts[r] || 0) + 1;
+              }
+              const reasonSummary = Object.entries(reasonCounts)
+                .sort((a, b) => b[1] - a[1])
+                .map(([reason, n]) => `${reason} (${n}x)`)
+                .join(", ");
+
+              let prompt = `The page at ${fullUrl} received ${count} "not helpful" vote${count === 1 ? "" : "s"} in the past ${LOOKBACK_DAYS} days.`;
+              prompt += `\n\nReasons: ${reasonSummary}.`;
+
+              if (feedbackLines.length > 0) {
+                prompt += `\n\nReader comments:\n${feedbackLines.join("\n")}`;
+              }
+
+              prompt += `\n\nReview this page and improve the content to address the feedback. Focus on clarity, accuracy, and completeness. Do not remove content that other readers may find useful — instead, restructure or expand to address the concerns.`;
+
+              return { path, fullUrl, count, prompt };
+            });
+
+            // ── Step 4: Log prompts (dry run) or start Fern Writer runs ──
+
+            core.info("");
+            core.info("=".repeat(60));
+            core.info(DRY_RUN ? "DRY RUN — Prompts that would be sent:" : "Starting Fern Writer runs:");
+            core.info("=".repeat(60));
+
+            let started = 0;
+            let failed = 0;
+
+            for (const { path, count, prompt } of prompts) {
+              core.info("");
+              core.info(`📄 ${path} (${count} unhelpful votes)`);
+              core.info("-".repeat(40));
+
+              if (DRY_RUN) {
+                core.info(prompt);
+                continue;
+              }
+
+              try {
+                const faiResponse = await fetch(`${FAI_SERVER_URL}/scribe/sessions`, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${FAI_API_TOKEN}`,
+                  },
+                  body: JSON.stringify({
+                    github_repo: GITHUB_REPO,
+                    prompt: prompt,
+                  }),
+                });
+
+                if (!faiResponse.ok) {
+                  const errorBody = await faiResponse.text().catch(() => "");
+                  core.warning(`Failed to start run for ${path}: ${faiResponse.status} — ${errorBody}`);
+                  failed++;
+                  continue;
+                }
+
+                const result = await faiResponse.json();
+                core.info(`Started Fern Writer run: session=${result.session_id}, status=${result.status}`);
+                started++;
+
+                // Brief pause between runs to avoid overwhelming the API
+                if (started < prompts.length) {
+                  await new Promise((resolve) => setTimeout(resolve, 2000));
+                }
+              } catch (error) {
+                core.warning(`Error starting run for ${path}: ${error.message}`);
+                failed++;
+              }
+            }
+
+            // ── Summary ──
+
+            core.info("");
+            core.info("=".repeat(60));
+            if (DRY_RUN) {
+              core.info(`DRY RUN complete. ${prompts.length} page(s) would have triggered Fern Writer runs.`);
+            } else {
+              core.info(`Done. Started ${started} run(s), ${failed} failed, ${prompts.length - started - failed} skipped.`);
+            }
+            core.info("=".repeat(60));
+
+            if (failed > 0 && started === 0) {
+              core.setFailed("All Fern Writer runs failed.");
+            }
