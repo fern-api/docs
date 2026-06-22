@@ -1,0 +1,87 @@
+---
+title: 快速开始
+description: 通过五个步骤从 OpenAPI 规范生成可用的 CLI 二进制文件。
+availability: beta
+---
+
+<Note title="抢先体验">
+CLI 生成器处于抢先体验阶段。[联系我们](https://buildwithfern.com/book-demo?type=cli)开始使用。
+</Note>
+
+本指南介绍从 OpenAPI 规范生成 CLI 并在本地运行。完成后，您将拥有一个编译好的二进制文件，它[将每个 API 端点映射为子命令](/learn/cli-generator/get-started/openapi-extensions#command-structure)，并从规范中配置好[身份验证](/learn/cli-generator/get-started/authentication)、[输出格式化](/learn/cli-generator/get-started/features#output-formatting)和[分页](/learn/cli-generator/get-started/features#pagination)。
+
+## 前提条件
+
+- [Fern CLI](https://www.npmjs.com/package/fern-api) v5.37.9 或更高版本（`npm install -g fern-api`）
+- [Rust 工具链](https://rustup.rs/)（稳定版）
+- 至少包含一个端点的 OpenAPI 3.x 规范
+
+## 设置
+
+<Steps>
+
+<Step title="初始化 Fern 项目">
+
+```bash
+mkdir my-api-config && cd my-api-config
+fern init --organization my-org
+```
+
+这将创建一个包含默认配置文件的 `fern/` 目录。
+</Step>
+
+<Step title="添加 OpenAPI 规范">
+
+将规范放在 `fern/openapi.yml`（或在下一步中引用的任何路径）。规范必须包含至少一个路径，`components` 下声明的任何 `securitySchemes` 将成为 CLI [在运行时读取的凭据](/learn/cli-generator/get-started/authentication)。
+</Step>
+
+<Step title="配置生成器">
+
+替换 `fern/generators.yml` 的内容：
+
+```yaml title="fern/generators.yml"
+api:
+  specs:
+    - openapi: openapi.yml
+default-group: cli
+groups:
+  cli:
+    generators:
+      - name: fern-cli-generator
+        version: 0.6.1
+        github:
+          repo: my-org/my-cli
+          mode: release
+        config:
+          binaryName: my-cli
+```
+</Step>
+
+<Step title="生成 CLI">
+
+```bash
+fern generate --group cli
+```
+
+Fern 读取 OpenAPI 规范，运行 CLI 生成器，并将完整的 Rust 项目写入输出路径。
+</Step>
+
+<Step title="构建并运行">
+
+```bash
+cd ../my-cli
+cargo build
+./target/debug/my-cli --help
+```
+
+`--help` 输出显示完整的命令树：从 OpenAPI 标签派生的顶级命令、从各个操作派生的子命令，以及 `completion` 和 `man` 等内置工具。
+</Step>
+
+<Step title="自定义输出">
+
+- 通过在 `generators.yml` 上叠加 [overrides 和 overlays](/learn/cli-generator/get-started/customization#overrides-and-overlays) 来重命名命令、隐藏端点或修补元数据，无需分叉规范。
+- 通过在 `api.specs` 下列出多个规范，使用[多规范合并](/learn/cli-generator/get-started/customization#multi-spec-merging)发布一个驱动多个 API 的二进制文件。
+- 使用[自定义命令](/learn/cli-generator/get-started/customization#custom-commands)添加不映射到端点的子命令 — 登录流程、配置助手、本地工具。
+</Step>
+
+</Steps>

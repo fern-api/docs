@@ -1,0 +1,235 @@
+---
+title: 迁移到 Replay
+headline: 从 release 或 push 模式迁移到 pull-request 模式
+description: 将 SDK 生成从 release 或 push 模式切换到 pull-request 模式以启用 Fern Replay 的分步指南。
+---
+
+本指南将 SDK 从 `release` 或 `push` 输出模式迁移到 `pull-request` 输出模式 — 启用 [Fern Replay](/learn/sdks/overview/custom-code#replay) 所需的模式。仅当您的 SDK 当前使用 `release` 或 `push` 模式且希望切换以使用 Replay 时才需遵循本指南。已使用 `pull-request` 模式的 SDK 默认启用 Replay，无需迁移。
+
+## 变更内容
+
+- SDK 更新以 PR 形式到达，而非直接推送到 `main`。
+- 对生成代码的自定义修改通过三方合并在重新生成后保留。
+- 版本提升从纯生成器输出计算，不会被自定义修改污染。
+- 发布与生成解耦，您可以控制何时发布。
+
+## 开始之前
+
+- 在 SDK 仓库上安装 [Fern GitHub App](https://github.com/apps/fern-api)。
+- 更新到最新 Fern CLI：`fern upgrade`。
+- 更新到最新 SDK 生成器版本：`fern generator upgrade`。
+
+## 第一阶段：将发布密钥移至 SDK 仓库
+
+Fern 在每次生成时会在 SDK 仓库中设置 GitHub Actions secrets。切换到 `pull-request` 输出模式时，该写入会覆盖您直接设置的密钥。为避免此问题，在切换模式前将密钥所有权从配置仓库移至 SDK 仓库。
+
+对于每个 SDK 仓库：
+
+<Steps>
+<Step title="识别发布密钥">
+
+找出 `generators.yml` 引用了哪些发布密钥：
+
+- Python：`PYPI_USERNAME`、`PYPI_PASSWORD`
+- TypeScript / npm：`NPM_TOKEN`
+- Java / Maven：`MAVEN_USERNAME`、`MAVEN_PASSWORD`、`MAVEN_SIGNATURE_KID`、`MAVEN_SIGNATURE_PASSWORD`、`MAVEN_SIGNATURE_SECRET_KEY`
+- Ruby：`RUBY_GEMS_API_KEY`
+- C# / NuGet：`NUGET_API_KEY`
+- Rust / Crates：`CRATES_TOKEN`
+
+</Step>
+
+<Step title="将凭据添加到 SDK 仓库">
+
+将真实的发布凭据直接添加到 SDK 仓库：**Settings → Secrets and variables → Actions → New repository secret**。
+
+</Step>
+
+<Step title="从 `generators.yml` 中移除凭据">
+
+从配置仓库的 `generators.yml` 中移除发布凭据值：
+
+```yaml title="generators.yml"
+# 修改前
+groups:
+  python-sdk:
+    generators:
+      - name: fern-python-sdk
+        version: "..."
+        github:
+          repository: customer/python-sdk
+          mode: pull-request
+        output:
+          pypi:
+            username: $PYPI_USERNAME
+            password: $PYPI_PASSWORD
+
+# 修改后（完全移除 output/pypi 块）
+groups:
+  python-sdk:
+    generators:
+      - name: fern-python-sdk
+        version: "..."
+        github:
+          repository: customer/python-sdk
+          mode: pull-request
+```
+
+</Step>
+
+<Step title="验证密钥已保留">
+
+运行一次生成。在 **SDK 仓库 → Settings → Secrets** 下检查"Last updated"时间戳，确认 SDK 仓库的密钥未被覆盖。
+
+</Step>
+</Steps>
+
+## 第二阶段：切换输出模式
+
+在 `generators.yml` 中：
+
+```yaml title="generators.yml" {3}
+github:
+  repository: customer/python-sdk
+  mode: pull-request   # 原来是：mode: release（或：mode: push）
+```
+
+如果使用 `version: AUTO`，则无需其他更改。自动版本管理作为生成器 CLI 流水线的一部分运行，并对纯生成器输出进行差异比较，因此客户的自定义修改不会污染版本差异。
+
+## 第三阶段：将发布与生成解耦（可选）
+
+要按自己的计划控制发布而非在每次 Fern 生成时发布，请将发布工作流从 Fern 的生成周期中分离：
+
+<Steps>
+<Step title="将工作流添加到 .fernignore">
+
+```text title=".fernignore"
+.github/workflows/ci.yml
+```
+
+</Step>
+
+<Step title="更改工作流触发器">
+
+从推送到 main 切换为手动或基于发布标签触发：
+
+```yaml title=".github/workflows/ci.yml"
+# 原来是：
+on:
+  push:
+    branches: [main]
+
+# 改为：
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+```
+
+</Step>
+
+<Step title="更新密钥引用">
+
+如果您在第一阶段中重命名了凭据，请更新相关的密钥引用。
+
+</Step>
+</Steps>
+
+## 第四阶段：首次使用 Replay 生成
+
+<Steps>
+<Step title="运行 fern generate">
+
+从配置仓库运行 `fern generate --group <group-name>`（或通过现有 CI 触发）。
+
+</Step>
+
+<Step title="确认锁文件已创建">
+
+首次运行会自动创建 `.fern/replay.lock`。Replay 从此时开始跟踪客户对生成文件的提交。
+
+</Step>
+
+<Step title="审查生成的 PR">
+
+PR 包含：
+
+- `[fern-generated]`：纯生成器输出
+- `[fern-replay]`：重新应用的补丁（首次运行时为空，因为尚无补丁）
+- 更新的 `.fern/replay.lock`
+
+</Step>
+
+<Step title="Squash 合并 PR">
+
+下一次生成即使在 squash 后也能正确重新锚定。
+
+</Step>
+</Steps>
+
+## 第五阶段：验证
+
+首次生成并合并后，确认以下内容：
+
+- 创建了 PR（而非直接推送到 `main`）。
+- 没有触发意外的包发布。
+- SDK 代码正确且通过 CI。
+- SDK 仓库中存在 `.fern/replay.lock`。
+- `.fernignore` 包含 `replay.lock`（和 `replay.yml`）。
+
+在首次实际自定义修改后，端到端验证 Replay 的行为：
+
+- 您编辑一个生成的文件，提交并合并到 `main`。
+- 下一次 `fern generate` 检测到补丁（PR 正文显示 `patches detected: 1`）。
+- 自定义修改通过干净的三方合并在重新生成后保留。
+- `.fern/replay.lock` 显示已存储的补丁。
+
+## 回滚
+
+Replay 从不破坏性地修改文件。您的 `main` 分支始终有正确的代码，因此回滚很简单。
+
+**快速禁用。** 要在保持 `pull-request` 模式的同时停止 Replay，在 `generators.yml` 中设置 `replay.enabled: false`（参见 [`replay` 参考](/learn/sdks/reference/generators-yml#replay)）。下一次 `fern generate` 跳过补丁检测和应用阶段；PR 以与之前相同的形式到达，只是没有 `[fern-replay]` 提交。
+
+**完全恢复到 `release` 或 `push` 模式：**
+
+<Steps>
+<Step title="在 generators.yml 中切换回模式">
+
+```yaml title="generators.yml" {3}
+github:
+  repository: customer/python-sdk
+  mode: release   # 或 mode: push
+```
+
+</Step>
+
+<Step title="将发布凭据重新添加到配置仓库">
+
+重新添加您在第一阶段中移除的凭据。
+
+</Step>
+
+<Step title="清理 SDK 仓库中的 Replay 状态">
+
+- 删除 `.fern/replay.lock`
+- 删除 `.fern/replay.yml`
+- 删除 `fern-generation-base` 标签（如果存在）
+
+</Step>
+
+<Step title="关闭来自 PR 模式的所有未合并 fern-bot PR">
+
+</Step>
+</Steps>
+
+## 故障排除
+
+| 命令 | 效果 |
+|---------|--------|
+| [`fern generate --no-replay`](/learn/cli-api-reference/cli-reference/commands#no-replay) | 跳过一次生成的补丁应用。生成仍创建 `[fern-generated]`；补丁不被应用。用于调试。 |
+| [`fern replay forget`](/learn/cli-api-reference/cli-reference/commands#fern-replay-forget) | 按 ID、模式或全部取消跟踪补丁。下一次生成会覆盖这些文件。 |
+
+## 已知注意事项
+
+- **未合并就关闭的 Replay PR。** 如果 Replay PR 被关闭而未合并，下一次生成会从当前分支历史重新推导锚点。无需手动清理。
+- **强制推送和重写历史。** Replay 在每次运行时从 `git log` 重新推导扫描锚点，因此强制推送的分支继续工作，现有补丁仍能正确应用。

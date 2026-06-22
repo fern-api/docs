@@ -1,0 +1,144 @@
+---
+title: OpenAPI 扩展
+description: 了解哪些 Fern OpenAPI 扩展影响生成的 CLI，以及它们如何映射到命令、标志和帮助文本。
+availability: beta
+---
+
+<Note title="抢先体验">
+CLI 生成器处于抢先体验阶段。[联系我们](https://buildwithfern.com/book-demo?type=cli)开始使用。
+</Note>
+
+CLI 生成器读取多个 [Fern OpenAPI 扩展](/learn/api-definitions/openapi/extensions/overview)来塑造生成的 CLI。您可以直接在规范中添加这些扩展，也可以通过 [overlays](/learn/api-definitions/openapi/overlays) 应用。
+
+## 命令结构
+
+### `x-fern-sdk-group-name`
+
+决定子命令分组层级。列表中的每个元素成为一个嵌套子命令，名称从 camelCase 转换为 kebab-case。
+
+```yaml title="openapi.yml" {4-6}
+paths:
+  /scheduled-events/{uuid}/invitees:
+    get:
+      x-fern-sdk-group-name:
+        - scheduledEvents
+        - invitees
+      x-fern-sdk-method-name: list-event-invitees
+```
+
+生成：`cli scheduled-events invitees list-event-invitees`
+
+### `x-fern-sdk-method-name`
+
+设置叶子命令名称（按原样使用）。
+
+```yaml title="openapi.yml" {4}
+paths:
+  /users/me:
+    get:
+      x-fern-sdk-method-name: get-current-user
+```
+
+生成：`cli get-current-user`（如果同时设置了 `x-fern-sdk-group-name`，则嵌套在分组下）。
+
+<Note>
+如果两个扩展都未设置，CLI 回退到 `operationId`。
+</Note>
+
+参见 [SDK 方法名称](/learn/api-definitions/openapi/extensions/method-names)了解更多详情。
+
+## 过滤
+
+### `x-fern-ignore`
+
+从生成的 CLI 中排除操作或参数。被忽略的操作不生成命令；被忽略的参数不生成标志。
+
+```yaml title="openapi.yml" {4}
+paths:
+  /internal/debug:
+    get:
+      x-fern-ignore: true
+```
+
+参数级别：
+
+```yaml title="openapi.yml" {7}
+paths:
+  /users:
+    get:
+      parameters:
+        - name: internalParam
+          in: query
+          x-fern-ignore: true
+          schema:
+            type: string
+```
+
+参见[忽略元素](/learn/api-definitions/openapi/extensions/ignoring-elements)了解更多详情。
+
+## 可用性徽章
+
+### `x-fern-availability`
+
+在 `--help` 输出中的命令旁添加状态徽章。
+
+| 值 | 徽章 |
+| --- | --- |
+| `alpha` | `[Alpha]` |
+| `beta` | `[Beta]` |
+| `preview` | `[Preview]` |
+| `generally-available` 或 `ga` | `[GA]` |
+| `deprecated` | `[Deprecated]` |
+| `legacy` | `[Legacy]` |
+
+```yaml title="openapi.yml" {4}
+paths:
+  /v2/reports:
+    get:
+      x-fern-availability: beta
+```
+
+OpenAPI 的标准 `deprecated: true` 也会被识别，在未设置 `x-fern-availability` 时映射为 `[Deprecated]`。
+
+参见[可用性](/learn/api-definitions/openapi/extensions/availability)了解更多详情。
+
+## 参数命名
+
+### `x-fern-parameter-name`
+
+覆盖从参数派生的 CLI 标志名称。默认情况下，参数名称转换为 kebab-case 作为标志使用。
+
+```yaml title="openapi.yml" {9}
+paths:
+  /users:
+    get:
+      parameters:
+        - name: X-API-Version
+          in: header
+          schema:
+            type: string
+          x-fern-parameter-name: api-version
+```
+
+生成 `--api-version` 而非 `--x-api-version`。
+
+参见[自定义参数名称](/learn/api-definitions/openapi/extensions/parameter-names)了解更多详情。
+
+## 分页
+
+### `x-fern-pagination`
+
+为端点启用自动分页。存在时，CLI 为该命令识别 `--page-all`、`--page-limit` 和 `--page-delay` 标志。
+
+```yaml title="openapi.yml" {5-8}
+paths:
+  /plants:
+    get:
+      operationId: list_plants
+      x-fern-pagination:
+        cursor: $request.cursor
+        next_cursor: $response.next
+        results: $response.results
+```
+
+参见[分页](/learn/api-definitions/openapi/extensions/pagination)了解所有支持的分页方案（offset、cursor、URI 和 path）。
