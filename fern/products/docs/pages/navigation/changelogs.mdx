@@ -1,10 +1,10 @@
 ---
 title: Changelog pages
-subtitle: Keep a chronological record of project changes with tagging and RSS
+subtitle: Keep a chronological record of project changes with tagging, search, and RSS
 ---
 
 
-Keep a record of how your project has changed by writing changelog entries that users can sort by tag. The changelog will automatically populate with the files contained within the `changelog` folder.
+Keep a record of how your project has changed by writing changelog entries. The changelog renders as a scannable timeline of entry cards grouped by date, with built-in search and tag filtering. It automatically populates with the files in your `changelog` folder.
 
 <Frame
     caption="Keep your users updated as your project evolves"
@@ -85,7 +85,7 @@ Section-level changelogs **can't** be nested within an `api` entry.
 
 ## Write a changelog entry
 
-Create a new changelog entry by writing a Markdown file. You can use `.md` or `.mdx` files. The benefit of using `.mdx` is that you can leverage Fern's built-in [component library](/learn/docs/content/components/overview) within an entry.
+Create a new changelog entry by writing a Markdown file. You can use `.md` or `.mdx` files. The benefit of using `.mdx` is that you can leverage Fern's built-in [component library](/learn/docs/writing-content/components/overview) within an entry.
 
 <Markdown src="/products/docs/snippets/changelog-example.mdx" />
 
@@ -99,7 +99,11 @@ Changelog entries are automatically sorted chronologically by the date specific 
 
 ### Tags
 
-Add tags to changelog entries to help users filter and find relevant updates. Tags are defined in the frontmatter of your changelog entry as an array of strings:
+Tags let readers filter the changelog timeline to specific topics. Tags appear as badges on each entry card and in the filter bar at the top of the changelog.
+
+#### Frontmatter tags
+
+Apply tags to an entire entry by adding a `tags` array in the file's YAML frontmatter:
 
 <CodeBlock>
 ```mdx
@@ -109,7 +113,37 @@ tags: ["plants-api", "breaking-change", "inventory-management"]
 ```
 </CodeBlock>
 
-When you have multiple changelog entries, users can filter the changelog page by selecting specific tags. Use specific, descriptive tags that your users would naturally search for. Consider tagging by feature type, product area, release stage, affected platform, or user impact.
+All headings within that file inherit these tags unless overridden by a `<ChangelogTags>` marker (see below).
+
+#### Per-entry tags
+
+When a single changelog file contains multiple releases under separate headings, each heading can carry its own tags using the `<ChangelogTags>` component. Place it directly under the `##` heading:
+
+<CodeBlock>
+```mdx
+## New dashboard analytics
+<ChangelogTags>analytics, dashboard</ChangelogTags>
+
+Track page views and API usage from the dashboard.
+
+## Bug fixes
+<ChangelogTags>bug-fix, api-reference</ChangelogTags>
+
+Resolved an issue with...
+```
+</CodeBlock>
+
+`<ChangelogTags>` accepts comma-separated children (as shown above) or a `tags` prop:
+
+<CodeBlock>
+```mdx
+<ChangelogTags tags={["analytics", "dashboard"]} />
+```
+</CodeBlock>
+
+When a heading has a `<ChangelogTags>` marker, those tags replace the frontmatter tags for that entry's card on the timeline. Headings without a marker inherit the frontmatter tags as usual.
+
+Use specific, descriptive tags that readers would naturally search for. Consider tagging by feature type, product area, release stage, affected platform, or user impact.
 
 <Note>
 Customize the filter UI using [changelog filter CSS selectors](/learn/docs/customization/css-selectors-reference#changelog-filter-components). These selectors only apply when tags are configured.
@@ -126,3 +160,10 @@ Add an `overview.mdx` file to your `changelog` folder to include a high-level ov
 ### RSS feed
 
 Changelogs automatically come with an RSS feed so users can subscribe to updates. Navigate to the RSS feed by appending `.rss` to the changelog path. For example, `https://elevenlabs.io/docs/changelog.rss`
+
+## Search and filtering
+
+The changelog page includes a search bar and tag filter at the top of the timeline. Both are available to readers without any additional configuration.
+
+- **Full-text search** — Readers can type keywords into the search bar to find entries across the entire changelog, not just the entries visible on the current page. The query syncs to the `?q=` URL parameter, so search results are shareable as links.
+- **Tag filtering** — When entries have tags, a filter control appears alongside the search bar. Selecting a tag narrows the timeline to matching entries. On individual entry pages, tag badges are clickable and link back to the timeline with that tag pre-selected.
