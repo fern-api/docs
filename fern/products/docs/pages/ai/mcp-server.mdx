@@ -28,6 +28,51 @@ Both buttons are enabled by default on sites with Ask Fern. For other clients (C
   </video>
 </Frame>
 
+## Authenticated sites
+
+On sites with [authentication](/learn/docs/authentication/overview) enabled, MCP clients must include a `FERN_TOKEN` header containing a valid JWT. Without it, the server only returns publicly visible content (if any).
+
+### Get a token
+
+<Tabs>
+  <Tab title="API key (JWT / OAuth)">
+    Exchange a [Fern API key](/learn/cli-api/cli-reference/commands#fern-token) for a JWT via the [get-jwt endpoint](/learn/docs/fern-api-reference/get-jwt):
+
+    ```bash
+    curl https://docs.example.com/api/fern-docs/get-jwt \
+      -H "FERN_API_KEY: $FERN_TOKEN"
+    # → { "fern_token": "eyJ...", "roles": [] }
+    ```
+  </Tab>
+  <Tab title="Password protection">
+    Exchange the site password for a JWT:
+
+    ```bash
+    curl -s -D - https://docs.example.com/api/fern-docs/auth/password \
+      -H "Content-Type: application/json" \
+      -d '{"password": "your-site-password"}'
+    ```
+
+    Extract the `fern_token` value from the `Set-Cookie` header in the response.
+  </Tab>
+</Tabs>
+
+### Configure your MCP client
+
+Pass the JWT as the `FERN_TOKEN` header when registering the server. For example, in Claude Code:
+
+```bash
+claude mcp add --transport http \
+  --header "FERN_TOKEN: <jwt>" \
+  fern-docs https://docs.example.com/_mcp/server
+```
+
+For Cursor, VS Code, and other clients, add `FERN_TOKEN: <jwt>` to the `headers` field in your MCP server configuration if the client supports custom headers.
+
+<Note>
+  JWTs expire. Re-run the token exchange when the token lapses. There is no automatic refresh mechanism in the MCP transport.
+</Note>
+
 ## Other ways agents can access your docs
 
 Agents can also fetch documentation directly over HTTP. Fern serves clean Markdown via [per-page URLs and `llms.txt`](/learn/docs/ai-features/markdown) — including on authenticated sites.
