@@ -190,7 +190,10 @@ Changelog entries live in `fern/products/docs/pages/changelog/` and `fern/produc
 
 ### Rules
 
-- Always include `tags` in YAML frontmatter. Pick 1–4 from the existing set (e.g., `api-reference`, `components`, `navigation`, `customization`, `search`, `ai`, `security`, `bug-fix`). Tags are categorical — describe the area, not the feature name.
+- Every entry needs tags. Apply them one of two ways:
+  - **Frontmatter `tags`** — a YAML array that tags the whole file. All headings inherit it. Use this when the file covers a single release or several closely related changes.
+  - **`<ChangelogTags>` per heading** — place the component directly under a `##` heading to tag that entry on its own. Use this when one file holds multiple unrelated releases under separate headings. A `<ChangelogTags>` marker replaces the frontmatter tags for that heading; headings without one fall back to the frontmatter tags.
+- Pick 1–4 tags from the existing set (e.g., `api-reference`, `components`, `navigation`, `customization`, `search`, `ai`, `security`, `bug-fix`). Tags are categorical — describe the area, not the feature name. The same vocabulary applies to both frontmatter and `<ChangelogTags>`.
 - Use `##` (h2) for each feature heading. No h1.
 - Lead with what the user can now do: "You can now..." or a direct capability statement.
 - Keep it short: 2–6 sentences per feature. Bullet points for lists of details.
@@ -217,12 +220,35 @@ To configure this, go to **Settings** > **Page access** in the [Dashboard](https
 <Button intent="none" outlined rightIcon="arrow-right" href="/learn/dashboard/settings/page-access">Read the docs</Button>
 ```
 
+When a single file holds multiple releases under separate headings, tag each heading with `<ChangelogTags>` instead of frontmatter:
+
+```mdx
+## New dashboard analytics
+
+<ChangelogTags>customization, configuration</ChangelogTags>
+
+Track page views and API usage from the dashboard.
+
+<Button intent="none" outlined rightIcon="arrow-right" href="/learn/docs/getting-started/analytics">Read the docs</Button>
+
+## Bug fixes
+
+<ChangelogTags>api-reference, bug-fix</ChangelogTags>
+
+Resolved an issue where SDK snippets failed to render for paginated endpoints.
+
+<Button intent="none" outlined rightIcon="arrow-right" href="/learn/docs/api-reference/snippets">Read the docs</Button>
+```
+
+`<ChangelogTags>` accepts comma-separated children (above) or a `tags` prop: `<ChangelogTags tags={["api-reference", "bug-fix"]} />`.
+
 ### What not to do
 
 - Don't use h1 (`#`) — the date serves as the title.
 - Don't describe implementation details — focus on user benefit.
 - Don't skip the Button CTA.
-- Don't invent new tags when an existing one fits.
+- Don't invent new tags when an existing one fits — this applies to `<ChangelogTags>` as much as frontmatter. A one-off tag fragments the filter bar.
+- Don't tag by feature name (`changelog`, `dark-mode`). Tag by area (`navigation`, `customization`).
 
 Prefer existing tags when possible. Common tags include: `api-reference`, `components`, `navigation`, `customization`, `configuration`, `search`, `ai`, `security`, `bug-fix`, `performance`, `writing-content`.
 
