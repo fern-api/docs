@@ -137,28 +137,68 @@ api:
     staging: "https://api.staging.com"
 ```
 
-<ParamField path="auth" type="string" toc={true}>
-  Sets the default authentication scheme for all endpoints. The value must reference a scheme name defined in [`auth-schemes`](#auth-schemes). This overrides any security schemes [defined in your OpenAPI spec](/learn/api-definitions/openapi/authentication).
+<ParamField path="auth" type="string | object" toc={true}>
+  Sets the default authentication scheme for all endpoints. Scheme names must reference entries defined in [`auth-schemes`](#auth-schemes). This overrides any security schemes [defined in your OpenAPI spec](/learn/api-definitions/openapi/authentication).
+
+  Pass a string for a single scheme, or an object with `any` or `all` to compose multiple schemes.
+
+  <AccordionGroup>
+  <Accordion title="Single scheme">
 
   ```yaml title="generators.yml"
-  # Apply it as the default for all endpoints
   api:
-    auth: BearerAuth # Defined in auth-schemes
+    auth: BearerAuth
     specs:
       - openapi: ./openapi.yml
   ```
 
-  With this configuration, all generated SDKs will require authentication using the `BearerAuth` scheme:
+  </Accordion>
+  <Accordion title="Multiple schemes (any)">
 
-  ```ts index.ts
-  // Uses process.env.PLANTSTORE_API_KEY
-  const client = new PlantStoreClient();
+  Accept any one of several schemes. The first scheme with a credential wins.
 
-  // Or provide the API key explicitly
-  const client = new PlantStoreClient({
-    apiKey: "your-api-key"
-  });
+  ```yaml title="generators.yml"
+  auth-schemes:
+    BearerAuth:
+      scheme: bearer
+      token:
+        name: apiKey
+        env: MY_API_KEY
+    TokenAuth:
+      header: Authorization
+      prefix: "Bearer "
+      env: MY_TOKEN
+
+  api:
+    auth:
+      any:
+        - BearerAuth
+        - TokenAuth
+    specs:
+      - openapi: ./openapi.yml
+        overrides: ./openapi-overrides.yml
   ```
+
+  Both schemes must also be declared in the OpenAPI spec's `securitySchemes` and listed in its `security` array. See [multiple auth schemes for CLIs](/learn/cli-generator/get-started/authentication#multiple-auth-schemes) for a full walkthrough.
+
+  </Accordion>
+  <Accordion title="Multiple schemes (all)">
+
+  Require every scheme simultaneously (for example, HMAC signature plus API key).
+
+  ```yaml title="generators.yml"
+  api:
+    auth:
+      all:
+        - HmacAuth
+        - ApiKeyAuth
+    specs:
+      - openapi: ./openapi.yml
+  ```
+
+  </Accordion>
+  </AccordionGroup>
+
   <Tip>
     You can also override authentication for individual generators using the [generator-level `api.auth`](#override-api-authentication-settings) setting.
   </Tip>
