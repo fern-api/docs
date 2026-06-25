@@ -25,6 +25,44 @@ Authentication credentials are only stored client-side using cookies. No sensiti
 
 To automatically populate API keys for logged-in users, see [API key injection](/learn/docs/authentication/features/api-key-injection).
 
+### OAuth client credentials
+
+If your API uses OAuth 2.0 client credentials for authentication, the API Explorer can handle the token exchange automatically. Users enter their client ID and client secret, and the API Explorer fetches a bearer token from your token endpoint before sending the API request.
+
+This requires two pieces of configuration:
+
+1. An OAuth client-credentials auth scheme defined in your API configuration (either in your OpenAPI spec's `securitySchemes` or in [`generators.yml` `auth-schemes`](/learn/api-definitions/openapi/authentication)).
+2. The `playground: oauth: true` setting on the `- api` entry in your `docs.yml` navigation.
+
+```yaml title="docs.yml" {4-5}
+navigation:
+  - api: API Reference
+    api-name: my-api
+    playground:
+      oauth: true
+```
+
+The `playground` setting can be applied at different levels of the navigation hierarchy:
+
+```yaml title="docs.yml"
+navigation:
+  - api: API Reference
+    playground:
+      oauth: true          # Applies to all endpoints in this API
+    layout:
+      - section: Auth
+        playground:
+          oauth: true       # Applies to all endpoints in this section
+        contents:
+          - endpoint: POST /token
+            playground:
+              oauth: false   # Override for a specific endpoint
+```
+
+<Note>
+The `playground: oauth` setting controls token handling in the API Explorer only. It is separate from [OAuth authentication for your docs site](/learn/docs/authentication/setup/oauth), which gates access to documentation pages.
+</Note>
+
 ## Multiple environments
 
 When multiple server URLs are configured in [OpenAPI](/learn/api-definitions/openapi/extensions/server-names-and-url-templating), users can switch between environments (e.g., production and sandbox) from a dropdown in the API Explorer. The selected environment persists as they navigate between pages.
