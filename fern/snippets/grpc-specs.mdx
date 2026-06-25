@@ -1,14 +1,39 @@
 ```yaml title="generators.yml"
 api:
   specs:
+    # Local proto directory
     - proto:
         root: "./proto"
         target: "proto/service/v1/service.proto"
         local-generation: true
+    # Remote git repository
+    - proto:
+        root:
+          git:
+            repo: https://github.com/org/proto-definitions.git
+            ref: v2.3.0
+            path: proto/
+        target: user/v1/user.proto
 ```
 
-<ParamField path="root" type="string" required={true} toc={true}>
-  Path to the `.proto` directory root (e.g., `proto`). Must be specified up to where the package starts. For example, if your package is `package.test.v1` at the file path `protos/package/test/v1/test_file.proto`, the root should be `protos/`
+<ParamField path="root" type="string | git source" required={true} toc={true}>
+  Path to the `.proto` directory root (e.g., `proto`). Must be specified up to where the package starts. For example, if your package is `package.test.v1` at the file path `protos/package/test/v1/test_file.proto`, the root should be `protos/`.
+
+  Accepts either a local file path (string) or a [remote git reference](#git-remote-sources).
+
+  ```yaml
+  # Local directory
+  root: ./proto
+
+  # Remote git repository
+  root:
+    git:
+      repo: https://github.com/org/proto-definitions.git
+      ref: v2.3.0       # optional — defaults to the repo's default branch
+      path: proto/
+  ```
+
+  When using a git source, the CLI shallow-clones the repository at the specified `ref` and resolves the `path` locally. Authentication uses your environment's native git credential resolution (credential helpers, SSH keys, `GIT_ASKPASS`).
 </ParamField>
 
 <ParamField path="target" type="string" toc={true} required={false}>

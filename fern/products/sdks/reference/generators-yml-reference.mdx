@@ -128,6 +128,11 @@ api:
       namespace: "v1"
       settings:
         title-as-schema-name: true # Applies only to this OpenAPI spec
+    - openapi:
+        git:
+          repo: https://github.com/org/api-specs.git
+          ref: main
+          path: openapi/service.yml
     - asyncapi: "./events.yml"
       namespace: "events"
   headers:
@@ -218,6 +223,7 @@ Each specification type (OpenAPI, AsyncAPI, etc.) supports various configuration
 ```yaml
 api:
   specs:
+    # Local file path
     - asyncapi: "./asyncapi.yml"
       origin: "https://api.example.com/asyncapi.json"
       overrides: "./asyncapi-overrides.yml" # or a list of paths
@@ -226,10 +232,30 @@ api:
         message-naming: "v2"
         title-as-schema-name: false
         respect-nullable-schemas: true
+    # Remote git repository
+    - asyncapi:
+        git:
+          repo: https://github.com/org/api-specs.git
+          ref: v2.0.0
+          path: asyncapi/events.yml
 ```
 
-<ParamField path="asyncapi" type="string" required={true} toc={true}>
-  Path to the AsyncAPI specification file.
+<ParamField path="asyncapi" type="string | git source" required={true} toc={true}>
+  Path to the AsyncAPI specification file. Accepts either a local file path (string) or a [remote git reference](#git-remote-sources).
+
+  ```yaml
+  # Local file path
+  asyncapi: ./asyncapi.yml
+
+  # Remote git repository
+  asyncapi:
+    git:
+      repo: https://github.com/org/api-specs.git
+      ref: v2.0.0        # optional — defaults to the repo's default branch
+      path: asyncapi/events.yml
+  ```
+
+  When using a git source, the CLI shallow-clones the repository at the specified `ref` and resolves the `path` locally. Authentication uses your environment's native git credential resolution (credential helpers, SSH keys, `GIT_ASKPASS`).
 </ParamField>
 
 <ParamField path="origin" type="string" toc={true}>
@@ -327,6 +353,44 @@ api:
 </ParamField>
 </Accordion>
 </AccordionGroup>
+
+### Git remote sources
+
+Instead of referencing a local file path, the `openapi`, `asyncapi`, and proto `root` fields accept a `git` object that points to a file or directory in a remote git repository. At generation time, the CLI shallow-clones the repository at the specified ref and resolves the path locally.
+
+```yaml title="generators.yml"
+api:
+  specs:
+    - openapi:
+        git:
+          repo: https://github.com/org/private-api-specs.git
+          ref: main
+          path: openapi/service-a.yml
+      overrides: ./local-overrides.yml
+    - proto:
+        root:
+          git:
+            repo: https://github.com/org/proto-definitions.git
+            ref: v2.3.0
+            path: proto/
+        target: user/v1/user.proto
+```
+
+<ParamField path="git.repo" type="string" required={true} toc={true}>
+  The git repository URL (HTTPS or SSH).
+</ParamField>
+
+<ParamField path="git.ref" type="string" toc={true}>
+  Branch, tag, or commit SHA to check out. Defaults to the repository's default branch when omitted.
+</ParamField>
+
+<ParamField path="git.path" type="string" required={true} toc={true}>
+  Path to the spec file or directory within the repository.
+</ParamField>
+
+**Authentication** relies on your environment's native git credential resolution — credential helpers, SSH keys, or `GIT_ASKPASS`. No tokens are stored in `generators.yml`.
+
+**Deduplication**: if multiple specs reference the same repository and ref, the CLI clones it only once.
 
 ## `whitelabel`
 

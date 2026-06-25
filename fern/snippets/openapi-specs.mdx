@@ -1,6 +1,7 @@
 ```yaml title="generators.yml"
 api:
   specs:
+    # Local file path
     - openapi: "./openapi.yml"
       origin: "https://api.example.com/openapi.json"
       overlays: "./openapi-overlays.yml"
@@ -16,10 +17,31 @@ api:
         example-generation:
           request:
             max-depth: 2
+    # Remote git repository
+    - openapi:
+        git:
+          repo: https://github.com/org/api-specs.git
+          ref: main
+          path: openapi/service.yml
+      overrides: "./local-overrides.yml"
 ```
 
-<ParamField path="openapi" type="string" required={true} toc={true}>
-  Path to the OpenAPI specification file.
+<ParamField path="openapi" type="string | git source" required={true} toc={true}>
+  Path to the OpenAPI specification file. Accepts either a local file path (string) or a [remote git reference](#git-remote-sources).
+
+  ```yaml
+  # Local file path
+  openapi: ./openapi.yml
+
+  # Remote git repository
+  openapi:
+    git:
+      repo: https://github.com/org/api-specs.git
+      ref: main           # optional — defaults to the repo's default branch
+      path: openapi/service.yml
+  ```
+
+  When using a git source, the CLI shallow-clones the repository at the specified `ref` and resolves the `path` locally. Authentication uses your environment's native git credential resolution (credential helpers, SSH keys, `GIT_ASKPASS`). No tokens are required in YAML.
 </ParamField>
 
 <ParamField path="origin" type="string" toc={true}>
