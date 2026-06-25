@@ -1,6 +1,6 @@
 ---
 title: Authentication
-description: Configure API authentication in Fern Definition. Set up bearer tokens, basic auth, custom headers, and OAuth for your API endpoints.
+description: Configure API authentication in Fern Definition. Set up bearer tokens, basic auth, custom headers, OAuth, and endpoint-level authentication for your API endpoints.
 noindex: true
 ---
 
@@ -267,3 +267,151 @@ auth-schemes:
     get-token:
       ...   
 ```
+
+## Endpoint-level authentication
+
+By default, the `auth` field in `api.yml` applies a single authentication scheme to all endpoints. Endpoint-level authentication delegates auth requirements to individual endpoints, allowing different endpoints to accept different schemes or combinations of schemes.
+
+Enable endpoint-level authentication in `api.yml`:
+
+```yaml api.yml
+auth:
+  endpoint-security: {}
+
+auth-schemes:
+  Bearer:
+    scheme: bearer
+    token:
+      env: MY_TOKEN
+  ApiKey:
+    header: X-API-Key
+    type: string
+    env: MY_API_KEY
+  Basic:
+    scheme: basic
+```
+
+With `endpoint-security` enabled, each endpoint specifies its own auth requirements using an `auth` field. The `auth` field accepts a list of auth scheme collections. Each collection is an object mapping scheme names to a list of scopes (use `[]` for no scopes).
+
+### Single scheme per endpoint
+
+Assign one auth scheme to an endpoint:
+
+```yaml user.yml
+service:
+  auth: true
+  base-path: /
+  endpoints:
+    getUser:
+      path: /user
+      method: GET
+      response: User
+      auth:
+        - Bearer: []
+    listApiKeys:
+      path: /api-keys
+      method: GET
+      response: list<ApiKey>
+      auth:
+        - ApiKey: []
+```
+
+### Any-of (OR)
+
+Allow callers to authenticate with any one of several schemes. Each top-level item in the `auth` list is an alternative:
+
+```yaml user.yml {8-11}
+service:
+  auth: true
+  base-path: /
+  endpoints:
+    getUser:
+      path: /user
+      method: GET
+      auth:
+        - Bearer: []
+        - ApiKey: []
+        - Basic: []
+      response: User
+```
+
+A caller satisfies this endpoint by providing Bearer **or** API key **or** Basic credentials.
+
+### All-of (AND)
+
+Require callers to provide multiple auth schemes simultaneously. Place all required schemes in the same list item:
+
+```yaml user.yml {8-10}
+service:
+  auth: true
+  base-path: /
+  endpoints:
+    getUser:
+      path: /user
+      method: GET
+      auth:
+        - Bearer: []
+          ApiKey: []
+      response: User
+```
+
+A caller must provide **both** a Bearer token and an API key to access this endpoint.
+
+### Combining OR and AND
+
+Combine both patterns. Each top-level item is an OR option; schemes within a single item are AND:
+
+```yaml user.yml {8-12}
+service:
+  auth: true
+  base-path: /
+  endpoints:
+    getUser:
+      path: /user
+      method: GET
+      auth:
+        - Bearer: []
+          ApiKey: []
+        - Basic: []
+      response: User
+```
+
+A caller authenticates with (Bearer **and** API key) **or** Basic credentials.
+
+### OAuth scopes
+
+For OAuth schemes, specify required scopes in the list:
+
+```yaml user.yml {8}
+service:
+  auth: true
+  base-path: /
+  endpoints:
+    getUser:
+      path: /user
+      method: GET
+      auth:
+        - OAuth: [read-only]
+      response: User
+```
+
+### Generated SDK behavior
+
+When `endpoint-security` is configured, generated SDKs accept credentials for all defined auth schemes at client construction. The SDK routes the correct credentials to each endpoint based on its `auth` requirements.
+
+```ts index.ts
+const client = new Client({
+  token: "ey34...",        // for Bearer endpoints
+  xApiKey: "key_abc...",   // for ApiKey endpoints
+  username: "user",        // for Basic endpoints
+  password: "pass"
+});
+
+// SDK automatically sends the correct credentials per endpoint
+await client.user.getUser();      // sends Bearer + ApiKey
+await client.user.listApiKeys();  // sends ApiKey only
+```
+
+<Note>
+For OpenAPI specs, per-endpoint `security` definitions are equivalent to this feature. See [Multiple auth schemes](/learn/api-definitions/openapi/authentication#multiple-auth-schemes) for OpenAPI configuration.
+</Note>
