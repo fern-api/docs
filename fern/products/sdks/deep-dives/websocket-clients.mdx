@@ -72,36 +72,50 @@ Given an AsyncAPI channel definition like:
 ```yaml title="asyncapi.yml"
 asyncapi: 3.0.0
 info:
-  title: Realtime Service
+  title: Plant Monitoring Service
   version: 1.0.0
 channels:
-  realtime:
-    address: /realtime/{session_id}
+  plantUpdates:
+    address: /plants/{plant_id}/updates
     parameters:
-      session_id:
-        description: Session identifier
+      plant_id:
+        description: Plant identifier
     messages:
-      SendEvent:
-        payload:
-          type: object
-          properties:
-            text:
-              type: string
-      ReceiveEvent:
-        payload:
-          type: object
-          properties:
-            data:
-              type: string
+      SensorReading:
+        $ref: '#/components/messages/SensorReading'
+      PlantStatus:
+        $ref: '#/components/messages/PlantStatus'
 operations:
-  sendMessage:
+  sendReading:
     action: send
     channel:
-      $ref: '#/channels/realtime'
-  receiveMessage:
+      $ref: '#/channels/plantUpdates'
+    messages:
+      - $ref: '#/channels/plantUpdates/messages/SensorReading'
+  receivePlantStatus:
     action: receive
     channel:
-      $ref: '#/channels/realtime'
+      $ref: '#/channels/plantUpdates'
+    messages:
+      - $ref: '#/channels/plantUpdates/messages/PlantStatus'
+components:
+  messages:
+    SensorReading:
+      payload:
+        type: object
+        properties:
+          temperature:
+            type: number
+          humidity:
+            type: number
+    PlantStatus:
+      payload:
+        type: object
+        properties:
+          health:
+            type: string
+          needsWater:
+            type: boolean
 ```
 
 Fern generates the following client code:
@@ -109,14 +123,13 @@ Fern generates the following client code:
 <Tabs>
 <Tab title="TypeScript" language="typescript">
 
-The TypeScript SDK generates a `RealtimeSocket` class with typed `send` methods, event handlers, and a `ReconnectingWebSocket` that automatically retries dropped connections.
+The TypeScript SDK generates a typed socket class with `send` methods, event handlers, and a `ReconnectingWebSocket` that automatically retries dropped connections.
 
 ```typescript
-const client = new MyClient({ token: "..." });
+const client = new PlantClient({ token: "..." });
 
-const socket = await client.realtime.createRealtimeConnection({
-  sessionId: "session-123",
-  model: "gpt-4",
+const socket = await client.plantUpdates.createPlantUpdatesConnection({
+  plantId: "plant-123",
 });
 
 socket.on("open", () => {
@@ -124,17 +137,16 @@ socket.on("open", () => {
 });
 
 socket.on("message", (message) => {
-  // message is typed as ReceiveEvent
-  console.log(message.data);
+  // message is typed as PlantStatus
+  console.log(message.health);
 });
 
 socket.on("error", (error) => {
   console.error(error);
 });
 
-socket.sendSend({ text: "Hello" });
+socket.sendSendReading({ temperature: 22.5, humidity: 65 });
 
-// Close when done
 socket.close();
 ```
 
@@ -145,22 +157,22 @@ The Python SDK generates both sync (`contextmanager`) and async (`asynccontextma
 
 **Sync:**
 ```python
-with client.realtime.create_realtime_connection(
-    session_id="session-123",
-    model="gpt-4",
+from my_sdk.core.events import EventType
+
+with client.plant_updates.create_plant_updates_connection(
+    plant_id="plant-123",
 ) as ws:
-    ws.send_send(SendEvent(text="Hello"))
-    response = ws.recv()  # typed as ReceiveEvent
+    ws.send_send_reading(SensorReading(temperature=22.5, humidity=65))
+    response = ws.recv()  # typed as PlantStatus
     print(response)
 ```
 
 **Async:**
 ```python
-async with client.realtime.create_realtime_connection(
-    session_id="session-123",
-    model="gpt-4",
+async with client.plant_updates.create_plant_updates_connection(
+    plant_id="plant-123",
 ) as ws:
-    await ws.send_send(SendEvent(text="Hello"))
+    await ws.send_send_reading(SensorReading(temperature=22.5, humidity=65))
     response = await ws.recv()
     print(response)
 ```
@@ -168,23 +180,111 @@ async with client.realtime.create_realtime_connection(
 Both clients also support iteration and event-based listening:
 
 ```python
+from my_sdk.core.events import EventType
+
 # Iteration
-with client.realtime.create_realtime_connection(
-    session_id="session-123",
+with client.plant_updates.create_plant_updates_connection(
+    plant_id="plant-123",
 ) as ws:
     for message in ws:
         print(message)
 
 # Event-based
-with client.realtime.create_realtime_connection(
-    session_id="session-123",
+with client.plant_updates.create_plant_updates_connection(
+    plant_id="plant-123",
 ) as ws:
-    ws.on("message", lambda msg: print(msg))
+    ws.on(EventType.MESSAGE, lambda msg: print(msg))
     ws.start_listening()
 ```
 
 </Tab>
+<Tab title="Java" language="java">
+
+The Java SDK generates a `RealtimeWebSocketClient` with `CompletableFuture`-based async connect/send and typed message handlers via `Consumer<T>` callbacks.
+
+```java
+PlantClient client = PlantClient.builder()
+    .apiKey("...")
+    .build();
+
+RealtimeWebSocketClient ws = client.plantUpdates().plantUpdatesWebSocket("plant-123");
+
+ws.onConnected(() -> System.out.println("Connected"));
+ws.onReceivePlantStatus(status -> System.out.println(status.getHealth()));
+ws.onError(error -> error.printStackTrace());
+
+ws.connect().join();
+ws.sendSendReading(SensorReading.builder()
+    .temperature(22.5)
+    .humidity(65)
+    .build()).join();
+
+ws.disconnect();
+```
+
+</Tab>
+<Tab title="C#" language="csharp">
+
+The C# SDK generates a `RealtimeApi` class implementing `IAsyncDisposable` with `Event<T>` subscriptions for typed message handling.
+
+```csharp
+var api = new RealtimeApi(new RealtimeApi.Options
+{
+    BaseUrl = "wss://api.example.com",
+    PlantId = "plant-123",
+});
+
+api.Connected.Subscribe(() => Console.WriteLine("Connected"));
+api.PlantStatus.Subscribe(status => Console.WriteLine(status.Health));
+
+await api.ConnectAsync();
+await api.Send(new SensorReading { Temperature = 22.5, Humidity = 65 });
+
+await api.CloseAsync();
+```
+
+</Tab>
+<Tab title="Rust" language="rust">
+
+The Rust SDK generates an async client using `tokio` with typed send/receive methods and channel-based message streaming.
+
+```rust
+let mut ws = client.plant_updates
+    .create_plant_updates_connection(
+        "plant-123",
+        &PlantUpdatesConnectOptions::default(),
+    )
+    .await?;
+
+ws.send_send_reading(&SensorReading {
+    temperature: Some(22.5),
+    humidity: Some(65.0),
+}).await?;
+
+if let Some(Ok(message)) = ws.recv().await {
+    println!("{:?}", message);
+}
+
+ws.close().await?;
+```
+
+</Tab>
 </Tabs>
+
+## Authentication
+
+WebSocket clients automatically inherit the authentication configured in your SDK. Headers from the client options — including bearer tokens, API keys, and custom headers — are sent with the WebSocket handshake request. No additional configuration is required.
+
+```typescript
+// Auth headers are forwarded to the WebSocket connection
+const client = new PlantClient({
+  token: "your-bearer-token",
+});
+
+const socket = await client.plantUpdates.createPlantUpdatesConnection({
+  plantId: "plant-123",
+});
+```
 
 ## Defining WebSocket channels
 
