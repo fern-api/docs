@@ -63,58 +63,14 @@ When a spec declares multiple security schemes, the CLI composes them according 
 
 Operations that declare `security: []` (an empty list) opt out of authentication entirely — no credentials are sent regardless of what's configured.
 
-## Multiple auth schemes
+### Configure the `any` strategy
 
-When an API accepts more than one type of credential (for example, both `MY_API_KEY` and `MY_TOKEN` environment variables), the CLI can accept either one. This requires both the OpenAPI spec and `generators.yml` to declare all schemes. If a scheme is missing from the spec, the CLI ignores it.
+When an API accepts more than one credential under the `any` strategy, the CLI authenticates with whichever source is populated, using the first scheme that has a credential. Declaring the schemes requires two steps:
 
-### Define schemes in the OpenAPI spec
+1. In your OpenAPI spec, list the schemes as [multiple auth schemes](/learn/api-definitions/openapi/authentication#multiple-auth-schemes) in the `security` array.
+2. In `generators.yml`, define the same schemes under [`auth-schemes`](/learn/sdks/reference/generators-yml#auth-schemes) and compose them with [`api.auth`](/learn/sdks/reference/generators-yml#auth) set to `any`.
 
-Each scheme must appear in `securitySchemes`, and the top-level `security` array must list them as alternatives. If the spec already defines one scheme, add the second through an [override](/learn/api-definitions/openapi/overrides):
-
-```yaml title="openapi-overrides.yml"
-components:
-  securitySchemes:
-    TokenAuth:
-      type: http
-      scheme: bearer
-      x-fern-bearer:
-        name: token
-        env: MY_TOKEN
-
-security:
-  - BearerAuth: []
-  - TokenAuth: []
-```
-
-Multiple top-level entries in `security` are OR alternatives — the API accepts any one of them. See [multiple auth schemes](/learn/api-definitions/openapi/authentication#multiple-auth-schemes) in the OpenAPI authentication docs for details.
-
-### Configure schemes in `generators.yml`
-
-Define both schemes under [`auth-schemes`](/learn/sdks/reference/generators-yml#auth-schemes) and compose them with `api.auth.any`:
-
-```yaml title="generators.yml"
-auth-schemes:
-  BearerAuth:
-    scheme: bearer
-    token:
-      name: apiKey
-      env: MY_API_KEY
-  TokenAuth:
-    header: Authorization
-    prefix: "Bearer "
-    env: MY_TOKEN
-
-api:
-  auth:
-    any:
-      - BearerAuth
-      - TokenAuth
-  specs:
-    - openapi: ./openapi.yml
-      overrides: ./openapi-overrides.yml
-```
-
-The `any` strategy uses the first scheme that has a credential. With this configuration, the CLI authenticates using whichever environment variable is set:
+A scheme that's missing from the spec is silently ignored, even when its environment variable is set. With both declared, set either variable and the command runs:
 
 ```bash
 # Authenticate with MY_API_KEY
