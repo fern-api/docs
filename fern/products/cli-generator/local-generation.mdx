@@ -8,7 +8,17 @@ availability: beta
 The CLI generator is in early access. [Reach out](https://buildwithfern.com/book-demo?type=cli) to get started.
 </Note>
 
-By default, `fern generate` runs the CLI generator on Fern's cloud infrastructure. Pass `--local` to run generation on your own machine instead. This is useful for organizations with strict security or compliance requirements, or when iterating on configuration without pushing to a remote.
+By default, `fern generate` runs the CLI generator on Fern's cloud infrastructure. Pass `--local` to run generation on your own machine instead. No API definition data leaves your machine: the only network calls are organization verification and pulling the Docker image (if not cached). This suits organizations with strict security or compliance requirements, or iterating on configuration without pushing to a remote.
+
+## Comparison with cloud generation
+
+| | Cloud (default) | Local (`--local`) |
+| --- | --- | --- |
+| Infrastructure | Fern-managed | Your machine (Docker) |
+| Network calls | Spec + config sent to Fern | Org verification + image pull only |
+| Output options | GitHub repo (release/push mode) | Local file system or GitHub repo |
+| Auth required | `FERN_TOKEN` or interactive login | `FERN_TOKEN` |
+| Docker required | No | Yes |
 
 ## Prerequisites
 
@@ -48,13 +58,11 @@ The `path` is relative to the `fern/` directory. This example writes the generat
 
 <Step title="Set your Fern token">
 
-Local generation still requires a network call to verify your organization. Export your token:
+Local generation still requires a network call to verify your organization. Generate a token with `fern token` or from the [Fern Dashboard](/learn/dashboard/configuration/api-keys), then export it:
 
 ```bash
 export FERN_TOKEN=<your-token>
 ```
-
-Generate a token with `fern token` or from the [API keys](/learn/dashboard/configuration/api-keys) page in the Dashboard.
 
 </Step>
 
@@ -64,7 +72,7 @@ Generate a token with `fern token` or from the [API keys](/learn/dashboard/confi
 fern generate --group cli --local
 ```
 
-The CLI pulls the generator's Docker image (cached after the first run), processes your OpenAPI spec, and writes a complete Rust project to the configured output path.
+The CLI pulls the generator's Docker image (cached after the first run), processes your OpenAPI spec, and writes a complete Rust project to the configured output path. Images pull from Docker Hub by default; you can alternatively pull from a [private registry](#custom-container-registry).
 
 </Step>
 
@@ -104,18 +112,4 @@ If your registry requires authentication, log in before running generation:
 ```bash
 echo $CR_PAT | docker login ghcr.io -u USERNAME --password-stdin
 fern generate --group cli --local
-```
-
-## Comparison with cloud generation
-
-| | Cloud (default) | Local (`--local`) |
-| --- | --- | --- |
-| Infrastructure | Fern-managed | Your machine (Docker) |
-| Network calls | Spec + config sent to Fern | Org verification + image pull only |
-| Output options | GitHub repo (release/push mode) | Local file system or GitHub repo |
-| Auth required | `FERN_TOKEN` or interactive login | `FERN_TOKEN` |
-| Docker required | No | Yes |
-
-<Note>
-No API definition data is sent over the network during local generation. The only network calls are organization verification and pulling the Docker image (if not cached).
-</Note>
+```1
