@@ -3,7 +3,7 @@ title: WebSocket clients
 description: Generate typed WebSocket clients in your SDKs for bidirectional communication with connection management, typed messages, and automatic reconnection.
 ---
 
-Fern generates typed WebSocket clients from your [channel definitions](/learn/api-definitions/ferndef/websockets). The generated clients handle connection management, typed send/receive messages, and automatic reconnection.
+Fern generates typed WebSocket clients from your [AsyncAPI channel definitions](/learn/api-definitions/asyncapi/channels/pubsub). The generated clients handle connection management, typed send/receive messages, and automatic reconnection.
 
 ## Language support
 
@@ -67,23 +67,41 @@ Java generates WebSocket clients by default with no additional configuration.
 
 ## Generated SDK behavior
 
-Given a channel definition like:
+Given an AsyncAPI channel definition like:
 
-```yaml title="realtime.yml"
-channel:
-  path: /realtime/{session_id}
-  auth: true
-  path-parameters:
-    session_id: string
-  query-parameters:
-    model: optional<string>
-  messages:
-    send:
-      origin: client
-      body: SendEvent
-    receive:
-      origin: server
-      body: ReceiveEvent
+```yaml title="asyncapi.yml"
+asyncapi: 3.0.0
+info:
+  title: Realtime Service
+  version: 1.0.0
+channels:
+  realtime:
+    address: /realtime/{session_id}
+    parameters:
+      session_id:
+        description: Session identifier
+    messages:
+      SendEvent:
+        payload:
+          type: object
+          properties:
+            text:
+              type: string
+      ReceiveEvent:
+        payload:
+          type: object
+          properties:
+            data:
+              type: string
+operations:
+  sendMessage:
+    action: send
+    channel:
+      $ref: '#/channels/realtime'
+  receiveMessage:
+    action: receive
+    channel:
+      $ref: '#/channels/realtime'
 ```
 
 Fern generates the following client code:
@@ -170,4 +188,4 @@ with client.realtime.create_realtime_connection(
 
 ## Defining WebSocket channels
 
-WebSocket clients are generated from channel definitions in your Fern Definition. For the full syntax, including authentication, headers, path parameters, query parameters, and examples, see [WebSockets in the Fern Definition](/learn/api-definitions/ferndef/websockets).
+WebSocket clients are generated from channel definitions in your [AsyncAPI specification](/learn/api-definitions/asyncapi/overview). For defining channels, messages, and operations, see [Publish/subscribe operations](/learn/api-definitions/asyncapi/channels/pubsub).
