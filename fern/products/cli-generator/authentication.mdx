@@ -67,8 +67,28 @@ Operations that declare `security: []` (an empty list) opt out of authentication
 
 When an API accepts more than one credential under the `any` strategy, the CLI authenticates with whichever source is populated, using the first scheme that has a credential. Declaring the schemes requires two steps:
 
-1. In your OpenAPI spec, list the schemes as [multiple auth schemes](/learn/api-definitions/openapi/authentication#multiple-auth-schemes) in the `security` array.
+1. In your OpenAPI spec, define the schemes under `securitySchemes` and list them as [multiple auth schemes](/learn/api-definitions/openapi/authentication#multiple-auth-schemes) in the `security` array.
+
+    ```yaml title="openapi.yml" {5-6}
+    components:
+      securitySchemes:
+        # ...BearerAuth and TokenAuth defined here
+    security:
+      - BearerAuth: []
+      - TokenAuth: []
+    ```
+
 2. In `generators.yml`, define the same schemes under [`auth-schemes`](/learn/sdks/reference/generators-yml#auth-schemes) and compose them with [`api.auth`](/learn/sdks/reference/generators-yml#auth) set to `any`.
+
+    ```yaml title="generators.yml" {5}
+    auth-schemes:
+      # ...BearerAuth and TokenAuth defined here, each with its env var
+    api:
+      auth:
+        any: [BearerAuth, TokenAuth]
+    ```
+
+The scheme names must match across both files.
 
 A scheme that's missing from the spec is silently ignored, even when its environment variable is set. With both declared, set either variable and the command runs:
 
