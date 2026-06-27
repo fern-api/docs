@@ -118,7 +118,7 @@ components:
             type: boolean
 ```
 
-Fern generates the following client code:
+Fern generates the following client code. Send methods are named `send` + the operation name from the spec — for example, the `sendReading` operation produces `sendSendReading` in TypeScript/Python/Java/Rust (C# uses overloaded `Send()` methods instead).
 
 <Tabs>
 <Tab title="TypeScript" language="typescript">
@@ -157,8 +157,6 @@ The Python SDK generates both sync (`contextmanager`) and async (`asynccontextma
 
 **Sync:**
 ```python
-from my_sdk.core.events import EventType
-
 with client.plant_updates.create_plant_updates_connection(
     plant_id="plant-123",
 ) as ws:
@@ -200,17 +198,17 @@ with client.plant_updates.create_plant_updates_connection(
 </Tab>
 <Tab title="Java" language="java">
 
-The Java SDK generates a `RealtimeWebSocketClient` with `CompletableFuture`-based async connect/send and typed message handlers via `Consumer<T>` callbacks.
+The Java SDK generates a `PlantUpdatesWebSocketClient` with `CompletableFuture`-based async connect/send and typed message handlers via `Consumer<T>` callbacks.
 
 ```java
 PlantClient client = PlantClient.builder()
     .apiKey("...")
     .build();
 
-RealtimeWebSocketClient ws = client.plantUpdates().plantUpdatesWebSocket("plant-123");
+PlantUpdatesWebSocketClient ws = client.plantUpdates().plantUpdatesWebSocket("plant-123");
 
 ws.onConnected(() -> System.out.println("Connected"));
-ws.onReceivePlantStatus(status -> System.out.println(status.getHealth()));
+ws.onPlantStatus(status -> System.out.println(status.getHealth()));
 ws.onError(error -> error.printStackTrace());
 
 ws.connect().join();
@@ -225,10 +223,12 @@ ws.disconnect();
 </Tab>
 <Tab title="C#" language="csharp">
 
-The C# SDK generates a `RealtimeApi` class implementing `IAsyncDisposable` with `Event<T>` subscriptions for typed message handling.
+The C# SDK generates a `PlantUpdatesApi` class implementing `IAsyncDisposable` with `Event<T>` subscriptions for typed message handling. The WebSocket client is created through the root client's factory method.
 
 ```csharp
-var api = new RealtimeApi(new RealtimeApi.Options
+var client = new PlantClient();
+
+var api = client.CreatePlantUpdatesApi(new PlantUpdatesApi.Options
 {
     BaseUrl = "wss://api.example.com",
     PlantId = "plant-123",
@@ -273,18 +273,20 @@ ws.close().await?;
 
 ## Authentication
 
-WebSocket clients automatically inherit the authentication configured in your SDK. Headers from the client options — including bearer tokens, API keys, and custom headers — are sent with the WebSocket handshake request. No additional configuration is required.
+In TypeScript, Python, Java, and Rust, WebSocket clients automatically inherit the authentication configured on the root client. Headers — including bearer tokens, API keys, and custom headers — are sent with the WebSocket handshake request.
 
 ```typescript
-// Auth headers are forwarded to the WebSocket connection
 const client = new PlantClient({
   token: "your-bearer-token",
 });
 
+// Auth headers are forwarded to the WebSocket handshake
 const socket = await client.plantUpdates.createPlantUpdatesConnection({
   plantId: "plant-123",
 });
 ```
+
+In C#, the WebSocket client is constructed with an `Options` object that includes the connection URL and channel parameters. Configure authentication through the `HttpInvoker` option or by setting headers on the underlying client.
 
 ## Defining WebSocket channels
 
