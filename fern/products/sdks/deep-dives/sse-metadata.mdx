@@ -1,0 +1,113 @@
+---
+title: SSE metadata access
+description: Access server-sent event metadata (event ID, event type, retry interval) in Fern-generated SDKs for stream resumption and protocol-level control.
+---
+
+When your API uses [server-sent events](/learn/api-definitions/openapi/endpoints/sse#server-sent-events), the generated SDK returns a streaming response. By default, iterating the stream yields parsed data objects.
+
+<CodeBlocks>
+  <CodeBlock title="TypeScript">
+    ```ts
+    const stream = await client.plants.stream({ query: "fern" });
+
+    for await (const data of stream) {
+      console.log(data); // parsed response object
+    }
+    ```
+  </CodeBlock>
+  <CodeBlock title="Python">
+    ```python
+    response = client.plants.stream(query="fern")
+
+    for data in response:
+        print(data)  # parsed response object
+    ```
+  </CodeBlock>
+  <CodeBlock title="Go">
+    ```go
+    stream := client.Plants.Stream(ctx, &PlantRequest{Query: "fern"})
+    defer stream.Close()
+
+    for {
+      data, err := stream.Recv()
+      if err != nil {
+        break
+      }
+      fmt.Println(data) // parsed response object
+    }
+    ```
+  </CodeBlock>
+</CodeBlocks>
+
+SDK users can opt into metadata-aware iteration to read SSE protocol fields — event ID, event type, and retry interval — alongside the parsed data. Default iteration is unchanged, so opting in is fully backward compatible.
+
+## TypeScript
+
+`stream.withMetadata()` returns an async iterable of objects with `id`, `data`, `event`, and `retry` fields:
+
+```ts
+const stream = await client.plants.stream({ query: "fern" });
+
+for await (const event of stream.withMetadata()) {
+  event.data   // parsed response object (same type as default iteration)
+  event.id     // SSE event ID (string | undefined)
+  event.event  // SSE event type (string | undefined)
+  event.retry  // SSE retry interval in ms (number | undefined)
+}
+```
+
+<Note>
+Requires TypeScript SDK generator version 3.73.0+.
+</Note>
+
+## Go
+
+`stream.RecvEvent()` returns a `StreamEvent[T]` containing both the parsed data and SSE metadata:
+
+```go
+stream := client.Plants.Stream(ctx, &PlantRequest{Query: "fern"})
+defer stream.Close()
+
+for {
+  event, err := stream.RecvEvent()
+  if err != nil {
+    break
+  }
+  event.Data  // parsed response object (same type as Recv)
+  event.ID    // SSE event ID (string)
+  event.Event // SSE event type (string)
+  event.Retry // SSE retry interval in ms (int)
+}
+```
+
+Use `stream.LastEventID()` to read the most recently received event ID without consuming the next event. The value persists across events until reset by the server.
+
+<Note>
+Requires Go SDK generator version 1.32.0+.
+</Note>
+
+## Python
+
+The generated SDK ships a `ServerSentEvent` dataclass in `core.http_sse` with `id`, `data`, `event`, and `retry` fields. The internal `EventSource` yields these objects when iterating SSE streams:
+
+```python
+from dataclasses import dataclass
+from typing import Optional
+
+@dataclass(frozen=True)
+class ServerSentEvent:
+    event: str = "message"
+    data: str = ""
+    id: str = ""
+    retry: Optional[int] = None
+```
+
+Import `ServerSentEvent` and `EventSource` from the SDK's core module to access the full SSE envelope:
+
+```python
+from my_sdk.core.http_sse import ServerSentEvent, EventSource
+```
+
+## Stream resumption
+
+The event ID is useful for resuming a stream via the standard `Last-Event-ID` header. Store the last received ID as you iterate, then pass it back to the server on reconnection. This requires server-side support for the `Last-Event-ID` header.
