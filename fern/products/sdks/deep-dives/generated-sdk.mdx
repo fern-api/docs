@@ -55,10 +55,16 @@ When the API returns a 4xx or 5xx status code, the SDK throws an error that incl
 
 When your API uses [server-sent events](/learn/api-definitions/openapi/endpoints/sse#server-sent-events), the generated SDK returns a streaming response. By default, iterating the stream yields parsed data objects, the same as any other response.
 
-SDK users can opt into metadata-aware iteration to read the SSE protocol fields — event ID, event type, and retry interval — alongside the parsed data: `stream.withMetadata()` in TypeScript, or `RecvEvent()` with `LastEventID()` in Go. This is useful for resuming a stream via the standard `Last-Event-ID` header: store the last received ID as you iterate, then pass it back to the server on reconnection. Default iteration is unchanged, so opting in is fully backward compatible.
+SDK users can opt into metadata-aware iteration to read the SSE protocol fields — event ID, event type, and retry interval — alongside the parsed data:
+
+- **TypeScript**: `stream.withMetadata()` yields objects with `id`, `data`, `event`, and `retry` fields.
+- **Go**: `stream.RecvEvent()` returns a `StreamEvent[T]` with `Data`, `ID`, `Event`, and `Retry`. Use `stream.LastEventID()` to track the most recent ID across the stream.
+- **Python**: The generated SDK ships a `ServerSentEvent` dataclass (importable from `core.http_sse`) with `id`, `data`, `event`, and `retry` fields. The internal `EventSource` uses this type when iterating SSE streams.
+
+This is useful for resuming a stream via the standard `Last-Event-ID` header: store the last received ID as you iterate, then pass it back to the server on reconnection. Default iteration is unchanged, so opting in is fully backward compatible.
 
 <Note>
-Metadata access requires TypeScript SDK generator version 3.73.0+ or Go SDK generator version 1.32.0+. Python support is not yet available.
+`withMetadata()` requires TypeScript SDK generator version 3.73.0+. `RecvEvent()` requires Go SDK generator version 1.32.0+.
 </Note>
 
 ## Webhook signature verification
