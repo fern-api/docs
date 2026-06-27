@@ -53,94 +53,9 @@ When the API returns a 4xx or 5xx status code, the SDK throws an error that incl
 
 ## Server-sent events
 
-When your API uses [server-sent events](/learn/api-definitions/openapi/endpoints/sse#server-sent-events), the generated SDK provides a streaming response. Default iteration yields parsed data objects:
+When your API uses [server-sent events](/learn/api-definitions/openapi/endpoints/sse#server-sent-events), the generated SDK returns a streaming response. By default, iterating the stream yields parsed data objects, the same as any other response.
 
-<CodeBlocks>
-  <CodeBlock title="TypeScript">
-    ```ts
-    const stream = await client.chat.stream({ query: "Hello" });
-
-    for await (const data of stream) {
-      console.log(data); // parsed response object
-    }
-    ```
-  </CodeBlock>
-  <CodeBlock title="Python">
-    ```python
-    response = client.chat.stream(query="Hello")
-
-    for data in response:
-        print(data)  # parsed response object
-    ```
-  </CodeBlock>
-  <CodeBlock title="Go">
-    ```go
-    stream := client.Chat.Stream(ctx, &ChatRequest{Query: "Hello"})
-    defer stream.Close()
-
-    for {
-      data, err := stream.Recv()
-      if err != nil {
-        break
-      }
-      fmt.Println(data) // parsed response object
-    }
-    ```
-  </CodeBlock>
-</CodeBlocks>
-
-### Accessing server-sent event metadata
-
-To access SSE protocol fields (event ID, event type, retry interval) alongside the parsed data, use the metadata-aware iteration methods:
-
-<CodeBlocks>
-  <CodeBlock title="TypeScript">
-    ```ts
-    const stream = await client.chat.stream({ query: "Hello" });
-
-    for await (const event of stream.withMetadata()) {
-      event.data   // parsed response object (same type as default iteration)
-      event.id     // SSE event ID (string | undefined)
-      event.event  // SSE event type (string | undefined)
-      event.retry  // SSE retry interval in ms (number | undefined)
-    }
-    ```
-  </CodeBlock>
-  <CodeBlock title="Python">
-    ```python
-    # Python does not yet expose SSE metadata to callers.
-    # Use default iteration (shown above) to consume parsed data.
-    response = client.chat.stream(query="Hello")
-
-    for data in response:
-        print(data)  # parsed response object
-    ```
-  </CodeBlock>
-  <CodeBlock title="Go">
-    ```go
-    stream := client.Chat.Stream(ctx, &ChatRequest{Query: "Hello"})
-    defer stream.Close()
-
-    for {
-      event, err := stream.RecvEvent()
-      if err != nil {
-        break
-      }
-      event.Data  // parsed response object (same type as Recv)
-      event.ID    // SSE event ID (string)
-      event.Event // SSE event type (string)
-      event.Retry // SSE retry interval in ms (int)
-    }
-
-    // Track the last event ID across the stream:
-    lastID := stream.LastEventID()
-    ```
-  </CodeBlock>
-</CodeBlocks>
-
-The event ID is useful for resuming a stream via the standard `Last-Event-ID` header. Store the last received ID as you iterate, then pass it back to the server on reconnection.
-
-Default iteration is unchanged, so these methods are fully backward compatible.
+SDK users can opt into metadata-aware iteration to read the SSE protocol fields — event ID, event type, and retry interval — alongside the parsed data: `stream.withMetadata()` in TypeScript, or `RecvEvent()` with `LastEventID()` in Go. This is useful for resuming a stream via the standard `Last-Event-ID` header: store the last received ID as you iterate, then pass it back to the server on reconnection. Default iteration is unchanged, so opting in is fully backward compatible.
 
 <Note>
 Metadata access requires TypeScript SDK generator version 3.73.0+ or Go SDK generator version 1.32.0+. Python support is not yet available.
