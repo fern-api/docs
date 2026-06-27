@@ -39,75 +39,57 @@ When your API uses [server-sent events](/learn/api-definitions/openapi/endpoints
   </CodeBlock>
 </CodeBlocks>
 
+## Metadata-aware iteration
+
 SDK users can opt into metadata-aware iteration to read SSE protocol fields — event ID, event type, and retry interval — alongside the parsed data. Default iteration is unchanged, so opting in is fully backward compatible.
 
-## TypeScript
+<CodeBlocks>
+  <CodeBlock title="TypeScript">
+    ```ts
+    const stream = await client.plants.stream({ query: "fern" });
 
-`stream.withMetadata()` returns an async iterable of objects with `id`, `data`, `event`, and `retry` fields:
+    for await (const event of stream.withMetadata()) {
+      event.data   // parsed response object (same type as default iteration)
+      event.id     // SSE event ID (string | undefined)
+      event.event  // SSE event type (string | undefined)
+      event.retry  // SSE retry interval in ms (number | undefined)
+    }
+    ```
+  </CodeBlock>
+  <CodeBlock title="Python">
+    ```python
+    from my_sdk.core.http_sse import ServerSentEvent, EventSource
 
-```ts
-const stream = await client.plants.stream({ query: "fern" });
+    # ServerSentEvent is a frozen dataclass with id, data, event, and retry fields.
+    # Import it from core.http_sse to access the full SSE envelope.
+    ```
+  </CodeBlock>
+  <CodeBlock title="Go">
+    ```go
+    stream := client.Plants.Stream(ctx, &PlantRequest{Query: "fern"})
+    defer stream.Close()
 
-for await (const event of stream.withMetadata()) {
-  event.data   // parsed response object (same type as default iteration)
-  event.id     // SSE event ID (string | undefined)
-  event.event  // SSE event type (string | undefined)
-  event.retry  // SSE retry interval in ms (number | undefined)
-}
-```
+    for {
+      event, err := stream.RecvEvent()
+      if err != nil {
+        break
+      }
+      event.Data  // parsed response object (same type as Recv)
+      event.ID    // SSE event ID (string)
+      event.Event // SSE event type (string)
+      event.Retry // SSE retry interval in ms (int)
+    }
+
+    // Read the most recent event ID without consuming the next event:
+    lastID := stream.LastEventID()
+    ```
+  </CodeBlock>
+</CodeBlocks>
 
 <Note>
-Requires TypeScript SDK generator version 3.73.0+.
+`withMetadata()` requires TypeScript SDK generator version 3.73.0+. `RecvEvent()` requires Go SDK generator version 1.32.0+.
 </Note>
-
-## Go
-
-`stream.RecvEvent()` returns a `StreamEvent[T]` containing both the parsed data and SSE metadata:
-
-```go
-stream := client.Plants.Stream(ctx, &PlantRequest{Query: "fern"})
-defer stream.Close()
-
-for {
-  event, err := stream.RecvEvent()
-  if err != nil {
-    break
-  }
-  event.Data  // parsed response object (same type as Recv)
-  event.ID    // SSE event ID (string)
-  event.Event // SSE event type (string)
-  event.Retry // SSE retry interval in ms (int)
-}
-```
-
-Use `stream.LastEventID()` to read the most recently received event ID without consuming the next event. The value persists across events until reset by the server.
-
-<Note>
-Requires Go SDK generator version 1.32.0+.
-</Note>
-
-## Python
-
-The generated SDK ships a `ServerSentEvent` dataclass in `core.http_sse` with `id`, `data`, `event`, and `retry` fields. The internal `EventSource` yields these objects when iterating SSE streams:
-
-```python
-from dataclasses import dataclass
-from typing import Optional
-
-@dataclass(frozen=True)
-class ServerSentEvent:
-    event: str = "message"
-    data: str = ""
-    id: str = ""
-    retry: Optional[int] = None
-```
-
-Import `ServerSentEvent` and `EventSource` from the SDK's core module to access the full SSE envelope:
-
-```python
-from my_sdk.core.http_sse import ServerSentEvent, EventSource
-```
 
 ## Stream resumption
 
-The event ID is useful for resuming a stream via the standard `Last-Event-ID` header. Store the last received ID as you iterate, then pass it back to the server on reconnection. This requires server-side support for the `Last-Event-ID` header.
+The event ID is useful for resuming a stream via the standard `Last-Event-ID` header: store the last received ID as you iterate, then pass it back to the server on reconnection. This requires server-side support for the `Last-Event-ID` header.
