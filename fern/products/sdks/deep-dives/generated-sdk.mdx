@@ -73,9 +73,23 @@ When your API uses [server-sent events](/learn/api-definitions/openapi/endpoints
         print(data)  # parsed response object
     ```
   </CodeBlock>
+  <CodeBlock title="Go">
+    ```go
+    stream := client.Chat.Stream(ctx, &ChatRequest{Query: "Hello"})
+    defer stream.Close()
+
+    for {
+      data, err := stream.Recv()
+      if err != nil {
+        break
+      }
+      fmt.Println(data) // parsed response object
+    }
+    ```
+  </CodeBlock>
 </CodeBlocks>
 
-### Accessing SSE metadata
+### Accessing server-sent event metadata
 
 To access SSE protocol fields (event ID, event type, retry interval) alongside the parsed data, use the metadata-aware iteration methods:
 
@@ -90,6 +104,16 @@ To access SSE protocol fields (event ID, event type, retry interval) alongside t
       event.event  // SSE event type (string | undefined)
       event.retry  // SSE retry interval in ms (number | undefined)
     }
+    ```
+  </CodeBlock>
+  <CodeBlock title="Python">
+    ```python
+    # Python does not yet expose SSE metadata to callers.
+    # Use default iteration (shown above) to consume parsed data.
+    response = client.chat.stream(query="Hello")
+
+    for data in response:
+        print(data)  # parsed response object
     ```
   </CodeBlock>
   <CodeBlock title="Go">
@@ -114,12 +138,12 @@ To access SSE protocol fields (event ID, event type, retry interval) alongside t
   </CodeBlock>
 </CodeBlocks>
 
-This is useful for capturing the event ID to resume a stream later via the standard SSE `Last-Event-ID` header. Store the last received ID as you iterate, then pass it back to the server on reconnection.
+The event ID is useful for resuming a stream via the standard `Last-Event-ID` header. Store the last received ID as you iterate, then pass it back to the server on reconnection.
 
-Default iteration is unchanged in both languages, so these methods are fully backward compatible.
+Default iteration is unchanged, so these methods are fully backward compatible.
 
 <Note>
-TypeScript requires SDK generator version 3.73.0 or later. Go requires SDK generator version 1.32.0 or later.
+Metadata access requires TypeScript SDK generator version 3.73.0+ or Go SDK generator version 1.32.0+. Python support is not yet available.
 </Note>
 
 ## Webhook signature verification
