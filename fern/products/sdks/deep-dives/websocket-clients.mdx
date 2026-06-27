@@ -118,7 +118,7 @@ components:
             type: boolean
 ```
 
-Fern generates the following client code. Send methods are named `send` + the operation name from the spec — for example, the `sendReading` operation produces `sendSendReading` in TypeScript/Python/Java/Rust (C# uses overloaded `Send()` methods instead).
+Fern generates the following client code. Send methods are named `send` + the operation name from the spec — for example, the `sendReading` operation produces `sendSendReading` in TypeScript/Python/Java/Rust (C# uses overloaded `Send()` methods instead). Receive handling varies by language: TypeScript uses a generic `socket.on("message", handler)` callback, Python returns typed responses from `ws.recv()`, Java generates per-message-type handlers like `onPlantStatus(handler)`, C# exposes typed `Event<T>` properties like `PlantStatus.Subscribe(handler)`, and Rust returns a typed enum from `ws.recv()`.
 
 <Tabs>
 <Tab title="TypeScript" language="typescript">
@@ -223,7 +223,7 @@ ws.disconnect();
 </Tab>
 <Tab title="C#" language="csharp">
 
-The C# SDK generates a `PlantUpdatesApi` class implementing `IAsyncDisposable` with `Event<T>` subscriptions for typed message handling. The WebSocket client is created through the root client's factory method.
+The C# SDK generates a `PlantUpdatesApi` class implementing `IAsyncDisposable` with `Event<T>` subscriptions for typed message handling. The WebSocket client is created through the root client's factory method, which requires `BaseUrl` and channel parameters in the `Options` object.
 
 ```csharp
 var client = new PlantClient();
