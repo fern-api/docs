@@ -3,53 +3,11 @@ title: SSE metadata access
 description: Access server-sent event metadata (event ID, event type, retry interval) in Fern-generated SDKs for stream resumption and protocol-level control.
 ---
 
-When your API uses [server-sent events](/learn/api-definitions/openapi/endpoints/sse#server-sent-events), the generated SDK returns a streaming response.
-
-## Default iteration
-
-By default, iterating the stream yields parsed data objects:
-
-<CodeBlocks>
-  <CodeBlock title="TypeScript">
-    ```ts
-    const stream = await client.plants.stream({ query: "fern" });
-
-    for await (const data of stream) {
-      console.log(data); // parsed response object
-    }
-    ```
-  </CodeBlock>
-  <CodeBlock title="Python">
-    ```python
-    response = client.plants.stream(query="fern")
-
-    for data in response:
-        print(data)  # parsed response object
-    ```
-  </CodeBlock>
-  <CodeBlock title="Go">
-    ```go
-    stream := client.Plants.Stream(ctx, &PlantRequest{Query: "fern"})
-    defer stream.Close()
-
-    for {
-      data, err := stream.Recv()
-      if err != nil {
-        break
-      }
-      fmt.Println(data) // parsed response object
-    }
-    ```
-  </CodeBlock>
-</CodeBlocks>
+When your API uses [server-sent events](/learn/api-definitions/openapi/endpoints/sse#server-sent-events), iterating the generated SDK's streaming response yields parsed data objects. To also read the SSE protocol fields — event ID, event type, and retry interval — TypeScript and Go SDKs expose metadata-aware iteration, typically used to [resume a stream](#stream-resumption) by event ID.
 
 ## Metadata-aware iteration
 
-<Note>
-Dedicated metadata-aware iteration methods are available for TypeScript and Go. Python does not yet expose an equivalent method.
-</Note>
-
-Metadata-aware iteration reads SSE protocol fields — event ID, event type, and retry interval — alongside the parsed data. Default iteration is unchanged, so opting in is fully backward compatible.
+Each event exposes the parsed data alongside its protocol fields. Default iteration is unchanged, so opting in is fully backward compatible.
 
 <CodeBlocks>
   <CodeBlock title="TypeScript">
@@ -87,7 +45,7 @@ Metadata-aware iteration reads SSE protocol fields — event ID, event type, and
 </CodeBlocks>
 
 <Note>
-`withMetadata()` requires TypeScript SDK generator version 3.73.0+. `RecvEvent()` requires Go SDK generator version 1.32.0+.
+`withMetadata()` requires TypeScript SDK generator version 3.73.0+, and `RecvEvent()` requires Go SDK generator version 1.32.0+.
 </Note>
 
 ## Stream resumption
