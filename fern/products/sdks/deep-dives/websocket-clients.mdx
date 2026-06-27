@@ -5,17 +5,7 @@ description: Generate typed WebSocket clients in your SDKs for bidirectional com
 
 Fern generates typed WebSocket clients from your [AsyncAPI channel definitions](/learn/api-definitions/asyncapi/channels/pubsub). The generated clients handle connection management, typed send/receive messages, and automatic reconnection.
 
-## Language support
-
-| Language | Supported | Config flag | Notes |
-|----------|-----------|-------------|-------|
-| TypeScript | Yes | `generateWebSocketClients: true` | Reconnecting client with event handlers |
-| Python | Yes | `should_generate_websocket_clients: true` | Sync and async context managers |
-| Java | Yes | Enabled by default | — |
-| C# | Yes | `experimental-enable-websockets: true` | — |
-| Rust | Yes | `enableWebsockets: true` | — |
-| Go | Types only | — | Generates types but no WebSocket client |
-| Ruby | No | — | — |
+Fern generates WebSocket clients for TypeScript, Python, Java, C#, and Rust. Go generates types only, and Ruby is not yet supported.
 
 ## Enable WebSocket client generation
 
@@ -118,7 +108,17 @@ components:
             type: boolean
 ```
 
-Fern generates the following client code. Send methods are named `send` + the operation name from the spec — for example, the `sendReading` operation produces `sendSendReading` in TypeScript/Python/Java/Rust (C# uses overloaded `Send()` methods instead). Receive handling varies by language: TypeScript uses a generic `socket.on("message", handler)` callback, Python returns typed responses from `ws.recv()`, Java generates per-message-type handlers like `onPlantStatus(handler)`, C# exposes typed `Event<T>` properties like `PlantStatus.Subscribe(handler)`, and Rust returns a typed enum from `ws.recv()`.
+Fern generates the following client code.
+
+Send methods are named `send` + the operation name from the spec. The `sendReading` operation produces `sendSendReading` in TypeScript, Python, Java, and Rust. C# uses overloaded `Send()` methods instead.
+
+Receive handling varies by language:
+
+- **TypeScript** — a generic `socket.on("message", handler)` callback
+- **Python** — typed responses from `ws.recv()`
+- **Java** — per-message-type handlers like `onPlantStatus(handler)`
+- **C#** — typed `Event<T>` properties like `PlantStatus.Subscribe(handler)`
+- **Rust** — a typed enum from `ws.recv()`
 
 <Tabs>
 <Tab title="TypeScript" language="typescript">
