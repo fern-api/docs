@@ -7,14 +7,14 @@ Fern automatically generates and hosts a production-ready [Model Context Protoco
 
 Your MCP server is available at `your-documentation-site.com/_mcp/server`. For example, the MCP server for this site is at [https://buildwithfern.com/learn/_mcp/server](https://buildwithfern.com/learn/_mcp/server).
 
-## Connect from your docs site
+## Connect to your MCP server
 
-[Page action](/learn/docs/configuration/site-level-settings#page-actions-configuration) buttons let users connect to your MCP server in one click:
+For Claude Code and Cursor, [page action](/learn/docs/configuration/site-level-settings#page-actions-configuration) buttons let users connect in one click:
 
 - **Connect to Claude Code** copies a `claude mcp add` command to the clipboard to register the server.
 - **Connect to Cursor** opens Cursor with the server URL pre-filled for one-click install.
 
-Both buttons are enabled by default on sites with Ask Fern. For other clients (Claude Desktop, Windsurf, etc.), users can add `your-documentation-site.com/_mcp/server` to their MCP configuration.
+Both buttons are enabled by default on sites with Ask Fern.
 
 <Frame>
   <video
@@ -28,11 +28,21 @@ Both buttons are enabled by default on sites with Ask Fern. For other clients (C
   </video>
 </Frame>
 
+All other clients (including Claude Desktop, Windsurf, and VS Code) connects using the server URL directly. Add `your-documentation-site.com/_mcp/server` to your MCP configuration. For CLI clients, that looks like:
+
+```bash
+claude mcp add --transport http \
+  fern-docs https://docs.example.com/_mcp/server
+```
+
 ## Authenticated sites
 
 On sites with [authentication](/learn/docs/authentication/overview) enabled, MCP clients must include a `FERN_TOKEN` header containing a valid JWT. Without it, the server only returns publicly visible content (if any).
 
-### Get a token
+<Steps>
+<Step title="Get a token">
+
+Exchange your credentials for a JWT. The endpoint depends on how your site authenticates users.
 
 <Tabs>
   <Tab title="API key (JWT / OAuth)">
@@ -56,10 +66,11 @@ On sites with [authentication](/learn/docs/authentication/overview) enabled, MCP
     Extract the `fern_token` value from the `Set-Cookie` header in the response.
   </Tab>
 </Tabs>
+</Step>
 
-### Configure your MCP client
+<Step title="Configure your MCP client">
 
-Pass the JWT as the `FERN_TOKEN` header when registering the server. For example, in Claude Code:
+The page action buttons can't carry credentials, so register the server manually and add the JWT as a `FERN_TOKEN` header. In Claude Code:
 
 ```bash
 claude mcp add --transport http \
@@ -68,6 +79,8 @@ claude mcp add --transport http \
 ```
 
 For Cursor, VS Code, and other clients, add `FERN_TOKEN: <jwt>` to the `headers` field in your MCP server configuration if the client supports custom headers.
+</Step>
+</Steps>
 
 <Note>
   JWTs expire. Re-run the token exchange when the token lapses. There is no automatic refresh mechanism in the MCP transport.
