@@ -1,0 +1,190 @@
+---
+title: Configuration
+description: Configure CLI generation in generators.yml with generator-specific options, output targets, GitHub integration, and shared settings.
+availability: beta
+---
+
+<Note title="Early access">
+The CLI generator is in early access. [Reach out](https://buildwithfern.com/book-demo?type=cli) to get started.
+</Note>
+
+Configure the CLI generator in `generators.yml`. The configuration has two layers: generator-specific options under `config`, and shared options (`output`, `github`, `audiences`, `metadata`, `smart-casing`) that work the same way as for [SDK generators](/learn/sdks/reference/generators-yml).
+
+```yaml title="generators.yml" {6-8}
+groups:
+  cli:
+    generators:
+      - name: fern-cli-generator
+        version: 0.6.1
+        config:
+          binaryName: my-cli
+          customCommands: true
+        github:
+          repository: my-org/my-cli
+          mode: pull-request
+```
+
+## Generator-specific options
+
+<ParamField path="binaryName" type="string" toc={true}>
+Name of the compiled binary. Determines the executable filename, the Cargo `[[bin]]` target name, and the environment-variable prefix used for [TLS, proxy, and logging settings](/learn/cli-generator/get-started/features#tls-proxies-and-ca-bundles).
+
+When omitted, the generator derives the name from the API definition's display name (kebab-cased). Multi-spec workspaces must set this field explicitly — there is no sensible auto-derivation when multiple specs are present.
+
+```yaml title="generators.yml"
+config:
+  binaryName: contoso
+```
+
+The binary name `contoso` produces:
+- Executable: `contoso`
+- Env-var prefix: `CONTOSO` (e.g. `CONTOSO_CA_BUNDLE`, `CONTOSO_LOG`)
+</ParamField>
+
+<ParamField path="customCommands" type="boolean" default="true" toc={true}>
+Controls whether the generator produces the custom command infrastructure alongside the CLI binary. When enabled, the output includes:
+
+- A `<binaryName>-types` library crate (typed serde structs)
+- A `<binaryName>-sdk` library crate (HTTP client accessible via `ctx.client()`)
+- Scaffolding files for user-authored command handlers
+
+Set to `false` to produce a spec-only CLI with no custom command support.
+
+```yaml title="generators.yml"
+config:
+  customCommands: false
+```
+</ParamField>
+
+## Shared options
+
+The following options from the [generators.yml reference](/learn/sdks/reference/generators-yml) apply to the CLI generator identically to SDK generators.
+
+### `github`
+
+Specifies how generated CLI code is delivered to your repository. Supports the same [modes as SDKs](/learn/sdks/reference/generators-yml#github): `release`, `pull-request`, and `push`.
+
+```yaml title="generators.yml"
+groups:
+  cli:
+    generators:
+      - name: fern-cli-generator
+        version: 0.6.1
+        config:
+          binaryName: my-cli
+        github:
+          repository: my-org/my-cli
+          mode: release
+```
+
+| Mode | Behavior |
+| --- | --- |
+| `release` | Commits to the default branch and tags a new release. Triggers CI workflows that build and [publish](/learn/cli-generator/get-started/publishing) the binary. |
+| `pull-request` | Opens a PR with the generated source for review before merging. |
+| `push` | Pushes directly to the specified branch. Requires `branch` field. |
+
+### `output`
+
+Configures where to publish the generated CLI. The CLI generator supports `npm` and `local-file-system` output locations.
+
+<AccordionGroup>
+<Accordion title="npm">
+
+Publish the CLI as an npm package. Users install with `npm install -g @myorg/my-cli` or `npx @myorg/my-cli`.
+
+```yaml title="generators.yml"
+groups:
+  cli:
+    generators:
+      - name: fern-cli-generator
+        version: 0.6.1
+        output:
+          location: npm
+          package-name: "@myorg/my-cli"
+          token: "${NPM_TOKEN}"
+        config:
+          binaryName: my-cli
+```
+</Accordion>
+<Accordion title="Local file system">
+
+Write the generated Rust project to a local directory for manual building and distribution.
+
+```yaml title="generators.yml"
+groups:
+  cli:
+    generators:
+      - name: fern-cli-generator
+        version: 0.6.1
+        output:
+          location: local-file-system
+          path: ../my-cli
+        config:
+          binaryName: my-cli
+```
+</Accordion>
+</AccordionGroup>
+
+### `audiences`
+
+Filter which API endpoints are included in the generated CLI based on audience tags. Only endpoints tagged with the specified audiences in your API spec (via [`x-fern-audiences`](/learn/api-definitions/openapi/extensions/audiences)) produce commands. Without this filter, all endpoints generate commands.
+
+```yaml title="generators.yml"
+groups:
+  cli:
+    audiences: ["external"]
+    generators:
+      - name: fern-cli-generator
+        version: 0.6.1
+        config:
+          binaryName: my-cli
+```
+
+### `smart-casing`
+
+Enables intelligent case conversion that preserves numbers and common programming patterns in generated command and flag names.
+
+```yaml title="generators.yml"
+groups:
+  cli:
+    generators:
+      - name: fern-cli-generator
+        version: 0.6.1
+        smart-casing: true
+        config:
+          binaryName: my-cli
+```
+
+### `metadata`
+
+Attach package metadata to the generated CLI for use in published artifacts.
+
+```yaml title="generators.yml"
+groups:
+  cli:
+    generators:
+      - name: fern-cli-generator
+        version: 0.6.1
+        metadata:
+          package-description: "CLI for the Contoso API"
+          author: "Contoso Inc."
+          reference-url: "https://docs.contoso.com/cli"
+        config:
+          binaryName: contoso
+```
+
+### `api`
+
+Override authentication settings at the generator level. This uses the same schema as the [SDK generator-level `api.auth`](/learn/sdks/reference/generators-yml#override-api-authentication-settings) to control which auth schemes the CLI uses.
+
+```yaml title="generators.yml"
+groups:
+  cli:
+    generators:
+      - name: fern-cli-generator
+        version: 0.6.1
+        api:
+          auth: BearerAuth
+        config:
+          binaryName: my-cli
+```

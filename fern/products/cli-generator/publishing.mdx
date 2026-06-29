@@ -1,0 +1,104 @@
+---
+title: Publishing
+description: Distribute generated CLIs via npm, Homebrew, and GitHub Releases with automated cross-platform builds.
+availability: beta
+---
+
+<Note title="Early access">
+The CLI generator is in early access. [Reach out](https://buildwithfern.com/book-demo?type=cli) to get started.
+</Note>
+
+When the CLI generator outputs to a GitHub repository in `release` mode, Fern produces a CI workflow that builds cross-platform binaries and publishes them to npm, Homebrew, and GitHub Releases. Users install the CLI from whichever channel they prefer.
+
+## Distribution channels
+
+| Channel | Install command | Platforms |
+| --- | --- | --- |
+| npm | `npm install -g @myorg/my-cli` | All (via Node.js wrapper) |
+| Homebrew | `brew install myorg/tap/my-cli` | macOS, Linux |
+| GitHub Releases | Download binary from release assets | All |
+
+All channels are populated automatically on each tagged release — no manual publishing steps required.
+
+## Configuration
+
+Configure publishing in `generators.yml` by setting the `github` output with `mode: release` and an `output` location for npm:
+
+```yaml title="generators.yml"
+api:
+  specs:
+    - openapi: openapi.yml
+groups:
+  cli:
+    generators:
+      - name: fern-cli-generator
+        version: 0.6.1
+        github:
+          repository: my-org/my-cli
+          mode: release
+        output:
+          location: npm
+          package-name: "@myorg/my-cli"
+          token: "${NPM_TOKEN}"
+        config:
+          binaryName: my-cli
+```
+
+## How it works
+
+The generated repository includes:
+
+1. **Rust source** — the complete CLI project, ready to `cargo build`.
+2. **GitHub Actions workflow** (`.github/workflows/ci.yml`) — triggered on tagged releases. Builds native binaries for each target platform, then publishes to the configured channels.
+3. **Homebrew formula** (when GitHub releases are enabled) — a tap formula pointing at the release assets.
+
+### Build targets
+
+The CI workflow produces statically linked binaries for:
+
+| Target | OS | Architecture |
+| --- | --- | --- |
+| `x86_64-unknown-linux-gnu` | Linux | x86_64 |
+| `aarch64-unknown-linux-gnu` | Linux | ARM64 |
+| `x86_64-apple-darwin` | macOS | Intel |
+| `aarch64-apple-darwin` | macOS | Apple Silicon |
+| `x86_64-pc-windows-msvc` | Windows | x86_64 |
+
+### npm publishing
+
+The npm package wraps the native binary with a Node.js launcher. Platform-specific optional dependencies ensure only the correct binary is downloaded at install time, keeping the install lightweight.
+
+To configure npm authentication:
+
+- **Token-based**: Set a repository secret (e.g. `NPM_TOKEN`) and reference it in `generators.yml` as `"${NPM_TOKEN}"`.
+- **OIDC-based** (recommended): Set `token: OIDC` for keyless publishing with [npm provenance](https://docs.npmjs.com/generating-provenance-statements).
+
+```yaml title="generators.yml"
+output:
+  location: npm
+  package-name: "@myorg/my-cli"
+  token: OIDC
+```
+
+## Releasing a new version
+
+With `github.mode: release`, each time your API definition changes and you run `fern generate`, Fern commits the updated source to your CLI repository and tags a new release. The CI workflow triggers automatically, building and publishing the new version.
+
+For `pull-request` mode, merge the PR and manually create a GitHub release to trigger the publish workflow.
+
+## Install instructions for users
+
+After publishing, direct users to install with their preferred method:
+
+```bash
+# npm (all platforms)
+npm install -g @myorg/my-cli
+
+# Homebrew (macOS / Linux)
+brew install myorg/tap/my-cli
+
+# Direct download (any platform)
+# Download the appropriate binary from GitHub Releases
+curl -fsSL https://github.com/my-org/my-cli/releases/latest/download/my-cli-x86_64-linux -o my-cli
+chmod +x my-cli
+```

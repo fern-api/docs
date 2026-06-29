@@ -1,6 +1,6 @@
 ---
 title: Features
-description: Explore the capabilities of Fern's generated CLIs, including output formatting, pagination, dry-run mode, and TLS configuration.
+description: Explore the capabilities of Fern's generated CLIs, including output formatting, retries, pagination, dry-run mode, and TLS configuration.
 availability: beta
 ---
 
@@ -8,7 +8,7 @@ availability: beta
 The CLI generator is in early access. [Reach out](https://buildwithfern.com/book-demo?type=cli) to get started.
 </Note>
 
-Generated CLIs ship with a common set of runtime flags and environment variables: output formatting, pagination, dry-run previewing, TLS and proxy configuration, exit codes, and structured logging. APIs with templated server URLs also expose per-variable flags and environment variables.
+Generated CLIs ship with a common set of runtime flags and environment variables: output formatting, retries with exponential backoff, pagination, dry-run previewing, TLS and proxy configuration, exit codes, and structured logging. APIs with templated server URLs also expose per-variable flags and environment variables.
 
 ## Output formatting
 
@@ -35,6 +35,28 @@ Pass `--dry-run` to validate arguments and preview the HTTP request without send
 
 ```bash
 contoso plants get --params '{"plantId": "abc"}' --dry-run
+```
+
+## Retries with backoff
+
+Failed requests are retried automatically with exponential backoff. A request retries as long as the status code is retryable and the retry limit has not been reached.
+
+| Setting | Default |
+| --- | --- |
+| Total attempts | 4 (initial + 3 retries) |
+| Base delay | 500 ms |
+| Backoff factor | 2x |
+| Jitter | 10% |
+
+Retryable status codes: `408` (Timeout), `429` (Too Many Requests), and `5xx` (server errors). The CLI also honors `Retry-After` headers.
+
+Only idempotent methods (GET, HEAD, OPTIONS, DELETE, PUT) retry by default. POST and PATCH requests retry only when the endpoint is marked idempotent in the spec.
+
+Pass `--no-retry` on any command to disable retries for that invocation.
+
+```bash
+# Disable retries for a single request
+contoso plants create --json '{"name": "Monstera"}' --no-retry
 ```
 
 ## Pagination
