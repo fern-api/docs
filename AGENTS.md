@@ -190,10 +190,8 @@ Changelog entries live in `fern/products/docs/pages/changelog/` and `fern/produc
 
 ### Rules
 
-- Every entry needs tags. Apply them one of two ways:
-  - **Frontmatter `tags`** — a YAML array that tags the whole file. All headings inherit it. Use this when the file covers a single release or several closely related changes.
-  - **`<ChangelogTags>` per heading** — place the component directly under a `##` heading to tag that entry on its own. Use this when one file holds multiple unrelated releases under separate headings. A `<ChangelogTags>` marker replaces the frontmatter tags for that heading; headings without one fall back to the frontmatter tags.
-- Pick 1–4 tags from the existing set (e.g., `api-reference`, `components`, `navigation`, `customization`, `search`, `ai`, `security`, `bug-fix`). Tags are categorical — describe the area, not the feature name. The same vocabulary applies to both frontmatter and `<ChangelogTags>`.
+- Every entry needs tags. Place `<ChangelogTags>` directly under each `##` heading to tag that entry individually. For bullet-point-only files without `##` headings (rare legacy format), frontmatter `tags` is acceptable.
+- Pick 1–4 tags from the existing set (e.g., `api-reference`, `components`, `navigation`, `customization`, `search`, `ai`, `security`, `bug-fix`). Tags are categorical — describe the area, not the feature name.
 - Use `##` (h2) for each feature heading. No h1.
 - Lead with what the user can now do: "You can now..." or a direct capability statement.
 - Keep it short: 2–6 sentences per feature. Bullet points for lists of details.
@@ -207,11 +205,9 @@ Changelog entries live in `fern/products/docs/pages/changelog/` and `fern/produc
 ### Example
 
 ```mdx
----
-tags: ["security"]
----
-
 ## Password-protected pages
+
+<ChangelogTags>security</ChangelogTags>
 
 You can now restrict access to individual documentation pages with a password. Visitors see a prompt before the page content loads.
 
@@ -220,12 +216,12 @@ To configure this, go to **Settings** > **Page access** in the [Dashboard](https
 <Button intent="none" outlined rightIcon="arrow-right" href="/learn/dashboard/settings/page-access">Read the docs</Button>
 ```
 
-When a single file holds multiple releases under separate headings, tag each heading with `<ChangelogTags>` instead of frontmatter:
+When a single file holds multiple releases under separate headings, each heading gets its own `<ChangelogTags>`:
 
 ```mdx
 ## New dashboard analytics
 
-<ChangelogTags>customization, configuration</ChangelogTags>
+<ChangelogTags>integrations</ChangelogTags>
 
 Track page views and API usage from the dashboard.
 
@@ -250,7 +246,9 @@ Resolved an issue where SDK snippets failed to render for paginated endpoints.
 - Don't invent new tags when an existing one fits — this applies to `<ChangelogTags>` as much as frontmatter. A one-off tag fragments the filter bar.
 - Don't tag by feature name (`changelog`, `dark-mode`). Tag by area (`navigation`, `customization`).
 
-Prefer existing tags when possible. Common tags include: `api-reference`, `components`, `navigation`, `customization`, `configuration`, `search`, `ai`, `security`, `bug-fix`, `performance`, `writing-content`.
+Prefer existing tags when possible. Common tags include: `ai`, `api-reference`, `bug-fix`, `components`, `customization`, `developer-tools`, `integrations`, `local-development`, `navigation`, `performance`, `search`, `security`, `seo`, `writing-content`.
+
+Retired tags (do not use): `configuration` (too broad), `docs.yml` (too specific), `generators.yml` (too specific), `ai-features` (use `ai`), `fern-editor` (use `developer-tools`), `fern-check` (use `developer-tools`).
 
 ## New component pages
 
