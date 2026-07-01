@@ -246,7 +246,7 @@ Resolved an issue where SDK snippets failed to render for paginated endpoints.
 - Don't invent new tags when an existing one fits — this applies to `<ChangelogTags>` as much as frontmatter. A one-off tag fragments the filter bar.
 - Don't tag by feature name (`changelog`, `dark-mode`). Tag by area (`navigation`, `customization`).
 
-Prefer existing tags when possible. Common tags include: `ai`, `api-reference`, `bug-fix`, `components`, `customization`, `developer-tools`, `docs.yml`, `frontmatter`, `generators.yml`, `integrations`, `local-development`, `navigation`, `performance`, `search`, `security`, `seo`, `writing-content`.
+Prefer existing tags when possible. Common tags include: `ai`, `api-reference`, `bug-fix`, `components`, `customization`, `deprecated`, `developer-tools`, `docs.yml`, `frontmatter`, `generators.yml`, `integrations`, `local-development`, `navigation`, `performance`, `search`, `security`, `seo`, `writing-content`.
 
 Retired tags (do not use): `configuration` (too broad), `ai-features` (use `ai`), `fern-editor` (use `developer-tools`), `fern-check` (use `developer-tools`).
 
