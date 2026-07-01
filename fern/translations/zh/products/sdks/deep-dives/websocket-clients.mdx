@@ -1,0 +1,293 @@
+---
+title: WebSocket 客户端
+description: 在 SDK 中生成类型化的 WebSocket 客户端，支持双向通信、连接管理、类型化消息和自动重连。
+---
+
+Fern 从您的 [AsyncAPI 通道定义](/learn/api-definitions/asyncapi/channels/pubsub)生成类型化的 WebSocket 客户端。生成的客户端处理连接管理、类型化的发送/接收消息和自动重连。
+
+Fern 为 TypeScript、Python、Java、C# 和 Rust 生成 WebSocket 客户端。Go 仅生成类型，Ruby 暂不支持。
+
+## 启用 WebSocket 客户端生成
+
+在 `generators.yml` 中为相关生成器添加配置标志：
+
+<CodeBlocks>
+```yaml TypeScript
+groups:
+  ts-sdk:
+    generators:
+      - name: fernapi/fern-typescript-sdk
+        version: ...
+        config:
+          generateWebSocketClients: true
+```
+
+```yaml Python
+groups:
+  python-sdk:
+    generators:
+      - name: fernapi/fern-python-sdk
+        version: ...
+        config:
+          should_generate_websocket_clients: true
+```
+
+```yaml C#
+groups:
+  csharp-sdk:
+    generators:
+      - name: fernapi/fern-csharp-sdk
+        version: ...
+        config:
+          experimental-enable-websockets: true
+```
+
+```yaml Rust
+groups:
+  rust-sdk:
+    generators:
+      - name: fernapi/fern-rust-sdk
+        version: ...
+        config:
+          enableWebsockets: true
+```
+</CodeBlocks>
+
+Java 默认生成 WebSocket 客户端，无需额外配置。
+
+## 生成的 SDK 行为
+
+给定如下 AsyncAPI 通道定义：
+
+```yaml title="asyncapi.yml"
+asyncapi: 3.0.0
+info:
+  title: Plant Monitoring Service
+  version: 1.0.0
+channels:
+  plantUpdates:
+    address: /plants/{plant_id}/updates
+    parameters:
+      plant_id:
+        description: Plant identifier
+    messages:
+      SensorReading:
+        $ref: '#/components/messages/SensorReading'
+      PlantStatus:
+        $ref: '#/components/messages/PlantStatus'
+operations:
+  sendReading:
+    action: send
+    channel:
+      $ref: '#/channels/plantUpdates'
+    messages:
+      - $ref: '#/channels/plantUpdates/messages/SensorReading'
+  receivePlantStatus:
+    action: receive
+    channel:
+      $ref: '#/channels/plantUpdates'
+    messages:
+      - $ref: '#/channels/plantUpdates/messages/PlantStatus'
+components:
+  messages:
+    SensorReading:
+      payload:
+        type: object
+        properties:
+          temperature:
+            type: number
+          humidity:
+            type: number
+    PlantStatus:
+      payload:
+        type: object
+        properties:
+          health:
+            type: string
+          needsWater:
+            type: boolean
+```
+
+Fern 生成以下客户端代码。
+
+发送方法命名为 `send` + 规范中的操作名称。`sendReading` 操作在 TypeScript、Python、Java 和 Rust 中生成 `sendSendReading`。C# 使用重载的 `Send()` 方法。
+
+接收处理因语言而异：
+
+- **TypeScript** — 通用 `socket.on("message", handler)` 回调
+- **Python** — 来自 `ws.recv()` 的类型化响应
+- **Java** — 每种消息类型的处理器如 `onPlantStatus(handler)`
+- **C#** — 类型化的 `Event<T>` 属性如 `PlantStatus.Subscribe(handler)`
+- **Rust** — 来自 `ws.recv()` 的类型化枚举
+
+<Tabs>
+<Tab title="TypeScript" language="typescript">
+
+TypeScript SDK 生成类型化的 socket 类，带有 `send` 方法、事件处理器和自动重试断开连接的 `ReconnectingWebSocket`。
+
+```typescript
+const client = new PlantClient({ token: "..." });
+
+const socket = await client.plantUpdates.createPlantUpdatesConnection({
+  plantId: "plant-123",
+});
+
+socket.on("open", () => {
+  console.log("Connected");
+});
+
+socket.on("message", (message) => {
+  // message 类型为 PlantStatus
+  console.log(message.health);
+});
+
+socket.on("error", (error) => {
+  console.error(error);
+});
+
+socket.sendSendReading({ temperature: 22.5, humidity: 65 });
+
+socket.close();
+```
+
+</Tab>
+<Tab title="Python" language="python">
+
+Python SDK 生成同步（`contextmanager`）和异步（`asynccontextmanager`）WebSocket 客户端。
+
+**同步：**
+```python
+with client.plant_updates.create_plant_updates_connection(
+    plant_id="plant-123",
+) as ws:
+    ws.send_send_reading(SensorReading(temperature=22.5, humidity=65))
+    response = ws.recv()  # 类型为 PlantStatus
+    print(response)
+```
+
+**异步：**
+```python
+async with client.plant_updates.create_plant_updates_connection(
+    plant_id="plant-123",
+) as ws:
+    await ws.send_send_reading(SensorReading(temperature=22.5, humidity=65))
+    response = await ws.recv()
+    print(response)
+```
+
+两种客户端还支持迭代和基于事件的监听：
+
+```python
+from my_sdk.core.events import EventType
+
+# 迭代
+with client.plant_updates.create_plant_updates_connection(
+    plant_id="plant-123",
+) as ws:
+    for message in ws:
+        print(message)
+
+# 基于事件
+with client.plant_updates.create_plant_updates_connection(
+    plant_id="plant-123",
+) as ws:
+    ws.on(EventType.MESSAGE, lambda msg: print(msg))
+    ws.start_listening()
+```
+
+</Tab>
+<Tab title="Java" language="java">
+
+Java SDK 生成 `PlantUpdatesWebSocketClient`，具有基于 `CompletableFuture` 的异步连接/发送和通过 `Consumer<T>` 回调的类型化消息处理器。
+
+```java
+PlantClient client = PlantClient.builder()
+    .apiKey("...")
+    .build();
+
+PlantUpdatesWebSocketClient ws = client.plantUpdates().plantUpdatesWebSocket("plant-123");
+
+ws.onConnected(() -> System.out.println("Connected"));
+ws.onPlantStatus(status -> System.out.println(status.getHealth()));
+ws.onError(error -> error.printStackTrace());
+
+ws.connect().join();
+ws.sendSendReading(SensorReading.builder()
+    .temperature(22.5)
+    .humidity(65)
+    .build()).join();
+
+ws.disconnect();
+```
+
+</Tab>
+<Tab title="C#" language="csharp">
+
+C# SDK 生成实现 `IAsyncDisposable` 的 `PlantUpdatesApi` 类，具有用于类型化消息处理的 `Event<T>` 订阅。WebSocket 客户端通过根客户端的工厂方法创建，需要在 `Options` 对象中提供 `BaseUrl` 和通道参数。
+
+```csharp
+var client = new PlantClient();
+
+var api = client.CreatePlantUpdatesApi(new PlantUpdatesApi.Options
+{
+    BaseUrl = "wss://api.example.com",
+    PlantId = "plant-123",
+});
+
+api.Connected.Subscribe(() => Console.WriteLine("Connected"));
+api.PlantStatus.Subscribe(status => Console.WriteLine(status.Health));
+
+await api.ConnectAsync();
+await api.Send(new SensorReading { Temperature = 22.5, Humidity = 65 });
+
+await api.CloseAsync();
+```
+
+</Tab>
+<Tab title="Rust" language="rust">
+
+Rust SDK 使用 `tokio` 生成异步客户端，具有类型化的发送/接收方法和基于通道的消息流。
+
+```rust
+let mut ws = client.plant_updates
+    .create_plant_updates_connection(
+        "plant-123",
+        &PlantUpdatesConnectOptions::default(),
+    )
+    .await?;
+
+ws.send_send_reading(&SensorReading {
+    temperature: Some(22.5),
+    humidity: Some(65.0),
+}).await?;
+
+if let Some(Ok(message)) = ws.recv().await {
+    println!("{:?}", message);
+}
+
+ws.close().await?;
+```
+
+</Tab>
+</Tabs>
+
+## 身份验证
+
+在 TypeScript、Python、Java 和 Rust 中，WebSocket 客户端自动继承根客户端上配置的身份验证。头部（包括 bearer 令牌、API 密钥和自定义头部）随 WebSocket 握手请求一起发送。
+
+```typescript
+const client = new PlantClient({
+  token: "your-bearer-token",
+});
+
+// 认证头部转发到 WebSocket 握手
+const socket = await client.plantUpdates.createPlantUpdatesConnection({
+  plantId: "plant-123",
+});
+```
+
+在 C# 中，WebSocket 客户端使用包含连接 URL 和通道参数的 `Options` 对象构建。通过 `HttpInvoker` 选项或在底层客户端上设置头部来配置身份验证。
+
+## 定义 WebSocket 通道
+
+WebSocket 客户端从 [AsyncAPI 规范](/learn/api-definitions/asyncapi/overview)中的通道定义生成。有关定义通道、消息和操作的信息，请参阅[发布/订阅操作](/learn/api-definitions/asyncapi/channels/pubsub)。

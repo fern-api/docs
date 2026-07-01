@@ -1,0 +1,53 @@
+---
+title: SSE 元数据访问
+description: 在 Fern 生成的 SDK 中访问服务器发送事件元数据（事件 ID、事件类型、重试间隔），用于流恢复和协议级控制。
+---
+
+当您的 API 使用[服务器发送事件](/learn/api-definitions/openapi/endpoints/sse#server-sent-events)时，迭代生成的 SDK 流式响应会产生解析后的数据对象。要同时读取 SSE 协议字段——事件 ID、事件类型和重试间隔——TypeScript 和 Go SDK 提供了元数据感知的迭代，通常用于通过事件 ID [恢复流](#stream-resumption)。
+
+## 元数据感知迭代
+
+每个事件在其协议字段旁暴露解析后的数据。默认迭代不变，因此选择加入完全向后兼容。
+
+<CodeBlocks>
+  <CodeBlock title="TypeScript">
+    ```ts
+    const stream = await client.plants.stream({ query: "fern" });
+
+    for await (const event of stream.withMetadata()) {
+      event.data   // 解析的响应对象（与默认迭代类型相同）
+      event.id     // SSE 事件 ID（string | undefined）
+      event.event  // SSE 事件类型（string | undefined）
+      event.retry  // SSE 重试间隔（毫秒）（number | undefined）
+    }
+    ```
+  </CodeBlock>
+  <CodeBlock title="Go">
+    ```go
+    stream := client.Plants.Stream(ctx, &PlantRequest{Query: "fern"})
+    defer stream.Close()
+
+    for {
+      event, err := stream.RecvEvent()
+      if err != nil {
+        break
+      }
+      event.Data  // 解析的响应对象（与 Recv 类型相同）
+      event.ID    // SSE 事件 ID（string）
+      event.Event // SSE 事件类型（string）
+      event.Retry // SSE 重试间隔（毫秒）（int）
+    }
+
+    // 在不消费下一个事件的情况下读取最近的事件 ID：
+    lastID := stream.LastEventID()
+    ```
+  </CodeBlock>
+</CodeBlocks>
+
+<Note>
+`withMetadata()` 需要 TypeScript SDK 生成器版本 3.73.0+，`RecvEvent()` 需要 Go SDK 生成器版本 1.32.0+。
+</Note>
+
+## 流恢复
+
+事件 ID 可用于通过标准 `Last-Event-ID` 头恢复流：在迭代时存储最后收到的 ID，然后在重新连接时将其传回服务器。这需要服务器端支持 `Last-Event-ID` 头。

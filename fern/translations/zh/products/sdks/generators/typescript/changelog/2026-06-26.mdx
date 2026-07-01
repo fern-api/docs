@@ -1,0 +1,39 @@
+## 3.74.0
+**`(feat):`** 支持 SSE 流式端点中的 `resumable` 标志。当端点设置了
+`x-fern-streaming.resumable: true` 时，生成的 SDK 现在在流事件形状中包含 `resumable: true`，
+将标志传递到运行时供重连逻辑使用。添加 `stream: { reconnectionEnabled, maxReconnectionAttempts }`
+请求选项以在运行时控制重连行为。
+
+
+## 3.73.4
+**`(fix):`** 在序列化查询字符串参数时将 null 值与 undefined 同等对待。此前，对象和数组中的
+null 值被序列化为空字符串（例如 `key=`）；现在从查询字符串中省略，
+与 undefined 值的现有行为和 QueryStringBuilder API 保持一致。
+
+
+## 3.73.3
+**`(fix):`** 修复 SSE 事件解析以按照 SSE 规范在空白行上缓冲数据并产生事件。
+此前，解析器在 `data:` 行上立即产生事件，导致跟随 `data:` 行的 `id:` 和 `retry:` 字段
+被遗漏或与错误的事件关联。
+
+
+## 3.73.2
+**`(fix):`** 修复当内联路径参数（`inlinePathParameters: true`）的属性名与内联请求体属性共享时
+（例如 `{idType}` 路径参数和 `idType` 请求体字段）的请求包装器冲突。此前生成的接口
+发出重复成员，客户端从请求中解构路径参数，导致请求体属性从载荷中丢失。
+冲突的属性现在只发出一次，同时用于 URL 路径和请求体。
+
+
+**`(fix):`** 修复当配置的客户端类名（`naming.client`）与错误命名空间导出匹配时
+生成的线路测试中的命名冲突。此前客户端类导入和错误命名空间导入共享一个绑定，
+相互遮蔽使错误引用（例如 `Client.namespace.SomeError`）无法解析。
+检测到冲突时，错误命名空间现在以替代别名导入。
+同一冲突还导致根 `index.ts` 中的重复标识符（客户端类重新导出与
+`export * as <name> from "./api/index.js"` 冲突）；冲突的根客户端重新导出现在被省略
+（客户端仍可从 `./Client.js` 导入）。
+
+
+## 3.73.1
+**`(fix):`** 修复当头部示例值包含特殊字符（例如双引号或反引号）时生成的线路测试无法解析的问题。
+mock-server `.header(...)` 调用中的头部值现在通过 `JSON.stringify` 作为
+正确转义的字符串字面量发出，而不是直接插入到双引号字符串中。
