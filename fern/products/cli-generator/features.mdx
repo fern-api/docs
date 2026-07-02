@@ -8,7 +8,7 @@ availability: beta
 The CLI generator is in early access. [Reach out](https://buildwithfern.com/book-demo?type=cli) to get started.
 </Note>
 
-Generated CLIs ship with a common set of runtime flags and environment variables: output formatting, retries with exponential backoff, pagination, dry-run previewing, TLS and proxy configuration, exit codes, and structured logging. APIs with templated server URLs also expose per-variable flags and environment variables. The binary name (set via [`binaryName`](/learn/cli-generator/get-started/configuration#generator-specific-options)) determines the environment-variable prefix used by TLS, proxy, and logging settings below.
+Generated CLIs ship with a common set of runtime flags and environment variables: output formatting, retries with exponential backoff, pagination, dry-run previewing, TLS and proxy configuration, exit codes, and structured logging. APIs with templated server URLs also expose per-variable flags and environment variables. The binary name (set via [`binaryName`](/learn/cli-generator/get-started/configuration#config-options)) determines the environment-variable prefix used by TLS, proxy, and logging settings below.
 
 ## Output formatting
 
@@ -39,7 +39,7 @@ contoso plants get --params '{"plantId": "abc"}' --dry-run
 
 ## Retries with backoff
 
-Failed requests are retried automatically with exponential backoff. A request retries as long as the status code is retryable and the retry limit has not been reached.
+Failed requests are retried automatically with exponential backoff on status codes `408`, `429`, and `5xx`, honoring `Retry-After` headers.
 
 | Setting | Default |
 | --- | --- |
@@ -48,11 +48,7 @@ Failed requests are retried automatically with exponential backoff. A request re
 | Backoff factor | 2x |
 | Jitter | 10% |
 
-Retryable status codes: `408` (Timeout), `429` (Too Many Requests), and `5xx` (server errors). The CLI also honors `Retry-After` headers.
-
-Only idempotent methods (GET, HEAD, OPTIONS, DELETE, PUT) retry by default. POST and PATCH requests retry only when the endpoint is marked idempotent in the spec.
-
-Pass `--no-retry` on any command to disable retries for that invocation.
+Idempotent methods (GET, HEAD, OPTIONS, DELETE, PUT) retry by default; POST and PATCH retry only when the endpoint is marked idempotent in the spec. Pass `--no-retry` to disable retries for a single invocation.
 
 ```bash
 # Disable retries for a single request
