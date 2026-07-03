@@ -121,21 +121,9 @@ groups:
 
 </Step>
 
-<Step title="Generate the CLI">
-
-Generate the CLI to create the GitHub Actions workflow with OIDC configuration:
-
-```bash
-fern generate --group cli
-```
-
-This creates a `.github/workflows/ci.yml` file configured for OIDC npm publishing.
-
-</Step>
-
 <Step title="Create the packages on npm">
 
-OIDC can't perform a package's first publish; npm requires a package to exist before you can add a trusted publisher. Create every package with a placeholder version first.
+OIDC can't perform a package's first publish; npm requires a package to exist before you can add a trusted publisher. Create every package with a placeholder version before your first publish run.
 
 The CI workflow publishes one launcher package and one package per platform. For a package named `@myorg/my-cli`, that is:
 
@@ -175,7 +163,19 @@ Configure [trusted publishing](https://docs.npmjs.com/trusted-publishers) on npm
    - **Repository**: Your CLI repository name (e.g. `my-cli`)
    - **Workflow filename**: `ci.yml`
    - **Environment name**: Leave blank
-1. Under *Allowed actions** select **Allow `npm publish`**.
+1. Under **Allowed actions**, select **Allow `npm publish`**
+
+</Step>
+
+<Step title="Generate the CLI">
+
+Generate the CLI to create the GitHub Actions workflow with OIDC configuration:
+
+```bash
+fern generate --group cli
+```
+
+This creates a `.github/workflows/ci.yml` file configured for OIDC npm publishing. In `release` mode, it also tags a release, which triggers the first publish run over the placeholder versions.
 
 </Step>
 
@@ -191,7 +191,8 @@ Configure [trusted publishing](https://docs.npmjs.com/trusted-publishers) on npm
 
 1. Log into [npmjs.com](https://www.npmjs.com/)
 1. Click your profile picture and select **Access Tokens**
-1. Click **Generate New Token** and choose **Automation** type
+1. Click **Generate New Token** and create a [granular access token](https://docs.npmjs.com/creating-and-viewing-access-tokens)
+1. Give it **Read and Write** access to **All packages**
 1. Save your token securely
 
 </Step>
@@ -239,7 +240,7 @@ groups:
 
 How you trigger a publish depends on your `mode`:
 
-- In `release` mode, `fern generate --group cli` commits the updated source and tags a release. The tag triggers the CI workflow — no manual release step.
+- In `release` mode, `fern generate --group cli` commits the updated source and tags a release. The tag triggers the CI workflow (no manual release step).
 - In `pull-request` mode, `fern generate --group cli` opens a PR. Merge it, then create a GitHub release with a version tag (e.g. `v1.0.0`) to trigger publishing.
 
 The CI workflow then builds binaries for all platforms and publishes to npm, Homebrew, and GitHub Releases.
