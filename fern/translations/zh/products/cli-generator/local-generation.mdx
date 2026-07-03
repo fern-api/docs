@@ -1,0 +1,94 @@
+---
+title: 自托管生成
+description: 使用 Docker 在本地机器上运行 CLI 生成，而非使用 Fern 的云基础设施。
+availability: beta
+---
+
+<Note title="抢先体验">
+CLI 生成器处于抢先体验阶段。[联系我们](https://buildwithfern.com/book-demo?type=cli)开始使用。
+</Note>
+
+默认情况下，`fern generate` [在 Fern 的云基础设施上运行 CLI 生成器](/learn/cli-generator/get-started/quickstart)。传入 `--local` 可改为在本地机器上运行生成。API 定义数据不会离开您的机器：唯一的网络调用是组织验证和拉取 Docker 镜像（如果未缓存）。这适合有严格安全或合规要求、需要将规范保留在 Fern 基础设施之外的组织。
+
+## 云生成与本地生成的比较
+
+| | 云（默认） | 本地（`--local`） |
+| --- | --- | --- |
+| 基础设施 | Fern 托管 | 您的机器（Docker） |
+| 网络调用 | 规范 + 配置发送到 Fern | 仅组织验证 + 镜像拉取 |
+| 输出选项 | GitHub 仓库（release/push 模式） | 本地文件系统或 GitHub 仓库 |
+| 需要认证 | `FERN_TOKEN` 或交互式登录 | `FERN_TOKEN` |
+| 需要 Docker | 否 | 是 |
+
+## 前提条件
+
+- [Fern CLI](https://www.npmjs.com/package/fern-api) v5.37.9 或更高版本（`npm install -g fern-api`）
+- [Docker](https://docs.docker.com/get-docker/) 在您的机器上运行
+- [Rust 工具链](https://rustup.rs/)（stable）用于构建生成的输出
+- 用于组织验证的 `FERN_TOKEN`（通过 `fern token` 生成或从 [Dashboard](/learn/dashboard/configuration/api-keys) 获取）
+
+## 设置
+
+<Info>
+本页假设您已完成[快速开始](/learn/cli-generator/get-started/quickstart)，因此您的 `generators.yml` 已写入 [`local-file-system`](/learn/cli-generator/get-started/configuration#output) 输出路径。添加 `--local` 会通过 Docker 而非 Fern 的云运行相同的配置。
+</Info>
+
+<Steps>
+
+<Step title="设置 Fern 令牌">
+
+自托管生成仍需要网络调用来验证您的组织。通过 `fern token` 或从 [Fern Dashboard](/learn/dashboard/configuration/api-keys) 生成令牌，然后导出：
+
+```bash
+export FERN_TOKEN=<your-token>
+```
+
+</Step>
+
+<Step title="运行本地生成">
+
+```bash
+fern generate --group cli --local
+```
+
+CLI 拉取生成器的 Docker 镜像（首次运行后缓存），处理您的 OpenAPI 规范，并将完整的 Rust 项目写入配置的输出路径。镜像默认从 Docker Hub 拉取；您也可以从[私有注册表](#自定义容器注册表)拉取。
+
+</Step>
+
+<Step title="构建并运行">
+
+```bash
+cd ../my-cli
+cargo build
+./target/debug/my-cli --help
+```
+
+</Step>
+
+</Steps>
+
+## 自定义容器注册表
+
+默认情况下，`--local` 从 Docker Hub 拉取生成器镜像。要从私有注册表拉取，将 `name` 字段替换为 [`image`](/learn/sdks/reference/generators-yml#image) 对象：
+
+```yaml title="generators.yml" {4-6}
+groups:
+  cli:
+    generators:
+      - image:
+          name: fern-cli-generator
+          registry: ghcr.io/your-org
+        version: 0.6.1
+        output:
+          location: local-file-system
+          path: ../my-cli
+        config:
+          binaryName: my-cli
+```
+
+如果您的注册表需要身份验证，请在运行生成前登录：
+
+```bash
+echo $CR_PAT | docker login ghcr.io -u USERNAME --password-stdin
+fern generate --group cli --local
+```

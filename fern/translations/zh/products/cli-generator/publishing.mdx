@@ -1,0 +1,243 @@
+---
+title: 发布
+description: 将生成的 CLI 发布到 npm、Homebrew 和 GitHub Releases，支持自动化跨平台构建。
+availability: beta
+---
+
+<Note title="抢先体验">
+CLI 生成器处于抢先体验阶段。[联系我们](https://buildwithfern.com/book-demo?type=cli)开始使用。
+</Note>
+
+将生成的 CLI 发布到 npm、Homebrew 和 GitHub Releases。完成本页步骤后，每次标记发布都会自动构建跨平台二进制文件并发布。如需在自有基础设施上进行生成，可以[自托管生成器](/learn/cli-generator/get-started/local-generation)，而非使用 Fern 的云服务。
+
+<Info>
+本页假设您已具备：
+
+* 一个已初始化的 `fern` 文件夹，其中 `generators.yml` 已配置 CLI 生成器。参见[快速开始](/learn/cli-generator/get-started/quickstart)。
+* 一个已有的 GitHub 仓库用于存放生成的 CLI 源码，并已安装 [Fern GitHub App](https://github.com/apps/fern-api)。
+</Info>
+
+## 配置输出位置
+
+<Steps>
+
+<Step title="将输出位置设置为 npm">
+
+在 CLI 的 `group` 中，将输出位置设为 `npm`：
+
+```yaml title="generators.yml" {6-7}
+groups:
+  cli:
+    generators:
+      - name: fern-cli-generator
+        version: 0.6.1
+        output:
+          location: npm
+        config:
+          binaryName: my-cli
+```
+
+</Step>
+
+<Step title="添加唯一的包名">
+
+包名在 npm 注册表中必须唯一。
+
+```yaml title="generators.yml" {10}
+groups:
+  cli:
+    generators:
+      - name: fern-cli-generator
+        version: 0.6.1
+        output:
+          location: npm
+          package-name: "@myorg/my-cli"
+        config:
+          binaryName: my-cli
+```
+
+</Step>
+
+</Steps>
+
+## 配置 GitHub 发布
+
+Fern 通过 GitHub Actions 发布 CLI。配置 GitHub 仓库和发布模式：
+
+```yaml title="generators.yml" {11-13}
+groups:
+  cli:
+    generators:
+      - name: fern-cli-generator
+        version: 0.6.1
+        output:
+          location: npm
+          package-name: "@myorg/my-cli"
+        config:
+          binaryName: my-cli
+        github:
+          repository: my-org/my-cli
+          mode: release
+```
+
+`repository` 的所有者与您的 Fern 组织（传递给 `fern init` 的 `--organization` 值）无关。将其指向拥有目标仓库的 GitHub 用户或组织。
+
+| 模式 | 行为 |
+| --- | --- |
+| `release` | 提交到默认分支并标记发布。CI 工作流自动构建二进制文件并发布。 |
+| `pull-request` | 创建包含生成源码的 PR 供审查。合并 PR 并创建 GitHub 发布以触发发布流程。 |
+
+## 配置身份验证
+
+选择发布到 npm 时的身份验证方式。
+
+<AccordionGroup>
+<Accordion title="OIDC 身份验证（推荐）" defaultOpen={true}>
+
+基于 OIDC 的发布（可信发布）是最安全的选项。npm 信任您的 GitHub 仓库直接发布，无需管理令牌。
+
+<Steps>
+
+<Step title="在 generators.yml 中添加 OIDC">
+
+在 `output` 部分设置 `token: OIDC`：
+
+```yaml title="generators.yml" {9}
+groups:
+  cli:
+    generators:
+      - name: fern-cli-generator
+        version: 0.6.1
+        output:
+          location: npm
+          package-name: "@myorg/my-cli"
+          token: OIDC
+        config:
+          binaryName: my-cli
+        github:
+          repository: my-org/my-cli
+          mode: release
+```
+
+</Step>
+
+<Step title="生成 CLI">
+
+生成 CLI 以创建配置了 OIDC 的 GitHub Actions 工作流：
+
+```bash
+fern generate --group cli
+```
+
+这将创建一个配置了 OIDC npm 发布的 `.github/workflows/ci.yml` 文件。
+
+</Step>
+
+<Step title="在 npmjs.com 上授权您的仓库">
+
+在 npmjs.com 上配置[可信发布](https://docs.npmjs.com/trusted-publishers)：
+
+1. 在 npmjs.com 上导航到您的包设置
+1. 找到 **Trusted Publisher** 部分并点击 **Add trusted publisher**
+1. 选择 **GitHub Actions** 作为提供商
+1. 填写：
+   - **Organization or user**：您的 GitHub 用户名或组织
+   - **Repository**：您的 CLI 仓库名（例如 `my-cli`）
+   - **Workflow filename**：`ci.yml`
+   - **Environment name**：留空
+
+</Step>
+
+</Steps>
+
+</Accordion>
+
+<Accordion title="基于令牌的身份验证">
+
+<Steps>
+
+<Step title="生成 npm 令牌">
+
+1. 登录 [npmjs.com](https://www.npmjs.com/)
+1. 点击您的头像并选择 **Access Tokens**
+1. 点击 **Generate New Token** 并选择 **Automation** 类型
+1. 安全保存您的令牌
+
+</Step>
+
+<Step title="在 generators.yml 中添加令牌">
+
+在 `output` 部分设置 `token: ${NPM_TOKEN}`：
+
+```yaml title="generators.yml" {9}
+groups:
+  cli:
+    generators:
+      - name: fern-cli-generator
+        version: 0.6.1
+        output:
+          location: npm
+          package-name: "@myorg/my-cli"
+          token: ${NPM_TOKEN}
+        config:
+          binaryName: my-cli
+        github:
+          repository: my-org/my-cli
+          mode: release
+```
+
+</Step>
+
+<Step title="将 NPM_TOKEN 添加为 GitHub Actions 密钥">
+
+1. 在 GitHub 上打开您的 CLI 仓库并进入 **Settings**
+1. 导航到 **Secrets and variables** > **Actions**
+1. 点击 **New repository secret**
+1. 命名为 `NPM_TOKEN` 并粘贴您的 npm 令牌
+1. 点击 **Add secret**
+
+</Step>
+
+</Steps>
+
+</Accordion>
+
+</AccordionGroup>
+
+## 发布您的 CLI
+
+当您创建带有版本标签的 GitHub 发布时，CLI 会自动发布：
+
+1. 运行 `fern generate --group cli` 将更新的源码推送到 CLI 仓库
+1. 创建带有版本标签的 GitHub 发布（例如 `v1.0.0`）
+1. CI 工作流为所有平台构建二进制文件并发布到 npm、Homebrew 和 GitHub Releases
+
+## 构建目标
+
+CI 工作流为以下平台生成静态链接的二进制文件：
+
+| 目标 | 操作系统 | 架构 |
+| --- | --- | --- |
+| `x86_64-unknown-linux-gnu` | Linux | x86_64 |
+| `aarch64-unknown-linux-gnu` | Linux | ARM64 |
+| `x86_64-apple-darwin` | macOS | Intel |
+| `aarch64-apple-darwin` | macOS | Apple Silicon |
+| `x86_64-pc-windows-msvc` | Windows | x86_64 |
+
+npm 包使用 Node.js 启动器包装原生二进制文件。平台特定的可选依赖确保安装时仅下载正确的二进制文件。
+
+## 用户安装说明
+
+发布后，引导用户使用首选方式安装：
+
+```bash
+# npm（所有平台）
+npm install -g @myorg/my-cli
+
+# Homebrew（macOS / Linux）
+brew install myorg/tap/my-cli
+
+# 直接下载（任何平台）
+curl -fsSL https://github.com/my-org/my-cli/releases/latest/download/my-cli-x86_64-linux -o my-cli
+chmod +x my-cli
+```
