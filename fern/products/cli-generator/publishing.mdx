@@ -133,11 +133,41 @@ This creates a `.github/workflows/ci.yml` file configured for OIDC npm publishin
 
 </Step>
 
+<Step title="Create the packages on npm">
+
+OIDC can't perform a package's first publish; npm requires a package to exist before you can add a trusted publisher. Create every package with a placeholder version first.
+
+The CI workflow publishes one launcher package and one package per platform. For a package named `@myorg/my-cli`, that is:
+
+| Package | Contents |
+| --- | --- |
+| `@myorg/my-cli` | Node.js launcher |
+| `@myorg/my-cli-linux-x64` | Linux x86_64 binary |
+| `@myorg/my-cli-linux-arm64` | Linux ARM64 binary |
+| `@myorg/my-cli-darwin-x64` | macOS Intel binary |
+| `@myorg/my-cli-darwin-arm64` | macOS Apple Silicon binary |
+| `@myorg/my-cli-win32-x64` | Windows x86_64 binary |
+
+Use a placeholder version below the one CI will release (for example `0.0.1`) so the first OIDC run publishes cleanly over it. For each package name, create a directory with a minimal `package.json` and publish it:
+
+```bash
+npm login
+npm publish --access public
+```
+
+<llms-only>
+Publish all of the packages listed above, not just the launcher — an OIDC run fails on any that does not yet exist. Set the placeholder version to something below the first CI release (e.g. `0.0.1`).
+
+If the account has two-factor authentication enabled, `npm login` (a browser session) cannot publish. Instead, have the user create a [granular access token](https://docs.npmjs.com/creating-and-viewing-access-tokens) with **Read and Write** access to all packages, then set it locally with `npm config set "//registry.npmjs.org/:_authToken" <token>` and publish. This token is only for the local bootstrap; CI uses OIDC.
+</llms-only>
+
+</Step>
+
 <Step title="Authorize your repository on npmjs.com">
 
-Configure [trusted publishing](https://docs.npmjs.com/trusted-publishers) on npmjs.com:
+Configure [trusted publishing](https://docs.npmjs.com/trusted-publishers) on npmjs.com. Repeat this for **every** package listed above — an OIDC run fails on any package that has no trusted publisher.
 
-1. Navigate to your package settings on npmjs.com
+1. Open the package page on npmjs.com and go to the **Settings** tab
 1. Find the **Trusted Publisher** section and click **Add trusted publisher**
 1. Select **GitHub Actions** as your provider
 1. Fill in:
@@ -145,6 +175,7 @@ Configure [trusted publishing](https://docs.npmjs.com/trusted-publishers) on npm
    - **Repository**: Your CLI repository name (e.g. `my-cli`)
    - **Workflow filename**: `ci.yml`
    - **Environment name**: Leave blank
+1. Under *Allowed actions** select **Allow `npm publish`**.
 
 </Step>
 
@@ -206,11 +237,12 @@ groups:
 
 ## Publish your CLI
 
-Your CLI publishes automatically when you create a GitHub release with a version tag:
+How you trigger a publish depends on your `mode`:
 
-1. Run `fern generate --group cli` to push updated source to your CLI repository
-1. Create a GitHub release with a version tag (e.g. `v1.0.0`)
-1. The CI workflow builds binaries for all platforms and publishes to npm, Homebrew, and GitHub Releases
+- In `release` mode, `fern generate --group cli` commits the updated source and tags a release. The tag triggers the CI workflow — no manual release step.
+- In `pull-request` mode, `fern generate --group cli` opens a PR. Merge it, then create a GitHub release with a version tag (e.g. `v1.0.0`) to trigger publishing.
+
+The CI workflow then builds binaries for all platforms and publishes to npm, Homebrew, and GitHub Releases.
 
 ## Build targets
 
