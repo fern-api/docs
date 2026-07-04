@@ -8,7 +8,7 @@ availability: beta
 The CLI generator is in early access. [Reach out](https://buildwithfern.com/book-demo?type=cli) to get started.
 </Note>
 
-Publish your generated CLI to npm. After following the steps on this page, each tagged release builds cross-platform binaries and publishes them automatically. Homebrew and GitHub Releases distribution are coming soon. To keep generation on your own infrastructure, you can [self-host the generator](/learn/cli-generator/get-started/local-generation) instead of using Fern's cloud.
+Publish your generated CLI to npm. After following the steps on this page, each tagged release builds cross-platform binaries and publishes them automatically. To keep generation on your own infrastructure, you can [self-host the generator](/learn/cli-generator/get-started/local-generation) instead of using Fern's cloud.
 
 <Info>
 This page assumes that you have:
@@ -136,11 +136,26 @@ The CI workflow publishes one launcher package and one package per platform. For
 | `@myorg/my-cli-darwin-arm64` | macOS Apple Silicon binary |
 | `@myorg/my-cli-win32-x64` | Windows x86_64 binary |
 
-For each package name, create a directory with a minimal `package.json` and publish it:
+Run the following script to create and publish a placeholder for each package:
 
 ```bash
 npm login
-npm publish --access public
+
+PACKAGE_NAME="@myorg/my-cli"
+ACCESS="public" # or "restricted" for private packages
+
+for pkg in \
+  "$PACKAGE_NAME" \
+  "$PACKAGE_NAME-linux-x64" \
+  "$PACKAGE_NAME-linux-arm64" \
+  "$PACKAGE_NAME-darwin-x64" \
+  "$PACKAGE_NAME-darwin-arm64" \
+  "$PACKAGE_NAME-win32-x64"
+do
+  dir="$(mktemp -d)"
+  echo "{ \"name\": \"$pkg\", \"version\": \"0.0.0\" }" > "$dir/package.json"
+  npm publish "$dir" --access "$ACCESS"
+done
 ```
 
 <llms-only>
