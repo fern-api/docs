@@ -124,6 +124,40 @@ Produces `--api-version` instead of `--x-api-version`.
 
 See [Customize parameter names](/learn/api-definitions/openapi/extensions/parameter-names) for more details.
 
+## Global parameters
+
+### `x-fern-global-parameters`
+
+Registers a value that's configured once and injected into every applicable command, rather than passed on each invocation. Each declared parameter becomes a top-level `--<flag-name>` flag with its environment-variable fallback and client-side default, injected at the declared location (`body`, `query`, `header`, or `path`).
+
+```yaml title="openapi.yml"
+x-fern-global-parameters:
+  - name: currency
+    in: body
+    target: config.currency
+    env: CHANNEL3_CURRENCY
+    default: USD
+    apply: auto
+```
+
+The value resolves from the first available source: the CLI flag, then the environment variable, then the default. A per-operation parameter with the same target overrides the global.
+
+```bash
+# CLI flag takes priority
+channel3 products search --currency EUR
+
+# Otherwise falls back to the environment variable
+export CHANNEL3_CURRENCY=EUR
+channel3 products search
+
+# Otherwise sends the default (USD)
+channel3 products search
+```
+
+An `apply: auto` parameter applies to every command whose request contains the target; an `apply: explicit` parameter applies only to operations that opt in with `x-fern-global-parameter`.
+
+See [Global parameters](/learn/api-definitions/openapi/extensions/global-parameters) for the full field reference and resolution order.
+
 ## Pagination
 
 ### `x-fern-pagination`
