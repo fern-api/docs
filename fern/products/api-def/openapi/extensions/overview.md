@@ -21,6 +21,7 @@ The table below shows all available extensions and links to detailed documentati
 | [`x-fern-availability`](./availability) | Mark availability status (beta, generally-available, deprecated) |
 | [`x-fern-base-path`](./base-path) | Set base path prepended to all endpoints |
 | [`x-fern-default`](./default-values) | Set client-side default values for path, header, and query parameters |
+| [`x-fern-discriminator-context`](./discriminator-context) | Distinguish protocol-level discriminators (e.g., SSE event types) from data-level discriminators |
 | [`x-displayName`](./tag-display-names) | Specify how tag names display in your API Reference |
 | [`x-fern-enum`](./enum-descriptions-and-names) | Add descriptions, custom names, and deprecation status to enum values |
 | [`x-fern-examples`](./request-response-examples) | Associate request and response examples |

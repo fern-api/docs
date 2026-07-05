@@ -1,0 +1,103 @@
+---
+title: Discriminator context
+headline: Discriminator context (OpenAPI)
+description: Use `x-fern-discriminator-context` to distinguish protocol-level discriminators (such as SSE event types) from data-level discriminators embedded in the JSON payload.
+---
+
+The `x-fern-discriminator-context` extension tells Fern where a discriminated union's discriminator field lives: inside the data payload (`data`, the default) or at the protocol framing level (`protocol`). This distinction matters for SSE endpoints where the `event` field is part of the SSE protocol, not a property inside the `data` payload.
+
+| Value | Meaning |
+| --- | --- |
+| `data` | Discriminator is a property inside the JSON body (default) |
+| `protocol` | Discriminator is at the protocol level (e.g., the SSE `event` field) |
+
+Place `x-fern-discriminator-context` on the `discriminator` object of a `oneOf` schema.
+
+## Protocol-level discrimination (SSE)
+
+In the SSE protocol, the `event` field is part of the wire framing and isn't included in the parsed `data` payload. Setting `x-fern-discriminator-context: protocol` tells Fern and the generated SDKs that the discriminant lives outside the data, so they deserialize each variant's `data` without expecting the discriminant property to be present.
+
+```yaml {5} title="openapi.yml"
+components:
+  schemas:
+    StreamEvent:
+      discriminator:
+        propertyName: event
+        x-fern-discriminator-context: protocol
+        mapping:
+          completion: "#/components/schemas/CompletionEvent"
+          error: "#/components/schemas/ErrorEvent"
+      oneOf:
+        - $ref: "#/components/schemas/CompletionEvent"
+        - $ref: "#/components/schemas/ErrorEvent"
+
+    CompletionEvent:
+      type: object
+      properties:
+        content:
+          type: string
+
+    ErrorEvent:
+      type: object
+      properties:
+        message:
+          type: string
+        code:
+          type: integer
+```
+
+The corresponding SSE stream would look like:
+
+```
+event: completion
+data: {"content": "Hello"}
+
+event: error
+data: {"message": "Rate limited", "code": 429}
+```
+
+Without `x-fern-discriminator-context: protocol`, Fern would treat `event` as a field inside each variant's JSON body and expect it in the `data` payload.
+
+## Data-level discrimination (default)
+
+When `x-fern-discriminator-context` is omitted or set to `data`, the discriminator is a property inside the JSON body. This is standard OpenAPI discriminated-union behavior and requires no extension.
+
+```yaml title="openapi.yml"
+components:
+  schemas:
+    Plant:
+      discriminator:
+        propertyName: type
+        mapping:
+          tree: "#/components/schemas/Tree"
+          flower: "#/components/schemas/Flower"
+      oneOf:
+        - $ref: "#/components/schemas/Tree"
+        - $ref: "#/components/schemas/Flower"
+
+    Tree:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum: ["tree"]
+        height:
+          type: number
+
+    Flower:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum: ["flower"]
+        color:
+          type: string
+```
+
+## Auto-inference
+
+Fern auto-infers `protocol` context when every variant in a discriminated union uses only SSE spec fields (`event`, `data`, `id`, `retry`) with their expected types. In that case you don't need to add the extension. Use `x-fern-discriminator-context` explicitly when you want to override the inferred value or when your variant schemas don't match the SSE shape exactly.
