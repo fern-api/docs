@@ -90,6 +90,38 @@ paths:
 # ... responses and schemas
 ```
 
+### Resumable streams
+
+Set `resumable: true` to opt an SSE endpoint into [automatic reconnection](/learn/sdks/deep-dives/sse-metadata#automatic-reconnection). When the connection drops mid-stream, the generated SDK reconnects and resends the last event ID in the `Last-Event-ID` header, so a server that supports that header resumes where the stream left off.
+
+```yaml title="openapi.yml" {4-7}
+paths:
+  /logs:
+    post:
+      x-fern-streaming:
+        format: sse
+        terminator: "[DONE]"
+        resumable: true
+# ... responses and schemas
+```
+
+Configure a [`terminator`](#terminator-message) alongside `resumable`. The terminator marks a stream as complete, letting the SDK distinguish a finished stream from a dropped connection so it reconnects only on genuine drops.
+
+`resumable` is inheritable. Set it at the document level to apply to every SSE endpoint, and override it on individual operations:
+
+```yaml title="openapi.yml"
+x-fern-streaming:
+  resumable: true # applies to all SSE endpoints
+
+paths:
+  /logs:
+    post:
+      x-fern-streaming:
+        format: sse
+        resumable: false # overrides the document default
+# ... responses and schemas
+```
+
 ## `Stream` parameter
 
 It has become common practice for endpoints to have a `stream` parameter that 

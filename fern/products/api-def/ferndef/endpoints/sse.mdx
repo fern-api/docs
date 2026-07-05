@@ -69,6 +69,28 @@ types:
 
 Generated SDKs expose each event's [metadata — event ID, event type, and retry interval](/learn/sdks/deep-dives/sse-metadata) to your end users.
 
+### Resumable streams
+
+Set `resumable: true` on `response-stream` to opt an SSE endpoint into [automatic reconnection](/learn/sdks/deep-dives/sse-metadata#automatic-reconnection). When the connection drops mid-stream, the generated SDK reconnects and resends the last event ID in the `Last-Event-ID` header, so a server that supports that header resumes where the stream left off.
+
+```yaml title="chat.yml" {10}
+service:
+  base-path: /chat
+  endpoints:
+    stream:
+      method: POST
+      path: ""
+      response-stream:
+        type: Chat
+        format: sse
+        resumable: true
+
+types:
+  Chat:
+    properties:
+      text: string
+```
+
 ## `Stream` parameter
 
 It has become common practice for endpoints to have a `stream` parameter that 

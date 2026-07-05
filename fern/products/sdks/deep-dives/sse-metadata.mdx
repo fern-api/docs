@@ -51,3 +51,50 @@ Each event exposes the parsed data alongside its protocol fields. Default iterat
 ## Stream resumption
 
 The event ID is useful for resuming a stream via the standard `Last-Event-ID` header: store the last received ID as you iterate, then pass it back to the server on reconnection. This requires server-side support for the `Last-Event-ID` header.
+
+## Automatic reconnection
+
+Mark an SSE endpoint [`resumable`](/learn/api-definitions/openapi/endpoints/sse#resumable-streams) in your API definition (`x-fern-streaming.resumable: true` in OpenAPI, or `response-stream.resumable: true` in a Fern Definition) to have the SDK handle resumption for you. On a mid-stream drop, the SDK reconnects transparently, resending the last dispatched event ID in the `Last-Event-ID` header so iteration continues without gaps. No manual event-ID tracking is required.
+
+Reconnection honors the server's `retry:` directive for the reconnect delay, falling back to a 1-second default and capped at 30 seconds. The SDK retries up to 5 consecutive times by default; the counter resets whenever an event is received. Configure a [terminator](/learn/api-definitions/openapi/endpoints/sse#terminator-message) on the endpoint so the SDK can tell a completed stream from a dropped connection.
+
+Both the attempt cap and an on/off toggle are configurable per client and per request:
+
+<CodeBlocks>
+  <CodeBlock title="TypeScript">
+    ```ts {2}
+    const stream = await client.plants.stream({ query: "fern" }, {
+      stream: { reconnectionEnabled: true, maxReconnectionAttempts: 3 }
+    });
+    ```
+  </CodeBlock>
+  <CodeBlock title="Python">
+    ```python {3-4}
+    stream = client.plants.stream(
+      query="fern",
+      stream_reconnection_enabled=True,
+      max_stream_reconnection_attempts=3,
+    )
+    ```
+  </CodeBlock>
+  <CodeBlock title="Go">
+    ```go {4}
+    stream := client.Plants.Stream(
+      ctx,
+      &PlantRequest{Query: "fern"},
+      option.WithMaxStreamReconnectAttempts(3), // or option.WithoutStreamReconnection()
+    )
+    ```
+  </CodeBlock>
+  <CodeBlock title="C#">
+    ```csharp {2}
+    var stream = await client.Plants.StreamAsync(new PlantRequest { Query = "fern" }, new RequestOptions {
+      MaxStreamReconnectAttempts = 3 // set DisableStreamReconnection = true to turn off
+    });
+    ```
+  </CodeBlock>
+</CodeBlocks>
+
+<Note>
+Automatic reconnection requires TypeScript SDK generator version 3.77.0+, Python 5.15.0+, Go 1.42.0+, or C# 2.71.0+.
+</Note>
