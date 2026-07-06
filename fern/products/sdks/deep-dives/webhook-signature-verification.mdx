@@ -10,6 +10,8 @@ Fern supports two signature verification methods:
 - **Hash-based Message Authentication Code (HMAC)** — Symmetric key verification using shared secrets
 - **Asymmetric** — Public key verification using RSA, Elliptic Curve Digital Signature Algorithm (ECDSA), or Ed25519 keys
 
+Both methods support `payload-format` configuration to control which components (body, timestamp, message ID, notification URL) are included in the signed data. For asymmetric verification, configuring `payload-format` with a `timestamp` component is recommended to ensure the timestamp is cryptographically authenticated and replay protection is effective.
+
 <Note>Webhook signature verification is currently supported for TypeScript SDK generation only.</Note>
 
 ## Generated SDK behavior
@@ -37,6 +39,8 @@ app.post("/webhooks", (req, res) => {
 
 Configure signature verification in your API definition. Settings can be applied at the **document level** (inherited by all webhooks) or **per-webhook** (overrides document-level settings).
 
+<Tabs>
+<Tab title="HMAC">
 ```yaml title="openapi.yml"
 x-fern-webhook-signature:
   type: hmac
@@ -51,5 +55,23 @@ x-fern-webhook-signature:
     format: unix-seconds
     tolerance: 300
 ```
+</Tab>
+<Tab title="Asymmetric">
+```yaml title="openapi.yml"
+x-fern-webhook-signature:
+  type: asymmetric
+  header: x-webhook-signature
+  asymmetric-algorithm: ecdsa-sha256
+  encoding: base64
+  payload-format:
+    components: [timestamp, body]
+    delimiter: "."
+  timestamp:
+    header: x-webhook-timestamp
+    format: unix-seconds
+    tolerance: 300
+```
+</Tab>
+</Tabs>
 
 For full configuration details, see [Webhook signature verification in OpenAPI](/learn/api-definitions/openapi/endpoints/webhooks#signature-verification).
