@@ -1,0 +1,106 @@
+---
+title: 全局参数
+headline: 全局参数 (OpenAPI)
+description: 使用 `x-fern-global-parameters` 扩展声明在客户端级别设置一次并注入到每个相关请求中的参数
+---
+
+**全局参数**是在 SDK 客户端级别或 CLI 配置级别设置一次，并注入到每个相关请求中的值，而不是在每次调用时传递。每次调用的值始终优先于全局值。
+
+全局参数与[全局请求头](/learn/api-definitions/openapi/extensions/global-headers)不同：全局请求头始终是 header，而全局参数可以目标为 header、query 参数、path 参数或请求体中的字段。
+
+## 声明全局参数
+
+在规范的根级别使用 `x-fern-global-parameters` 扩展。每个条目声明一个参数：
+
+```yaml title="openapi.yml"
+x-fern-global-parameters:
+  - name: currency
+    in: body
+    target: config.currency
+    env: ACME_CURRENCY
+    default: USD
+    optional: true
+    apply: auto
+    docs: The currency code used for pricing.
+  - name: region
+    in: path
+    target: regionId
+    env: ACME_REGION
+    default: us
+    apply: explicit
+```
+
+### 字段
+
+<ParamField path="name" type="string" required={true}>
+  参数的规范标识符。它是生成的标志或构造函数参数的基础，也是操作用来[选择加入](#应用到特定操作)的键。
+</ParamField>
+
+<ParamField path="in" type="string" default="body">
+  值在线路上注入的位置：`body`、`query`、`header` 或 `path`。
+</ParamField>
+
+<ParamField path="target" type="string">
+  线路级注入目标。对于 `body`，是请求体中的点分路径（例如 `config.currency`）。对于 `query`、`header` 和 `path`，是参数或头名称。默认为 `name`。
+</ParamField>
+
+<ParamField path="type" type="string" default="string">
+  值类型：`string`、`integer`、`double` 或 `boolean`。
+</ParamField>
+
+<ParamField path="env" type="string">
+  当调用者未提供值时回退到的环境变量。
+</ParamField>
+
+<ParamField path="default" type="any">
+  当调用者和环境变量都未提供值时使用的客户端默认值。[`x-fern-default`](/learn/api-definitions/openapi/extensions/default-values) 优先于 `default`。
+</ParamField>
+
+<ParamField path="optional" type="boolean" default="false">
+  参数是否可以省略。没有值、默认值或环境变量的必需参数会产生错误。
+</ParamField>
+
+<ParamField path="apply" type="string" default="explicit">
+  参数如何应用于操作。`explicit` 仅应用于[选择加入](#应用到特定操作)的操作；`auto` 应用于请求中包含目标的每个操作。
+</ParamField>
+
+<ParamField path="parameter-name" type="string">
+  面向 SDK/CLI 的别名。设置后，此名称用于生成的标志或构造函数参数，而不是 `name`。
+</ParamField>
+
+## 应用到特定操作
+
+当参数使用 `apply: explicit`（默认值）时，它仅应用于通过每个操作的 `x-fern-global-parameter` 扩展选择加入的操作。列出要包含的参数名称。该值接受单个字符串或列表：
+
+```yaml title="openapi.yml" {4-6,12}
+paths:
+  /v1/products/{regionId}/search:
+    post:
+      x-fern-global-parameter:
+        - region
+        - currency
+      operationId: searchProducts
+      # ...
+  /v1/products/{regionId}/{productId}:
+    get:
+      x-fern-global-parameter: region
+      operationId: getProduct
+      # ...
+```
+
+每个名称必须匹配 `x-fern-global-parameters` 中声明的参数。使用 `apply: auto` 的参数会注入到请求中包含其目标的每个操作中，无需选择加入。
+
+## 解析顺序
+
+在运行时，值按以下顺序从第一个可用来源解析：
+
+1. 每次调用的值（每个操作的参数或显式请求字段）——始终优先。
+2. CLI 标志或构造函数参数。
+3. 环境变量（`env`）。
+4. 客户端默认值（`x-fern-default`，然后是 `default`）。
+
+对于带有嵌套 `target` 的 `body` 参数，调用者已在该路径提供的值永远不会被覆盖。
+
+## 生成的 CLI 行为
+
+[CLI 生成器](/learn/cli-generator/get-started/openapi-extensions#global-parameters)将每个全局参数注册为顶级标志（带有其 `env` 回退和 `default`），并将解析后的值注入到每个适用命令的声明位置。
