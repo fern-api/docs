@@ -195,9 +195,9 @@ Changelog entries live in `fern/products/docs/pages/changelog/` and `fern/produc
 - Use `##` (h2) for each feature heading. No h1.
 - Lead with what the user can now do: "You can now..." or a direct capability statement.
 - Keep it short: 2–6 sentences per feature. Bullet points for lists of details.
-- End each feature section with a Button linking to the relevant docs page:
+- End each feature section with a Button linking to the relevant docs page. When the feature is documented in a specific section of a page, link to that section anchor rather than the page top:
 ```mdx
-  <Button intent="none" outlined rightIcon="arrow-right" href="/learn/docs/section/page">Read the docs</Button>
+  <Button intent="none" outlined rightIcon="arrow-right" href="/learn/docs/section/page#feature-section">Read the docs</Button>
 ```
 - For dashboard entries, include a path to the feature in the UI before the Button.
 - Follow the link rules above — Button `href` values use `/learn/...` URL paths from the YAML config.
