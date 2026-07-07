@@ -65,3 +65,35 @@ paths:
             type: string
           required: false
 ```
+
+## Resolve naming conflicts
+
+`fern check` errors when a path parameter shares a name with another request property —
+an inlined request body property, query parameter, or header — including collisions that
+only appear after camelCase normalization. Rename one of the parameters with
+`x-fern-parameter-name` to resolve the conflict.
+
+In the example below, the path parameter `plantId` collides with the `plantId` property in
+the request body. Renaming the path parameter to `id` deconflicts the two names.
+
+```yaml {8}
+paths:
+  "/plants/{plantId}":
+    post:
+      operationId: update_plant
+      parameters:
+        - in: path
+          name: plantId
+          x-fern-parameter-name: id
+          schema:
+            type: string
+          required: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                plantId:
+                  type: string
+```
