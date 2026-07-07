@@ -25,25 +25,37 @@ Navigate to the [Fern Dashboard](https://dashboard.buildwithfern.com/) and selec
 
 <Step title="Add your custom domain">
 
-In the **Domains** section of the **Overview** tab, select **Add Custom Domain** and enter your domain. The dashboard displays the DNS records you need to configure.
+In the **Domains** section of the **Overview** tab, select **Add Custom Domain** and enter your domain.
+</Step>
 
+<Step title="Verify domain ownership">
+
+The Dashboard displays TXT records to prove you control the domain. Add them at your domain registrar:
+
+- A `_fern-verification` TXT record to confirm domain ownership.
+- If the apex domain is already linked to another Vercel account, a `_vercel` TXT record for Vercel ownership verification.
+
+After the records propagate, click **Verify Ownership** in the Dashboard. Verification completes once both the Fern TXT and the Vercel ownership check pass.
 </Step>
 
 <Step title="Update the domain in `docs.yml`">
 
-Add your `custom-domain` to your `docs.yml` configuration:
+Add your `custom-domain` to your `docs.yml` configuration, then run `fern generate --docs`:
 
 ```yaml docs.yml
 instances:
   - url: example.docs.buildwithfern.com
     custom-domain: docs.mydomain.com
 ```
-
 </Step>
 
 <Step title="Configure DNS records">
 
-Log in to your domain registrar and add the DNS records shown in the Fern Dashboard. The specific records depend on your domain type (subdomain, subpath, or root domain).
+Log in to your domain registrar and add the DNS records shown in the Dashboard. The records depend on your domain type:
+
+- **Subdomain** (`docs.mydomain.com`): CNAME record pointing to `cname.vercel-dns.com`
+- **Root domain** (`mydomain.com`): A record pointing to `76.76.21.21`, plus a CNAME for `www` pointing to `cname.vercel-dns.com`
+- **Subpath** (`mydomain.com/docs`): requires a [reverse proxy](/learn/docs/preview-publish/reverse-proxy) instead of DNS records
 </Step>
 
 <Step title="Set up a reverse proxy (subpath only)">
@@ -53,11 +65,21 @@ Subpath hosting needs more than DNS — your infrastructure has to forward reque
 
 <Step title="Verify the setup">
 
-Once you've added the DNS records, return to the Fern Dashboard to verify your domain. SSL is automatically provisioned for your domain, but it may take a few minutes to propagate globally.
+Once DNS propagates, the Dashboard shows the domain as active. SSL is automatically provisioned for your domain, but propagation can take up to 10 minutes.
 
-<Tip>Check that you can access your new docs site from a mobile device or incognito browser.</Tip>
+<Tip>Access your docs site from an incognito browser or mobile device to confirm.</Tip>
 </Step>
 </Steps>
+
+## Troubleshooting
+
+### Vercel error page after pointing DNS
+
+A Vercel error page with an error ID like `cdg1::...` (often `DEPLOYMENT_NOT_FOUND`) means DNS is pointing to Vercel but domain ownership verification has not completed. Confirm both TXT records are in place, wait for propagation, and click **Verify Ownership** again.
+
+### SSL certificate not provisioning
+
+If the certificate doesn't appear within 10 minutes after verification, confirm the CNAME or A record values are correct. If using Cloudflare, disable proxying (set the record to DNS-only) so Vercel can issue the certificate.
 
 ## Multi-source settings
 
