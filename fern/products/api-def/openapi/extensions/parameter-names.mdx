@@ -65,3 +65,37 @@ paths:
             type: string
           required: false
 ```
+
+## Resolve naming collisions
+
+A path parameter can't share a name with another request property (a body property, query parameter, or header), including after camelCase normalization. `fern check` reports these collisions:
+
+```
+Multiple request properties have the name plantId. This is not suitable for code generation. Use the "name" property to deconflict.
+  - Path parameter "plantId"
+  - Body property: PlantUpdate -> plantId
+```
+
+Set `x-fern-parameter-name` on the path parameter to rename it and resolve the collision.
+
+```yaml {8}
+paths:
+  "/plants/{plantId}":
+    patch:
+      operationId: update_plant
+      parameters:
+        - in: path
+          name: plantId
+          x-fern-parameter-name: id
+          schema:
+            type: string
+          required: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                plantId:
+                  type: string
+```
