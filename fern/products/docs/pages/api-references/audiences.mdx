@@ -22,6 +22,56 @@ navigation:
 
 Here's [an example from Schematic](https://github.com/SchematicHQ/schematic-fern-config/blob/e19f5ea69a343727ed018e79127bf4fd20ad0f7b/fern/docs.yml#L128-L129) in production.
 
+## Hide a single field from your API Reference
+
+To hide one property (for example, an `internalNotes` field on a `Plant` response) from your API Reference, pick an approach based on whether the field should still ship in your SDKs.
+
+### Remove the field with an overlay (recommended)
+
+An [OpenAPI overlay](/learn/api-definitions/openapi/overlays) deletes the property from the spec that renders your docs without editing your source spec. This works on any plan. Target the property with `remove: true`:
+
+```yaml title="overlays.yml"
+overlay: 1.0.0
+info:
+  title: Hide internal fields from docs
+  version: 1.0.0
+actions:
+  - target: $.components.schemas.Plant.properties.internalNotes
+    remove: true
+```
+
+Reference the overlay from a docs-only `generators.yml` so the field still ships in your SDKs:
+
+```yaml title="docs/generators.yml"
+api:
+  specs:
+    - openapi: ../openapi.yml
+      overlays: overlays.yml
+```
+
+<Warning>
+Fern requires parentheses around JSONPath filter expressions. Use `[?(@.name == 'plantId')]` instead of `[?@.name == 'plantId']`.
+</Warning>
+
+### Tag the field with an audience
+
+Tag the property with [`x-fern-audiences`](/learn/api-definitions/openapi/extensions/audiences), then leave that audience out of the `audiences` filter shown above. Unlike an overlay, an audience tag also segments the field across your SDKs, which are filtered separately in `generators.yml`.
+
+```yaml title="openapi.yml" {7-8}
+components:
+  schemas:
+    Plant:
+      properties:
+        internalNotes:
+          type: string
+          x-fern-audiences:
+            - internal
+```
+
+<Note>
+`x-fern-availability` does not hide a field. It only renders an [availability badge](/learn/api-definitions/openapi/extensions/availability) (Alpha, Beta, Deprecated, and so on) next to the property.
+</Note>
+
 ## Instance audiences
 
 API Reference audiences work alongside [instance audiences](/docs/configuration/products#add-instance-audiences), which control which products and versions appear in each documentation instance. You can use both features together:
