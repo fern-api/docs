@@ -27,6 +27,28 @@ Integrate PostHog to track user behavior and analytics in your documentation, in
 
 	</Step>
 
+	<Step title="Set the API key in CI">
+
+		At publish time, Fern resolves `${POSTHOG_API_KEY}` from an environment variable, not from your GitHub secrets directly. Expose the GitHub secret in the `env:` block of your [publish workflow](/learn/docs/preview-publish/publishing-your-docs#publish-to-production) step:
+
+		<CodeBlock title=".github/workflows/publish-docs.yml">
+		```yaml
+		      - name: Publish Docs
+		        env:
+		          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+		          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+		        run: fern generate --docs
+		```
+		</CodeBlock>
+
+		The GitHub secret name, the `env:` key, and the `${...}` token in `docs.yml` must match exactly.
+
+		<Warning>
+		Adding the secret in GitHub's UI does nothing on its own. Without the `env:` mapping, `${POSTHOG_API_KEY}` resolves to nothing and the publish fails with `Environment variable POSTHOG_API_KEY is not defined`. An organization-level secret must also list this repository in its repository access; repository-level secrets override organization-level ones.
+		</Warning>
+
+	</Step>
+
 	<Step title="(Optional) Configure a custom endpoint">
 
 		If you use a custom PostHog endpoint, add it to your configuration:
