@@ -19,6 +19,20 @@ Keep prose dry and direct. State requirements and behavior plainly.
 - **Avoid em dash overuse.** At most one em dash per short paragraph. Before reaching for a second dash, try a colon (for a list or expansion) or parentheses (for an aside). Multiple dashes in close succession read as AI-generated.
 - **No conversational framing in callouts and step descriptions.** "Localization requires the latest CLI version" beats "Localization is under active development, so make sure you're on the latest CLI before configuring it."
 
+## Callouts
+
+Before adding any callout — `<Note>`, `<Warning>`, `<Tip>`, `<Info>`, or similar — first evaluate whether the information integrates cleanly into the surrounding prose. Prose is the default; a callout is the exception. This check applies to every callout, not just when one would end up next to another.
+
+Reach for a callout only when the information is a genuine aside: a real but secondary consideration that would break the main flow if inlined. If the content is part of the narrative — the reason an instruction matters, a consequence of a step, a condition on the thing just stated — it belongs in the prose that makes that point.
+
+- If a callout explains *why* an instruction matters, merge it into the sentence that gives the instruction.
+- If a callout restates or qualifies a nearby statement, fold it into that statement.
+- Never split one idea across a sentence and a callout, or across two callouts.
+
+**Never stack two callouts back-to-back.** A callout must not be immediately adjacent to another callout — they need body prose between them. When two would end up adjacent, at least one of them almost always fails the integration check above: inline it. If two genuinely separate asides remain, keep only the stronger one as a callout.
+
+A single well-chosen callout earns attention; a callout that could have been a sentence dilutes it, and two side by side cancel each other out.
+
 ## Link checking
 
 Internal links between documentation pages use **URL paths built from the YAML config**, not file paths on disk or relative paths.
