@@ -24,38 +24,7 @@ Here's [an example from Schematic](https://github.com/SchematicHQ/schematic-fern
 
 ## Hide a single field from your API Reference
 
-To hide one property (for example, an `internalNotes` field on a `Plant` response) from your API Reference, pick an approach based on whether the field should still ship in your SDKs.
-
-### Remove the field with an overlay (recommended)
-
-An [OpenAPI overlay](/learn/api-definitions/openapi/overlays) deletes the property from the spec that renders your docs without editing your source spec. This works on any plan. Target the property with `remove: true`:
-
-```yaml title="overlays.yml"
-overlay: 1.0.0
-info:
-  title: Hide internal fields from docs
-  version: 1.0.0
-actions:
-  - target: $.components.schemas.Plant.properties.internalNotes
-    remove: true
-```
-
-Reference the overlay from a docs-only `generators.yml` so the field still ships in your SDKs:
-
-```yaml title="docs/generators.yml"
-api:
-  specs:
-    - openapi: ../openapi.yml
-      overlays: overlays.yml
-```
-
-<Warning>
-Fern requires parentheses around JSONPath filter expressions. Use `[?(@.name == 'plantId')]` instead of `[?@.name == 'plantId']`.
-</Warning>
-
-### Tag the field with an audience
-
-Tag the property with [`x-fern-audiences`](/learn/api-definitions/openapi/extensions/audiences), then leave that audience out of the `audiences` filter shown above. Unlike an overlay, an audience tag also segments the field across your SDKs, which are filtered separately in `generators.yml`.
+To hide one property, for example an `internalNotes` field on a `Plant` response, tag it with [`x-fern-audiences`](/learn/api-definitions/openapi/extensions/audiences) and leave that audience out of the `audiences` filter shown above. The field also segments across your SDKs, which are filtered separately in `generators.yml`.
 
 ```yaml title="openapi.yml" {7-8}
 components:
@@ -68,9 +37,9 @@ components:
             - internal
 ```
 
-<Note>
+To remove the field from your docs entirely while keeping it in your SDKs, delete it from the docs spec with an [OpenAPI overlay](/learn/api-definitions/openapi/overlays). To drop it from every Fern output, including docs, SDKs, and the CLI, mark it with [`x-fern-ignore`](/learn/api-definitions/openapi/extensions/ignoring-elements).
+
 `x-fern-availability` does not hide a field. It only renders an [availability badge](/learn/api-definitions/openapi/extensions/availability) (Alpha, Beta, Deprecated, and so on) next to the property.
-</Note>
 
 ## Instance audiences
 
