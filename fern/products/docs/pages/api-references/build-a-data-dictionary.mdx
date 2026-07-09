@@ -1,0 +1,82 @@
+---
+title: Build a data dictionary
+description: Document your data models as a browsable, searchable field reference in your docs.
+---
+
+A data dictionary is a browsable reference for your data models: one entry per model that lists each field, its type, whether it's required, and what it means. Fern builds this reference from the components you already use for API documentation. Two approaches cover most cases:
+
+- **Spec-driven**, when your data models can be expressed as types in an API definition. Field tables stay in sync with the source of truth.
+- **Manual authoring**, when there's no spec to draw from.
+
+## Spec-driven reference
+
+When your data models are defined as types in an [OpenAPI specification](/learn/api-definitions/openapi/overview) (`components.schemas`) or a [Fern Definition](/learn/api-definitions/fern/overview), configure that API in your [`docs.yml`](/learn/docs/api-references/overview) and surface any type in prose with the [`<Schema>`](/learn/docs/writing-content/components/schema) component. Pair it with [`<SchemaSnippet>`](/learn/docs/writing-content/components/schema-snippet) to show the JSON representation alongside the field-by-field breakdown:
+
+```jsx Markdown
+<SchemaSnippet type="Plant" title="The Plant object" />
+
+<Schema type="Plant" />
+```
+
+The rendered field table stays in sync with the type definition, and both components emit structured content in the [Markdown version](/learn/docs/ai-features/markdown) of the page for AI agents.
+
+Control which fields appear with the `include`, `exclude`, and `excludeDeprecated` props, and set `description={true}` to render the type's own description above its fields:
+
+```jsx Markdown
+{/* Show only these fields */}
+<Schema type="Plant" include={["id", "species"]} />
+
+{/* Show every field except these */}
+<Schema type="Plant" exclude={["internalNotes"]} />
+```
+
+To document a single endpoint's request or response shape rather than a named type, use [`<EndpointSchemaSnippet>`](/learn/docs/writing-content/components/endpoint-schema-snippet) with a `selector`.
+
+<Note>
+  `<Schema>` and `<SchemaSnippet>` only discover types referenced by endpoints. Types used exclusively by websockets or webhooks aren't available. If multiple APIs share a type name, the first match wins; set the `api` prop to disambiguate.
+</Note>
+
+## Manual authoring
+
+Without a spec to draw from, author field definitions by hand.
+
+Use [`<ParamField>`](/learn/docs/writing-content/components/parameter-fields) for individual fields. It formats the name, type, required flag, default, and description consistently, and supports `deprecated`:
+
+```jsx Markdown
+<ParamField path="species" type="string" required={true}>
+  The plant's botanical name.
+</ParamField>
+
+<ParamField path="wateringDays" type="number" default="7">
+  Days between waterings.
+</ParamField>
+```
+
+For a model with many fields that readers scan or search, use a [table](/learn/docs/writing-content/components/tables). `<SearchableTable>` adds a filter input, `<StickyTable>` keeps the header visible while scrolling, and `<StickySearchableTable>` combines both:
+
+```jsx Markdown
+<SearchableTable>
+| Field | Type | Description |
+|-------|------|-------------|
+| id | string | Unique identifier for the plant. |
+| species | string | The plant's botanical name. |
+| light | enum | Light requirement: `low`, `indirect`, or `direct`. |
+</SearchableTable>
+```
+
+## Organize a large data dictionary
+
+For a dictionary spanning many models, give each model its own page and link them from a hub page with a [`<CardGroup>`](/learn/docs/writing-content/components/cards):
+
+```jsx Markdown
+<CardGroup cols={2}>
+  <Card title="Plant" icon="fa-duotone fa-seedling" href="/learn/docs/data/plant">
+    Fields for a single plant record.
+  </Card>
+  <Card title="Garden" icon="fa-duotone fa-fence" href="/learn/docs/data/garden">
+    Fields for a collection of plants.
+  </Card>
+</CardGroup>
+```
+
+Group the model pages under a [section or tab](/learn/docs/navigation) in your navigation YAML so readers can browse the full dictionary from the sidebar.
