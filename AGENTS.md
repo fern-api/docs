@@ -18,6 +18,7 @@ Keep prose dry and direct. State requirements and behavior plainly.
 - **Cut connective filler.** "so that", "in order to", "be sure to" when a flat sentence works.
 - **Avoid em dash overuse.** At most one em dash per short paragraph. Before reaching for a second dash, try a colon (for a list or expansion) or parentheses (for an aside). Multiple dashes in close succession read as AI-generated.
 - **No conversational framing in callouts and step descriptions.** "Localization requires the latest CLI version" beats "Localization is under active development, so make sure you're on the latest CLI before configuring it."
+- **No positional references.** Don't write "as shown above", "shown below", "the example above", or anything that makes the reader scroll to another part of the page to follow the sentence. Name the thing concretely instead: "filter to `public` in `docs.yml`", not "filter to `public` as shown above". These break for readers who land mid-page and read as filler.
 
 ## Callouts
 
