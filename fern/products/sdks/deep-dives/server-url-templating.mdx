@@ -6,14 +6,28 @@ description: Configure server URL templating in Fern SDKs to support dynamic bas
 
 Server URL templating lets you define base URLs with variable placeholders (e.g., `{region}`, `{environment}`) that SDK users can customize at runtime. This is useful for APIs deployed across multiple regions, environments, or custom domains.
 
-<Note>URL templating is currently supported for Python and Java SDK generation only.</Note>
+Server URL templating is supported for TypeScript, Python, Java, Go, C#, PHP, and Ruby SDK generation.
 
 ## Generated SDK behavior
 
-Fern generates an environments module that exposes the default URLs for each named server. SDK users can select a pre-defined environment or pass custom URL strings.
+Fern generates an environments module that exposes the default URLs for each named server. SDK users can select a pre-defined environment, set URL variables through client options, or pass custom URL strings. Variable names that conflict with existing client options use a `serverUrl` prefix in the language's casing convention, such as `serverUrlEnvironment`.
 
 <Tabs>
-<Tab title="Python">
+<Tab title="TypeScript" language="typescript">
+
+SDK users can set URL variables when constructing the client:
+
+```typescript
+import { MyApiClient } from "my-api";
+
+const client = new MyApiClient({
+  region: "eu-west-1",
+  serverUrlEnvironment: "staging",
+});
+```
+</Tab>
+
+<Tab title="Python" language="python">
 
 The generated SDK exposes an `Environment` class:
 
@@ -49,7 +63,7 @@ client = MyApiClient(
 ```
 </Tab>
 
-<Tab title="Java">
+<Tab title="Java" language="java">
 
 The generated SDK exposes an `Environment` class:
 
@@ -87,11 +101,69 @@ MyApiClient client = MyApiClient.builder()
     .build();
 ```
 </Tab>
+
+<Tab title="Go" language="go">
+
+SDK users can set URL variables with functional options:
+
+```go
+import (
+    myapi "github.com/example/my-api/client"
+    "github.com/example/my-api/option"
+)
+
+client := myapi.NewClient(
+    option.WithRegion("eu-west-1"),
+    option.WithServerURLEnvironment("staging"),
+)
+```
+</Tab>
+
+<Tab title="C#" language="csharp">
+
+SDK users can set URL variables through `ClientOptions`:
+
+```csharp
+using MyApi;
+
+var client = new MyApiClient(new ClientOptions
+{
+    Region = "eu-west-1",
+    ServerUrlEnvironment = "staging",
+});
+```
+</Tab>
+
+<Tab title="PHP" language="php">
+
+SDK users can set URL variables as named constructor arguments:
+
+```php
+use MyApi\MyApiClient;
+
+$client = new MyApiClient(
+    region: 'eu-west-1',
+    serverUrlEnvironment: 'staging',
+);
+```
+</Tab>
+
+<Tab title="Ruby" language="ruby">
+
+SDK users can set URL variables as keyword arguments:
+
+```ruby
+client = MyApi::Client.new(
+  region: "eu-west-1",
+  server_url_environment: "staging"
+)
+```
+</Tab>
 </Tabs>
 
 ## Setting up server URL templating
 
-Define URL template variables in your API definition and provide a static fallback URL for SDK users who don't customize variables:
+Define URL template variables in your API definition and provide a static fallback URL when SDK users don't customize variables:
 
 ```yaml title="openapi.yml"
 servers:
