@@ -211,6 +211,33 @@ Allow specifying arbitrary configuration to your packages `pyproject.toml` by ad
 When enabled, skips code formatting (like black) on the generated Python code.
 </ParamField>
 
+<ParamField path="tcp_keepalive" type="object" default="{}" required={false} toc={true}>
+Opt in to platform-guarded TCP keepalive on the generated default `httpx` transport. Disabled by default, so existing generated SDKs are unchanged. When enabled, the transport applies `SO_KEEPALIVE` plus best-effort per-platform idle, interval, and probe-count settings, so long, non-streaming requests survive idle-connection reaping by a firewall or load balancer.
+
+```yaml
+config:
+  tcp_keepalive:
+    enabled: true
+    idle_seconds: 60
+    interval_seconds: 30
+    count: 5
+```
+
+Requires `httpx>=0.25`. A user-supplied `httpx_client`, or a `custom_transport` `http_client`, always takes precedence over the keepalive default, which only affects the generated default transport.
+</ParamField>
+<ParamField path="tcp_keepalive.enabled" type="bool" default="false" required={false}>
+  Whether to enable TCP keepalive on the generated default transport.
+</ParamField>
+<ParamField path="tcp_keepalive.idle_seconds" type="number" default="60" required={false}>
+  Seconds a connection is idle before the first keepalive probe.
+</ParamField>
+<ParamField path="tcp_keepalive.interval_seconds" type="number" default="30" required={false}>
+  Seconds between keepalive probes.
+</ParamField>
+<ParamField path="tcp_keepalive.count" type="number" default="5" required={false}>
+  Number of failed probes before the connection is dropped.
+</ParamField>
+
 <ParamField path="timeout" type="number | 'infinity'" default="60" required={false} toc={true}>
   Sets the client timeout in seconds, or `infinity` to disable timeouts.
 </ParamField>
