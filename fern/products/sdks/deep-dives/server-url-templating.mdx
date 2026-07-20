@@ -6,29 +6,72 @@ description: Configure server URL templating in Fern SDKs to support dynamic bas
 
 Server URL templating lets you define base URLs with variable placeholders (e.g., `{region}`, `{environment}`) that SDK users can customize at runtime. This is useful for APIs deployed across multiple regions, environments, or custom domains.
 
-<Note>URL templating is currently supported for Python and Java SDK generation only.</Note>
+Server URL templating is supported for TypeScript, Python, Java, Go, C#, PHP, and Ruby SDK generation.
 
 ## Generated SDK behavior
 
-Fern generates an environments module that exposes the default URLs for each named server. SDK users can select a pre-defined environment or pass custom URL strings.
+Fern generates an environments module that exposes the default URLs for each named server. SDK users can select a pre-defined environment, set URL variables through client options, or pass custom URL strings. Variable names that conflict with existing client options use a `serverUrl` prefix in the language's casing convention, such as `serverUrlEnvironment`.
 
 <Tabs>
-<Tab title="Python">
+<Tab title="TypeScript" language="typescript">
+
+The generated SDK exposes an `Environment` object:
+
+```typescript title="environments.ts"
+export const MyApiEnvironment = {
+    RegionalApiServer: {
+        base: "https://api.example.com/v1",
+        auth: "https://auth.example.com",
+    },
+} as const;
+```
+
+SDK users can select an environment, set URL variables, or pass a custom base URL when constructing the client:
+
+```typescript
+import { MyApiClient } from "my-api";
+
+// Use the default environment
+// → https://api.example.com/v1
+const client = new MyApiClient();
+
+// Target a specific region and environment via URL variables
+// → https://api.eu-west-1.staging.example.com/v1
+const client = new MyApiClient({
+  region: "eu-west-1",
+  serverUrlEnvironment: "staging",
+});
+
+// Or route all requests to a custom base URL
+// → https://api.us-west-2.staging.example.com/v1
+const client = new MyApiClient({
+  baseUrl: "https://api.us-west-2.staging.example.com/v1",
+});
+```
+</Tab>
+
+<Tab title="Python" language="python">
 
 The generated SDK exposes an `Environment` class:
 
 ```python title="environment.py"
 class MyApiEnvironment:
-    REGIONAL_API_SERVER = {
-        "base": "https://api.example.com/v1",
-        "auth": "https://auth.example.com",
-    }
+    REGIONAL_API_SERVER: MyApiEnvironment
+
+    def __init__(self, *, base: str, auth: str):
+        self.base = base
+        self.auth = auth
+
+
+MyApiEnvironment.REGIONAL_API_SERVER = MyApiEnvironment(
+    base="https://api.example.com/v1", auth="https://auth.example.com"
+)
 ```
 
-SDK users can override the base URL when constructing the client:
+SDK users can select an environment, set URL variables, or pass a custom environment when constructing the client:
 
 ```python
-from my_api import MyApiClient
+from my_api import MyApiClient, MyApiEnvironment
 
 # Use the default environment
 # → https://api.example.com/v1
@@ -38,18 +81,20 @@ client = MyApiClient()
 # → https://api.eu-west-1.staging.example.com/v1
 client = MyApiClient(
     region="eu-west-1",
-    environment="staging",
+    server_url_environment="staging",
 )
 
-# Or provide a custom base URL
-# → https://api.us-west-2.staging.example.com/v1
+# Or provide custom URLs
 client = MyApiClient(
-    base_url="https://api.us-west-2.staging.example.com/v1",
+    environment=MyApiEnvironment(
+        base="https://api.us-west-2.staging.example.com/v1",
+        auth="https://auth.us-west-2.example.com",
+    ),
 )
 ```
 </Tab>
 
-<Tab title="Java">
+<Tab title="Java" language="java">
 
 The generated SDK exposes an `Environment` class:
 
@@ -64,10 +109,11 @@ public final class Environment {
 }
 ```
 
-The generated SDK exposes an environment enum and a builder method:
+SDK users can select an environment, set URL variables, or build a custom environment:
 
 ```java
 import com.example.api.MyApiClient;
+import com.example.api.core.Environment;
 
 // Use the default environment
 // → https://api.example.com/v1
@@ -80,18 +126,195 @@ MyApiClient client = MyApiClient.builder()
     .serverUrlEnvironment("staging")
     .build();
 
-// Or provide a custom base URL
-// → https://api.us-west-2.staging.example.com/v1
+// Or provide custom URLs
 MyApiClient client = MyApiClient.builder()
-    .url("https://api.us-west-2.staging.example.com/v1")
+    .environment(Environment.custom()
+        .base("https://api.us-west-2.staging.example.com/v1")
+        .auth("https://auth.us-west-2.example.com")
+        .build())
     .build();
+```
+</Tab>
+
+<Tab title="Go" language="go">
+
+The generated SDK exposes an `Environments` variable:
+
+```go title="environments.go"
+var Environments = struct {
+    RegionalAPIServer Environment
+}{
+    RegionalAPIServer: Environment{
+        Base: "https://api.example.com/v1",
+        Auth: "https://auth.example.com",
+    },
+}
+```
+
+SDK users can set URL variables or pass a custom base URL with functional options:
+
+```go
+import (
+    myapi "github.com/example/my-api/client"
+    "github.com/example/my-api/option"
+)
+
+// Use the default environment
+// → https://api.example.com/v1
+client := myapi.NewClient()
+
+// Target a specific region and environment via URL variables
+// → https://api.eu-west-1.staging.example.com/v1
+client := myapi.NewClient(
+    option.WithRegion("eu-west-1"),
+    option.WithServerURLEnvironment("staging"),
+)
+
+// Or route all requests to a custom base URL
+// → https://api.us-west-2.staging.example.com/v1
+client := myapi.NewClient(
+    option.WithBaseURL("https://api.us-west-2.staging.example.com/v1"),
+)
+```
+</Tab>
+
+<Tab title="C#" language="csharp">
+
+The generated SDK exposes an `Environment` class:
+
+```csharp title="MyApiEnvironment.cs"
+public class MyApiEnvironment
+{
+    public static readonly MyApiEnvironment RegionalApiServer = new MyApiEnvironment
+    {
+        Base = "https://api.example.com/v1",
+        Auth = "https://auth.example.com",
+    };
+
+    public string Base { get; init; }
+    public string Auth { get; init; }
+}
+```
+
+SDK users can set URL variables or a custom environment through `ClientOptions`:
+
+```csharp
+using MyApi;
+
+// Use the default environment
+// → https://api.example.com/v1
+var client = new MyApiClient();
+
+// Target a specific region and environment via URL variables
+// → https://api.eu-west-1.staging.example.com/v1
+var client = new MyApiClient(new ClientOptions
+{
+    Region = "eu-west-1",
+    ServerUrlEnvironment = "staging",
+});
+
+// Or provide custom URLs
+var client = new MyApiClient(new ClientOptions
+{
+    Environment = new MyApiEnvironment
+    {
+        Base = "https://api.us-west-2.staging.example.com/v1",
+        Auth = "https://auth.us-west-2.example.com",
+    },
+});
+```
+</Tab>
+
+<Tab title="PHP" language="php">
+
+The generated SDK exposes an `Environments` class:
+
+```php title="Environments.php"
+class Environments
+{
+    public static function RegionalApiServer(): Environments
+    {
+        return new self(
+            base: 'https://api.example.com/v1',
+            auth: 'https://auth.example.com'
+        );
+    }
+
+    public static function custom(string $base, string $auth): Environments
+    {
+        return new self(base: $base, auth: $auth);
+    }
+}
+```
+
+SDK users can set URL variables or a custom environment as named constructor arguments:
+
+```php
+use MyApi\MyApiClient;
+use MyApi\Environments;
+
+// Use the default environment
+// → https://api.example.com/v1
+$client = new MyApiClient();
+
+// Target a specific region and environment via URL variables
+// → https://api.eu-west-1.staging.example.com/v1
+$client = new MyApiClient(
+    region: 'eu-west-1',
+    serverUrlEnvironment: 'staging',
+);
+
+// Or provide custom URLs
+$client = new MyApiClient(
+    environment: Environments::custom(
+        base: 'https://api.us-west-2.staging.example.com/v1',
+        auth: 'https://auth.us-west-2.example.com',
+    ),
+);
+```
+</Tab>
+
+<Tab title="Ruby" language="ruby">
+
+The generated SDK exposes an `Environment` class:
+
+```ruby title="environment.rb"
+module MyApi
+  class Environment
+    REGIONAL_API_SERVER = {
+      base: "https://api.example.com/v1",
+      auth: "https://auth.example.com"
+    }.freeze
+  end
+end
+```
+
+SDK users can set URL variables or pass a custom base URL as keyword arguments:
+
+```ruby
+# Use the default environment
+# → https://api.example.com/v1
+client = MyApi::Client.new
+
+# Target a specific region and environment via URL variables
+# → https://api.eu-west-1.staging.example.com/v1
+client = MyApi::Client.new(
+  region: "eu-west-1",
+  server_url_environment: "staging"
+)
+
+# Or route all requests to a custom base URL
+# → https://api.us-west-2.staging.example.com/v1
+client = MyApi::Client.new(
+  base_url: "https://api.us-west-2.staging.example.com/v1"
+)
 ```
 </Tab>
 </Tabs>
 
 ## Setting up server URL templating
 
-Define URL template variables in your API definition and provide a static fallback URL for SDK users who don't customize variables:
+Define URL template variables in your API definition and provide a static fallback URL when SDK users don't customize variables:
 
 ```yaml title="openapi.yml"
 servers:
