@@ -77,3 +77,34 @@ Self-hosting shifts recurring upkeep to your team:
 - **Compute versions on every release.** Cloud generation assigns version numbers; self-hosted pipelines must derive them. Wire [`--version AUTO` or `fern ir` + `fern diff`](/learn/sdks/deep-dives/self-hosted-versioning) into CI.
 - **Distribute the SDK.** Publishing to package managers is your responsibility. Push generation output to a GitHub repository and publish from there, or publish directly from your pipeline using the [language-specific publishing guides](/learn/sdks/generators/typescript/publishing).
 - **Rotate credentials.** The `FERN_TOKEN` doesn't expire, but registry tokens and `GITHUB_TOKEN` values used in CI do. Rotate them on your normal secret-rotation schedule.
+
+## Distributing to your clients securely
+
+When the SDK is for named clients rather than the public, publish it as a private, access-controlled package. The steps below use the npm registry; the same principles map to other registries.
+
+<Steps>
+<Step title="Publish a restricted, scoped package">
+
+Give the package an org scope (`@your-org/sdk`) and publish it with restricted access so it isn't installable by default. Set the output `package-name` in `generators.yml` and publish with `--access restricted`:
+
+```bash
+npm publish --access restricted
+```
+
+</Step>
+<Step title="Publish from CI with OIDC, not tokens">
+
+Publish through [trusted publishing (OIDC)](/learn/sdks/generators/typescript/publishing#configure-authentication) so no long-lived npm token lives in CI. OIDC also emits a provenance attestation that clients can verify against the source build, letting them confirm the artifact came from your pipeline. Provenance isn't generated for packages published from private source repositories.
+
+</Step>
+<Step title="Grant each client scoped read access">
+
+Add clients to an npm organization team with read-only access to the scope, or issue a per-client [granular access token](https://docs.npmjs.com/about-access-tokens) restricted to the package with read-only permission. Never share the publish credential. Revoking a client's team membership or token cuts their access without a re-release.
+
+</Step>
+<Step title="Have clients pin and verify">
+
+Instruct clients to install exact versions and commit their lockfile so an unexpected republish can't change what they resolve. Clients on npm 9.5+ can run `npm audit signatures` to verify the package's provenance and registry signatures.
+
+</Step>
+</Steps>
