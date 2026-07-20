@@ -1,0 +1,79 @@
+---
+title: Operating self-hosted SDK generation
+description: Infrastructure requirements, private registry setup, and ongoing maintenance for running Fern SDK generation on your own infrastructure.
+---
+
+<Markdown src="/snippets/enterprise-plan.mdx" />
+
+[Self-hosting](/learn/sdks/deep-dives/self-hosted) moves SDK generation onto infrastructure you own, which means you also own the work that Fern's cloud handles automatically: provisioning the runtime, distributing generator images, computing versions, and keeping generators current. This page covers what that work involves once the initial setup is in place.
+
+For the step-by-step setup, see [Self-hosted SDKs](/learn/sdks/deep-dives/self-hosted). For version computation, see [Self-hosted SDK versioning](/learn/sdks/deep-dives/self-hosted-versioning).
+
+## Infrastructure requirements
+
+Each machine that runs `fern generate --local` needs:
+
+- **A Docker runtime.** Generation runs inside a generator container, so a Docker daemon must be available (`docker ps` succeeds). In CI, use a runner with Docker preinstalled or a Docker-in-Docker service.
+- **A `FERN_TOKEN`.** Organization verification requires a Fern API key, injected as the `FERN_TOKEN` environment variable. Store it as a CI secret rather than in the repo.
+- **Outbound network access to two endpoints.** The CLI verifies your organization with Fern and pulls the generator image. No API definition leaves your infrastructure. Air-gapped environments must [mirror generator images into a private registry](#private-registry-setup) reachable from the runner.
+- **Write access to the output location.** Local-file-system output writes to disk; GitHub output needs a `GITHUB_TOKEN` with write access to the SDK repository.
+
+## Private registry setup
+
+By default, `fern generate --local` pulls generator images from Docker Hub. Organizations that restrict outbound traffic or require vetted images mirror Fern's generator images into a private registry and point the CLI at it.
+
+<Steps>
+<Step title="Mirror the generator image">
+
+Pull each generator image at the version you intend to use, retag it for your registry, and push. The CLI resolves the full reference as `{registry}/{name}:{version}`.
+
+```bash
+docker pull fernapi/fern-python-sdk:4.0.0
+docker tag fernapi/fern-python-sdk:4.0.0 ghcr.io/your-org/fern-python-sdk:4.0.0
+docker push ghcr.io/your-org/fern-python-sdk:4.0.0
+```
+
+</Step>
+<Step title="Reference the registry in generators.yml">
+
+Replace the generator's `name` field with an [`image`](/learn/sdks/reference/generators-yml#image) object containing `name` and `registry`. The `image.name` must be a recognized Fern generator name (for example, `fern-python-sdk`) so the CLI can resolve the correct IR version, and `version` must match a published generator version.
+
+```yaml title="generators.yml" {4-6}
+groups:
+  python-sdk:
+    generators:
+      - image:
+          name: fern-python-sdk
+          registry: ghcr.io/your-org
+        version: 4.0.0
+        output:
+          location: local-file-system
+          path: ../sdks/python
+```
+
+</Step>
+<Step title="Authenticate to the registry">
+
+If the registry requires authentication, log in before generating. The CLI reuses the credentials Docker stores.
+
+```bash
+echo $CR_PAT | docker login ghcr.io -u USERNAME --password-stdin
+fern generate --local
+```
+
+</Step>
+</Steps>
+
+<Warning>
+Generators configured with an `image` object are skipped by `fern generator upgrade`. Bump their versions manually and re-mirror the matching image whenever you upgrade.
+</Warning>
+
+## Ongoing maintenance
+
+Self-hosting shifts recurring upkeep to your team:
+
+- **Keep generator versions current.** Run [`fern generator upgrade`](/learn/sdks/reference/generators-yml) to move `generators.yml` to newer generator versions. Generators pinned to a private registry are skipped, so bump those versions by hand and re-mirror the image first.
+- **Keep the CLI current.** Run `fern upgrade` to update the CLI version in `fern.config.json`. A CLI or generator bump can change SDK output, which affects the computed version.
+- **Compute versions on every release.** Cloud generation assigns version numbers; self-hosted pipelines must derive them. Wire [`--version AUTO` or `fern ir` + `fern diff`](/learn/sdks/deep-dives/self-hosted-versioning) into CI.
+- **Distribute the SDK.** Publishing to package managers is your responsibility. Push generation output to a GitHub repository and publish from there, or publish directly from your pipeline using the [language-specific publishing guides](/learn/sdks/generators/typescript/publishing).
+- **Rotate credentials.** The `FERN_TOKEN` doesn't expire, but registry tokens and `GITHUB_TOKEN` values used in CI do. Rotate them on your normal secret-rotation schedule.
