@@ -41,8 +41,25 @@ Fern supports any SAML 2.0 or OIDC provider (Okta, Google Workspace, Auth0, Azur
 
 ## Role-based access control
 
-SSO can gate content by role. Fern reads each user's roles from the token your identity provider issues, then applies the [`roles`](/learn/docs/authentication/features/rbac#setup) and [`viewers`](/learn/docs/authentication/features/rbac#in-navigation) rules in your `docs.yml`.
+SSO can gate content by role. Fern reads each user's roles from the WorkOS token issued at login, then applies the [`roles`](/learn/docs/authentication/features/rbac#setup) and [`viewers`](/learn/docs/authentication/features/rbac#in-navigation) rules in your `docs.yml`.
 
-The identity provider must include the user's roles on the token. Enable organization roles in your provider, then either assign roles to users directly or map your SSO/directory groups to those roles. Fern uses the organization role by default; to read roles from a custom token claim instead, tell Fern which claim to parse.
+Fern's SSO runs on [WorkOS](/learn/docs/getting-started/how-it-works), so roles are assigned through your WorkOS organization. Fern coordinates this setup with you.
 
-Once roles reach the token, define them in `docs.yml` and gate navigation and page content as described in [Role-based access control](/learn/docs/authentication/features/rbac). Contact Fern to enable roles on your SSO connection.
+<Steps>
+<Step title="Enable Organization Roles in WorkOS">
+Turn on Organization Roles (RBAC) for your organization, then define a role for each audience you gate content for (for example, `admins` or `partners`). Each role's slug is the value Fern reads from the token.
+</Step>
+
+<Step title="Assign roles to users">
+Give each user a role in one of two ways:
+
+- Assign a role directly to a member of the organization.
+- Map your identity provider's SSO or directory groups to WorkOS roles so members inherit a role from their group membership. Group mapping requires directory sync (SCIM).
+</Step>
+
+<Step title="Declare the same roles in `docs.yml`">
+List the WorkOS role slugs under `roles` in `docs.yml`, then gate navigation and page content with `viewers` and the `<If />` component. See [Role-based access control](/learn/docs/authentication/features/rbac) for the full setup.
+</Step>
+</Steps>
+
+Fern reads the organization role by default. To read roles from a different token claim instead (for example, a directory-group claim), tell Fern which claim to parse.
