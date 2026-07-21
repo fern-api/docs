@@ -62,8 +62,14 @@ List the WorkOS role slugs under `roles` in `docs.yml`, then gate navigation and
 </Step>
 </Steps>
 
-Fern reads the WorkOS organization role by default. To source roles from a different token claim instead (for example, a directory-group claim), set `roles_claim` on your SSO auth configuration. Fern then parses that claim from the WorkOS access token, accepting either an array of role slugs or a space-delimited string.
+By default, Fern reads each user's WorkOS organization role. To source roles from a different access token claim instead (for example, a directory-group claim synced from your identity provider), ask Fern to set `roles_claim` to that claim's name during setup. Fern then reads roles from that claim rather than the organization role.
 
-<ParamField path="roles_claim" type="string" default="WorkOS organization role">
-  The WorkOS access token claim to parse for roles. When omitted, roles come from the WorkOS organization role.
-</ParamField>
+The claim can be an array of role slugs or a space-delimited string (`"botanists growers"`). Given a `roles_claim` of `https://plantstore.com/groups`, this access token grants the user the `botanists` and `growers` roles:
+
+```json
+{
+  "https://plantstore.com/groups": ["botanists", "growers"]
+}
+```
+
+Fern matches the parsed slugs against the roles you declare in `docs.yml`, so the claim must emit those same slugs.
