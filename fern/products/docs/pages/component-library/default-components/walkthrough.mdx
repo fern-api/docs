@@ -1,0 +1,131 @@
+---
+title: Walkthrough
+description: Learn how to use the Walkthrough and CodeWalkthrough components in Fern Docs to pair a list of steps with a synced side panel.
+---
+
+
+The `<Walkthrough>` component pairs a list of `<Step>` items with a sticky panel that renders the active step's content. `<CodeWalkthrough>` uses the same stepper to highlight line ranges of a shared code block as the reader moves through the steps. Use them for guided tours where each step reveals different content or code without scrolling away from it.
+
+Readers move between steps by clicking a step or using the back and next controls. Both components render in a framed container with a full-screen toggle.
+
+## Usage
+
+Wrap a series of `<Step>` components in `<Walkthrough>`. Each step takes a `title` and `description` for the list on the left, and its body renders in the panel on the right when the step is active.
+
+<div className="highlight-frame">
+  <div className="highlight-frame-content">
+  <Walkthrough>
+    <Step title="Prepare the pot" description="Choose a container with drainage.">
+      Fill a pot with a well-draining mix of potting soil and perlite.
+    </Step>
+    <Step title="Plant the cutting" description="Settle the stem into the soil.">
+      Insert the rooted cutting so the lowest node sits below the surface.
+    </Step>
+    <Step title="Water and place" description="Give it light and moisture.">
+      Water until it drains, then move the pot to bright, indirect light.
+    </Step>
+  </Walkthrough>
+  </div>
+</div>
+
+```jsx Markdown
+<Walkthrough>
+  <Step title="Prepare the pot" description="Choose a container with drainage.">
+    Fill a pot with a well-draining mix of potting soil and perlite.
+  </Step>
+  <Step title="Plant the cutting" description="Settle the stem into the soil.">
+    Insert the rooted cutting so the lowest node sits below the surface.
+  </Step>
+  <Step title="Water and place" description="Give it light and moisture.">
+    Water until it drains, then move the pot to bright, indirect light.
+  </Step>
+</Walkthrough>
+```
+
+## Variants
+
+### Code walkthrough
+
+`<CodeWalkthrough>` pins one or more code blocks in the panel and highlights the lines each step targets. Use self-closing `<Step>` components with a `highlight` line range, then add the code blocks after the steps. The `file` prop targets a specific code block by its title; omit it to keep the previously targeted file.
+
+<div className="highlight-frame">
+  <div className="highlight-frame-content">
+  <CodeWalkthrough>
+    <Step title="Import the client" description="Bring in the SDK." file="client.ts" highlight="1" />
+    <Step title="Create the store" description="Instantiate the client." file="client.ts" highlight="2" />
+    <Step title="Water a plant" description="Call the watering endpoint." file="water.ts" highlight="2-5" />
+    <Step title="Handle the result" description="Log the confirmation." file="water.ts" highlight="6" />
+
+    ```ts client.ts
+    import { PlantStore } from "@plantstore/sdk";
+    const store = new PlantStore({ apiKey: process.env.PLANT_API_KEY });
+    ```
+
+    ```ts water.ts
+    import { store } from "./client";
+    const receipt = await store.plants.water({
+      plantId: "monstera-1",
+      amountMl: 250,
+    });
+    console.log(`Watered ${receipt.plantId}`);
+    ```
+  </CodeWalkthrough>
+  </div>
+</div>
+
+```jsx Markdown
+<CodeWalkthrough>
+  <Step title="Import the client" description="Bring in the SDK." file="client.ts" highlight="1" />
+  <Step title="Create the store" description="Instantiate the client." file="client.ts" highlight="2" />
+  <Step title="Water a plant" description="Call the watering endpoint." file="water.ts" highlight="2-5" />
+  <Step title="Handle the result" description="Log the confirmation." file="water.ts" highlight="6" />
+
+  ```ts client.ts
+  import { PlantStore } from "@plantstore/sdk";
+  const store = new PlantStore({ apiKey: process.env.PLANT_API_KEY });
+  ```
+
+  ```ts water.ts
+  import { store } from "./client";
+  const receipt = await store.plants.water({
+    plantId: "monstera-1",
+    amountMl: 250,
+  });
+  console.log(`Watered ${receipt.plantId}`);
+  ```
+</CodeWalkthrough>
+```
+
+## Properties
+
+`<Walkthrough>` and `<CodeWalkthrough>` accept `<Step>` children. `<Walkthrough>` renders each step's body content in the panel; `<CodeWalkthrough>` renders the shared code blocks and applies each step's highlight.
+
+### `<Step>` properties
+
+<ParamField path="title" type="string" required={false}>
+  Title shown in the step list.
+</ParamField>
+
+<ParamField path="description" type="string" required={false}>
+  Short summary rendered under the title in the step list.
+</ParamField>
+
+<ParamField path="highlight" type="string | number" required={false}>
+  Lines to highlight in the shared code block when the step is active. Only used inside `<CodeWalkthrough>`. Accepts a single line (`"1"`) or a range (`"3-6"`).
+</ParamField>
+
+<ParamField path="focus" type="string | number" required={false}>
+  Lines to focus in the shared code block, dimming the rest. Only used inside `<CodeWalkthrough>`. Accepts the same values as `highlight`.
+</ParamField>
+
+<ParamField path="file" type="string | number" required={false}>
+  The code block a step targets in a multi-file `<CodeWalkthrough>`, matched by the block's title or filename (or a 0-based index). When omitted, the step keeps the previously targeted file.
+</ParamField>
+
+<ParamField path="startLine" type="number" required={false}>
+  The 1-based line the code block scrolls to when the step becomes active. Only used inside `<CodeWalkthrough>`. Defaults to the first highlighted or focused line.
+</ParamField>
+
+<ParamField path="id" type="string" required={false}>
+  The unique ID for the step, used for linking. Generated automatically if not specified.
+</ParamField>
