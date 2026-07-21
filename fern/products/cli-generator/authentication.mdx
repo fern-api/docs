@@ -48,7 +48,14 @@ The CLI supports every scheme type that OpenAPI's `securitySchemes` defines:
 | Bearer (`http: bearer`) | Sends `Authorization: Bearer <token>`. |
 | API key (`apiKey`) | Sends the key in the configured header (for example, `X-Auth-Token`). |
 | Basic (`http: basic`) | Sends `Authorization: Basic <base64(user:pass)>`. Each field has its own credential source. |
-| OAuth 2 | Treated as bearer — sends `Authorization: Bearer <token>`. |
+| OAuth 2 (client credentials) | Runs the [client-credentials grant](#oauth-2-client-credentials): exchanges the client ID and secret for a token, then sends `Authorization: Bearer <token>`. |
+| OAuth 2 (other) | Treated as bearer — sends `Authorization: Bearer <token>`. |
+
+### OAuth 2 client credentials
+
+When a spec declares an OAuth 2 client-credentials flow, the generated CLI obtains and refreshes tokens itself rather than requiring a pre-obtained bearer token. It reads the client ID and secret from environment variables (`<BIN>_CLIENT_ID` and `<BIN>_CLIENT_SECRET` by default, or the names declared in the API definition), exchanges them for an access token at the token endpoint, caches the token, and refreshes it as it nears expiry.
+
+The flow is generated from the API's OAuth security scheme, including scopes, token headers and prefixes, custom token and refresh requests, and environment URLs. OAuth schemes that aren't client-credentials, or where a token is supplied directly, are treated as bearer.
 
 ## Auth strategies
 
