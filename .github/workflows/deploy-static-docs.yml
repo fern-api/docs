@@ -1,0 +1,84 @@
+name: Deploy Static Docs
+
+# Renders the published docs site to static HTML and uploads it to Cloudflare
+# Pages using the public fernenterprise/docs-static-build container.
+#
+# Runs AFTER "Publish Docs" completes successfully, so the ledger manifest + CAS
+# blobs the container reads from S3 are already up to date. Also runnable
+# manually via workflow_dispatch.
+#
+# The container takes three logical inputs (see the fern-platform astro
+# package README): the docs URL, an S3 key to READ the ledger blobs, and a CF
+# Pages key to UPLOAD the built site. All are provided as GitHub secrets.
+
+# workflow_run is required so this runs after "Publish Docs" updates the ledger.
+# It's safe here: the job checks out no (untrusted) code, is granted no token
+# permissions (permissions: {}), and only runs a pinned public container with
+# read-only S3 + Cloudflare deploy credentials.
+on: # zizmor: ignore[dangerous-triggers]
+  workflow_run:
+    workflows: ["Publish Docs"]
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "fernenterprise/docs-static-build tag to run"
+        required: false
+        default: "latest"
+        type: string
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    # For workflow_run: only proceed when the upstream "Publish Docs" run
+    # succeeded (a failed/cancelled publish leaves the ledger unchanged, so
+    # there's nothing new to build). workflow_dispatch runs always proceed.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    steps:
+      - name: Build static docs and deploy to Cloudflare Pages
+        env:
+          # 1. Docs URL — the site to build.
+          NEXT_PUBLIC_DOCS_DOMAIN: fern.docs.buildwithfern.com/learn
+          # 2. S3 key — read the published ledger manifest + CAS blobs.
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          DOCS_DEFINITION_S3_BUCKET_NAME: ${{ secrets.DOCS_DEFINITION_S3_BUCKET_NAME }}
+          CONTENT_ADDRESSABLE_FILES_S3_BUCKET_NAME: ${{ secrets.CONTENT_ADDRESSABLE_FILES_S3_BUCKET_NAME }}
+          # 3. CF Pages key — upload the built dist/ to Cloudflare Pages.
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_PAGES_PROJECT: ${{ secrets.CF_PAGES_PROJECT }}
+          CF_PAGES_BRANCH: ${{ secrets.CF_PAGES_BRANCH }}
+          # Optional: used only to resolve Ask AI enablement at build time.
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+          IMAGE_TAG: ${{ github.event.inputs.image_tag || 'latest' }}
+        run: |
+          IMAGE="fernenterprise/docs-static-build:${IMAGE_TAG}"
+          echo "Running $IMAGE for $NEXT_PUBLIC_DOCS_DOMAIN"
+          docker pull "$IMAGE"
+          # Forward each secret by name (values come from this step's env), so no
+          # secret is interpolated into the command line.
+          docker run --rm \
+            -e NEXT_PUBLIC_DOCS_DOMAIN \
+            -e AWS_ACCESS_KEY_ID \
+            -e AWS_SECRET_ACCESS_KEY \
+            -e AWS_REGION \
+            -e DOCS_DEFINITION_S3_BUCKET_NAME \
+            -e CONTENT_ADDRESSABLE_FILES_S3_BUCKET_NAME \
+            -e CLOUDFLARE_API_TOKEN \
+            -e CLOUDFLARE_ACCOUNT_ID \
+            -e CF_PAGES_PROJECT \
+            -e CF_PAGES_BRANCH \
+            -e FERN_TOKEN \
+            "$IMAGE"
