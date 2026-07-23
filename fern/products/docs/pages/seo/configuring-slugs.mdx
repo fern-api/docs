@@ -7,6 +7,8 @@ By default, Fern generates the slug of a page based on the navigation structure 
 
 For [folder-based navigation](/learn/docs/configuration/navigation#add-a-folder), page slugs are derived from filenames rather than display names.
 
+Fern assembles a page's full URL by joining these slugs in navigation order, from the outermost scope to the innermost: product, version, tab, section and folder, then page. A page in product `Platform`, version `v2`, tab `Guides`, section `Get Started`, named `Quickstart` resolves to `platform/v2/guides/get-started/quickstart`. The rest of this page covers how to override each segment, and how those overrides interact when a slug is set in more than one place.
+
 | Navigation item | Slug derived from | Example | Auto-generated slug |
 |---|---|---|---|
 | Section | `section` name | `Key Concepts` | `key-concepts` |
@@ -246,25 +248,3 @@ navigation:
 In the example above, the **Welcome** page would be hosted at `plantstore.docs.buildwithfern.com/welcome`.
 </Accordion>
 </AccordionGroup>
-
-## Slug precedence
-
-Slugs can be set at several navigation levels at once. Fern builds the final URL by combining one segment per level, from the outermost scope to the innermost:
-
-1. Product `slug`
-2. Version `slug`
-3. Tab `slug`
-4. Section and folder `slug`s
-5. Page `slug`
-
-A page in product `Platform` (`slug: platform`), version `v2`, tab `Guides` (`slug: guides`), section `Get Started`, named `Quickstart` resolves to `plantstore.docs.buildwithfern.com/platform/v2/guides/get-started/quickstart`.
-
-When the same part of the path is set in more than one place, the setting with the narrower scope wins:
-
-| Setting | Scope | Effect on the URL |
-|---|---|---|
-| `slug` in `docs.yml` | The single item it's set on | Replaces that one segment; the surrounding hierarchy is preserved. |
-| `skip-slug: true` in `docs.yml` | The tab or section it's set on | Drops that segment from the path. |
-| `slug` in page frontmatter | The section, folder, and tab hierarchy for that page | Replaces all of those segments at once. See [Override with a frontmatter slug](#override-with-a-frontmatter-slug). |
-
-Frontmatter `slug` wins over `docs.yml` for everything below the product and version: it bypasses the entire section, folder, and tab hierarchy, including any `slug` or `skip-slug` set on those parents. Product and version slugs sit above frontmatter and are always preserved. To move a page to the docs root, place it outside any product or version in your navigation.
