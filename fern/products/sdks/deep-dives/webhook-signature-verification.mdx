@@ -4,13 +4,11 @@ description: Configure webhook signature verification in your Fern-generated SDK
 ---
 
 
-When you define webhooks in your API spec, Fern automatically generates utilities that allow your SDK users to verify webhook signatures and ensure events originate from your API.
+When you define webhooks in your API spec, Fern automatically generates utilities that allow your SDK users to verify webhook signatures and ensure events originate from your API. These helpers are generated for the TypeScript, Python, Java, Go, PHP, Ruby, and C# SDKs.
 
 Fern supports two signature verification methods:
 - **Hash-based Message Authentication Code (HMAC)** — Symmetric key verification using shared secrets
 - **Asymmetric** — Public key verification using RSA, Elliptic Curve Digital Signature Algorithm (ECDSA), or Ed25519 keys
-
-<Note>Webhook signature verification is currently supported for TypeScript SDK generation only.</Note>
 
 ## Generated SDK behavior
 
@@ -32,6 +30,19 @@ app.post("/webhooks", (req, res) => {
   res.status(200).send("OK");
 });
 ```
+
+The example uses TypeScript; each other SDK exposes an equivalent helper.
+
+## Body-hash binding
+
+Some providers don't HMAC-sign the raw request body directly. Instead, they transmit a hash of the body as a query parameter on the notification URL (for example, Twilio's `bodySHA256`) and HMAC-sign the URL itself.
+
+When a webhook declares a body-hash binding, the generated helper verifies in two steps and both must pass:
+
+1. Recompute the hash of the raw body and timing-safe-compare it to the query parameter on the notification URL. A missing or mismatched hash fails verification.
+2. Verify the HMAC signature over the verbatim notification URL.
+
+The body-hash algorithm and encoding are independent of the outer HMAC's. Twilio, for example, uses a SHA-256 hex body hash with a SHA-1 base64 signature. Body-hash binding is derived from the API's webhook definition and activates automatically, with no additional configuration.
 
 ## Setting up webhook signature verification
 
