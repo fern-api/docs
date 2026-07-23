@@ -141,6 +141,14 @@ To rename the slug of the subheading, add the desired slug:
 
 The link to this section will now be available at `plantstore.docs.buildwithfern.com/get-started/welcome#faqs`.
 
+The `[#slug]` syntax only applies to `##` and `###` headings. To set a linkable slug for a section of content that has no heading — a paragraph, table, or code block — wrap it in the [`<Anchor>`](/learn/docs/writing-content/components/anchor) component and set an `id`:
+
+```jsx welcome.mdx
+<Anchor id="faqs">This paragraph answers common questions.</Anchor>
+```
+
+The content is now available at `plantstore.docs.buildwithfern.com/get-started/welcome#faqs`.
+
 ### Override with a frontmatter slug
 
 A `slug` set in `docs.yml` replaces only that item's segment, preserving the parent hierarchy. A `slug` set in page frontmatter replaces the **section and folder hierarchy** for that page, but preserves any product or version prefix.
@@ -238,3 +246,25 @@ navigation:
 In the example above, the **Welcome** page would be hosted at `plantstore.docs.buildwithfern.com/welcome`.
 </Accordion>
 </AccordionGroup>
+
+## Slug precedence
+
+Slugs can be set at several navigation levels at once. Fern builds the final URL by combining one segment per level, from the outermost scope to the innermost:
+
+1. Product `slug`
+2. Version `slug`
+3. Tab `slug`
+4. Section and folder `slug`s
+5. Page `slug`
+
+A page in product `Platform` (`slug: platform`), version `v2`, tab `Guides` (`slug: guides`), section `Get Started`, named `Quickstart` resolves to `plantstore.docs.buildwithfern.com/platform/v2/guides/get-started/quickstart`.
+
+When the same part of the path is set in more than one place, the setting with the narrower scope wins:
+
+| Setting | Scope | Effect on the URL |
+|---|---|---|
+| `slug` in `docs.yml` | The single item it's set on | Replaces that one segment; the surrounding hierarchy is preserved. |
+| `skip-slug: true` in `docs.yml` | The tab or section it's set on | Drops that segment from the path. |
+| `slug` in page frontmatter | The section, folder, and tab hierarchy for that page | Replaces all of those segments at once. See [Override with a frontmatter slug](#override-with-a-frontmatter-slug). |
+
+Frontmatter `slug` wins over `docs.yml` for everything below the product and version: it bypasses the entire section, folder, and tab hierarchy, including any `slug` or `skip-slug` set on those parents. Product and version slugs sit above frontmatter and are always preserved. To move a page to the docs root, place it outside any product or version in your navigation.
