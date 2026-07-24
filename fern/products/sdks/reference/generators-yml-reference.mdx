@@ -140,7 +140,7 @@ api:
 <ParamField path="auth" type="string | object" toc={true}>
   Sets the default authentication scheme for all endpoints. Scheme names must reference entries defined in [`auth-schemes`](#auth-schemes). This overrides any security schemes [defined in your OpenAPI spec](/learn/api-definitions/openapi/authentication).
 
-  Pass a string for a single scheme, or an object with `any` or `all` to compose multiple schemes.
+  Pass a string for a single scheme, or an object with `any` or `all` to compose multiple schemes. Pass the string `endpoint-security` to route auth per endpoint instead of applying one default scheme everywhere.
 
   <AccordionGroup>
   <Accordion title="Single scheme">
@@ -196,6 +196,20 @@ api:
     specs:
       - openapi: ./openapi.yml
   ```
+
+  </Accordion>
+  <Accordion title="Per-endpoint routing (endpoint-security)">
+
+  Instead of applying one default scheme to every endpoint, `endpoint-security` routes auth per endpoint using each operation's declared `security`: `OR` across the requirement list, `AND` within a single requirement. An operation with `security: []` sends no credentials, and an operation with no satisfiable requirement raises an error naming the missing scheme(s). This is supported across all SDK languages.
+
+  ```yaml title="generators.yml"
+  api:
+    auth: endpoint-security
+    specs:
+      - openapi: ./openapi.yml
+  ```
+
+  For example, if `POST /plants/{plantId}` declares OAuth Bearer `OR` an API key header, the SDK sends whichever credential is set; a token endpoint with `security: []` is called anonymously.
 
   </Accordion>
   </AccordionGroup>
