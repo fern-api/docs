@@ -65,6 +65,16 @@ When you define webhooks in your API spec, Fern automatically [generates utiliti
 
 When you define [WebSocket channels](/learn/api-definitions/asyncapi/channels/pubsub) in your API spec, Fern can [generate typed WebSocket clients](./websocket-clients) with connection management, typed messages, and automatic reconnection.
 
+## Unmodeled endpoints
+
+TypeScript SDKs expose a passthrough `client.fetch()` escape hatch for calling paths that aren't in your API definition. It mirrors the standard `fetch` signature and reuses the client's configured base URL, default headers, timeouts, retries, and logging. Relative paths resolve against the base URL:
+
+```typescript
+const response = await client.fetch("/plants/plant_123/water", { method: "POST" });
+```
+
+The SDK attaches its auth headers only when the resolved URL has the same origin as the configured base URL. Relative paths and same-origin absolute URLs still receive credentials; absolute URLs on another origin (including a different port) don't, so those callers must pass their own `Authorization` or other credential headers in the request. Non-auth headers are sent regardless of origin, and no auth headers are attached when the client has no base URL or environment configured.
+
 ## Default parameter values
 
 You can configure [default values](/learn/api-definitions/openapi/extensions/default-values) for path, header, and query parameters, including headers defined under [`x-fern-global-headers`](/learn/api-definitions/openapi/extensions/global-headers). The SDK makes those parameters optional and sends the default when the caller doesn't provide one — useful for things like pinning an API version header or default region.
