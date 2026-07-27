@@ -8,7 +8,7 @@ The `x-fern-streaming` extension allows you to represent endpoints that are stre
 
 ## JSON streaming
 
-If your API returns a series of `JSON` chunks as seen below
+If your API returns a series of newline-delimited `JSON` chunks, under `application/json`, `application/x-ndjson`, or any other `*json` content type, as seen below
 
 ```json
 { "text": "Hi, I am a" }
@@ -16,7 +16,9 @@ If your API returns a series of `JSON` chunks as seen below
 { "text": "questions for me"}
 ```
 
-then simply add the `x-fern-streaming: true` to your OpenAPI operation. 
+then add `x-fern-streaming: true` to your OpenAPI operation. The boolean shorthand selects JSON streaming, and the generated SDKs expose the endpoint as an async-iterable stream that splits the response on newlines and parses each line as JSON.
+
+Fern auto-detects streaming only for `text/event-stream` responses, so a JSON stream content type such as `application/x-ndjson` still requires the extension.
 
 ```yaml title="openapi.yml" {4}
 paths:
@@ -50,7 +52,7 @@ data: { "text": "chatbot. Do you have any"}
 data: { "text": "questions for me"}
 ```
 
-then make sure to include `format: sse`. 
+then include `format: sse`. 
 
 ```yaml title="openapi.yml" {4-5}
 paths:
@@ -130,7 +132,7 @@ It has become common practice for endpoints to have a `stream` parameter that
 controls whether the response is streamed or not. Fern supports this pattern in a first 
 class way. 
 
-Simply specify the `stream-condition` as well as the ordinary response and the streaming response: 
+Specify the `stream-condition` alongside the ordinary response and the streaming response: 
 
 ```yaml title="openapi.yml" {4-11}
 paths:
