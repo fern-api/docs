@@ -77,11 +77,13 @@ jobs:
         run: |
           IMAGE="fernenterprise/docs-static-build:${IMAGE_TAG}"
           echo "Running $IMAGE for $NEXT_PUBLIC_DOCS_DOMAIN"
-          # Loud, non-blocking guard: a missing EDGE_CONFIG secret otherwise
-          # regresses silently (edge flags default to false → "Built with Fern"
-          # badge leaks) while the workflow stays green.
+          # Hard guard: this workflow only ever builds one known-whitelabeled
+          # site (fern.docs.buildwithfern.com), so a missing EDGE_CONFIG means the
+          # edge flags default to false and the "Built with Fern" badge leaks —
+          # that's always wrong here. Fail the deploy rather than ship it green.
           if [ -z "${EDGE_CONFIG:-}" ]; then
-            echo "::warning title=EDGE_CONFIG missing::EDGE_CONFIG is empty — edge flags (whitelabel, etc.) will fall back to defaults and the 'Built with Fern' badge will leak. Set the EDGE_CONFIG repo secret."
+            echo "::error title=EDGE_CONFIG missing::EDGE_CONFIG is empty — edge flags (whitelabel, etc.) would fall back to defaults and leak the 'Built with Fern' badge. Set the EDGE_CONFIG repo secret."
+            exit 1
           fi
           docker pull "$IMAGE"
           # Forward each secret by name (values come from this step's env), so no
