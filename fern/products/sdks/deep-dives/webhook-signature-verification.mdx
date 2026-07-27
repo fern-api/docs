@@ -12,43 +12,103 @@ Fern supports two signature verification methods:
 
 ## Generated SDK behavior
 
-The generated SDK exposes a `verifyWebhookSignature` utility:
+The generated SDK exposes a `WebhooksHelper` class with a static `verifySignature` method that returns whether the request is authentic. Its parameters follow the signature configuration: the raw request body, the signature header value, the signing key (a shared secret for HMAC, a public key for asymmetric verification), and one parameter for each additional payload component, such as a timestamp header, message ID, or notification URL. A webhook that overrides the document-level configuration gets its own helper named after it, such as `PlantShippedWebhooksHelper`.
 
+These examples verify an HMAC signature over a timestamp and body:
+
+<Tabs>
+<Tab title="TypeScript" language="typescript">
 ```typescript
-import { verifyWebhookSignature } from "my-api";
+import { WebhooksHelper } from "my-api";
 
-// In your webhook handler
-app.post("/webhooks", (req, res) => {
-  // Verify the signature using your webhook secret
-  const payload = verifyWebhookSignature(req, {
-    secret: process.env.WEBHOOK_SECRET,
-  });
-
-  // Process the verified payload
-  console.log("Received event:", payload);
-
-  res.status(200).send("OK");
-});
+const isValid = await WebhooksHelper.verifySignature(
+  requestBody,
+  signatureHeader,
+  process.env.WEBHOOK_SECRET,
+  timestampHeader,
+);
 ```
+</Tab>
+<Tab title="Python" language="python">
+```python
+from my_api import WebhooksHelper
 
-The example uses TypeScript; each other SDK exposes an equivalent helper.
+is_valid = WebhooksHelper.verify_signature(
+    request_body=request_body,
+    signature_header=signature_header,
+    signature_key=os.environ["WEBHOOK_SECRET"],
+    timestamp_header=timestamp_header,
+)
+```
+</Tab>
+<Tab title="Java" language="java">
+```java
+import com.example.myapi.WebhooksHelper;
 
-## Body-hash binding
+boolean isValid = WebhooksHelper.verifySignature(
+    requestBody,
+    signatureHeader,
+    System.getenv("WEBHOOK_SECRET"),
+    timestampHeader);
+```
+</Tab>
+<Tab title="Go" language="go">
+```go
+import myapi "github.com/example/my-api-go"
 
-Some providers don't HMAC-sign the raw request body directly. Instead, they transmit a hash of the body as a query parameter on the notification URL (for example, Twilio's `bodySHA256`) and HMAC-sign the URL itself.
+isValid, err := myapi.WebhooksHelper{}.VerifySignature(
+	requestBody,
+	signatureHeader,
+	os.Getenv("WEBHOOK_SECRET"),
+	timestampHeader,
+)
+```
+</Tab>
+<Tab title="PHP" language="php">
+```php
+use MyApi\WebhooksHelper;
 
-When a webhook declares a body-hash binding, the generated helper verifies in two steps and both must pass:
+$isValid = WebhooksHelper::verifySignature(
+    $requestBody,
+    $signatureHeader,
+    getenv('WEBHOOK_SECRET'),
+    $timestampHeader,
+);
+```
+</Tab>
+<Tab title="Ruby" language="ruby">
+```ruby
+require "my_api"
 
-1. Recompute the hash of the raw body and timing-safe-compare it to the query parameter on the notification URL. A missing or mismatched hash fails verification.
-2. Verify the HMAC signature over the verbatim notification URL.
+is_valid = MyApi::WebhooksHelper.verify_signature(
+  request_body: request_body,
+  signature_header: signature_header,
+  signature_key: ENV["WEBHOOK_SECRET"],
+  timestamp_header: timestamp_header
+)
+```
+</Tab>
+<Tab title="C#" language="csharp">
+```csharp
+using MyApi;
 
-The body-hash algorithm and encoding are independent of the outer HMAC's. Twilio, for example, uses a SHA-256 hex body hash with a SHA-1 base64 signature. Body-hash binding is derived from the API's webhook definition and activates automatically, with no additional configuration.
+var isValid = WebhooksHelper.VerifySignature(
+    requestBody,
+    signatureHeader,
+    Environment.GetEnvironmentVariable("WEBHOOK_SECRET"),
+    timestampHeader
+);
+```
+</Tab>
+</Tabs>
 
 ## Setting up webhook signature verification
 
 Configure signature verification in your API definition. Settings can be applied at the **document level** (inherited by all webhooks) or **per-webhook** (overrides document-level settings).
 
 The `payload-format` field controls which components (body, timestamp, message ID, notification URL) are included in the signed data. For asymmetric verification, include a `timestamp` component so the timestamp is cryptographically authenticated and replay protection is effective.
+
+Providers that sign the notification URL rather than the body transmit a hash of the body as a query parameter on that URL. Declaring that parameter under `body-hash-binding` makes the generated helper recompute the hash, compare it to the transmitted value, and verify the signature over the notification URL. Both checks must pass, and the hash algorithm and encoding are independent of the signature's.
 
 <Tabs>
 <Tab title="HMAC">
