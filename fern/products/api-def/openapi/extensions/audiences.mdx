@@ -15,6 +15,8 @@ Fern provides two ways to filter which API elements appear in your SDKs and API 
 
 Many teams use both approaches: path-based filtering for major divisions, audience tags for fine-grained control within those divisions.
 
+Both are build-time filters, not per-viewer access control. Fern prunes the API definition when you publish and serves that single output to every reader, so filtered-out endpoints don't exist on the published site and can't be revealed to one logged-in user. To vary what an authenticated reader sees by role, gate navigation entries with [`viewers`](/learn/docs/authentication/features/rbac).
+
 ## Path based filtering
 
 Use [`settings.filter` in your `generators.yml`](/learn/api-definitions/openapi/generators-yml-reference#settingsfilter) to limit which endpoints are included in the generated SDK or API Reference based on their paths:
@@ -39,6 +41,8 @@ Apply audience tags in your OpenAPI spec, then configure your SDKs or API Refere
 <Accordion title="Tag servers">
 
 Add the `x-fern-server-name` and `x-fern-audiences` extension to the relevant server.
+
+Servers are the exception to build-time filtering: a tagged server is [shown or hidden per viewer in the API Explorer](/learn/docs/api-references/api-explorer#multiple-environments) based on the roles of the authenticated reader.
 
 In the example below, the `Production` server is only available to public consumers:
 
@@ -121,7 +125,6 @@ Specify which audiences to include in your SDKs or API Reference docs. If **no a
 When you do specify audiences, elements tagged with a matching audience are included, and elements tagged only with other audiences are dropped. Untagged elements aren't scoped to any audience, so they're always included. This is what lets you hide a single field: a property tagged only `beta` drops from a `public` output, while the untagged properties around it stay.
 
 Set the filter where each output is configured: your [API Reference in `docs.yml`](/learn/docs/api-references/audiences), or your [SDKs in `generators.yml`](/learn/sdks/deep-dives/audiences).
-Specify which audiences to include in your SDKs or API Reference docs. 
 
 <Info>
   Filtering is inclusive by default: it applies only where you set `audiences`. A group or navigation entry with no `audiences` receives the full spec, and an element with no tags is included for every audience.
