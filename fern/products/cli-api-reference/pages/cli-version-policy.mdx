@@ -4,49 +4,57 @@ description: 'Set an organization-wide minimum, maximum, or exact Fern CLI versi
 subtitle: 'Keep every project in your organization on a consistent Fern CLI version.'
 ---
 
-Each Fern project pins its own CLI version in [`fern.config.json`](/learn/sdks/overview/project-structure#fernconfigjson). Across many repositories those pins drift apart, so the same API definition can compile against different CLI versions. An organization-level version policy constrains them all: set a minimum version (a floor), a maximum version (a ceiling), an exact pin, or a range.
+[Admins](/learn/dashboard/configuration/permissions#admin) can set an organization-level CLI version policy to bound the Fern CLI version that every project in your organization runs. Set a minimum, a maximum, or an exact version. A policy lives on your organization, and applies to every project without a change to any `fern.config.json`.
 
-The policy is stored on your organization, so it applies to every project without editing any `fern.config.json`.
+By default, no policy is set, and each project runs the version it pins in [`fern.config.json`](/learn/sdks/overview/project-structure#fernconfigjson). Those pins can diverge across repositories, leaving the same API definition to compile against a different CLI in each one. 
 
-## Behavior
+## Which version runs
 
-Fern resolves the version your project would otherwise run, then brings it into the organization's range before running the command.
+Each time you run a Fern CLI command in your project, Fern compares the version pinned in `fern.config.json` against your organization's bounds and runs the nearest allowed version.
 
 | Version pinned in `fern.config.json` | Version that runs |
 |---|---|
 | Below the minimum | The minimum |
 | Above the maximum | The maximum |
 | Inside the range | The pinned version, unchanged |
-| Any version, when the policy is an exact pin | The pinned version from the policy |
 
-The project keeps its own pin: a policy changes which version runs, not what's in `fern.config.json`.
+A version already inside the range prints nothing. When the version changes, the CLI names the bound that applied before the command proceeds:
 
-When the version changes, the CLI prints which bound applied before the command proceeds:
+<CodeBlocks>
+  ```plaintext title="Minimum"
+  Org "acme" requires Fern CLI >= 5.40.0 — running 5.40.0.
+  ```
 
-```plaintext
-Org "acme" requires Fern CLI >= 5.40.0 — running 5.40.0.
-Org "acme" caps Fern CLI at <= 5.50.0 — running 5.50.0.
-Org "acme" requires Fern CLI between 5.40.0 and 5.50.0 — running 5.40.0.
-Org "acme" pins Fern CLI to 5.45.0 — running 5.45.0.
-```
+  ```plaintext title="Maximum"
+  Org "acme" caps Fern CLI at <= 5.50.0 — running 5.50.0.
+  ```
 
-A version already inside the range prints nothing.
+  ```plaintext title="Range"
+  Org "acme" requires Fern CLI between 5.40.0 and 5.50.0 — running 5.40.0.
+  ```
+
+  ```plaintext title="Exact pin"
+  Org "acme" pins Fern CLI to 5.45.0 — running 5.45.0.
+  ```
+</CodeBlocks>
+
+A policy never blocks a command. When the CLI can't read your organization's bounds, such as when it isn't authenticated or can't reach Fern, the project runs its own pinned version.
 
 ## Set the policy
 
-`fern org set cli-version` writes the bounds. It requires an organization admin and an authenticated session from [`fern login`](/learn/cli-api-reference/cli-reference/commands#fern-login). The organization is read from `fern.config.json`; pass `--org` to target a different one.
+[`fern org set cli-version`](/learn/cli-api-reference/cli-reference/commands#fern-org-set-cli-version) writes the bounds. It requires an organization admin and an authenticated session from [`fern login`](/learn/cli-api-reference/cli-reference/commands#fern-login). The organization is read from `fern.config.json`; pass `--org` to target a different one.
 
 ```bash
-# Pin an exact version (sets the minimum and maximum to the same version)
+# Pin an exact version
 fern org set cli-version 5.45.0
 
-# Minimum only: older projects are bumped up, newer ones are left alone
+# Set a minimum
 fern org set cli-version --min 5.40.0
 
-# Maximum only: newer projects are capped, older ones are left alone
+# Set a maximum
 fern org set cli-version --max 5.50.0
 
-# Both ends in one command
+# Set both
 fern org set cli-version --min 5.40.0 --max 5.50.0
 ```
 
@@ -61,34 +69,33 @@ fern org get
 fern org get --json
 ```
 
-The default output describes the policy in one line (`Fern CLI pinned to 5.45.0`, `Fern CLI must be between 5.40.0 and 5.50.0`, `Fern CLI must be at least 5.40.0`, or `Fern CLI must be at most 5.50.0`), or reports that no policy is set. `--json` returns the raw `cliVersionMin` and `cliVersionMax` fields.
+[`fern org get`](/learn/cli-api-reference/cli-reference/commands#fern-org-get) prints the policy in one line — `Fern CLI must be between 5.40.0 and 5.50.0`, or the equivalent for a minimum, maximum, or exact pin — and reports when no policy is set. `--json` returns the raw `cliVersionMin` and `cliVersionMax` fields instead.
 
 ## Clear the policy
+
+[`fern org unset cli-version`](/learn/cli-api-reference/cli-reference/commands#fern-org-unset-cli-version) clears the bounds, and like setting them it requires an organization admin.
 
 ```bash
 # Remove both bounds
 fern org unset cli-version
 
-# Remove one end, keeping the other
+# Remove only the minimum, keeping the maximum
 fern org unset cli-version --min
+
+# Remove only the maximum, keeping the minimum
 fern org unset cli-version --max
 ```
 
 ## Interaction with `fern upgrade`
 
-A policy changes the version that runs, not the version on disk, so a project stays out of range until it's upgraded. [`fern upgrade`](/learn/cli-api-reference/cli-reference/commands#fern-upgrade) brings the file itself into range: it resolves an upgrade target as usual, then applies the bounds to that target before writing it.
+A policy changes the version that runs, not the version on disk, so a project stays out of range until it's upgraded. [`fern upgrade`](/learn/cli-api-reference/cli-reference/commands#fern-upgrade) brings the file itself into range: it applies the bounds to the upgrade target before writing it.
 
-| Version in `fern.config.json` | Policy | Version written by `fern upgrade` |
+| Command | Policy | Version written |
 |---|---|---|
-| `5.30.0` | Minimum `5.40.0` | `5.40.0` or higher |
-| `5.30.0` | Maximum `5.50.0` | At most `5.50.0` |
-| `5.60.0` | Maximum `5.50.0` | `5.50.0` |
-| `5.30.0` | Pinned to `5.45.0` | `5.45.0` |
+| `fern upgrade` | Maximum `5.50.0` | `5.50.0` |
+| `fern upgrade` | Pinned to `5.45.0` | `5.45.0` |
+| `fern upgrade --version 5.35.0` | Minimum `5.40.0` | `5.40.0` |
 
-An explicit `--version` outside the range is treated the same way: the bounds win over the requested version.
+A plain `fern upgrade` resolves to the latest release, which is never below the minimum, so only the maximum changes what it writes. The minimum applies when you request an older version with [`--version`](/learn/cli-api-reference/cli-reference/commands#fern-upgrade): the bounds win over the version you asked for.
 
 Running a newer CLI doesn't apply the migrations that `fern upgrade` performs. Raising the minimum across a major version therefore still requires each project to run `fern upgrade`.
-
-<Note>
-A policy never blocks a command. When the CLI can't read your organization's bounds, such as when it isn't authenticated or can't reach Fern, the project runs its own pinned version.
-</Note>
