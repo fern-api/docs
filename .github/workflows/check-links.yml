@@ -840,16 +840,34 @@ jobs:
           PROMPT
           cat broken-links-list.md >> claude-prompt.md
 
-          # Install and run Claude Code headlessly.
+          if [ -z "${ANTHROPIC_API_KEY:-}" ]; then
+            echo "::error::ANTHROPIC_API_KEY secret is not set. The link checker cannot auto-fix broken links or open a PR until a valid key is configured in the repository secrets."
+            echo "changes_made=false" >> "$GITHUB_OUTPUT"
+            echo "claude_auth_failed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Install and run Claude Code headlessly. Capture output so we can
+          # distinguish an auth/billing failure (nothing Claude can do) from a
+          # run where Claude simply found no confident fix.
           npm install -g @anthropic-ai/claude-code
           claude -p "$(cat claude-prompt.md)" \
             --dangerously-skip-permissions \
             --max-turns 80 \
             --model sonnet \
-            --output-format text || echo "Claude exited non-zero; will still check for changes"
+            --output-format text 2>&1 | tee claude-output.log || echo "Claude exited non-zero; will still check for changes"
+
+          # Detect authentication / billing failures — these mean Claude never
+          # ran, so the "no changes" result is not a real "no fix available".
+          claude_auth_failed=false
+          if grep -qiE 'API key is invalid|401|authentication|invalid x-api-key|credit balance is too low|billing' claude-output.log; then
+            claude_auth_failed=true
+            echo "::error::Claude could not authenticate with the Anthropic API (see log above). Update the ANTHROPIC_API_KEY repository secret with a valid, funded key so the link checker can auto-fix links and open a PR."
+          fi
+          echo "claude_auth_failed=$claude_auth_failed" >> "$GITHUB_OUTPUT"
 
           # Remove scratch files so they are never committed.
-          rm -f claude-prompt.md broken-links-list.md
+          rm -f claude-prompt.md broken-links-list.md claude-output.log
 
           if [ -n "$(git status --porcelain -- fern README.md)" ]; then
             echo "changes_made=true" >> "$GITHUB_OUTPUT"
@@ -931,8 +949,12 @@ jobs:
           if [ "${STEPS_VERIFY_GITHUB_OUTPUTS_HAS_MISSING}" == "true" ]; then
             echo "Some GitHub URLs point to paths that don't exist in the repos."
           fi
+          if [ "${STEPS_FIX_LINKS_OUTPUTS_CLAUDE_AUTH_FAILED}" == "true" ]; then
+            echo "::error::No auto-fix PR was opened because Claude could not authenticate with the Anthropic API. Update the ANTHROPIC_API_KEY repository secret with a valid, funded key and re-run this workflow."
+          fi
           exit 1
         env:
           STEPS_CHECK_FAILURES_OUTPUTS_HAS_OTHER_FAILURES: ${{ steps.check_failures.outputs.has_other_failures }}
+          STEPS_FIX_LINKS_OUTPUTS_CLAUDE_AUTH_FAILED: ${{ steps.fix-links.outputs.claude_auth_failed }}
           STEPS_RETRY429_OUTPUTS_HAS_429_FAILURES: ${{ steps.retry429.outputs.has_429_failures }}
           STEPS_VERIFY_GITHUB_OUTPUTS_HAS_MISSING: ${{ steps.verify_github.outputs.has_missing }}
