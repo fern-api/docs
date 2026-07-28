@@ -6,20 +6,20 @@ subtitle: 'Keep every project in your organization on a consistent Fern CLI vers
 
 Each Fern project pins its own CLI version in [`fern.config.json`](/learn/sdks/overview/project-structure#fernconfigjson). Across many repositories those pins drift apart, so the same API definition can compile against different CLI versions. An organization-level version policy constrains all of them: set a minimum version (a floor), a maximum version (a ceiling), an exact pin, or a range.
 
-The policy is stored on your organization, not in your repositories, so it applies to every project without editing any `fern.config.json`. It's enforced on every command through the same version-redirection mechanism that runs a project's pinned version: the CLI re-executes itself at an allowed version.
+The policy is stored on your organization, so it applies to every project without editing any `fern.config.json`.
 
 ## Behavior
 
-Fern resolves the version your project would otherwise run — the pin in `fern.config.json` — and then clamps it into the organization's range.
+Fern resolves the version your project would otherwise run, then brings it into the organization's range before running the command.
 
-| Version resolved from `fern.config.json` | Version that runs |
+| Version pinned in `fern.config.json` | Version that runs |
 |---|---|
-| Below the floor (`--min`) | Bumped up to the floor |
-| Above the ceiling (`--max`) | Capped down to the ceiling |
-| Inside the range | Runs unchanged |
-| Any version, when the policy is an exact pin | The pinned version |
+| Below the minimum | The minimum |
+| Above the maximum | The maximum |
+| Inside the range | The pinned version, unchanged |
+| Any version, when the policy is an exact pin | The pinned version from the policy |
 
-Clamping never changes `fern.config.json`. The project keeps its own pin, and the CLI redirects to an allowed version each time it runs.
+The project keeps its own pin: a policy changes which version runs, not what's in `fern.config.json`.
 
 When the version changes, the CLI prints which bound applied before the command proceeds:
 
@@ -34,27 +34,25 @@ A version already inside the range prints nothing.
 
 ## Set the policy
 
-`fern org set cli-version` writes the bounds. It requires an admin of the organization and an authenticated session from [`fern login`](/learn/cli-api-reference/cli-reference/commands#fern-login). The organization is read from `fern.config.json`; pass `--org` to target a different one.
+`fern org set cli-version` writes the bounds. It requires an organization admin and an authenticated session from [`fern login`](/learn/cli-api-reference/cli-reference/commands#fern-login). The organization is read from `fern.config.json`; pass `--org` to target a different one.
 
 ```bash
-# Pin an exact version (sets the floor and the ceiling to the same version)
+# Pin an exact version (sets the minimum and maximum to the same version)
 fern org set cli-version 5.45.0
 
-# Floor only: older projects are bumped up, newer ones are left alone
+# Minimum only: older projects are bumped up, newer ones are left alone
 fern org set cli-version --min 5.40.0
 
-# Ceiling only: newer projects are capped, older ones are left alone
+# Maximum only: newer projects are capped, older ones are left alone
 fern org set cli-version --max 5.50.0
 
 # Both ends in one command
 fern org set cli-version --min 5.40.0 --max 5.50.0
 ```
 
-Each bound must be an exact published version of the [`fern-api` package](https://www.npmjs.com/package/fern-api?activeTab=versions), such as `5.45.0` or `5.45.0-rc0`. Ranges like `^5.45.0` and a version that was never published are rejected, since projects would fail to re-execute at a version npm can't download. A floor above the ceiling is rejected as well, including when the two bounds are set by separate commands.
+Each bound is an exact published version of the [`fern-api` package](https://www.npmjs.com/package/fern-api?activeTab=versions), such as `5.45.0` or `5.45.0-rc0`.
 
-Passing a positional version together with `--min` or `--max` is an error: pin an exact version, or set a range.
-
-`--min` and `--max` update only the bound you pass. Setting `--min 5.40.0` on an organization already pinned to `5.45.0` leaves the ceiling at `5.45.0`, turning the pin into the range `5.40.0`–`5.45.0`.
+`--min` and `--max` update only the bound you pass. Setting `--min 5.40.0` on an organization already pinned to `5.45.0` leaves the maximum at `5.45.0`, turning the pin into the range `5.40.0` to `5.45.0`.
 
 ## Read the policy
 
@@ -78,28 +76,19 @@ fern org unset cli-version --max
 
 ## Interaction with `fern upgrade`
 
-Redirection leaves `fern.config.json` untouched, so a project stays out of range until someone upgrades it. [`fern upgrade`](/learn/cli-api-reference/cli-reference/commands#fern-upgrade) is what brings the file itself into range: it resolves an upgrade target as usual and then clamps that target into the organization's bounds before writing it.
+A policy changes the version that runs, not the version on disk, so a project stays out of range until it's upgraded. [`fern upgrade`](/learn/cli-api-reference/cli-reference/commands#fern-upgrade) brings the file itself into range: it resolves an upgrade target as usual, then applies the bounds to that target before writing it.
 
 | Version in `fern.config.json` | Policy | Version written by `fern upgrade` |
 |---|---|---|
-| `5.30.0` | Floor `5.40.0` | `5.40.0` or higher |
-| `5.30.0` | Ceiling `5.50.0` | At most `5.50.0` |
-| `5.60.0` | Ceiling `5.50.0` | `5.50.0` |
+| `5.30.0` | Minimum `5.40.0` | `5.40.0` or higher |
+| `5.30.0` | Maximum `5.50.0` | At most `5.50.0` |
+| `5.60.0` | Maximum `5.50.0` | `5.50.0` |
 | `5.30.0` | Pinned to `5.45.0` | `5.45.0` |
 
-When the clamp changes the target, `fern upgrade` logs the floor or ceiling that applied alongside the version it resolved on its own. An explicit `--version` outside the range is clamped the same way: the bounds win over the requested version.
+An explicit `--version` outside the range is treated the same way: the bounds win over the requested version.
 
-Redirection re-executes a newer CLI without running the migrations that `fern upgrade` applies. Raising the floor across a major version therefore still requires each project to run `fern upgrade`.
-
-## When the policy isn't applied
-
-The policy is a consistency mechanism rather than a security control, and it fails open: any condition that prevents Fern from reading the bounds runs the project's intended version instead of blocking the command. That covers an unauthenticated CLI with no `FERN_TOKEN`, an unreachable Fern registry, a response slower than 2.5 seconds, and a malformed stored bound.
-
-Two cases bypass enforcement deliberately:
-
-- Setting `FERN_IGNORE_ORG_VERSION_BOUNDS=true` skips the lookup and the clamping.
-- `fern org` commands always run on the locally invoked CLI. Without that exemption, a floor pointing at a version that predates `fern org` would leave the policy unchangeable.
+Running a newer CLI does not apply the migrations that `fern upgrade` performs. Raising the minimum across a major version therefore still requires each project to run `fern upgrade`.
 
 <Note>
-Local development builds of the CLI disable version redirection, so an out-of-range version prints a warning and keeps running rather than re-executing.
+A policy never blocks a command. When the CLI can't read your organization's bounds, such as when it isn't authenticated or can't reach Fern, the project runs its own pinned version.
 </Note>
