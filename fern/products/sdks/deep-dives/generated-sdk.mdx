@@ -53,6 +53,20 @@ Other SDK generators don't emit availability annotations. Availability on types,
 
 When the API returns a 4xx or 5xx status code, the SDK throws an error that includes the status code, error message, response body, and raw response object.
 
+TypeScript SDKs type the `body` property on each generated error class that has a declared body schema, so narrowing an error with `instanceof` gives type-checked access to the body fields:
+
+```typescript
+try {
+    await client.plants.water("plantId");
+} catch (err) {
+    if (err instanceof PlantStore.PlantNotFoundError) {
+        console.log(err.body.code, err.body.message);
+    }
+}
+```
+
+Errors with an `unknown` or undeclared body type expose `body` as `unknown`.
+
 ## Server-sent events
 
 When your API uses [server-sent events](/learn/api-definitions/openapi/endpoints/sse#server-sent-events), the generated SDK returns a streaming response that yields parsed data objects. SDK users can opt into [metadata-aware iteration](/learn/sdks/deep-dives/sse-metadata) to read SSE protocol fields (event ID, event type, retry interval) alongside the parsed data, which is useful for stream resumption via the `Last-Event-ID` header. [Newline-delimited JSON streams](/learn/api-definitions/openapi/endpoints/sse#json-streaming) yield the same async-iterable response, one parsed object per line.
