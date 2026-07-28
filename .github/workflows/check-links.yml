@@ -780,262 +780,142 @@ jobs:
             lychee-raw-github.md
           if-no-files-found: ignore
 
-      - name: Create PR for broken links
-        id: create-pr
+      - name: Fix broken links with Claude
+        id: fix-links
         if: steps.check_failures.outputs.has_other_failures == 'true' || steps.retry429.outputs.has_429_failures == 'true' || steps.verify_github.outputs.has_missing == 'true'
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          DEVIN_PROMPT: |
-            Please fix the broken links detected by the scheduled link checker.
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: | # zizmor: ignore[adhoc-packages] claude-code CLI is only needed in this ephemeral CI job
+          set -euo pipefail
 
-            **Instructions:**
-            1. For each URL listed below, identify the source file containing the broken link
-            2. Try to find the correct replacement URL. Common fixes include:
-               - Updating outdated commit SHAs to the latest commit
-               - Fixing URL-encoded paths
-               - Updating renamed file paths
-            3. **IMPORTANT: If you cannot confidently find a correct replacement** (e.g., the only signal is a 5xx/503 error, connection reset, or rate limiting), **do NOT remove or modify the link**. Instead, leave it unchanged and add a PR comment on the relevant line asking for manual validation.
-            4. Only fix failures listed in this PR, not other links that follow a similar pattern
-            5. Run `fern docs dev` locally to verify your changes don't break anything
-            6. Push your fix to this PR branch
-            7. After CI posts a preview link, use it to verify that your changes actually fix the underlying issue, then post a comment to the PR mentioning that you have tested it using the preview link
-            8. When the PR is ready for review, request a review from the CODEOWNER in GitHub and send a message in the Devin session that includes "<!here>" to alert everyone in the channel. 
-            9. Delete the scaffold file (.github/broken-links/broken-links.md) as part of your fix
-            10. Do not leave the PR with only scaffold or workflow changes; it must fix the actionable source failures listed below
+          # Assemble the list of broken links to hand to Claude.
+          {
+            echo "## Non-429 broken links"
+            if [ -s broken-links.txt ]; then
+              sed -E 's/.*\[([0-9]+)\].*<([^>]+)>.*/- [\1] \2/' broken-links.txt
+            else
+              echo "(none)"
+            fi
+            echo ""
+            echo "## Rate-limited URLs (429) still failing after retry"
+            if [ -s urls-429-still-failing.txt ]; then
+              cat urls-429-still-failing.txt
+            else
+              echo "(none)"
+            fi
+            echo ""
+            echo "## GitHub URLs missing locally"
+            if [ -s github-missing.txt ]; then
+              cat github-missing.txt
+            else
+              echo "(none)"
+            fi
+          } > broken-links-list.md
 
-            **Broken Links:**
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          # Retry transient GitHub API errors (e.g. 502/503/504) so a flaky
-          # api.github.com response doesn't fail the whole link-check job.
-          # actions/github-script defaults to 0 retries; the default exempt
-          # list (400,401,403,404,422) still surfaces real client errors.
-          retries: 3
-          script: |
-            const fs = require('fs');
-            const devinPrompt = process.env.DEVIN_PROMPT;
-            const owner = context.repo.owner;
-            const repo = context.repo.repo;
-            const baseBranch = 'main';
-            const branchName = 'devin/fix-broken-links';
-            const filePath = '.github/broken-links/broken-links.md';
+          # Build the prompt.
+          cat > claude-prompt.md << 'PROMPT'
+          You are fixing broken links in the fern-api/docs documentation repository.
+          A scheduled link checker found the broken links listed at the end of this prompt.
 
-            // Read broken links files
-            let brokenLinksContent = '';
-            let urls429Content = '';
-            let githubMissingContent = '';
-            
-            try {
-              brokenLinksContent = fs.readFileSync('broken-links.txt', 'utf8');
-            } catch (e) {
-              console.log('No broken-links.txt found');
-            }
-            
-            try {
-              urls429Content = fs.readFileSync('urls-429-still-failing.txt', 'utf8');
-            } catch (e) {
-              console.log('No urls-429-still-failing.txt found');
-            }
-            
-            try {
-              githubMissingContent = fs.readFileSync('github-missing.txt', 'utf8');
-            } catch (e) {
-              console.log('No github-missing.txt found');
-            }
+          Rules:
+          1. For each broken URL, search the source under `fern/` and `README.md` to find where
+             the link is defined (grep for the URL, its path, or a distinctive slug), and fix it
+             at the source.
+          2. Internal links between docs pages must be published `/learn/...` URL paths built from
+             the YAML config, never file paths or relative paths. Read the "Link checking" section
+             of `AGENTS.md` and the relevant `docs.yml` files to construct the correct path.
+          3. Common fixes: correct a moved or renamed slug, add a missing path segment (e.g.
+             `/learn`), update an outdated commit SHA to a branch name, or fix URL-encoded paths.
+          4. If you cannot confidently determine the correct replacement (e.g. the only signal is a
+             5xx/connection error or rate limiting, or you cannot find where the link is defined),
+             DO NOT guess or delete the link. Leave it unchanged and record it in
+             `broken-links-unfixed.md` with a one-line reason.
+          5. Only fix the specific failures listed below. Do not touch other links that merely look
+             similar.
+          6. Do not edit anything under `fern/translations/` — those files are generated.
+          7. When done, write a short bullet-list summary of what you changed to
+             `broken-links-summary.md`.
 
-            if (!brokenLinksContent && !urls429Content && !githubMissingContent) {
-              console.log('No broken links to report');
-              return;
-            }
+          The broken links to fix:
+          PROMPT
+          cat broken-links-list.md >> claude-prompt.md
 
-            // Build the scaffold file content
-            let scaffoldContent = devinPrompt + '\n';
-            
-            if (brokenLinksContent.trim()) {
-              scaffoldContent += '\n## Non-429 Broken Links\n\n';
-              // Format: extract status code and URL from lychee output
-              const lines = brokenLinksContent.trim().split('\n');
-              for (const line of lines) {
-                const match = line.match(/\[(\d+)\].*<([^>]+)>/);
-                if (match) {
-                  scaffoldContent += `- [${match[1]}] ${match[2]}\n`;
-                } else {
-                  scaffoldContent += `- ${line}\n`;
-                }
-              }
-            }
-            
-            if (urls429Content.trim()) {
-              scaffoldContent += '\n## Rate-Limited URLs (429) Still Failing After Retry\n\n';
-              scaffoldContent += urls429Content.trim() + '\n';
-            }
-            
-            if (githubMissingContent.trim()) {
-              scaffoldContent += '\n## GitHub URLs Missing Locally\n\n';
-              scaffoldContent += githubMissingContent.trim() + '\n';
-            }
+          # Install and run Claude Code headlessly.
+          npm install -g @anthropic-ai/claude-code
+          claude -p "$(cat claude-prompt.md)" \
+            --dangerously-skip-permissions \
+            --max-turns 80 \
+            --model sonnet \
+            --output-format text || echo "Claude exited non-zero; will still check for changes"
 
-            scaffoldContent += '\n---\n';
-            scaffoldContent += `[View workflow run](https://github.com/${owner}/${repo}/actions/runs/${context.runId})\n`;
+          # Remove scratch files so they are never committed.
+          rm -f claude-prompt.md broken-links-list.md
 
-            // Truncate PR body to stay under GitHub's 65536 character limit
-            // The full content is still written to the scaffold file
-            const MAX_PR_BODY_LENGTH = 60000; // leave headroom for safety
-            let prBody = scaffoldContent;
-            if (prBody.length > MAX_PR_BODY_LENGTH) {
-              const truncationNote = `\n\n---\n⚠️ **Report truncated** — full list is in the scaffold file (\`${filePath}\`) on the branch.\n[View workflow run](https://github.com/${owner}/${repo}/actions/runs/${context.runId})\n`;
-              prBody = prBody.substring(0, MAX_PR_BODY_LENGTH - truncationNote.length) + truncationNote;
-            }
+          if [ -n "$(git status --porcelain -- fern README.md)" ]; then
+            echo "changes_made=true" >> "$GITHUB_OUTPUT"
+            echo "Source changes made by Claude:"
+            git status --porcelain -- fern README.md
+          else
+            echo "changes_made=false" >> "$GITHUB_OUTPUT"
+            echo "Claude made no source changes."
+          fi
 
-            // Get the base branch ref
-            const baseRef = await github.rest.git.getRef({
-              owner,
-              repo,
-              ref: `heads/${baseBranch}`,
-            });
-            const baseCommitSha = baseRef.data.object.sha;
+      - name: Create or update PR with fixes
+        if: steps.fix-links.outputs.changes_made == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          BRANCH="chore/fix-broken-links"
 
-            const baseCommit = await github.rest.git.getCommit({
-              owner,
-              repo,
-              commit_sha: baseCommitSha,
-            });
-            const baseTreeSha = baseCommit.data.tree.sha;
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-            // Check if branch already exists
-            let branchExists = false;
-            let existingPR = null;
-            
-            try {
-              await github.rest.git.getRef({
-                owner,
-                repo,
-                ref: `heads/${branchName}`,
-              });
-              branchExists = true;
-              
-              // Check for existing open PR
-              const prs = await github.rest.pulls.list({
-                owner,
-                repo,
-                state: 'open',
-                head: `${owner}:${branchName}`,
-              });
-              if (prs.data.length > 0) {
-                existingPR = prs.data[0];
-              }
-            } catch (e) {
-              if (e.status !== 404) throw e;
-            }
+          # Build the PR body from Claude's summary plus the full detected report.
+          {
+            echo "Automated fixes for broken links found by the scheduled link checker."
+            echo ""
+            echo "[View workflow run](https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID})"
+            echo ""
+            if [ -f broken-links-summary.md ]; then
+              echo "## Summary of changes"
+              echo ""
+              cat broken-links-summary.md
+              echo ""
+            fi
+            if [ -f broken-links-unfixed.md ]; then
+              echo "## Links needing manual review"
+              echo ""
+              cat broken-links-unfixed.md
+              echo ""
+            fi
+            if [ -f lychee-report.md ]; then
+              echo "## All detected broken links"
+              echo ""
+              cat lychee-report.md
+            fi
+          } > pr-body.md
 
-            // If branch exists but no open PR, delete the old branch
-            if (branchExists && !existingPR) {
-              console.log(`Deleting old branch ${branchName}...`);
-              await github.rest.git.deleteRef({
-                owner,
-                repo,
-                ref: `heads/${branchName}`,
-              });
-              branchExists = false;
-            }
+          # Stage only source fixes (never the report/scratch artifacts).
+          git add fern README.md
+          git checkout -b "$BRANCH"
+          git commit -m "fix: repair broken documentation links
 
-            let prUrl = '';
-            let prNumber = 0;
+          Automated fix generated by the scheduled link checker using Claude.
+          Detected by workflow run ${GITHUB_RUN_ID}."
 
-            if (existingPR) {
-              // Update existing PR by updating the file
-              console.log(`Updating existing PR #${existingPR.number}...`);
-              
-              // Get the current file SHA if it exists
-              let fileSha = null;
-              try {
-                const fileContent = await github.rest.repos.getContent({
-                  owner,
-                  repo,
-                  path: filePath,
-                  ref: branchName,
-                });
-                fileSha = fileContent.data.sha;
-              } catch (e) {
-                if (e.status !== 404) throw e;
-              }
+          git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push --force origin "$BRANCH"
 
-              await github.rest.repos.createOrUpdateFileContents({
-                owner,
-                repo,
-                path: filePath,
-                message: `Update broken links list from workflow run ${context.runId}`,
-                content: Buffer.from(scaffoldContent).toString('base64'),
-                branch: branchName,
-                sha: fileSha,
-              });
-
-              prUrl = existingPR.html_url;
-              prNumber = existingPR.number;
-              console.log(`Updated PR: ${prUrl}`);
-            } else {
-              // Create new branch and PR
-              console.log('Creating new branch and PR...');
-
-              // Create a blob with the scaffold content
-              const blob = await github.rest.git.createBlob({
-                owner,
-                repo,
-                content: scaffoldContent,
-                encoding: 'utf-8',
-              });
-
-              // Create a tree with the new file
-              const tree = await github.rest.git.createTree({
-                owner,
-                repo,
-                base_tree: baseTreeSha,
-                tree: [
-                  {
-                    path: filePath,
-                    mode: '100644',
-                    type: 'blob',
-                    sha: blob.data.sha,
-                  },
-                ],
-              });
-
-              // Create a commit
-              const commit = await github.rest.git.createCommit({
-                owner,
-                repo,
-                message: `Add broken links scaffold for Devin to fix`,
-                tree: tree.data.sha,
-                parents: [baseCommitSha],
-              });
-
-              // Create the branch
-              await github.rest.git.createRef({
-                owner,
-                repo,
-                ref: `refs/heads/${branchName}`,
-                sha: commit.data.sha,
-              });
-
-              // Create the PR
-              const pr = await github.rest.pulls.create({
-                owner,
-                repo,
-                title: 'Fix broken links (Devin)',
-                head: branchName,
-                base: baseBranch,
-                body: prBody,
-                draft: true,
-              });
-
-              prUrl = pr.data.html_url;
-              prNumber = pr.data.number;
-              console.log(`Created PR: ${prUrl}`);
-            }
-
-            core.setOutput('pr_url', prUrl);
-            core.setOutput('pr_number', prNumber);
-            core.setOutput('pr_created', 'true');
+          existing=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number' 2>/dev/null || echo "")
+          if [ -n "$existing" ]; then
+            echo "Updating existing PR #$existing"
+            gh pr edit "$existing" --body-file pr-body.md || true
+          else
+            gh pr create --draft --base main --head "$BRANCH" \
+              --title "Fix broken links" \
+              --body-file pr-body.md
+          fi
 
       - name: Fail if there are broken links
         if: steps.check_failures.outputs.has_other_failures == 'true' || steps.retry429.outputs.has_429_failures == 'true' || steps.verify_github.outputs.has_missing == 'true'
