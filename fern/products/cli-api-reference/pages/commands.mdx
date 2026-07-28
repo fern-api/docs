@@ -16,6 +16,9 @@ hideOnThisPage: true
 | [`fern export`](#fern-export) | Export an OpenAPI spec for your API |
 | [`fern api update`](#fern-api-update) | Manually update your OpenAPI spec |
 | [`fern api enrich`](#fern-api-enrich) | Merge `x-fern-examples` from an overrides file into native OpenAPI examples |
+| [`fern org get`](#fern-org-get) | View your organization's CLI version policy |
+| [`fern org set cli-version`](#fern-org-set-cli-version) | Set a minimum, maximum, or exact CLI version for your organization |
+| [`fern org unset cli-version`](#fern-org-unset-cli-version) | Clear your organization's CLI version policy |
 
 ## Documentation commands
 
@@ -663,6 +666,86 @@ hideOnThisPage: true
     fern upgrade
     ```
     </CodeBlock>
+
+    When your organization has a [CLI version policy](/learn/cli-api-reference/cli-reference/version-policy#interaction-with-fern-upgrade), the version written to `fern.config.json` is clamped into it: raised to the floor, and never above the ceiling.
+
+  </Accordion>
+
+  <Accordion title="fern org get">
+
+    Use `fern org get` to view your organization's [CLI version policy](/learn/cli-api-reference/cli-reference/version-policy).
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern org get [--json] [--org <org>]
+    ```
+    </CodeBlock>
+
+    ### json
+
+    Use `--json` to output the raw `cliVersionMin` and `cliVersionMax` fields instead of a one-line description.
+
+    ```bash
+    fern org get --json
+    ```
+
+    ### org
+
+    Use `--org` to override the organization ID from `fern.config.json`.
+
+    ```bash
+    fern org get --org my-org
+    ```
+
+  </Accordion>
+
+  <Accordion title="fern org set cli-version">
+
+    Use `fern org set cli-version` to constrain the Fern CLI version used by every project in your organization. Requires an organization admin. The [CLI version policy](/learn/cli-api-reference/cli-reference/version-policy) page covers how each bound is enforced.
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern org set cli-version [version] [--min <version>] [--max <version>] [--org <org>]
+    ```
+    </CodeBlock>
+
+    ```bash
+    # Pin an exact version
+    fern org set cli-version 5.45.0
+
+    # Set a floor, a ceiling, or both
+    fern org set cli-version --min 5.40.0
+    fern org set cli-version --max 5.50.0
+    fern org set cli-version --min 5.40.0 --max 5.50.0
+    ```
+
+    Each bound must be an exact published version of the [`fern-api` package](https://www.npmjs.com/package/fern-api?activeTab=versions). Passing a positional version together with `--min` or `--max` is rejected, as is a floor above the ceiling.
+
+    ### org
+
+    Use `--org` to override the organization ID from `fern.config.json`.
+
+    ```bash
+    fern org set cli-version 5.45.0 --org my-org
+    ```
+
+  </Accordion>
+
+  <Accordion title="fern org unset cli-version">
+
+    Use `fern org unset cli-version` to remove your organization's [CLI version policy](/learn/cli-api-reference/cli-reference/version-policy). Requires an organization admin.
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern org unset cli-version [--min] [--max] [--org <org>]
+    ```
+    </CodeBlock>
+
+    Both bounds are removed by default. Pass `--min` or `--max` to clear one end and keep the other.
+
+    ```bash
+    fern org unset cli-version --max
+    ```
 
   </Accordion>
 
