@@ -53,19 +53,19 @@ Other SDK generators don't emit availability annotations. Availability on types,
 
 When the API returns a 4xx or 5xx status code, the SDK throws an error that includes the status code, error message, response body, and raw response object.
 
-TypeScript SDKs type the `body` property on each generated error class that has a declared body schema, so narrowing an error with `instanceof` gives type-checked access to the body fields:
+TypeScript SDKs type the `body` property on each generated error class that has a declared body schema, so narrowing an error with `instanceof` gives type-checked access to the body fields. This requires TypeScript SDK generator version 3.84.0+.
 
 ```typescript
 try {
-    await client.plants.water("plantId");
+    await client.plant.add({ name: "Fern", status: "available" });
 } catch (err) {
-    if (err instanceof PlantStore.PlantNotFoundError) {
+    if (err instanceof PlantStore.BadRequestError) {
         console.log(err.body.code, err.body.message);
     }
 }
 ```
 
-Errors with an `unknown` or undeclared body type expose `body` as `unknown`.
+Errors without a declared body schema expose `body` as `unknown`, so you must narrow or cast it before reading fields.
 
 ## Server-sent events
 
