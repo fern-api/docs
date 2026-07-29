@@ -38,7 +38,17 @@ A version already inside the range prints nothing. When the version changes, the
   ```
 </CodeBlocks>
 
-A policy never blocks a command. When the CLI can't read your organization's bounds, such as when it isn't authenticated or can't reach Fern, the project runs its own pinned version.
+A policy never blocks a command. When the CLI can't read your organization's bounds, such as when it isn't authenticated or Fern doesn't respond within 2.5 seconds, the project runs its own pinned version.
+
+## Bypass the policy
+
+A policy keeps projects consistent; it isn't a security control. Set `FERN_IGNORE_ORG_VERSION_BOUNDS=true` to run the version pinned in `fern.config.json` regardless of the bounds.
+
+```bash
+FERN_IGNORE_ORG_VERSION_BOUNDS=true fern generate
+```
+
+`fern org` is exempt from the policy, so an admin can change the bounds from a project that's pinned out of range.
 
 ## Set the policy
 
@@ -59,6 +69,8 @@ fern org set cli-version --min 5.40.0 --max 5.50.0
 ```
 
 Each bound is an exact published version of the [`fern-api` package](https://www.npmjs.com/package/fern-api?activeTab=versions), such as `5.45.0` or `5.45.0-rc0`.
+
+A positional version and `--min`/`--max` are mutually exclusive: `fern org set cli-version 5.45.0 --min 5.40.0` is rejected.
 
 `--min` and `--max` update only the bound you pass. Setting `--min 5.40.0` on an organization already pinned to `5.45.0` leaves the maximum at `5.45.0`, turning the pin into the range `5.40.0` to `5.45.0`.
 
