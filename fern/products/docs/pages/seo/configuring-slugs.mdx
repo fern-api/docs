@@ -18,10 +18,10 @@ By default, Fern derives each navigation item's slug from its display name in `d
 | Folder | Directory name or `title` | `api-guides` | `api-guides` |
 | Page | `page` name | `Quick Start` | `quick-start` |
 
-A page's full URL joins these slugs from the outermost scope inward — product, version, tab, section and folder, then page. A page in product `Platform`, version `v2`, tab `Guides`, section `Get Started`, named `Quickstart` resolves to `platform/v2/guides/get-started/quickstart`.
+A page's full URL joins these slugs from the outermost scope inward — product, version, tab, section and folder, then page. 
 
 <AccordionGroup>
-<Accordion title="Example without tabs" defaultOpen>
+<Accordion title="Example without tabs">
 ```yaml docs.yml {5, 7}
 instances:
   - url: plantstore.docs.buildwithfern.com
@@ -61,7 +61,11 @@ In the example above, the **Welcome** page would be hosted at `plantstore.docs.b
 
 ## Renaming slugs
 
-Set the `slug` property in `docs.yml` or in a page's frontmatter to customize the URL path. Where you set it determines how much of the URL it replaces: a `slug` in `docs.yml` replaces only that item's own segment, while a `slug` in a page's [frontmatter](#override-with-a-frontmatter-slug) replaces the page's entire section and folder hierarchy. Product and version prefixes are always preserved. When a page sets both, the frontmatter `slug` takes precedence.
+Set the `slug` property in `docs.yml` or in a page's frontmatter to customize the URL path. Where you set it determines how much of the URL it replaces:
+
+- **`docs.yml`**: replaces only that navigation item's own segment.
+- **Page [frontmatter](#override-with-a-frontmatter-slug)**: replaces the page's entire section and folder hierarchy, and takes precedence over a `docs.yml` slug on the same page.
+- **Product and version prefixes**: preserved in both cases.
 
 <Note>
   Changing a slug updates the page's URL. Run [`fern check`](/learn/cli-api-reference/cli-reference/commands#fern-check) to detect pages that moved without a [redirect](/learn/docs/seo/redirects#catching-missing-redirects), so existing links don't break.
@@ -100,7 +104,7 @@ navigation:
     contents: 
       - page: Welcome 
         slug: intro
-        path: ./docs/pages/welcome.mdx
+        path: ./docs/pages/get-started/welcome.mdx
 ```
 
 In the example above, the **Welcome** page would be hosted at `plantstore.docs.buildwithfern.com/start/intro`. 
@@ -149,7 +153,7 @@ Use a frontmatter `slug` when a page needs a short, memorable URL independent of
 
 Given the [page and section slugs](#modify-a-page-or-section-slug) that place **Welcome** at `/start/intro`, adding a `slug` to the page's frontmatter replaces that entire hierarchy:
 
-```markdown title="welcome.mdx"
+```markdown title="./docs/pages/get-started/welcome.mdx"
 ---
 slug: welcome
 ---
@@ -157,38 +161,17 @@ slug: welcome
 
 The page now resolves to `plantstore.docs.buildwithfern.com/welcome`, taking precedence over the `docs.yml` slugs. It still appears in the sidebar under "Get Started", but its URL no longer reflects that structure.
 
-#### Behavior with products and versions
-
-When a page lives inside a [product](/learn/docs/configuration/navigation#add-a-product) or [version](/learn/docs/configuration/navigation#add-a-version), a frontmatter slug still replaces only the section and folder portion, leaving the product and version prefixes intact.
-
-```yaml title="docs.yml"
-products:
-  - display-name: Platform
-    slug: platform
-    navigation:
-      - tab: guides
-        layout:
-          - section: Get Started
-            contents:
-              - page: Quickstart
-                path: ./docs/pages/quickstart.mdx
-```
-
-```markdown title="quickstart.mdx"
----
-slug: quickstart
----
-```
-
-The resulting URL is `plantstore.docs.buildwithfern.com/platform/quickstart` — **not** `/quickstart`. The product slug `platform` is retained; only the section and tab hierarchy is bypassed.
-
-The same applies to versions: a page in version "v2" of product "platform" with frontmatter `slug: quickstart` resolves to `/platform/v2/quickstart`. To move a page to the absolute root of your docs, place it outside any product or version in your navigation structure.
+<Info>
+  A frontmatter slug never escapes a [product](/learn/docs/configuration/navigation#add-a-product) or [version](/learn/docs/configuration/navigation#add-a-version) prefix. A **Quickstart** page inside the product `platform` with frontmatter `slug: quickstart` resolves to `/platform/quickstart` — not `/quickstart` — and in version `v2` of that product, `/platform/v2/quickstart`. 
+  
+  To move a page to the absolute root of your docs, place it outside any product or version in your navigation.
+</Info>
 
 ## Skipping slugs
 To ignore a tab or section when generating the slug, simply indicate `skip-slug: true`. 
 
 <AccordionGroup>
-<Accordion title="Example without tabs defaultOpen">
+<Accordion title="Example without tabs" defaultOpen>
 ```yaml docs.yml {6}
 instances:
   - url: plantstore.docs.buildwithfern.com
