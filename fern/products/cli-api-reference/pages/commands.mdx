@@ -181,7 +181,7 @@ hideOnThisPage: true
 
     <CodeBlock title="terminal">
     ```bash
-    fern generate [--group <group>] [--api <api>] [--version <version>] [--preview] [--fernignore <path>] [--local] [--force] [--no-replay]
+    fern generate [--group <group>] [--api <api>] [--version <version>] [--preview] [--fernignore <path>] [--local] [--force] [--no-replay] [--pack] [--pack-mode <mode>]
     ```
     </CodeBlock>
 
@@ -293,6 +293,43 @@ hideOnThisPage: true
     <Note>
     `--no-replay` works only for local generation (`--local`).
     </Note>
+
+    ### pack
+
+    Use `--pack` to build a distributable package artifact for every generator in the run whose [output location](/learn/sdks/reference/generators-yml#output) is `local-file-system`. Artifacts are written to a `fern-dist/` folder inside that generator's output directory, so a generated SDK can be handed to internal consumers without publishing it to a public registry. `--pack` works with both cloud and local (`--local`) generation, and implies full project output so the artifact includes the project metadata files (`pyproject.toml`, `README.md`, and similar) it needs to build.
+
+    ```bash
+    # Package every local-file-system output
+    fern generate --pack
+
+    # Package one group generated locally
+    fern generate --group python-sdk --local --pack
+    ```
+
+    | Language | Artifact |
+    |----------|----------|
+    | TypeScript | npm tarball (`.tgz`) |
+    | Python | wheel (`.whl`) |
+    | Java | JAR |
+    | C# | NuGet package (`.nupkg`) |
+    | Ruby | gem (`.gem`) |
+    | PHP | Composer archive (`.zip`) |
+    | Rust | crate (`.crate`) |
+    | Go | module source archive (`.zip`), since `go get` always fetches source |
+
+    Swift SDKs are distributed as Swift Package Manager source packages, so packaging logs a warning instead of producing an artifact: share the output directory or reference it as a local package dependency. If packaging fails for one or more generators, the CLI reports them together as `Packaging failed for: <generators>` and removes any empty `fern-dist/` directory it created.
+
+    `--pack` can't be combined with `--preview` or with docs generation (`--docs`).
+
+    ### pack-mode
+
+    Use `--pack-mode <mode>` to choose where `--pack` runs the packaging toolchains. `host` (the default) uses the toolchains installed on the machine (`npm`, `pip`, `gradle`, `dotnet`, `gem`, `composer`, `cargo`). `docker` runs each toolchain inside its official image (`node`, `python`, `gradle`, `dotnet/sdk`, `ruby`, `composer`, `rust`) with the output directory mounted, so no language toolchains are required locally. Docker mode uses `docker` as the container runtime unless you pass `--runner podman`.
+
+    ```bash
+    fern generate --group python-sdk --pack --pack-mode docker
+    ```
+
+    `--pack-mode` requires `--pack`.
 
   </Accordion>
 
