@@ -85,6 +85,39 @@ config:
 ```
 </ParamField>
 
+<ParamField path="packageIdentity" type="object" toc={true}>
+Overrides the Cargo `[package]` metadata of the generated crate. Without it, the crate keeps the SDK template's Fern-owned identity (`name = "fern-cli-sdk"`, Fern's repository and authors), which is wrong for a CLI you publish under your own name.
+
+Every field is optional, and omitting `packageIdentity` leaves generated output unchanged.
+
+```yaml title="generators.yml"
+config:
+  binaryName: contoso
+  packageIdentity:
+    name: contoso-cli
+    description: Command-line interface for the Contoso API.
+    license: MIT
+    repository: https://github.com/contoso/contoso-cli
+    homepage: https://contoso.com
+    authors: ["Contoso <support@contoso.com>"]
+    keywords: ["plants", "cli"]
+```
+
+| Field | Type | Cargo `[package]` key |
+| --- | --- | --- |
+| `name` | string | `name` |
+| `description` | string | `description` |
+| `license` | string | `license` |
+| `repository` | string | `repository` |
+| `homepage` | string | `homepage` |
+| `authors` | array of strings | `authors` |
+| `keywords` | array of strings | `keywords` |
+
+`name` must be a valid cargo crate name: it starts with a letter and contains only letters, digits, `-`, and `_`. Invalid values fail at generation time with a config error instead of surfacing later as a manifest error during `cargo build`. The generator renames the matching `Cargo.lock` entry in the same pass, so `cargo build --locked` still resolves the workspace member.
+
+The override applies only to the `[package]` section. The internal library name (`[lib] name = "fern_cli_sdk"`) isn't configurable, because the vendored source tree imports through it.
+</ParamField>
+
 ## Publishing & delivery
 
 ### `output`
