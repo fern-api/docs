@@ -60,12 +60,33 @@ Use the `/fern` slash command in any channel to adjust the settings:
 |---------|-------------|---------|
 | **respond_to** | Controls whether the Ask Fern bot responds to all messages (`all`), reponds only when directly mentioned with `@Ask Fern` (`mentions_only`), or determines when to respond to messages depending on context (`auto`). Set to `auto` by default. | `/fern respond_to all` |
 | **roles** | Specifies which RBAC roles (comma-separated) should be used to filter Ask Fern responses (if you have [role-based access control](/learn/docs/authentication/features/rbac) configured) | `/fern roles developer,admin` |
-| **show** | Show the current settings | `/fern show` |
+| **show** | Show the current settings, including the docs domain the channel answers from | `/fern show` |
 | **help** | Get help with Ask Fern slash commands | `/fern help` |
 
 <Frame caption="After configuring respond_to all, bot responds to messages even when not directly mentioned">
   <img src="assets/respond-all-slack.png" alt="Respond all setting in Slack" />
 </Frame>
+
+### Docs domain per channel
+
+Installing the app binds Ask Fern to one docs domain. A channel can override that domain, so a single workspace can answer from a different docs site in each channel. Channels without an override use the install domain.
+
+Overrides are set through an HTTP endpoint rather than a slash command:
+
+```bash
+curl -X POST https://fai.buildwithfern.com/slack/channel-domain-override \
+     -H "Authorization: Bearer <YOUR_FERN_TOKEN>" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "team_id": "T0123456789",
+       "channel_id": "C0123456789",
+       "domain": "plants.docs.buildwithfern.com"
+     }'
+```
+
+`team_id` is the Slack workspace the app is installed in, and `channel_id` is the channel to configure. The response reports the stored `domain_override` and the `effective_domain` Ask Fern queries in that channel. Sending `"domain": null` clears the override and restores the install domain.
+
+The Fern token must belong to an organization that owns the override domain: requests for a domain in another organization return `403`.
 
 ### Customize the bot name
 
