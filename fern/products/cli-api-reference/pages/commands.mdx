@@ -315,7 +315,15 @@ hideOnThisPage: true
     | Ruby | gem (`.gem`) |
     | PHP | Composer archive (`.zip`) |
     | Rust | crate (`.crate`) |
-    | Go | module source archive (`.zip`), since `go get` always fetches source |
+    | Go | module source zip (`<output-dir>-source.zip`) |
+
+    Go modules have no binary package format, so the Go artifact is a zip of the generated module source, excluding `fern-dist/` and `.git/`. Fern builds it in-process: it produces the same artifact in either pack mode and requires no Go toolchain. Consumers unzip it and point their `go.mod` at the unzipped directory:
+
+    ```go title="go.mod"
+    require github.com/plantstore/plantstore-go v0.0.0
+
+    replace github.com/plantstore/plantstore-go => ../plantstore-go
+    ```
 
     Swift SDKs are distributed as Swift Package Manager source packages, so packaging logs a warning instead of producing an artifact: share the output directory or reference it as a local package dependency. If packaging fails for one or more generators, the CLI reports them together as `Packaging failed for: <generators>` and removes any empty `fern-dist/` directory it created.
 
