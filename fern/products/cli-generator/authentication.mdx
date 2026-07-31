@@ -57,10 +57,10 @@ Declaring an `oauth` scheme under `auth-schemes` in `generators.yml` makes the C
 | Flow | `type` | Use case |
 | --- | --- | --- |
 | Client credentials | `client-credentials` | Machine-to-machine. The CLI exchanges a client ID and secret from environment variables for a token, configured with the same [`auth-schemes` fields the SDKs use](/learn/sdks/reference/generators-yml#auth-schemes). |
-| Authorization code with PKCE | `authorization-code` | Interactive login. The CLI opens a browser and receives the callback on a loopback listener. |
+| Authorization code with Proof Key for Code Exchange (PKCE) | `authorization-code` | Interactive login. The CLI opens a browser and receives the callback on a loopback listener. |
 | Device code | `device-code` | Interactive login on machines without a browser, such as SSH sessions and containers. |
 
-The interactive flows are public-client only: they use PKCE (RFC 7636) rather than a client secret. They require CLI generator `0.29.0` or later.
+The interactive flows are public-client only: they use PKCE rather than a client secret. They require CLI generator `0.29.0` or later.
 
 ### Log in and out
 
@@ -90,7 +90,7 @@ auth-schemes:
       - plants:write
 ```
 
-Omitting `redirect-uri` binds an OS-assigned loopback port at login time, which is the recommended setup (RFC 8252 §7.3) and needs no port registration beyond whatever the authorization server allows. To pin a port, set `redirect-uri` to a loopback URL, and list `ports` to add fallbacks tried in order when the primary port is busy:
+Omitting `redirect-uri` binds an OS-assigned loopback port at login time, which is the recommended setup and needs no port registration beyond whatever the authorization server allows. To pin a port, set `redirect-uri` to a loopback URL, and list `ports` to add fallbacks tried in order when the primary port is busy:
 
 ```yaml title="generators.yml"
     redirect-uri:
@@ -169,7 +169,7 @@ When an API accepts more than one credential under the `any` strategy, the CLI a
 
 The scheme names must match across both files.
 
-A scheme that's missing from the spec is silently ignored, even when its environment variable is set. With both declared, set either variable and the command runs:
+A scheme that's missing from the spec is ignored without warning, even when its environment variable is set. With both declared, set either variable and the command runs:
 
 ```bash
 # Authenticate with MY_API_KEY
