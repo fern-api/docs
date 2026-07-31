@@ -1,29 +1,17 @@
-## 0.26.0
-**`(feat):`** Generate OAuth client-credentials authentication from the full Fern IR
-contract, including custom token and refresh requests, response mappings,
-scopes, token headers and prefixes, environment URLs, expiry-aware caching,
-and refresh fallback.
+## OAuth client credentials
 
+<ChangelogTags>auth, generators.yml</ChangelogTags>
 
-## 0.25.0
-**`(feat):`** The generated CLI now sends a `User-Agent` header identifying itself by its
-own binary name and version (e.g. `mycli-cli/1.4.0`) instead of the shared
-`fern-cli-sdk` crate name. This lets each CLI's traffic be tracked
-distinctly on the API backend. The product token is normalized to end with
-`-cli` so it unambiguously denotes CLI traffic (a binary named `mycli`
-reports `mycli-cli`; one already named `mycli-cli` is left unchanged).
+Generated CLIs can now obtain their own tokens for machine-to-machine authentication. Declare an `oauth` scheme with `type: client-credentials` in `generators.yml` and the CLI exchanges a client ID and secret from the environment for a token, caches it until it expires, and refreshes it automatically. Custom token and refresh requests, response mappings, scopes, token headers and prefixes, and environment URLs are all read from the same `auth-schemes` configuration the SDKs use.
 
-A tool built on top of the CLI can voluntarily tag its traffic, either with
-the `--user-agent-suffix` flag or the `<NAME>_USER_AGENT_SUFFIX` environment
-variable (the flag takes precedence). The token is appended to (rather than
-replacing) the CLI's own identity — e.g. `mycli-cli/1.4.0 partner-app/3.1`.
+<Button intent="none" outlined rightIcon="arrow-right" href="/learn/cli-generator/get-started/authentication#oauth-flows">Read the docs</Button>
 
-The name of this suffix flag (and its derived environment variable) is
-configurable at generation time via the new `userAgentSuffixFlag` custom
-config. It defaults to `--user-agent-suffix` / `<NAME>_USER_AGENT_SUFFIX`;
-setting `userAgentSuffixFlag: via` instead exposes `--via` and `<NAME>_VIA`,
-giving API owners branding control over the consumer suffix knob.
+## Per-CLI User-Agent identity
 
+<ChangelogTags>features, generators.yml</ChangelogTags>
 
-## 0.24.0
-**`(feat):`** Includes Rust SDK Generator 0.43.0 updates.
+Requests now identify the CLI by its own binary name and version, such as `contoso-cli/1.4.0`, instead of the shared crate name that every generated CLI previously sent. Your API backend can distinguish traffic from each CLI you publish.
+
+Tools built on top of a generated CLI can tag their own traffic with the `--user-agent-suffix` flag or the `<NAME>_USER_AGENT_SUFFIX` environment variable, which appends to rather than replaces the CLI's identity. Rename that flag at generation time with `userAgentSuffixFlag` if you'd prefer different branding.
+
+<Button intent="none" outlined rightIcon="arrow-right" href="/learn/cli-generator/get-started/features#user-agent">Read the docs</Button>

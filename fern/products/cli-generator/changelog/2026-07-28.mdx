@@ -1,14 +1,19 @@
-## 0.30.0
-**`(feat):`** Emit login-capable CLIs for public-client OAuth flows. An `authorization-code` (PKCE) OAuth
-scheme now generates a `PkceLoginFlow` and a `device-code` scheme a `DeviceCodeLoginFlow`,
-registered via `CliApp::login_flow(...)` so `<bin> auth login` runs the browser / device
-flow, tokens are stored in the OS keyring, and requests get `Authorization: Bearer <token>`
-with refresh-on-expiry. A configured loopback `redirect-uri` pins the callback host, path,
-and port exactly (both `127.0.0.1` and `localhost` are honored, along with a custom path)
-so it matches the authorization server's registered redirect; the object form
-(`{ url, ports }`) adds backup ports tried in order when the primary is busy, and omitting
-it binds an ephemeral (OS-assigned) port per RFC 8252 §7.3. Extra literal parameter maps
-(`authorizationParameters` / `tokenParameters` / `refreshParameters` /
-`deviceAuthorizationParameters` — e.g. an Auth0 `audience`) are appended to the respective
-requests, with protocol-reserved keys skipped. Environment-variable client IDs and the IR's
-`refreshUrl` / `tokenHeader` / `tokenPrefix` fields are not yet consumed and are skipped.
+## Browser and device login
+
+<ChangelogTags>auth, generators.yml</ChangelogTags>
+
+Generated CLIs can now log users in interactively. Declaring an `authorization-code` scheme gives `<bin> auth login` a browser flow with PKCE, and a `device-code` scheme prints a user code for machines without a browser, such as SSH sessions and containers. Tokens are stored in the OS keyring, refreshed when they expire, and sent on every request. `auth logout` clears them and `auth status` shows which schemes have a credential.
+
+```yaml title="generators.yml"
+auth-schemes:
+  OAuth:
+    scheme: oauth
+    type: authorization-code
+    client-id: my-public-client-id
+    authorization-url: https://idp.example.com/authorize
+    token-url: https://idp.example.com/oauth/token
+```
+
+Omitting `redirect-uri` binds an OS-assigned loopback port at login. Pin the callback host, path, and port instead by setting one explicitly, with backup ports tried in order when the primary is busy. Authorization servers that need extra literal parameters, such as an Auth0 `audience`, accept them through per-request parameter maps.
+
+<Button intent="none" outlined rightIcon="arrow-right" href="/learn/cli-generator/get-started/authentication#oauth-flows">Read the docs</Button>
