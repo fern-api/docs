@@ -217,6 +217,7 @@ Each method serves a specific purpose and is only generated when needed:
 | `setCustomHeaders(builder)` | Add custom headers defined in API spec | Only if API defines headers |
 | `setVariables(builder)` | Configure API variables | Only if API has variables |
 | `setHttpClient(builder)` | Customize OkHttp client | Always |
+| `setInterceptors(builder)` | Attach custom OkHttp interceptors | Only if [`custom-interceptors`](/learn/sdks/generators/java/configuration#custom-interceptors) is enabled |
 | `setTimeouts(builder)` | Modify timeout settings | Always |
 | `setRetries(builder)` | Modify retry settings | Always |
 | `setAdditional(builder)` | Final extension point for any custom configuration | Always |
@@ -287,6 +288,36 @@ protected void setAdditional(ClientOptions.Builder builder) {
 
 - **Fern Java SDK version**: 2.39.6 or later
 - **Configuration**: `enable-extensible-builders: true` in `generators.yml`
+
+## Adding custom interceptors
+
+[OkHttp interceptors](https://square.github.io/okhttp/features/interceptors/) observe and rewrite every request and response the SDK sends, which covers request signing, public key client validation, and custom logging or tracing. Setting `custom-interceptors: true` generates an `addInterceptor(Interceptor)` method on the client builder:
+
+```yaml {7} title="generators.yml"
+groups:
+  java-sdk:
+    generators:
+      - name: fern-java-sdk
+        version: 3.41.0
+        config:
+          custom-interceptors: true
+```
+
+SDK users register interceptors when they construct the client, and each one is applied to the underlying `OkHttpClient` at build time:
+
+```java
+YourApiClient client = YourApiClient.builder()
+    .token("<token>")
+    .addInterceptor(chain -> {
+        Request request = chain.request();
+        return chain.proceed(request.newBuilder()
+            .header("X-Signature", sign(request))
+            .build());
+    })
+    .build();
+```
+
+Interceptor registration code belongs in a file listed in `.fernignore` so regeneration doesn't overwrite it. The builder also exposes a protected `setInterceptors(ClientOptions.Builder)` method, so a [custom builder](#adding-custom-client-configuration) can override it to attach interceptors on behalf of its users rather than requiring each caller to register them.
 
 ## Adding custom dependencies
 
