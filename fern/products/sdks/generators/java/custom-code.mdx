@@ -315,16 +315,7 @@ YourApiClient client = YourApiClient.builder()
     .build();
 ```
 
-Custom interceptors run in registration order, after the retry, logging, and response decompression interceptors Fern installs. The retry interceptor wraps them, so every retried attempt passes through them again: a signing interceptor recomputes its signature per attempt rather than replaying the signature from the first attempt.
-
-For OAuth APIs the builder is staged, and `addInterceptor` is available at each stage. `builder()` returns an intermediate builder, `token(...)` or `credentials(...)` returns the auth-specific builder, and interceptors registered before the auth call are forwarded to it:
-
-```java
-YourApiClient client = YourApiClient.builder()
-    .addInterceptor(signingInterceptor)
-    .credentials("<clientId>", "<clientSecret>")
-    .build();
-```
+Custom interceptors run in registration order, inside Fern's retry interceptor, so a retried request passes through them again and a signing interceptor signs each attempt. For OAuth APIs, `addInterceptor` is available both before and after the `token(...)` or `credentials(...)` call.
 
 To attach an interceptor yourself rather than requiring every caller to register one, override the protected `setInterceptors(ClientOptions.Builder)` method on a [custom builder](#adding-custom-client-configuration), and add that builder to `.fernignore` so regeneration doesn't overwrite it.
 
