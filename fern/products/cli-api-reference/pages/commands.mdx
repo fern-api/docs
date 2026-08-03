@@ -181,7 +181,7 @@ hideOnThisPage: true
 
     <CodeBlock title="terminal">
     ```bash
-    fern generate [--group <group>] [--api <api>] [--version <version>] [--preview] [--fernignore <path>] [--local] [--force] [--no-replay] [--package] [--package-mode <local|docker>] [--package-only]
+    fern generate [--group <group>] [--api <api>] [--version <version>] [--preview] [--fernignore <path>] [--local] [--force] [--no-replay] [--package] [--package-mode <mode>] [--package-only]
     ```
     </CodeBlock>
 
@@ -296,27 +296,56 @@ hideOnThisPage: true
 
     ### package
 
-    Use `--package` to build a distributable artifact for each generator that outputs to the local file system. The artifact is written to a `fern-dist/` folder inside the output directory, so an SDK can be shared internally without publishing to a registry. Artifacts are language-specific: an npm tarball, a Python wheel and sdist, a JAR, a NuGet package, a gem, a Composer zip, a crate, or, for Go, a `<output-dir>-source.zip` containing the module source to reference with a `replace` directive in `go.mod`.
+    Use `--package` to build a distributable package artifact for every generator in the run whose [output location](/learn/sdks/reference/generators-yml#output) is `local-file-system`. Artifacts are written to a `fern-dist/` folder inside that generator's output directory, so a generated SDK can be handed to internal consumers without publishing it to a public registry. `--package` works with both cloud and local (`--local`) generation, and implies full project output so the artifact includes the project metadata files (`pyproject.toml`, `README.md`, and similar) it needs to build.
 
     ```bash
-    fern generate --group node-sdk-local --version 0.0.1 --package
+    # Package every local-file-system output
+    fern generate --package
+
+    # Package one group generated locally
+    fern generate --group plantstore-python-sdk --local --package
     ```
+
+    | Language | Artifact |
+    |----------|----------|
+    | TypeScript | npm tarball (`.tgz`) |
+    | Python | wheel (`.whl`) |
+    | Java | JAR |
+    | C# | NuGet package (`.nupkg`) |
+    | Ruby | gem (`.gem`) |
+    | PHP | Composer archive (`.zip`) |
+    | Rust | crate (`.crate`) |
+    | Go | module source zip (`<output-dir>-source.zip`) |
+
+    Go modules have no binary package format, so the Go artifact is a zip of the generated module source, excluding `fern-dist/` and `.git/`. Fern builds it in-process: it produces the same artifact in either package mode and requires no Go toolchain. Consumers unzip it and point their `go.mod` at the unzipped directory:
+
+    ```go title="go.mod"
+    require github.com/plantstore/plantstore-go v0.0.0
+
+    replace github.com/plantstore/plantstore-go => ../plantstore-go
+    ```
+
+    Swift SDKs are distributed as Swift Package Manager source packages, so packaging logs a warning instead of producing an artifact: share the output directory or reference it as a local package dependency. If packaging fails for one or more generators, the CLI reports them together as `Packaging failed for: <generators>` and removes any empty `fern-dist/` directory it created.
+
+    `--package` can't be combined with `--preview` or with docs generation (`--docs`).
 
     ### package-mode
 
-    Use `--package-mode <local|docker>` to choose where packaging runs. The default, `local`, uses the language toolchains installed on your machine. `docker` runs each toolchain inside the generator's official Docker image, so no toolchain is required on the host.
+    Use `--package-mode <mode>` to choose where `--package` runs the packaging toolchains. `host` (the default) uses the toolchains installed on the machine (`npm`, `pip`, `gradle`, `dotnet`, `gem`, `composer`, `cargo`). `docker` runs each toolchain inside its official image (`node`, `python`, `gradle`, `dotnet/sdk`, `ruby`, `composer`, `rust`) with the output directory mounted, so no language toolchains are required locally. Docker mode uses `docker` as the container runtime unless you pass `--runner podman`.
 
     ```bash
-    fern generate --group node-sdk-local --version 0.0.1 --package --package-mode docker
+    fern generate --group plantstore-python-sdk --package --package-mode docker
     ```
+
+    `--package-mode` requires `--package` or `--package-only`.
 
     ### package-only
 
-    Use `--package-only` to keep only the artifact: after packaging, everything in the output directory except `fern-dist/` is deleted, so the generated SDK source isn't left behind. `--package-only` implies `--package`. Deletion happens per generator, so a generator whose packaging failed keeps its source for debugging.
+    Use `--package-only` to keep only the artifact: after packaging, everything in the output directory except `fern-dist/` is deleted, so the generated SDK source isn't left behind. `--package-only` implies `--package`. Deletion happens per generator, so a generator whose packaging failed keeps its source for debugging, as does a generator that produces no artifact at all (Swift). `.git`, `.fernignore`, and any top-level path a `.fernignore` entry covers are always preserved.
 
     ```bash
-    fern generate --group node-sdk-local --version 0.0.1 --package-only --package-mode docker
-    # SDKs/twilio-core-ts-sdk/ contains only fern-dist/twilio-core-0.0.1.tgz
+    fern generate --group plantstore-node-sdk --version 0.0.1 --package-only --package-mode docker
+    # SDKs/plantstore-node-sdk/ contains only fern-dist/plantstore-0.0.1.tgz
     ```
 
     <Warning>
