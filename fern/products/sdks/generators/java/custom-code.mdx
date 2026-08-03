@@ -5,7 +5,7 @@ description: Augment your Java SDK with custom utilities
 ---
 
 
-This page covers how to add custom logic, methods, and dependencies to your TypeScript SDK. 
+This page covers how to add custom logic, methods, interceptors, and dependencies to your Java SDK. 
 
 ## Adding custom logic
 
@@ -291,33 +291,31 @@ protected void setAdditional(ClientOptions.Builder builder) {
 
 ## Adding custom interceptors
 
-[OkHttp interceptors](https://square.github.io/okhttp/features/interceptors/) observe and rewrite every request and response the SDK sends, which covers request signing, public key client validation, and custom logging or tracing. Setting `custom-interceptors: true` generates an `addInterceptor(Interceptor)` method on the client builder:
+[OkHttp interceptors](https://square.github.io/okhttp/features/interceptors/) observe and rewrite every request and response an SDK sends, which covers request signing, public key client validation, and custom logging or tracing. Setting [`custom-interceptors`](/learn/sdks/generators/java/configuration#custom-interceptors) to `true` adds an `addInterceptor(okhttp3.Interceptor)` method to your generated client builder, giving the developers who install your SDK a supported extension point for those customizations:
 
 ```yaml {7} title="generators.yml"
 groups:
   java-sdk:
     generators:
       - name: fern-java-sdk
-        version: 3.41.0
+        version: <Markdown src="/snippets/version-number-java.mdx"/>
         config:
           custom-interceptors: true
 ```
 
-SDK users register interceptors when they construct the client, and each one is applied to the underlying `OkHttpClient` at build time:
+Developers using your SDK register interceptors as they construct the client. Each call to `addInterceptor` adds to the set, and all of them are applied to the underlying `OkHttpClient` at build time:
 
 ```java
 YourApiClient client = YourApiClient.builder()
     .token("<token>")
-    .addInterceptor(chain -> {
-        Request request = chain.request();
-        return chain.proceed(request.newBuilder()
-            .header("X-Signature", sign(request))
-            .build());
-    })
+    .addInterceptor(chain -> chain.proceed(
+        chain.request().newBuilder()
+            .header("X-Request-Source", "checkout-service")
+            .build()))
     .build();
 ```
 
-Interceptor registration code belongs in a file listed in `.fernignore` so regeneration doesn't overwrite it. The builder also exposes a protected `setInterceptors(ClientOptions.Builder)` method, so a [custom builder](#adding-custom-client-configuration) can override it to attach interceptors on behalf of its users rather than requiring each caller to register them.
+To attach an interceptor yourself rather than requiring every caller to register one, override the protected `setInterceptors(ClientOptions.Builder)` method on a [custom builder](#adding-custom-client-configuration), and add that builder to `.fernignore` so regeneration doesn't overwrite it.
 
 ## Adding custom dependencies
 
