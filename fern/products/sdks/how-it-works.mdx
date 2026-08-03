@@ -61,6 +61,34 @@ sequenceDiagram
 </Accordion>
 </AccordionGroup>
 
+## Version numbers
+
+Every generation stamps a version on the generated package. What you pass to `fern generate` determines how that version is chosen:
+
+| Command | How the version is chosen |
+| --- | --- |
+| `fern generate --version 1.5.0` | Stamped as-is, with no computation. |
+| `fern generate` | Fern computes the next version from the SDK's current version and applies a patch bump. |
+| `fern generate --version AUTO` | Fern AI classifies the diff between the previous and new SDK output as `MAJOR`, `MINOR`, `PATCH`, or `NO_CHANGE`, applies that bump, and writes a changelog entry. |
+
+Without `--version`, Fern reads the SDK's current version from three sources and takes the highest [semver](https://semver.org/) among them before applying the patch bump:
+
+- The highest published version in the language's package registry: npm, PyPI, Maven Central, NuGet, RubyGems, the Go proxy, or crates.io. PHP and Swift skip this source.
+- The most recent GitHub release tag in the SDK repository.
+- `sdkVersion` in `.fern/metadata.json` on the SDK repository's default branch.
+
+Taking the highest of the three keeps a stale registry from regressing the version.
+
+None of the three sources move until a change lands, so repeated generations against an unmerged branch are idempotent: each run computes the same next version and overwrites the open pull request. The version advances once a merge brings in the updated `.fern/metadata.json`, a GitHub release is tagged, or a new version reaches the registry. Teams that want exactly one registry version per batch of merges can generate with [`mode: pull-request` or `mode: push`](/learn/sdks/reference/generators-yml#github), neither of which publishes, then do a single release run with an explicit `--version`.
+
+### Prerelease versions
+
+When the SDK's current version is a prerelease (`1.5.0-rc.1`, `2.0.0-beta`, `1.0.0-alpha.3`), a computed bump advances the prerelease counter and stays on that line. Promoting the SDK to a stable version requires an explicit version: `fern generate --version 2.0.0`.
+
+### `--version AUTO`
+
+`--version AUTO` is diff-driven rather than registry-driven: the generator stamps a placeholder, then Fern diffs the previous and new generated output, picks the bump, applies it, and commits the changelog entry. It requires an `ai` block in `generators.yml` naming a provider and model, documented alongside the CI recipes in [self-hosted SDK versioning](/learn/sdks/deep-dives/self-hosted-versioning). A `NO_CHANGE` classification, an empty output diff, or a [Replay](/learn/sdks/overview/custom-code#replay) run leaves the previous version in place.
+
 ## Quotas
 
 Cloud (remote) generation uses a [leaky bucket](https://en.wikipedia.org/wiki/Leaky_bucket) rate-limiting algorithm with the following default limits:
