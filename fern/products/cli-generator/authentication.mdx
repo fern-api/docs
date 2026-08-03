@@ -39,6 +39,23 @@ echo "sk-123" > ~/.box/token
 box users get-current-user
 ```
 
+### Default environment variables
+
+When a scheme doesn't name an environment variable, the CLI derives one from the uppercased binary name:
+
+| Scheme | Default variables |
+| --- | --- |
+| Bearer | `<BINARY>_TOKEN` |
+| API key (header) | `<BINARY>_API_KEY` |
+| Basic | `<BINARY>_USERNAME`, `<BINARY>_PASSWORD` |
+| OAuth client credentials | `<BINARY>_CLIENT_ID`, `<BINARY>_CLIENT_SECRET` |
+
+A `box` binary with a bearer scheme reads `BOX_TOKEN` by default. A header API-key scheme also registers an `--api-key` flag that takes precedence over its environment variable.
+
+### `.env` files
+
+The CLI loads a `.env` file from the working directory or any parent directory at startup, so a value declared there resolves like a real environment variable with no extra configuration. A `.env` value never overrides a variable already set in the environment. Credential precedence is: an explicit CLI flag, then an already-set environment variable, then `.env`.
+
 ## Supported auth schemes
 
 The CLI supports every scheme type that OpenAPI's `securitySchemes` defines:
@@ -112,7 +129,7 @@ auth-schemes:
     token-url: https://idp.example.com/oauth/token
 ```
 
-`auth login` prints a user code and verification URL, then polls the token endpoint until the user approves. `redirect-uri` and `pkce` are rejected for this flow.
+`auth login` prints a user code and verification URL, then polls the token endpoint until the user approves. `client-id` must be a literal public client ID; `client-id-env`, `redirect-uri`, and `pkce` are rejected for this flow.
 
 ### Extra request parameters
 
