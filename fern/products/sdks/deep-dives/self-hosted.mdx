@@ -149,6 +149,31 @@ To pull generator images from a private registry your organization controls inst
 </Step>
 </Steps>
 
+## Run in GitHub Actions
+
+`fern generate --local` runs in GitHub Actions. GitHub-hosted `ubuntu-latest` runners ship with Docker preinstalled, which satisfies the [Docker runtime requirement](#infrastructure-requirements). Self-hosted runners need Docker-in-Docker or a mounted Docker socket.
+
+Store the Fern API key as a repository secret and pass it to the generate step as `FERN_TOKEN`:
+
+```yaml title=".github/workflows/generate-sdks.yml"
+name: Generate SDKs
+on: workflow_dispatch
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm install -g fern-api
+      - run: fern generate --group python-sdk --local
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+```
+
+The generator image is pulled fresh on each run because it isn't cached between jobs, so the first generation in a job is slower. Because `--local` computes SDK version numbers in your pipeline rather than in Fern's cloud, configure versioning as described in [Self-hosted SDK versioning](/learn/sdks/deep-dives/self-hosted-versioning).
+
 ## Private registry setup
 
 By default, `fern generate --local` pulls generator Docker images from Docker Hub. Organizations that restrict outbound traffic or require vetted images can mirror Fern's generator images into a private registry and point the CLI at it. Remote (cloud) generation doesn't support custom registries.
