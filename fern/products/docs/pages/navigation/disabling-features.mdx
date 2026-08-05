@@ -1,0 +1,91 @@
+---
+title: Disabling features
+subtitle: Turn off Ask Fern, page actions, the MCP server, the API Explorer, and other built-in features
+description: Reference for turning off built-in Fern Docs features, including which controls live in docs.yml, page frontmatter, and the Fern Dashboard.
+---
+
+Most Fern Docs features are on by default. Where the off switch lives depends on the feature: `docs.yml` for site-wide behavior, page frontmatter for a single page, and the [Fern Dashboard](https://dashboard.buildwithfern.com/) for [Ask Fern](/learn/docs/ai-features/ask-fern/overview).
+
+## Ask Fern and the Ask AI button
+
+Ask Fern and the **Ask AI** page action button are separate controls.
+
+| To turn off | Set |
+|-------------|-----|
+| Ask Fern itself: AI search and the side panel | **Settings** > **Ask AI** card in the Dashboard |
+| The **Ask AI** page action button | `page-actions.options.ask-ai: false` in `docs.yml` |
+
+The [`ai-search` key](/learn/docs/configuration/site-level-settings#ask-fern-configuration) configures Ask Fern once it's enabled, setting PII masking, additional datasources, and the system prompt. It has no enable or disable property, so `ai-search: {}` leaves Ask Fern running with its default behavior.
+
+Setting `ask-ai: false` hides the button from the page action bar and leaves Ask Fern reachable everywhere else it appears.
+
+## Page actions and the MCP server
+
+Every built-in page action is a boolean under [`page-actions.options`](/learn/docs/configuration/site-level-settings#built-in-actions). **Copy Page**, **View as Markdown**, **Ask AI**, **ChatGPT**, **Claude**, **Claude Code**, and **Cursor** are on by default.
+
+```yaml title="docs.yml"
+page-actions:
+  options:
+    copy-page: false
+    view-as-markdown: false
+    ask-ai: false
+    chatgpt: false
+    claude: false
+    claude-code: false
+    cursor: false
+```
+
+The site's [MCP server](/learn/docs/ai-features/mcp-server) is configured under the same key, even though it controls an endpoint rather than a button:
+
+```yaml title="docs.yml"
+page-actions:
+  options:
+    mcp: false
+```
+
+Setting `mcp: false` makes `/_mcp/server` return 404, omits its URL from [`llms.txt`](/learn/docs/ai-features/llms-txt) and agent prompts, and hides the **Connect to Claude Code** and **Connect to Cursor** buttons. This is the setting to use on [authenticated sites](/learn/docs/authentication/overview), where unauthenticated agents would otherwise discover an endpoint they can't reach.
+
+## The API Explorer
+
+An empty `environments` list disables the [API Explorer](/learn/docs/api-references/api-explorer). Set it on the `- api` entry to cover every endpoint in that API:
+
+```yaml title="docs.yml" {3,4}
+navigation:
+  - api: API Reference
+    playground:
+      environments: []
+```
+
+`playground` applies at the level it's declared on and can be overridden on a section or an individual endpoint in `layout`. For the full set of Explorer options, see [Setting API Explorer options](/learn/docs/api-references/customize-api-reference-layout#setting-api-explorer-options).
+
+## Individual pages
+
+Frontmatter turns features off for one page without changing the site-wide setting.
+
+| Frontmatter | Effect |
+|-------------|--------|
+| `hide-page-actions: true` | Hides every page action button |
+| `hide-toc: true` | Hides the table of contents |
+| `hide-nav-links: true` | Hides the previous and next navigation links |
+| `hide-feedback: true` | Hides the on-page feedback widget |
+
+See [Page settings](/learn/docs/configuration/page-level-settings) for the full frontmatter reference.
+
+## Other site-wide settings
+
+| To turn off | Set |
+|-------------|-----|
+| The [search bar](/learn/docs/customization/search) | `settings.disable-search: true` |
+| [Web analytics](/learn/dashboard/metrics/web-analytics) and every configured analytics provider | `settings.disable-analytics: true` |
+| The 404 page, redirecting to the home page instead | `settings.hide-404-page: true` |
+| [HTTP snippets](/learn/docs/api-references/http-snippets) in the API Reference | `settings.http-snippets: false` |
+| [AI-generated examples](/learn/docs/ai-features/ai-examples) in the API Reference | `ai-examples.enabled: false` |
+| The [directive prepended to pages served to agents](/learn/docs/ai-features/llms-txt) | `agents.page-directive: ""` |
+
+`settings.disable-explorer-proxy: true` is not an off switch for the Explorer. It keeps the Explorer running and sends requests directly to your API instead of through Fern's proxy, which requires CORS on your API. To turn the Explorer off, use an empty `playground.environments` list.
+
+Full details for each key are in [Site settings](/learn/docs/configuration/site-level-settings#settings-configuration).
+
+## Hiding pages, sections, and endpoints
+
+Removing content from the sidebar, search results, and `llms.txt` uses `hidden` and `noindex` rather than any of the settings covered here. See [Hiding content](/learn/docs/customization/hiding-content).
