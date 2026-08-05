@@ -6,10 +6,46 @@ description: Learn how to filter API endpoints using audiences in Fern SDKs. Gen
 
 <Markdown src="/snippets/enterprise-plan.mdx"/>
 
-Use audiences to generate tailored SDKs for different groups of API consumers, such as internal teams, beta testers, or customers. 
+Use audiences to generate tailored SDKs for different groups of API consumers, such as internal teams, beta testers, or customers. Tag API elements with an audience in your spec, then filter each SDK group to the audiences you want in `generators.yml`.
 
-Audiences work through tag-based filtering: you tag API elements with audience labels in your spec, then configure which audiences to include when generating SDKs in `generators.yml`. For OpenAPI, [path-based filtering is also available](/learn/api-definitions/openapi/extensions/audiences#path-based-filtering). 
+<Info>
+  For OpenAPI, you can also [filter by URL path](/learn/api-definitions/openapi/extensions/audiences#path-based-filtering) instead of by tag.
+</Info>
 
-## Get started with audiences
+<Steps>
+<Step title="Tag elements in your spec">
 
-For complete instructions, see [Audiences in OpenAPI](/learn/api-definitions/openapi/extensions/audiences) — tag elements using `x-fern-audiences`, then configure SDK filtering in `generators.yml`.
+Tag endpoints, schemas, and properties with [`x-fern-audiences`](/learn/api-definitions/openapi/extensions/audiences). Here, an `internalNotes` property is tagged `internal`:
+
+```yaml title="openapi.yml" {7-8}
+components:
+  schemas:
+    Plant:
+      properties:
+        internalNotes:
+          type: string
+          x-fern-audiences:
+            - internal
+```
+
+</Step>
+<Step title="Filter your SDKs">
+
+Set the [`audiences` field](/learn/sdks/reference/generators-yml#audiences) on an SDK group in `generators.yml`. The following group generates only elements tagged `public`:
+
+```yaml title="generators.yml" {3-4}
+groups:
+  sdks:
+    audiences:
+      - public
+    generators:
+      - name: fern-typescript-sdk
+        version: 0.8.8
+```
+
+Elements tagged with a matching audience are included, and elements tagged only with other audiences are dropped. Untagged elements aren't scoped to any audience, so they're always included. If you don't set `audiences`, every element is included regardless of its tags.
+
+</Step>
+</Steps>
+
+

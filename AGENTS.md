@@ -18,6 +18,21 @@ Keep prose dry and direct. State requirements and behavior plainly.
 - **Cut connective filler.** "so that", "in order to", "be sure to" when a flat sentence works.
 - **Avoid em dash overuse.** At most one em dash per short paragraph. Before reaching for a second dash, try a colon (for a list or expansion) or parentheses (for an aside). Multiple dashes in close succession read as AI-generated.
 - **No conversational framing in callouts and step descriptions.** "Localization requires the latest CLI version" beats "Localization is under active development, so make sure you're on the latest CLI before configuring it."
+- **No positional references.** Don't write "as shown above", "shown below", "the example above", or anything that makes the reader scroll to another part of the page to follow the sentence. Name the thing concretely instead: "filter to `public` in `docs.yml`", not "filter to `public` as shown above". These break for readers who land mid-page and read as filler.
+
+## Callouts
+
+Before adding any callout — `<Note>`, `<Warning>`, `<Tip>`, `<Info>`, or similar — first evaluate whether the information integrates cleanly into the surrounding prose. Prose is the default; a callout is the exception. This check applies to every callout, not just when one would end up next to another.
+
+Reach for a callout only when the information is a genuine aside: a real but secondary consideration that would break the main flow if inlined. If the content is part of the narrative — the reason an instruction matters, a consequence of a step, a condition on the thing just stated — it belongs in the prose that makes that point.
+
+- If a callout explains *why* an instruction matters, merge it into the sentence that gives the instruction.
+- If a callout restates or qualifies a nearby statement, fold it into that statement.
+- Never split one idea across a sentence and a callout, or across two callouts.
+
+**Never stack two callouts back-to-back.** A callout must not be immediately adjacent to another callout — they need body prose between them. When two would end up adjacent, at least one of them almost always fails the integration check above: inline it. If two genuinely separate asides remain, keep only the stronger one as a callout.
+
+A single well-chosen callout earns attention; a callout that could have been a sentence dilutes it, and two side by side cancel each other out.
 
 ## Link checking
 
@@ -190,13 +205,14 @@ Changelog entries live in `fern/products/docs/pages/changelog/` and `fern/produc
 
 ### Rules
 
-- Always include `tags` in YAML frontmatter. Pick 1–4 from the existing set (e.g., `api-reference`, `components`, `navigation`, `customization`, `search`, `ai`, `security`, `bug-fix`). Tags are categorical — describe the area, not the feature name.
+- Every entry needs tags. Place `<ChangelogTags>` directly under each `##` heading to tag that entry individually. For bullet-point-only files without `##` headings (rare legacy format), frontmatter `tags` is acceptable.
+- Pick 1–4 tags from the existing set (e.g., `api-reference`, `components`, `navigation`, `customization`, `search`, `ai`, `security`, `bug-fix`). Tags are categorical — describe the area, not the feature name.
 - Use `##` (h2) for each feature heading. No h1.
 - Lead with what the user can now do: "You can now..." or a direct capability statement.
 - Keep it short: 2–6 sentences per feature. Bullet points for lists of details.
-- End each feature section with a Button linking to the relevant docs page:
+- End each feature section with a Button linking to the relevant docs page. When the feature is documented in a specific section of a page, link to that section anchor rather than the page top:
 ```mdx
-  <Button intent="none" outlined rightIcon="arrow-right" href="/learn/docs/section/page">Read the docs</Button>
+  <Button intent="none" outlined rightIcon="arrow-right" href="/learn/docs/section/page#feature-section">Read the docs</Button>
 ```
 - For dashboard entries, include a path to the feature in the UI before the Button.
 - Follow the link rules above — Button `href` values use `/learn/...` URL paths from the YAML config.
@@ -204,11 +220,9 @@ Changelog entries live in `fern/products/docs/pages/changelog/` and `fern/produc
 ### Example
 
 ```mdx
----
-tags: ["security"]
----
-
 ## Password-protected pages
+
+<ChangelogTags>security</ChangelogTags>
 
 You can now restrict access to individual documentation pages with a password. Visitors see a prompt before the page content loads.
 
@@ -217,14 +231,39 @@ To configure this, go to **Settings** > **Page access** in the [Dashboard](https
 <Button intent="none" outlined rightIcon="arrow-right" href="/learn/dashboard/settings/page-access">Read the docs</Button>
 ```
 
+When a single file holds multiple releases under separate headings, each heading gets its own `<ChangelogTags>`:
+
+```mdx
+## New dashboard analytics
+
+<ChangelogTags>integrations</ChangelogTags>
+
+Track page views and API usage from the dashboard.
+
+<Button intent="none" outlined rightIcon="arrow-right" href="/learn/docs/getting-started/analytics">Read the docs</Button>
+
+## Bug fixes
+
+<ChangelogTags>api-reference, bug-fix</ChangelogTags>
+
+Resolved an issue where SDK snippets failed to render for paginated endpoints.
+
+<Button intent="none" outlined rightIcon="arrow-right" href="/learn/docs/api-reference/snippets">Read the docs</Button>
+```
+
+`<ChangelogTags>` accepts comma-separated children (above) or a `tags` prop: `<ChangelogTags tags={["api-reference", "bug-fix"]} />`.
+
 ### What not to do
 
 - Don't use h1 (`#`) — the date serves as the title.
 - Don't describe implementation details — focus on user benefit.
 - Don't skip the Button CTA.
-- Don't invent new tags when an existing one fits.
+- Don't invent new tags when an existing one fits — this applies to `<ChangelogTags>` as much as frontmatter. A one-off tag fragments the filter bar.
+- Don't tag by feature name (`changelog`, `dark-mode`). Tag by area (`navigation`, `customization`).
 
-Prefer existing tags when possible. Common tags include: `api-reference`, `components`, `navigation`, `customization`, `configuration`, `search`, `ai`, `security`, `bug-fix`, `performance`, `writing-content`.
+Prefer existing tags when possible. Common tags include: `ai`, `api-reference`, `bug-fix`, `components`, `customization`, `deprecated`, `developer-tools`, `docs.yml`, `frontmatter`, `generators.yml`, `integrations`, `local-development`, `navigation`, `performance`, `search`, `security`, `seo`, `writing-content`.
+
+Retired tags (do not use): `configuration` (too broad), `ai-features` (use `ai`), `fern-editor` (use `developer-tools`), `fern-check` (use `developer-tools`).
 
 ## New component pages
 

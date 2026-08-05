@@ -1,0 +1,127 @@
+---
+title: 自定义技能
+description: 从 Fern 文档站点提供自定义 Agent 技能并配置"安装技能"按钮。
+availability: beta
+---
+
+Fern Docs 站点可以提供您自己的 [Agent 技能](https://www.skills.sh)，供用户通过 [skills CLI](https://www.skills.sh) 发现和安装。您还可以在文档 UI 中添加"安装技能"按钮，点击后会打开一个包含安装命令和技能列表的弹窗。
+
+<Steps toc={true} tocDepth={2}>
+  <Step title="组织文件结构">
+
+将技能放置在 `fern/` 目录下的 `.well-known/agent-skills/`（当前 v0.2.0 规范）或 `.well-known/skills/`（旧版 v0.1.0 布局）中。两者都受支持且可以共存。每个技能是一个子目录，至少包含一个 `SKILL.md`，可选的支持文件放在旁边。
+
+<Files>
+  <Folder name="fern" defaultOpen>
+    <File name="docs.yml" />
+    <Folder name=".well-known" defaultOpen>
+      <Folder name="agent-skills" defaultOpen>
+        <File name="index.json" comment="发现清单（必需）" />
+        <Folder name="plant-care" defaultOpen>
+          <File name="SKILL.md" comment="技能说明" />
+        </Folder>
+        <Folder name="garden-planner" defaultOpen>
+          <File name="SKILL.md" />
+          <Folder name="references" defaultOpen>
+            <File name="api.md" comment="支持文件（可选）" />
+          </Folder>
+        </Folder>
+      </Folder>
+    </Folder>
+  </Folder>
+</Files>
+
+  </Step>
+  <Step title="编写每个 SKILL.md">
+
+每个 `SKILL.md` 需要包含 `name` 和 `description` 的 YAML 前置数据，遵循 [Agent Skills 规范](https://agentskills.io)：
+
+```markdown title="fern/.well-known/agent-skills/plant-care/SKILL.md"
+---
+name: plant-care
+description: Guide for diagnosing and treating common plant diseases.
+---
+
+# Plant Care
+
+When diagnosing a plant issue, check for...
+```
+
+  </Step>
+  <Step title="添加发现清单">
+
+技能目录根目录下的 `index.json` 是必需的。它列出所有技能，以便客户端可以通过单个请求发现它们，通过 `url` 和 `digest` 引用每个技能：
+
+```json title="fern/.well-known/agent-skills/index.json"
+{
+  "$schema": "https://schemas.agentskills.io/discovery/0.2.0/schema.json",
+  "skills": [
+    {
+      "name": "plant-care",
+      "type": "skill-md",
+      "description": "Guide for diagnosing and treating common plant diseases.",
+      "url": "/.well-known/agent-skills/plant-care/SKILL.md",
+      "digest": "sha256:c4d5e6f7..."
+    }
+  ]
+}
+```
+
+旧版 v0.1.0 清单为每个技能列出 `files` 数组，而非 `url` 和 `digest`。
+
+  </Step>
+  <Step title="发布">
+
+Fern 在 `fern generate --docs` 期间上传文件包并按原样提供文件 — 无需 `docs.yml` 配置。`fern check` 在上传时验证文件包，标记以下问题：
+
+- 缺失或无法解析的 `index.json`
+- `SKILL.md` 的 `name` 不是 kebab-case、超过 64 个字符，或与其父目录名称不匹配
+- `SKILL.md` 缺少 `description` 或 `description` 为空（最多 1,024 个字符）
+
+发布后，技能可通过以下地址访问：
+
+- `https://your-docs-domain.com/.well-known/agent-skills/index.json`（发现清单）
+- `https://your-docs-domain.com/.well-known/agent-skills/<skill-name>/SKILL.md`（单个技能）
+- `https://your-docs-domain.com/.well-known/skills/index.json`（旧版 v0.1.0 清单）
+
+对于具有基础路径（如 `/docs`）的站点，端点位于该基础路径下（例如 `https://example.com/docs/.well-known/agent-skills/index.json`）。
+
+  </Step>
+  <Step title="安装技能">
+
+文件包发布后，任何人都可以通过以下命令安装您的技能：
+
+```bash
+npx skills add https://your-docs-domain.com
+```
+
+`https://` 协议前缀是必需的：裸域名会被视为 GitHub 仓库简写。
+
+  </Step>
+  <Step title="配置安装技能按钮">
+
+通过在[页面操作栏](/learn/docs/configuration/site-level-settings#page-actions-configuration)中添加"安装技能"按钮来在文档 UI 中展示您的技能。在 `docs.yml` 中设置 `page-actions.options.skills`，按钮会打开一个弹窗，包含可复制的安装命令、可用技能列表以及可选的源仓库链接。
+
+```yaml docs.yml
+page-actions:
+  options:
+    skills:
+      title: Plant API Skills
+      description: Skills for working with the Plant Store API.
+      repository: https://github.com/your-org/plant-api-skills
+      install-command: npx skills add https://your-docs-domain.com
+      skills:
+        - name: plant-care
+          description: Guide for diagnosing and treating common plant diseases.
+          url: https://github.com/your-org/plant-api-skills/tree/main/plant-care
+        - name: garden-planner
+          description: Plan garden layouts and planting schedules.
+```
+</Step>
+</Steps>
+
+## 安装技能属性
+
+在 `docs.yml` 的 `page-actions.options.skills` 下配置安装技能按钮。
+
+<Markdown src="/products/docs/snippets/install-skills-properties.mdx" />

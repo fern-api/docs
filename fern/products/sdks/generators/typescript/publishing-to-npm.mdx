@@ -156,6 +156,41 @@ OIDC-based publishing (also known as "trusted publishing") is the most secure wa
 
 	</Step>
 
+	<Step title="Publish a placeholder package">
+
+	OIDC can't perform a package's first publish: npm requires the package to exist before you can add a trusted publisher. Publish a placeholder version to create it:
+
+	```bash
+	npm login
+
+	PACKAGE_NAME="your-package-name"
+	ACCESS="public" # or "restricted" for private packages
+
+	dir="$(mktemp -d)"
+	echo "{ \"name\": \"$PACKAGE_NAME\", \"version\": \"0.0.0\" }" > "$dir/package.json"
+	npm publish "$dir" --access "$ACCESS"
+	```
+
+	Set the placeholder version to something below your first real release (for example, `0.0.0`).
+
+	</Step>
+
+	<Step title="Authorize your repository on npmjs.com">
+
+	Configure [trusted publishing](https://docs.npmjs.com/trusted-publishers) on npmjs.com to allow your GitHub repository to publish:
+
+	1. Open the package page on npmjs.com and go to the **Settings** tab
+	1. Find the **Trusted Publisher** section and click **Add trusted publisher**
+	1. Select **GitHub Actions** as your provider
+	1. Fill in:
+		- **Organization or user**: Your GitHub username or organization
+		- **Repository**: Your TypeScript SDK repository name (e.g., `your-org/your-repository`)
+		- **Workflow filename**: `ci.yml`
+		- **Environment name**: Leave blank
+	1. Under **Allowed actions**, select **Allow `npm publish`**
+
+	</Step>
+
 	<Step title="Generate your SDK">
 
 	Generate your SDK to create the GitHub Actions workflow with OIDC configuration:
@@ -165,23 +200,6 @@ OIDC-based publishing (also known as "trusted publishing") is the most secure wa
 	```
 
 	This creates a `.github/workflows/ci.yml` file that's configured to use OIDC for npm publishing. Alternatively, you can push your `generators.yml` changes and let the Fern GitHub Action generate the workflow for you.
-
-	</Step>
-
-	<Step title="Authorize your repository on npmjs.com">
-
-	Configure trusted publishing on npmjs.com to allow your GitHub repository to publish:
-
-	1. Navigate to your package settings on npmjs.com
-	1. Find the **Trusted Publisher** section and click **Add trusted publisher**
-	1. Select **GitHub Actions** as your provider
-	1. Fill in:
-		- **Organization or user**: Your GitHub username or organization
-		- **Repository**: Your TypeScript SDK repository name (e.g., `your-org/your-repository`)
-		- **Workflow filename**: `ci.yml`
-		- **Environment name**: Leave blank
-
-	For more details, see npm's [trusted publishing documentation](https://docs.npmjs.com/trusted-publishers).
 
 	</Step>
 </Steps>
@@ -349,7 +367,7 @@ This is the easiest path if you can upgrade to version 3.12.3 or later of the Ty
 
 	Follow npm's ["Add a trusted publisher on npmjs.com"](https://docs.npmjs.com/trusted-publishers#step-1-add-a-trusted-publisher-on-npmjscom) instructions:
 
-	1. Navigate to your package settings on [npmjs.com](https://npmjs.com)
+	1. Open the package page on [npmjs.com](https://npmjs.com) and go to the **Settings** tab
 	1. Find the **Trusted Publisher** section and click **Add trusted publisher**
 	1. Select **GitHub Actions** as your provider
 	1. Configure:
@@ -357,6 +375,7 @@ This is the easiest path if you can upgrade to version 3.12.3 or later of the Ty
 		- **Repository**: Your TypeScript SDK repository name
 		- **Workflow filename**: `ci.yml` (the default Fern workflow file)
 		- **Environment name**: Leave blank (unless you use GitHub environments)
+	1. Under **Allowed actions**, select **Allow `npm publish`**
 
 	</Step>
 

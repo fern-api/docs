@@ -16,6 +16,10 @@ groups:
           client-class-name: YourApiClient
 ```
 
+<ParamField path="auto-generate-idempotency-key" type="boolean | object" default="false" toc={true}>
+Overrides the API-wide [`api.settings.auto-generate-idempotency-key`](/learn/sdks/reference/generators-yml#settings) for this SDK. Set `true` to attach an [idempotency-key header](/learn/sdks/deep-dives/idempotency#auto-generate-idempotency-keys) to eligible requests (`POST` and `PUT` by default) unless the caller provides one, or `false` to opt this SDK out when auto-generation is enabled API-wide. Pass an object to customize `header-name` and `methods`.
+</ParamField>
+
 <ParamField path="base-api-exception-class-name" type="string" required={false} toc={true}>
 Customizes the name of the base API exception class that all API-specific exceptions will extend. This allows you to define a custom base exception class name for better integration with your existing error handling patterns.
 </ParamField>
@@ -46,6 +50,10 @@ Example:
     - "api com.foo:bar:0.0.0"
     ```
 
+</ParamField>
+
+<ParamField path="custom-interceptors" type="boolean" default="false" required={false} toc={true}>
+When enabled, the generated client builder exposes an `addInterceptor(Interceptor)` method for registering [custom OkHttp interceptors](/learn/sdks/generators/java/custom-code#adding-custom-interceptors). Interceptors are applied to the `OkHttpClient` when the client is built, which covers HTTP-level customizations such as request signing and public key client validation.
 </ParamField>
 
 <ParamField path="disable-required-property-builder-checks" type="boolean" default="false" required={false} toc={true}>
@@ -91,7 +99,7 @@ Controls Jackson's JSON serialization behavior for optional fields. Use 'non-emp
 </ParamField>
 
 <ParamField path="maxRetries" type="number" required={false} toc={true}>
-The default number of retries for failed requests. When not set, the generated SDK uses its own built-in default. SDK users can still override this per-request via request options.
+The default number of retries for failed requests. When not set, the generated SDK uses its own built-in default. SDK users can still override this per-request via request options, and can tune the [backoff schedule between retries](/learn/sdks/deep-dives/retries-with-backoff#customizing-the-backoff-schedule) at client instantiation.
 </ParamField>
 
 <ParamField path="offset-semantics" type="'item-index' | 'page-index'" required={false} toc={true}>
@@ -102,7 +110,11 @@ Controls how the offset parameter is interpreted for [auto-paginated](/learn/sdk
 </ParamField>
 
 <ParamField path="omit-fern-headers" type="boolean" default="false" required={false} toc={true}>
-When enabled, the generated SDK omits the `X-Fern-Language`, `X-Fern-SDK-Name`, and `X-Fern-SDK-Version` headers from HTTP requests.
+When enabled, the generated SDK omits the `X-Fern-Language`, `X-Fern-SDK-Name`, `X-Fern-SDK-Version`, and `User-Agent` headers from HTTP requests. To keep the headers but have the reported version track the published artifact rather than the generation-time version, use [`runtime-version`](#runtime-version).
+</ParamField>
+
+<ParamField path="includePlatformHeaders" type="boolean" default="false" required={false} toc={true}>
+When enabled, the generated SDK sends a single structured `User-Agent` header of the form `{sdkName}/{version} ({os}; {arch}) {runtime}/{runtimeVersion}` (for example, `com.fern.sdk/0.0.1 (linux; x86_64) Java/17.0.13`), carrying SDK, operating system, architecture, and runtime information in place of the default `User-Agent` and discrete platform headers. If `omit-fern-headers` is enabled, no `User-Agent` or platform headers are sent and this option has no effect.
 </ParamField>
 
 <ParamField path="package-layout" type="'nested' | 'flat'" default="nested" required={false} toc={true}>
@@ -122,8 +134,35 @@ config:
 Publish target for Maven packages. Use `central` for Maven Central Portal or `ossrh` for legacy Nexus Repository.
 </ParamField>
 
+<ParamField path="runtime-version" type="boolean" default="false" required={false} toc={true}>
+When enabled, the generated SDK resolves the version it reports in the `X-Fern-SDK-Version` header and the [`User-Agent`](#user-agent) version segment at runtime from the jar manifest, instead of the version baked in at generation time. The generated `build.gradle` records the project version in the manifest, and the generation-time version is used as a fallback when the manifest attribute is absent. Enable this when external release tooling determines the published version after generation, so the reported version always matches the published artifact. If [`omit-fern-headers`](#omit-fern-headers) is enabled, the SDK reports no version at all and this option has no effect.
+</ParamField>
+
 <ParamField path="use-local-date-for-dates" type="boolean" default="false" required={false} toc={true}>
 When enabled, generates `java.time.LocalDate` instead of `String` for Fern date types. This provides better type safety and enables compile-time validation for date values, while maintaining the same string wire format for API communication.
+</ParamField>
+
+<ParamField path="user-agent" type="string" default="{packageName}/{version}" required={false} toc={true}>
+Sets a custom `User-Agent` header template for requests sent by the generated SDK. The template is resolved at generation time and supports the following placeholders:
+
+*    `{packageName}`: The published package name.
+*    `{version}`: The SDK version.
+*    `{language}`: The generation language (for example, `java`).
+*    `{generatorVersion}`: The Fern generator version.
+*    `{organization}`: The organization name from `fern.config.json`.
+*    `{apiName}`: The API name from your API definition.
+
+```yaml title="generators.yml"
+groups:
+  java-sdk:
+    generators:
+      - name: fern-java-sdk
+        version: <Markdown src="/snippets/version-number-java.mdx"/>
+        config:
+          user-agent: "{organization}-{apiName}/{version} ({language})"
+```
+
+With this configuration, an organization named `plantstore` with an API named `plants` generates an SDK that sends `User-Agent: plantstore-plants/0.1.0 (java)`.
 </ParamField>
 
 <ParamField path="wrapped-aliases" type="boolean" default="false" required={false} toc={true}>

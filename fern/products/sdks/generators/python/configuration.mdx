@@ -53,6 +53,10 @@ For example, if you want to import from the file `core/oauth_flow.py`, specify t
 <ParamField path="additional_init_exports[].imports" type="array of strings" required={true}>
 List of class names, function names, or other objects to import from the specified file.
 </ParamField>
+<ParamField path="auto-generate-idempotency-key" type="boolean | object" default="false" toc={true}>
+Overrides the API-wide [`api.settings.auto-generate-idempotency-key`](/learn/sdks/reference/generators-yml#settings) for this SDK. Set `true` to attach an [idempotency-key header](/learn/sdks/deep-dives/idempotency#auto-generate-idempotency-keys) to eligible requests (`POST` and `PUT` by default) unless the caller provides one, or `false` to opt this SDK out when auto-generation is enabled API-wide. Pass an object to customize `header-name` and `methods`.
+</ParamField>
+
 <ParamField path="client_class_name" type="string" default="null" required={false} toc={true}>
 The name of the generated client class. Must be PascalCase. For example, setting `client_class_name: "Acme"` generates a client that users import as `from your_package import Acme`.
 </ParamField>
@@ -173,7 +177,17 @@ Controls how the offset parameter is interpreted for [auto-paginated](/learn/sdk
 </ParamField>
 
 <ParamField path="omit_fern_headers" type="bool" default="false" required={false} toc={true}>
-When enabled, the generated SDK omits the `X-Fern-Language`, `X-Fern-SDK-Name`, and `X-Fern-SDK-Version` headers from HTTP requests.
+When enabled, the generated SDK omits the `X-Fern-Language`, `X-Fern-SDK-Name`, and `X-Fern-SDK-Version` headers from HTTP requests. To keep the headers but have the reported version track the installed package rather than the generation-time version, use [`runtime_version`](#runtime_version).
+</ParamField>
+
+<ParamField path="include_platform_headers" type="bool" default="false" required={false} toc={true}>
+When enabled, the generated SDK sends a single structured `User-Agent` header of the form `{sdkName}/{version} ({os}; {arch}) {runtime}/{runtimeVersion}` (for example, `fern_examples/0.0.1 (linux; x86_64) Python/3.11.0`), carrying SDK, operating system, architecture, and runtime information in place of the default `User-Agent` and discrete platform headers. If `omit_fern_headers` is enabled, no `User-Agent` or platform headers are sent and this option has no effect.
+</ParamField>
+
+<ParamField path="optional_auth" type="bool" default="false" required={false} toc={true}>
+When enabled, client auth parameters (bearer token, basic auth username and password, header auth) remain optional even when the spec's [security requirements](/learn/api-definitions/openapi/authentication) mandate auth on every endpoint, and requests are sent without an auth header when no credential is provided. By default, the client raises an error when a mandatory credential is missing. Also accepted as `optional-auth` or `optionalAuth`.
+
+Enable this when callers authenticate through a mechanism other than the API's own scheme, such as cloud provider credentials, and would otherwise have to pass a placeholder value.
 </ParamField>
 
 <ParamField path="pyproject_python_version" type="string" default="^3.10" required={false} toc={true}>
@@ -195,16 +209,20 @@ Allow specifying arbitrary configuration to your packages `pyproject.toml` by ad
         ```
 </ParamField>
 
+<ParamField path="runtime_version" type="bool" default="false" required={false} toc={true}>
+When enabled, the generated SDK resolves the version it reports in the `X-Fern-SDK-Version` header and the [structured `User-Agent`](#include_platform_headers) version segment at runtime with `importlib.metadata.version()`, instead of the version baked in at generation time. Enable this when external release tooling determines the published version after generation, so the reported version always matches the installed package. The generation-time version is used as a fallback when the distribution isn't installed. If [`omit_fern_headers`](#omit_fern_headers) is enabled, the SDK reports no version at all and this option has no effect.
+</ParamField>
+
 <ParamField path="should_generate_websocket_clients" type="bool" default="false" required={false} toc={true}>
-  Feature flag that enables generation of Python websocket clients.
+  Enable generation of Python [WebSocket clients](/learn/sdks/deep-dives/websocket-clients).
 </ParamField>
 
 <ParamField path="skip_formatting" type="bool" default="false" required={false} toc={true}>
 When enabled, skips code formatting (like black) on the generated Python code.
 </ParamField>
 
-<ParamField path="timeout_in_seconds" type="number | 'infinity'" default="60" required={false} toc={true}>
-  By default, the generator generates a client that times out after 60 seconds. You can customize this value by providing a different number or setting to `infinity` to get rid of timeouts.
+<ParamField path="timeout" type="number | 'infinity'" default="60" required={false} toc={true}>
+  Sets the client timeout in seconds, or `infinity` to disable timeouts.
 </ParamField>
 
 <ParamField path="use_api_name_in_package" type="bool" default="false" required={false} toc={true}>

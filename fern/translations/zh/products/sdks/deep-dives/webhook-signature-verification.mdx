@@ -9,6 +9,8 @@ Fern 支持两种签名验证方法：
 - **基于哈希的消息认证码 (HMAC)** — 使用共享密钥的对称密钥验证
 - **非对称** — 使用 RSA、椭圆曲线数字签名算法 (ECDSA) 或 Ed25519 密钥的公钥验证
 
+两种方法都支持 `payload-format` 配置，以控制哪些组件（正文、时间戳、消息 ID、通知 URL）包含在签名数据中。对于非对称验证，建议使用包含 `timestamp` 组件的 `payload-format` 配置，以确保时间戳经过加密认证且重放保护有效。
+
 <Note>Webhook 签名验证目前仅支持 TypeScript SDK 生成。</Note>
 
 ## 生成的 SDK 行为
@@ -36,6 +38,8 @@ app.post("/webhooks", (req, res) => {
 
 在你的 API 定义中配置签名验证。设置可以在**文档级别**应用（由所有 webhook 继承）或**每个 webhook**应用（覆盖文档级别的设置）。
 
+<Tabs>
+<Tab title="HMAC">
 ```yaml title="openapi.yml"
 x-fern-webhook-signature:
   type: hmac
@@ -50,5 +54,23 @@ x-fern-webhook-signature:
     format: unix-seconds
     tolerance: 300
 ```
+</Tab>
+<Tab title="非对称">
+```yaml title="openapi.yml"
+x-fern-webhook-signature:
+  type: asymmetric
+  header: x-webhook-signature
+  asymmetric-algorithm: ecdsa-sha256
+  encoding: base64
+  payload-format:
+    components: [timestamp, body]
+    delimiter: "."
+  timestamp:
+    header: x-webhook-timestamp
+    format: unix-seconds
+    tolerance: 300
+```
+</Tab>
+</Tabs>
 
 有关完整的配置详细信息，请参阅 [OpenAPI 中的 Webhook 签名验证](/learn/api-definitions/openapi/endpoints/webhooks#signature-verification)。

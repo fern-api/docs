@@ -1,0 +1,67 @@
+---
+title: 自定义
+description: 通过覆盖、overlays、多规范合并和自定义命令来自定义生成的 CLI。
+availability: beta
+---
+
+<Note title="抢先体验">
+CLI 生成器处于抢先体验阶段。[联系我们](https://buildwithfern.com/book-demo?type=cli)开始使用。
+</Note>
+
+生成的 CLI 可以在三个层面进行自定义：构建所基于的 OpenAPI 规范、将多个规范组合为单一命令树的配置，以及在规范派生命令旁添加自定义命令的代码。
+
+## 覆盖和 Overlays
+
+CLI 生成器支持 [overrides](/learn/api-definitions/openapi/overrides) 和 [overlays](/learn/api-definitions/openapi/overlays) 两种方式来在构建 CLI 前自定义 OpenAPI 规范。这允许您添加 Fern 扩展、重命名参数或移除内部端点，而无需修改原始规范。
+
+Overlays 遵循 [OpenAPI Overlay 规范](https://spec.openapis.org/overlay/v1.0.0.html)并使用 JSONPath 来定位元素：
+
+```yaml title="overlay.yaml"
+overlay: 1.0.0
+info:
+  title: CLI customizations
+  version: 1.0.0
+actions:
+  - target: $.paths['/plants'].get
+    update:
+      x-fern-sdk-group-name: plants
+      x-fern-sdk-method-name: list
+  - target: $.paths['/internal/debug']
+    remove: true
+```
+
+当两者同时存在时，先应用 overrides，再应用 overlays。
+
+## 多规范合并
+
+单个 CLI 可以将多个 OpenAPI 规范合并为一个命令树。这对于将规范按域或版本拆分的 API 很有用。
+
+规范可以平级合并（所有命令在顶层）或在命名空间前缀下合并：
+
+```rust title="main.rs"
+CliApp::new("my-api")
+    .spec(include_str!("core.yaml"))
+    .spec_under("billing", include_str!("billing.yaml"))
+    .run()
+```
+
+这生成的 CLI 中核心命令位于顶层，计费命令位于 `billing` 子命令下：
+
+```bash
+my-api users list          # 来自 core.yaml
+my-api billing invoices list  # 来自 billing.yaml
+```
+
+当命名空间与传入规范中的顶级资源匹配时，CLI 会将该资源的方法提升到命名空间中以避免重复（例如 `billing billing invoices list` 变为 `billing invoices list`）。
+
+## 自定义命令
+
+生成的 CLI 可以在规范派生的命令旁包含自定义命令。自定义命令可以访问同一个 API 执行器，因此可以将多个 API 调用链接到单个工作流中。
+
+```rust title="main.rs"
+CliApp::new("my-api")
+    .spec(include_str!("openapi.yaml"))
+    .auth_scheme_env("bearerAuth", "MY_API_TOKEN")
+    .command(whoami_cmd(), whoami_handler)
+    .run()
+```

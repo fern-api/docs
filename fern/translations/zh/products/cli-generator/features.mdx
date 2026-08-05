@@ -1,0 +1,146 @@
+---
+title: 功能特性
+description: 了解 Fern 生成的 CLI 的功能，包括输出格式化、分页、dry-run 模式和 TLS 配置。
+availability: beta
+---
+
+<Note title="抢先体验">
+CLI 生成器处于抢先体验阶段。[联系我们](https://buildwithfern.com/book-demo?type=cli)开始使用。
+</Note>
+
+生成的 CLI 附带一组通用的运行时标志和环境变量：输出格式化、分页、dry-run 预览、TLS 和代理配置、退出码以及结构化日志。具有模板化服务器 URL 的 API 还会暴露每个变量的标志和环境变量。
+
+## 输出格式化
+
+使用 `--format` 标志控制响应的显示方式。
+
+| 格式 | 标志 | 描述 |
+| --- | --- | --- |
+| JSON | `--format json` | 默认。格式化的 JSON。 |
+| 表格 | `--format table` | 列式表格。嵌套对象展平为 `parent.child` 列名。 |
+| YAML | `--format yaml` | 响应的 YAML 表示。 |
+| CSV | `--format csv` | 逗号分隔值，适合传输到电子表格工具。 |
+
+```bash
+# 以表格形式显示植物
+contoso plants list --format table
+
+# 将订单导出为 CSV
+contoso orders list --format csv > orders.csv
+```
+
+## Dry-run 模式
+
+传递 `--dry-run` 可验证参数并预览 HTTP 请求而不发送。CLI 打印将要发送的方法、URL、头和正文，然后退出。
+
+```bash
+contoso plants get --params '{"plantId": "abc"}' --dry-run
+```
+
+## 分页
+
+对于标注了 [`x-fern-pagination`](/learn/api-definitions/openapi/extensions/pagination) 的端点，CLI 在设置 `--page-all` 标志时自动分页。
+
+| 标志 | 描述 | 默认值 |
+| --- | --- | --- |
+| `--page-all` | 获取所有页面并每页输出一行 JSON（NDJSON）。 | 关闭 |
+| `--page-limit <N>` | 最大获取页数。 | 10 |
+| `--page-delay <MS>` | 页面请求之间的延迟（毫秒）。 | 100 |
+
+```bash
+# 获取所有植物，每页一行 JSON
+contoso plants list --page-all
+
+# 限制为 5 页，200 毫秒延迟
+contoso plants list --page-all --page-limit 5 --page-delay 200
+```
+
+分页输出适用于所有输出格式。对于表格和 CSV 格式，表头仅在第一页输出，以便输出可以干净地拼接。
+
+## 传递参数
+
+| 标志 | 用途 |
+| --- | --- |
+| `--params <JSON>` | URL 路径和查询参数，以 JSON 对象形式传递。 |
+| `--json <JSON>` | POST、PUT 和 PATCH 方法的请求体。 |
+
+```bash
+# 路径 + 查询参数
+contoso plants get --params '{"plantId": "abc"}'
+
+# 请求体
+contoso plants create \
+  --json '{"name": "Monstera", "species": "Monstera deliciosa", "sunlight": "indirect"}'
+```
+
+## 服务器 URL 变量
+
+对于具有[模板化服务器 URL](/learn/api-definitions/openapi/extensions/server-names-and-url-templating)（如 `https://api.example.com/stores/{store_hash}/v3`）的 API，CLI 自动将每个模板变量暴露为 CLI 标志和环境变量。
+
+```bash
+# 以标志形式传递变量
+bigcommerce --store-hash abc123 v3 customers list
+
+# 或通过环境变量设置
+export BIGCOMMERCE_STORE_HASH=abc123
+bigcommerce v3 customers list
+```
+
+## 文件上传和下载
+
+对于具有 `format: binary` 请求体的端点，将文件路径作为 `--file` 参数传递。对于二进制响应，使用 `--output <PATH>` 将响应体保存到文件。
+
+## 退出码
+
+| 代码 | 含义 | 示例原因 |
+| --- | --- | --- |
+| `0` | 成功 | 命令正常完成。 |
+| `1` | API 错误 | 服务器返回 4xx/5xx 响应。 |
+| `2` | 认证错误 | 凭据缺失或无效。 |
+| `3` | 验证错误 | 参数错误、未知命令或无效 JSON。 |
+| `4` | 发现错误 | 无法加载 API schema。 |
+| `5` | 内部错误 | 意外故障。 |
+
+所有错误以结构化 JSON 输出到 stderr，便于在脚本和 CI 流水线中解析。
+
+## TLS、代理和 CA 证书包
+
+每个生成的 CLI 在运行时遵守 TLS 和代理配置的环境变量。变量按二进制名称限定范围 — `<NAME>` 是 CLI 的二进制名称大写并将连字符映射为下划线（例如 `CONTOSO`）。
+
+| 变量 | 效果 |
+| --- | --- |
+| `<NAME>_CA_BUNDLE` | 附加到默认信任根的 PEM 文件路径。 |
+| `<NAME>_INSECURE=1` | 禁用 TLS 验证。会记录警告。不适用于生产环境。 |
+| `<NAME>_PROXY` | HTTP/HTTPS 代理 URL，覆盖 `HTTPS_PROXY` / `HTTP_PROXY`。 |
+| `<NAME>_NO_PROXY` | 限定于此 CLI 的逗号分隔代理绕过列表。 |
+| `<NAME>_TIMEOUT_SECS` | 总请求超时。默认无超时。 |
+| `<NAME>_CONNECT_TIMEOUT_SECS` | 连接建立超时。 |
+
+当限定范围的覆盖不存在时，标准环境变量（`HTTPS_PROXY`、`HTTP_PROXY`、`NO_PROXY`、`SSL_CERT_FILE`）会被遵守。
+
+<Accordion title="常见场景">
+
+**在 MITM 代理（Proxyman、Charles、mitmproxy）后面：**
+
+```bash
+export SSL_CERT_FILE=~/path/to/proxyman-ca.pem
+export HTTPS_PROXY=http://127.0.0.1:9090
+contoso plants list
+```
+
+**使用自定义根 CA 的企业网络：**
+
+```bash
+export CONTOSO_CA_BUNDLE=/etc/ssl/corp-roots.pem
+contoso plants list
+```
+
+</Accordion>
+
+## 结构化日志
+
+默认关闭日志。将 `<NAME>_LOG` 设置为 [tracing filter](https://docs.rs/tracing-subscriber/latest/tracing_subscriber/filter/struct.EnvFilter.html) 可将结构化日志输出到 stderr。将 `<NAME>_LOG_FILE` 设置为目录路径可写入每日轮转的 JSON 日志文件。
+
+```bash
+CONTOSO_LOG=debug contoso plants list
+```

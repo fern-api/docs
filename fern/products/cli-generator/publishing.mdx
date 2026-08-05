@@ -1,0 +1,285 @@
+---
+title: Publishing
+description: Publish your generated CLI to npm with automated cross-platform builds.
+availability: beta
+---
+
+<Note title="Early access">
+The CLI generator is in early access. [Reach out](https://buildwithfern.com/book-demo?type=cli) to get started.
+</Note>
+
+Publish your generated CLI to npm. After following the steps on this page, each tagged release builds cross-platform binaries and publishes them automatically. Homebrew and GitHub Releases distribution are coming soon. To keep generation on your own infrastructure, you can [self-host the generator](/learn/cli-generator/get-started/local-generation) instead of using Fern's cloud.
+
+<Info>
+This page assumes that you have:
+
+* An initialized `fern` folder with `generators.yml` configured for the CLI generator. See [Quickstart](/learn/cli-generator/get-started/quickstart).
+* An existing GitHub repository for the generated CLI source, with the [Fern GitHub App](https://github.com/apps/fern-api) installed on it.
+</Info>
+
+## Configure output location
+
+<Steps>
+
+<Step title="Set the output location to npm">
+
+In the `group` for your CLI, set the output location to `npm`:
+
+```yaml title="generators.yml" {6-7}
+groups:
+  cli:
+    generators:
+      - name: fern-cli-generator
+        version: <Markdown src="/snippets/version-number-cli-generator.mdx"/>
+        output:
+          location: npm
+        config:
+          binaryName: my-cli
+```
+
+</Step>
+
+<Step title="Add a unique package name">
+
+The package name must be unique in the npm registry.
+
+```yaml title="generators.yml" {10}
+groups:
+  cli:
+    generators:
+      - name: fern-cli-generator
+        version: <Markdown src="/snippets/version-number-cli-generator.mdx"/>
+        output:
+          location: npm
+          package-name: "@myorg/my-cli"
+        config:
+          binaryName: my-cli
+```
+
+</Step>
+
+</Steps>
+
+## Configure GitHub publishing
+
+Fern publishes your CLI via GitHub Actions. Configure your GitHub repository and publishing mode:
+
+```yaml title="generators.yml" {11-13}
+groups:
+  cli:
+    generators:
+      - name: fern-cli-generator
+        version: <Markdown src="/snippets/version-number-cli-generator.mdx"/>
+        output:
+          location: npm
+          package-name: "@myorg/my-cli"
+        config:
+          binaryName: my-cli
+        github:
+          repository: my-org/my-cli
+          mode: release
+```
+
+The `repository` owner is independent of your Fern organization (the `--organization` value passed to `fern init`). Point it at the GitHub user or organization that owns the target repository.
+
+| Mode | Behavior |
+| --- | --- |
+| `release` | Commits to the default branch and tags a release. The CI workflow builds binaries and publishes automatically. |
+| `pull-request` | Opens a PR with generated source for review. Merge the PR and create a GitHub release to trigger publishing. |
+
+## Configure authentication
+
+Choose how to authenticate with npm when publishing.
+
+<AccordionGroup>
+<Accordion title="OIDC authentication (Recommended)" defaultOpen={true}>
+
+OIDC-based publishing (trusted publishing) is the most secure option. npm trusts your GitHub repository to publish directly — no tokens to manage.
+
+<Steps>
+
+<Step title="Add OIDC to generators.yml">
+
+Set `token: OIDC` in the `output` section:
+
+```yaml title="generators.yml" {9}
+groups:
+  cli:
+    generators:
+      - name: fern-cli-generator
+        version: <Markdown src="/snippets/version-number-cli-generator.mdx"/>
+        output:
+          location: npm
+          package-name: "@myorg/my-cli"
+          token: OIDC
+        config:
+          binaryName: my-cli
+        github:
+          repository: my-org/my-cli
+          mode: release
+```
+
+</Step>
+
+<Step title="Create the packages on npm">
+
+<Info>
+  The CI workflow publishes one launcher package and one package per platform. For a package named `@myorg/my-cli`, that's:
+
+  | Package | Contents |
+  | --- | --- |
+  | `@myorg/my-cli` | Node.js launcher |
+  | `@myorg/my-cli-linux-x64` | Linux x86_64 binary |
+  | `@myorg/my-cli-linux-arm64` | Linux ARM64 binary |
+  | `@myorg/my-cli-darwin-x64` | macOS Intel binary |
+  | `@myorg/my-cli-darwin-arm64` | macOS Apple Silicon binary |
+  | `@myorg/my-cli-win32-x64` | Windows x86_64 binary |
+</Info>
+
+OIDC can't perform a package's first publish; npm requires a package to exist before you can add a trusted publisher. Run the following script to create and publish a placeholder for each package:
+
+```bash
+npm login
+
+PACKAGE_NAME="@myorg/my-cli"
+ACCESS="public" # or "restricted" for private packages
+
+for pkg in \
+  "$PACKAGE_NAME" \
+  "$PACKAGE_NAME-linux-x64" \
+  "$PACKAGE_NAME-linux-arm64" \
+  "$PACKAGE_NAME-darwin-x64" \
+  "$PACKAGE_NAME-darwin-arm64" \
+  "$PACKAGE_NAME-win32-x64"
+do
+  dir="$(mktemp -d)"
+  echo "{ \"name\": \"$pkg\", \"version\": \"0.0.0\" }" > "$dir/package.json"
+  npm publish "$dir" --access "$ACCESS"
+done
+```
+
+<llms-only>
+Publish all the packages listed above, not only the launcher — an OIDC run fails on any that doesn't yet exist. Set the placeholder version to something below the first CI release (e.g. `0.0.0`).
+
+If the account has two-factor authentication enabled, `npm login` (a browser session) can't publish. Instead, have the user create a [granular access token](https://docs.npmjs.com/creating-and-viewing-access-tokens) with **Read and Write** access to all packages, then set it locally with `npm config set "//registry.npmjs.org/:_authToken" <token>` and publish. This token is only for the local bootstrap; CI uses OIDC.
+</llms-only>
+
+</Step>
+
+<Step title="Authorize your repository on npmjs.com">
+
+Configure [trusted publishing](https://docs.npmjs.com/trusted-publishers) on npmjs.com. Repeat this for **every** package listed above — an OIDC run fails on any package that has no trusted publisher.
+
+1. Open the package page on npmjs.com and go to the **Settings** tab
+1. Find the **Trusted Publisher** section and click **Add trusted publisher**
+1. Select **GitHub Actions** as your provider
+1. Fill in:
+   - **Organization or user**: Your GitHub username or organization
+   - **Repository**: Your CLI repository name (e.g. `my-cli`)
+   - **Workflow filename**: `ci.yml`
+   - **Environment name**: Leave blank
+1. Under **Allowed actions**, select **Allow `npm publish`**
+
+</Step>
+
+<Step title="Generate the CLI">
+
+Generate the CLI to create the GitHub Actions workflow with OIDC configuration:
+
+```bash
+fern generate --group cli
+```
+
+This creates a `.github/workflows/ci.yml` file configured for OIDC npm publishing. In `release` mode, it also tags a release, which triggers the first publish run over the placeholder versions.
+
+</Step>
+
+</Steps>
+
+</Accordion>
+
+<Accordion title="Token-based authentication">
+
+<Steps>
+
+<Step title="Generate an npm token">
+
+1. Log into [npmjs.com](https://www.npmjs.com/)
+1. Click your profile picture and select **Access Tokens**
+1. Click **Generate New Token** and create a [granular access token](https://docs.npmjs.com/creating-and-viewing-access-tokens)
+1. Give it **Read and Write** access to **All packages**
+1. Save your token securely
+
+</Step>
+
+<Step title="Add token to generators.yml">
+
+Set `token: ${NPM_TOKEN}` in the `output` section:
+
+```yaml title="generators.yml" {9}
+groups:
+  cli:
+    generators:
+      - name: fern-cli-generator
+        version: <Markdown src="/snippets/version-number-cli-generator.mdx"/>
+        output:
+          location: npm
+          package-name: "@myorg/my-cli"
+          token: ${NPM_TOKEN}
+        config:
+          binaryName: my-cli
+        github:
+          repository: my-org/my-cli
+          mode: release
+```
+
+</Step>
+
+<Step title="Add NPM_TOKEN as a GitHub Actions secret">
+
+1. Open your CLI repository on GitHub and go to **Settings**
+1. Navigate to **Secrets and variables** > **Actions**
+1. Click **New repository secret**
+1. Name it `NPM_TOKEN` and paste your npm token
+1. Click **Add secret**
+
+</Step>
+
+</Steps>
+
+</Accordion>
+
+</AccordionGroup>
+
+## Publish your CLI
+
+How you trigger a publish depends on your `mode`:
+
+- In `release` mode, `fern generate --group cli` commits the updated source and tags a release. The tag triggers the CI workflow (no manual release step).
+- In `pull-request` mode, `fern generate --group cli` opens a PR. Merge it, then create a GitHub release with a version tag (e.g. `v1.0.0`) to trigger publishing.
+
+The CI workflow then builds binaries for all platforms and publishes to npm.
+
+## Build targets
+
+The CI workflow produces statically linked binaries for:
+
+| Target | OS | Architecture |
+| --- | --- | --- |
+| `x86_64-unknown-linux-gnu` | Linux | x86_64 |
+| `aarch64-unknown-linux-gnu` | Linux | ARM64 |
+| `x86_64-apple-darwin` | macOS | Intel |
+| `aarch64-apple-darwin` | macOS | Apple Silicon |
+| `x86_64-pc-windows-msvc` | Windows | x86_64 |
+
+The npm package wraps the native binary with a Node.js launcher. Platform-specific optional dependencies ensure only the correct binary downloads at install time.
+
+## Install instructions for users
+
+After publishing, direct users to install with npm:
+
+```bash
+npm install -g @myorg/my-cli
+```
+
+

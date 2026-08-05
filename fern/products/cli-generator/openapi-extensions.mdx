@@ -8,7 +8,7 @@ availability: beta
 The CLI generator is in early access. [Reach out](https://buildwithfern.com/book-demo?type=cli) to get started.
 </Note>
 
-The CLI generator reads several [Fern OpenAPI extensions](/learn/api-definitions/openapi/extensions/overview) to shape the generated CLI. You can add these extensions directly in your spec or apply them through [overlays](/learn/api-definitions/openapi/overlays).
+The CLI generator reads several [Fern OpenAPI extensions](/learn/api-definitions/openapi/extensions/overview) to shape the generated CLI. You can add these extensions directly in your spec or apply them through [overlays](/learn/cli-generator/get-started/customization#overrides-and-overlays).
 
 ## Command structure
 
@@ -123,6 +123,40 @@ paths:
 Produces `--api-version` instead of `--x-api-version`.
 
 See [Customize parameter names](/learn/api-definitions/openapi/extensions/parameter-names) for more details.
+
+## Global parameters
+
+### `x-fern-global-parameters`
+
+Registers a value that's configured once and injected into every applicable command, rather than passed on each invocation. Each declared parameter becomes a top-level `--<flag-name>` flag with its environment-variable fallback and client-side default, injected at the declared location (`body`, `query`, `header`, or `path`).
+
+```yaml title="openapi.yml"
+x-fern-global-parameters:
+  - name: currency
+    in: body
+    target: config.currency
+    env: ACME_CURRENCY
+    default: USD
+    apply: auto
+```
+
+The value resolves from the first available source: the CLI flag, then the environment variable, then the default. A per-operation parameter with the same target overrides the global.
+
+```bash
+# CLI flag takes priority
+acme products search --currency EUR
+
+# Otherwise falls back to the environment variable
+export ACME_CURRENCY=EUR
+acme products search
+
+# Otherwise sends the default (USD)
+acme products search
+```
+
+An `apply: auto` parameter applies to every command whose request contains the target; an `apply: explicit` parameter applies only to operations that opt in with `x-fern-global-parameter`.
+
+See [Global parameters](/learn/api-definitions/openapi/extensions/global-parameters) for the full field reference and resolution order.
 
 ## Pagination
 

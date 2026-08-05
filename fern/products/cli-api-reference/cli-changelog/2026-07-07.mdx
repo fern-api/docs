@@ -1,0 +1,51 @@
+## 5.66.0
+**`(feat):`** Resolve `x-fern-global-parameters` applicability once at IR-generation time.
+`HttpEndpoint.globalParameters` now holds the fully resolved set of global
+parameters that apply to each endpoint (explicit opt-ins plus matching
+`apply: auto` parameters), with body-location parameters gated on the
+endpoint's request-body schema actually containing the dotted target path.
+An explicit opt-in whose request body lacks the target is dropped with a
+generation-time warning.
+
+
+## 5.65.8
+**`(fix):`** Docs configs with a `path` input library no longer crash `fern docs dev` and
+`fern generate --docs`. `parseLibrariesConfiguration` now accepts both `git`
+and `path` library inputs instead of throwing on `path`, so a site whose
+library docs were generated locally with `fern docs md generate --local` can
+be previewed and published.
+
+
+## 5.65.7
+**`(fix):`** `fern check` now fails when `docs.yml` contains both `navigation` and `products`.
+These are mutually exclusive (as `navigation` and `versions` already were): in a
+multi-product site the navigation lives in each product's referenced file, so a
+top-level `navigation` block silently overrides the products and renders empty
+navigation.
+
+
+## 5.65.6
+**`(chore):`** Bump `@fern-api/generator-cli` to 0.9.44 so every local-only commit is signed
+when pushing to GitHub, not just HEAD.
+
+
+## 5.65.5
+**`(fix):`** Improve `fern docs dev` initial build time by pre-fetching external `<Code src="https://..."/>` URLs
+in parallel instead of sequentially, and optimizing image processing with early-exit checks and
+streaming scanning. For large docs sites with many external code snippets, this reduces initial
+build time from ~57s to ~14s (75% faster).
+
+
+## 5.65.4
+**`(fix):`** `fern check` now errors when a path parameter shares a name with another request
+property (an inlined request body property, query parameter, or header), including
+collisions that only appear after camelCase normalization. These collisions produce
+broken or ambiguous generated SDK code; use `x-fern-parameter-name` (OpenAPI) or the
+`name` property (Fern definition) to deconflict.
+
+
+**`(fix):`** The OpenAPI importer no longer silently renames a request body property that
+collides with a path parameter. These collisions now surface as `fern check`
+errors, forcing explicit deconfliction (e.g. via `x-fern-parameter-name`).
+
+

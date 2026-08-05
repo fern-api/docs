@@ -13,11 +13,20 @@ Fern SDK generation [runs on Fern's infrastructure by default](/sdks/overview/ho
 - Has strict compliance or security requirements
 - Needs full control over your SDK generation process
 
-When you self-host, you're responsible for infrastructure management, SDK distribution, and [computing SDK version numbers](/learn/sdks/deep-dives/self-hosted-versioning). Self-hosted SDK generation includes [all Fern SDK features](/learn/sdks/overview/capabilities).
+When you self-host, you're responsible for [infrastructure management, SDK distribution](/learn/sdks/deep-dives/self-hosted-operations), and [computing SDK version numbers](/learn/sdks/deep-dives/self-hosted-versioning). Self-hosted SDK generation includes [all Fern SDK features](/learn/sdks/overview/capabilities).
 
 <Info>
 Unless you have specific requirements that prevent using Fern's default hosting, we recommend **using our managed cloud generation solution** for easier setup and maintenance.
 </Info>
+
+## Infrastructure requirements
+
+Each machine that runs `fern generate --local` needs:
+
+- **A Docker runtime.** Generation runs inside a generator container, so a Docker daemon must be available (`docker ps` succeeds). In CI, use a runner with Docker preinstalled or a Docker-in-Docker service.
+- **A `FERN_TOKEN`.** Organization verification requires a Fern API key, injected as the `FERN_TOKEN` environment variable. Store it as a CI secret rather than in the repo.
+- **Outbound network access to two endpoints.** The CLI verifies your organization with Fern and pulls the generator image. No API definition leaves your infrastructure. Air-gapped environments must [mirror generator images into a private registry](#private-registry-setup) reachable from the runner.
+- **Write access to the output location.** Local-file-system output writes to disk; GitHub output needs a `GITHUB_TOKEN` with write access to the SDK repository.
 
 ## Setup
 
@@ -135,10 +144,30 @@ fern generate --local
 fern generate --group python-sdk --local
 ```
 
-<Accordion title="Optional: Configure a custom container registry">
+To pull generator images from a private registry your organization controls instead of Docker Hub, see [Private registry setup](#private-registry-setup).
 
-By default, `fern generate --local` pulls generator Docker images from Docker Hub. If your organization mirrors Fern's images into a private registry, you can configure the CLI to pull from that registry instead.
-To use a custom registry, replace the `name` field in your generator configuration with an [`image`](http://localhost:3000/learn/sdks/reference/generators-yml#image) object containing `name` and `registry`:
+</Step>
+</Steps>
+
+## Private registry setup
+
+By default, `fern generate --local` pulls generator Docker images from Docker Hub. Organizations that restrict outbound traffic or require vetted images can mirror Fern's generator images into a private registry and point the CLI at it. Remote (cloud) generation doesn't support custom registries.
+
+<Steps>
+<Step title="Mirror the generator image">
+
+Pull each generator image at the version you intend to use, retag it for your registry, and push. The CLI resolves the full reference as `{registry}/{name}:{version}`.
+
+```bash
+docker pull fernapi/fern-python-sdk:4.0.0
+docker tag fernapi/fern-python-sdk:4.0.0 ghcr.io/your-org/fern-python-sdk:4.0.0
+docker push ghcr.io/your-org/fern-python-sdk:4.0.0
+```
+
+</Step>
+<Step title="Reference the registry in generators.yml">
+
+Replace the generator's `name` field with an [`image`](/learn/sdks/reference/generators-yml#image) object containing `name` and `registry`:
 
 ```yaml title="generators.yml" {4-6}
 groups:
@@ -153,13 +182,12 @@ groups:
           path: ../sdks/python
 ```
 
-<Info>
-  The `image.name` must be a recognized Fern generator name (for example, `fern-python-sdk` or `fern-typescript-sdk`). This ensures the CLI can resolve the correct IR version for your generator. The `version` must also match a published Fern generator version.
-</Info>
+The `image.name` must be a recognized Fern generator name (for example, `fern-python-sdk` or `fern-typescript-sdk`) so the CLI can resolve the correct IR version, and `version` must match a published Fern generator version. Generators configured with an `image` are skipped during `fern generator upgrade`, so bump their versions manually and re-mirror the matching image when you upgrade.
 
-Generators configured with a custom `image` are skipped during `fern generator upgrade`. You must manually update the version for these generators.
+</Step>
+<Step title="Authenticate to the registry">
 
-If your registry requires authentication, log in before running `fern generate --local`. The CLI uses the credentials stored by Docker.
+If the registry requires authentication, log in before running `fern generate --local`. The CLI uses the credentials stored by Docker.
 
 ```bash
 # Example: authenticate with GitHub Container Registry
@@ -168,8 +196,6 @@ echo $CR_PAT | docker login ghcr.io -u USERNAME --password-stdin
 # Then run local generation as usual
 fern generate --local
 ```
-
-</Accordion>
 
 </Step>
 </Steps>

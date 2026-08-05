@@ -1,0 +1,68 @@
+---
+title: 身份验证
+description: 配置生成的 CLI 如何使用环境变量、CLI 标志、文件或回退链与 API 进行身份验证。
+availability: beta
+---
+
+<Note title="抢先体验">
+CLI 生成器处于抢先体验阶段。[联系我们](https://buildwithfern.com/book-demo?type=cli)开始使用。
+</Note>
+
+每个生成的 CLI 从 OpenAPI 规范中声明的安全方案读取身份验证凭据。凭据可来自环境变量、CLI 标志、文件或通过回退链组合使用。
+
+没有凭据时，CLI 仍可正常工作 — 您可以浏览命令树、查看帮助信息和使用 `--dry-run`。
+
+## 凭据来源
+
+CLI 支持多种提供凭据的方式，在构建时配置。
+
+| 来源 | 描述 |
+| --- | --- |
+| 环境变量 | 从环境变量读取（最常用选项）。 |
+| CLI 标志 | 自动注册为 `--<flag-name>` 全局标志。 |
+| 文件 | 从文件路径读取修剪后的内容（支持 `~` 展开）。 |
+| 字面量 | 在编译时写入二进制文件。 |
+| 回退链 | 按顺序尝试多个来源；第一个非空值生效。 |
+
+典型的回退链允许 CLI 标志覆盖环境变量，环境变量又覆盖文件：
+
+```bash
+# CLI 标志优先
+box users get-current-user --api-token sk-123
+
+# 否则回退到环境变量
+export BOX_API_KEY=sk-123
+box users get-current-user
+
+# 否则从文件读取
+echo "sk-123" > ~/.box/token
+box users get-current-user
+```
+
+## 支持的认证方案
+
+CLI 支持 OpenAPI `securitySchemes` 定义的所有方案类型：
+
+| 方案 | CLI 的应用方式 |
+| --- | --- |
+| Bearer（`http: bearer`） | 发送 `Authorization: Bearer <token>`。 |
+| API key（`apiKey`） | 在配置的头中发送密钥（例如 `X-Auth-Token`）。 |
+| Basic（`http: basic`） | 发送 `Authorization: Basic <base64(user:pass)>`。每个字段有自己的凭据来源。 |
+| OAuth 2 | 视为 bearer — 发送 `Authorization: Bearer <token>`。 |
+
+## 认证策略
+
+当规范声明多个安全方案时，CLI 根据以下策略之一组合它们：
+
+| 策略 | 行为 |
+| --- | --- |
+| Auto | 默认。从规范的 `security` 块推断正确的组合方式。 |
+| Any | API 接受任一声明的方案。第一个有凭据的方案生效。 |
+| All | API 同时需要所有方案（例如 HMAC 签名加 API 密钥）。 |
+| Routing | 按操作分派。每个端点的 `security` 块决定使用哪些方案。 |
+
+声明 `security: []`（空列表）的操作完全跳过身份验证 — 无论配置了什么，都不发送凭据。
+
+## 帮助输出
+
+每个生成的 CLI 在 `--help` 输出中包含一个动态渲染的 `Authentication:` 部分，列出每个方案、预期的环境变量或标志，以及是否检测到凭据。

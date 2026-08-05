@@ -1,0 +1,31 @@
+## 2.76.1
+**`(fix):`** Endpoints without a request wrapper (no request object, a request that is just
+a body, or a bytes request) now send service- and endpoint-level headers whose
+types are literals (e.g. `Accept-Encoding: literal<"gzip">`). Previously these
+headers were silently dropped because there was no request object to carry them.
+
+
+## 2.75.2
+**`(fix):`** Fix a compile error in the generated `OAuthTokenProvider` when the token endpoint's
+`expires-in` response property is optional. The provider now null-checks the value
+before computing the token expiry instead of passing a nullable number to
+`DateTime.AddSeconds`.
+
+
+## 2.75.1
+**`(fix):`** Wire OAuth client-credentials authentication into the root client when the OAuth
+scheme is not the first scheme in the API's auth configuration (e.g.
+`auth: any` with basic auth listed before OAuth). Previously the OAuth token
+provider was only generated when OAuth was the first auth scheme, so the root
+client silently fell back to the other schemes and never used the OAuth
+credentials. When both an OAuth and an inferred auth scheme are present, the
+provider-based scheme that appears first in the auth configuration is used.
+
+
+**`(fix):`** Send `grant_type: "client_credentials"` in the OAuth token request when the
+token endpoint's `grant_type` property is a non-literal string. Previously the
+property was omitted (when optional) or surfaced as a required constructor
+parameter (when required), so token endpoints that require `grant_type`
+rejected the request.
+
+

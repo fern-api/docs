@@ -24,8 +24,12 @@ Allow fields that are not defined in object schemas. This only applies to serde.
 See [TypeScript serde layer](/sdks/generators/typescript/serde-layer) for more information.
 </ParamField>
 
-<ParamField path="defaultTimeoutInSeconds" type="number | 'infinity'" toc={true}>
-The default timeout for network requests. In the generated client, this can be overridden at the request level.
+<ParamField path="auto-generate-idempotency-key" type="boolean | object" default="false" toc={true}>
+Overrides the API-wide [`api.settings.auto-generate-idempotency-key`](/learn/sdks/reference/generators-yml#settings) for this SDK. Set `true` to attach an [idempotency-key header](/learn/sdks/deep-dives/idempotency#auto-generate-idempotency-keys) to eligible requests (`POST` and `PUT` by default) unless the caller provides one, or `false` to opt this SDK out when auto-generation is enabled API-wide. Pass an object to customize `header-name` and `methods`.
+</ParamField>
+
+<ParamField path="defaultTimeout" type="number | 'infinity'" toc={true}>
+The default timeout for network requests, in milliseconds. Set to `'infinity'` to disable the timeout. In the generated client, this can be overridden at the request level.
 </ParamField>
 
 <ParamField path="enableInlineTypes" type="boolean" default="true" toc={true}>
@@ -401,6 +405,16 @@ Controls how the offset parameter is interpreted for [auto-paginated](/learn/sdk
 When enabled, the generated SDK omits the `X-Fern-Language`, `X-Fern-SDK-Name`, and `X-Fern-SDK-Version` headers from HTTP requests. These headers are included by default to help API providers identify SDK traffic.
 </ParamField>
 
+<ParamField path="includePlatformHeaders" type="boolean" default="false" toc={true}>
+When enabled, the generated SDK sends a single structured `User-Agent` header of the form `{sdkName}/{version} ({os}; {arch}) {runtime}/{runtimeVersion}` (for example, `my-sdk/0.0.1 (linux; x86_64) Node/20.11.0`), carrying SDK, operating system, architecture, and runtime information in place of the default `User-Agent` and discrete platform headers. If `omitFernHeaders` is enabled, no `User-Agent` or platform headers are sent and this option has no effect.
+</ParamField>
+
+<ParamField path="optional-auth" type="boolean" default="false" toc={true}>
+When enabled, client auth parameters (bearer token, basic auth credentials, header auth) remain optional even when the spec's [security requirements](/learn/api-definitions/openapi/authentication) mandate auth on every endpoint, and requests are sent without an auth header when no credential is provided. By default, the client throws when a mandatory credential is missing.
+
+Enable this when callers authenticate through a mechanism other than the API's own scheme, such as cloud provider credentials, and would otherwise have to pass a placeholder value.
+</ParamField>
+
 <ParamField path="outputSourceFiles" type="boolean" default="true" toc={true}>
   Controls the output format of generated files:
   - **When `true` (default)**: Outputs raw TypeScript `.ts` files
@@ -490,7 +504,7 @@ generate a `jsr.json` as well as a GitHub workflow to publish to JSR.
 </ParamField>
 
 <ParamField path="generateWebSocketClients" type="boolean" toc={true}>
-	Generate WebSocket clients from your AsyncAPI specs.
+	Generate [WebSocket clients](/learn/sdks/deep-dives/websocket-clients) from your AsyncAPI channel definitions.
 
 	Previously named `shouldGenerateWebsocketClients`, which is still accepted as a deprecated alias.
 </ParamField>

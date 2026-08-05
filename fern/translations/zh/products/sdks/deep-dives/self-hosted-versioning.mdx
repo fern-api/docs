@@ -1,0 +1,213 @@
+---
+title: 自托管 SDK 版本管理
+description: 在自托管 Fern SDK 生成时从自己的 CI 中计算下一个 SDK 版本号。
+---
+
+<Markdown src="/snippets/enterprise-plan.mdx" />
+
+自托管时，您的流水线为每次 SDK 发布选择版本号。与云端生成不同，[自托管设置](/learn/sdks/deep-dives/self-hosted)需要自行计算下一个版本。
+
+CLI 提供两种工作流，可以接入同一生成流水线：
+
+- **`--version AUTO`** 是推荐方式。Fern 对照完整 SDK 输出对变更进行分类 — 因此 `generators.yml` 设置、生成器版本升级或 CLI 版本升级驱动的变更都会反映在选取的版本中 — 并为您生成变更日志条目、PR 描述和规范化提交消息。此路径也是持续改进的方向。
+- **`fern ir` + `fern diff`** 是确定性替代方案。它比较 API 规范的中间表示 (IR) 并仅返回计算的版本提升和下一版本号。由于差异比较仅针对规范本身，它不考虑来自 `generators.yml` 配置、生成器版本或 CLI 版本的 SDK 实现变更 — 如果其中任何一项发生变化，您需要自行提升版本。其余发布产物（变更日志、PR 描述、提交消息）也由您编写。当您需要对版本号的推导方式有明确控制，或无法依赖外部 LLM 提供商时，使用此工作流。
+
+## `--version AUTO`（推荐）
+
+将 `--version AUTO` 传递给 `fern generate`，Fern 会分析上一次和当前 SDK 输出之间的差异，将变更分类为 `MAJOR`、`MINOR` 或 `PATCH`，并将下一个[语义版本](https://semver.org/)应用到生成的包中。同一分析还会生成：
+
+- 描述变更内容的变更日志条目
+- 总结发布内容的 PR 描述
+- [规范化提交](https://www.conventionalcommits.org/)消息
+
+<Info>
+`--version AUTO` 需要：
+- 用于组织验证的 `FERN_TOKEN`（与所有自托管生成相同）。
+- 在 `generators.yml` 中配置的 [GitHub 输出](/learn/sdks/deep-dives/self-hosted#setup)，因为流水线需要将版本提升和变更日志推送回 SDK 仓库。
+</Info>
+
+<Steps>
+<Step title="配置 AI 提供商">
+
+在 `generators.yml` 中设置提供商和模型：
+
+```yaml title="generators.yml"
+ai:
+  provider: openai   # openai | anthropic | bedrock
+  model: gpt-4o      # 提供商接受的任何模型名称
+```
+
+</Step>
+<Step title="设置提供商凭据">
+
+导出匹配的 API 密钥，以便 Fern CLI 调用提供商：
+
+- `OPENAI_API_KEY` 用于 OpenAI
+- `ANTHROPIC_API_KEY` 用于 Anthropic
+- 标准 AWS 凭据（`AWS_ACCESS_KEY_ID`、`AWS_SECRET_ACCESS_KEY`、`AWS_REGION`）用于 AWS Bedrock
+
+差异通过您的凭据发送到提供商的 API — Fern 的基础设施不参与分析过程。
+
+</Step>
+<Step title="使用 `--version AUTO` 运行生成">
+
+```bash
+FERN_TOKEN=<token> fern generate --local --version AUTO
+```
+
+</Step>
+</Steps>
+
+## 使用 `fern ir` + `fern diff` 进行确定性版本管理
+
+如果您更倾向于自行推导版本号，可使用 `fern ir` 和 `fern diff` 命令从 API 定义计算版本提升。此工作流无 LLM 依赖：`fern diff` 遍历两个规范的中间表示 (IR) 并返回确定性结果。
+
+工作流有三个步骤：
+
+<Steps>
+<Step title="生成之前的 IR">
+
+检出上次 SDK 生成时的规范并将其 IR 写入磁盘：
+
+```bash
+fern ir old-ir.json
+```
+
+如果您的[项目定义了多个 API](/learn/sdks/overview/project-structure)，请传递 `--api <name>`。
+
+</Step>
+<Step title="生成当前的 IR">
+
+检出 `HEAD` 处的规范并将其 IR 写入磁盘：
+
+```bash
+fern ir new-ir.json
+```
+
+</Step>
+<Step title="比较两个 IR">
+
+使用 `--from-version` 设置为 SDK 当前版本运行 `fern diff`。提供 `--from-version` 时，命令会打印包含计算的版本提升和下一版本的 JSON 对象：
+
+```bash
+fern diff \
+  --from old-ir.json \
+  --to new-ir.json \
+  --from-version 1.4.2
+```
+
+```json
+{
+  "bump": "minor",
+  "nextVersion": "1.5.0",
+  "errors": []
+}
+```
+
+`bump` 是 `major`、`minor`、`patch` 或 `no_change` 之一。将 `nextVersion` 传递给 `fern generate` 以发布该确切版本：
+
+<Tabs>
+<Tab title="CLI v1" language="cli-v1">
+```bash
+fern generate --local --version 1.5.0
+```
+</Tab>
+<Tab title="CLI v2" language="cli-v2">
+```bash
+fern generate --local --output-version 1.5.0
+```
+</Tab>
+</Tabs>
+
+</Step>
+</Steps>
+
+<Info>
+当计算的版本提升为 `major` 时，`fern diff` 以非零状态退出。这使得在 CI 中将破坏性变更设置为需要手动审查变得容易。
+</Info>
+
+### 将 `fern ir` + `fern diff` 集成到 CI
+
+不太直观的部分是为*之前的*规范重现 IR。每个生成的 SDK 会在 `.fern/metadata.json` 中记录生成时的配置仓库提交：
+
+```json title=".fern/metadata.json"
+{
+  "cliVersion": "0.74.0",
+  "generatorName": "fernapi/fern-python-sdk",
+  "generatorVersion": "4.0.0",
+  "originGitCommit": "a1b2c3d4e5f6...",
+  "requestedVersion": "1.4.2",
+  "sdkVersion": "1.4.2"
+}
+```
+
+`originGitCommit` 是**配置仓库**中产生当前版本 SDK 的 SHA。检出该提交，运行 `fern ir`，然后切换回 `HEAD` 再次运行 `fern ir`，以产生 `fern diff` 的两个输入。
+
+<Accordion title="示例：GitHub Actions 工作流">
+
+以下代码片段在每次推送到 `main` 时在配置仓库中运行，并计算 Python SDK 的下一个版本，其 `originGitCommit` 和 `sdkVersion` 从 SDK 仓库读取：
+
+```yaml title=".github/workflows/release-sdk.yml"
+name: Release SDK
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+      SDK_REPO: your-org/python-sdk
+    steps:
+      - name: Check out config repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Fern CLI
+        uses: fern-api/setup-fern-cli@v1
+
+      - name: Read previous SDK metadata
+        id: meta
+        run: |
+          curl -fsSL \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.raw" \
+            "https://api.github.com/repos/${SDK_REPO}/contents/.fern/metadata.json" \
+            > metadata.json
+          echo "old_sha=$(jq -r .originGitCommit metadata.json)" >> "$GITHUB_OUTPUT"
+          echo "from_version=$(jq -r .sdkVersion metadata.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Generate previous IR
+        run: |
+          git checkout ${{ steps.meta.outputs.old_sha }}
+          fern ir old-ir.json --api <your-api-name>
+
+      - name: Generate current IR
+        run: |
+          git checkout ${{ github.sha }}
+          fern ir new-ir.json --api <your-api-name>
+
+      - name: Compute next version
+        id: diff
+        run: |
+          result=$(fern diff \
+            --from old-ir.json \
+            --to new-ir.json \
+            --from-version ${{ steps.meta.outputs.from_version }}) || true
+          bump=$(echo "$result" | jq -r .bump)
+          if [ "$bump" = "major" ]; then
+            echo "Computed a major version bump — manual review required before releasing."
+            exit 1
+          fi
+          echo "next_version=$(echo "$result" | jq -r .nextVersion)" >> "$GITHUB_OUTPUT"
+
+      - name: Generate SDK
+        run: fern generate --local --group python-sdk --version ${{ steps.diff.outputs.next_version }}
+```
+
+检出步骤的 `fetch-depth: 0` 是必需的，以便运行器拥有检出 `originGitCommit` 所需的历史记录。将元数据获取步骤替换为任何能让您的流水线访问 SDK 仓库 `.fern/metadata.json` 的机制（检出 SDK 仓库、发布产物、内部 API 等）。
+
+</Accordion>

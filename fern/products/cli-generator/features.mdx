@@ -1,6 +1,6 @@
 ---
 title: Features
-description: Explore the capabilities of Fern's generated CLIs, including output formatting, pagination, dry-run mode, and TLS configuration.
+description: Explore the capabilities of Fern's generated CLIs, including output formatting, retries, pagination, dry-run mode, and TLS configuration.
 availability: beta
 ---
 
@@ -8,7 +8,7 @@ availability: beta
 The CLI generator is in early access. [Reach out](https://buildwithfern.com/book-demo?type=cli) to get started.
 </Note>
 
-Generated CLIs ship with a common set of runtime flags and environment variables: output formatting, pagination, dry-run previewing, TLS and proxy configuration, exit codes, and structured logging. APIs with templated server URLs also expose per-variable flags and environment variables.
+Generated CLIs ship with a common set of runtime flags and environment variables: output formatting, retries with exponential backoff, pagination, dry-run previewing, TLS and proxy configuration, exit codes, and structured logging. APIs with templated server URLs also expose per-variable flags and environment variables. The binary name (set via [`binaryName`](/learn/cli-generator/get-started/configuration#config-options)) determines the environment-variable prefix used by TLS, proxy, and logging settings below.
 
 ## Output formatting
 
@@ -37,6 +37,24 @@ Pass `--dry-run` to validate arguments and preview the HTTP request without send
 contoso plants get --params '{"plantId": "abc"}' --dry-run
 ```
 
+## Retries with backoff
+
+Failed requests are retried automatically with exponential backoff on status codes `408`, `429`, and `5xx`, honoring `Retry-After` headers.
+
+| Setting | Default |
+| --- | --- |
+| Total attempts | 4 (initial + 3 retries) |
+| Base delay | 500 ms |
+| Backoff factor | 2x |
+| Jitter | 10% |
+
+Idempotent methods (GET, HEAD, OPTIONS, DELETE, PUT) retry by default; POST and PATCH retry only when the endpoint is marked idempotent in the spec. Pass `--no-retry` to disable retries for a single invocation.
+
+```bash
+# Disable retries for a single request
+contoso plants create --json '{"name": "Monstera"}' --no-retry
+```
+
 ## Pagination
 
 For endpoints annotated with [`x-fern-pagination`](/learn/api-definitions/openapi/extensions/pagination), the CLI auto-paginates when the `--page-all` flag is set.
@@ -59,19 +77,27 @@ Paginated output works with all output formats. For table and CSV formats, heade
 
 ## Passing parameters
 
+Path and query parameters can be passed two ways: as individual flags, or as a single JSON object. Request bodies use `--json`.
+
 | Flag | Purpose |
 | --- | --- |
-| `--params <JSON>` | URL path and query parameters as a JSON object. |
+| `--<param>` | An individual path or query parameter, kebab-cased from its name in the spec. |
+| `--params <JSON>` | All path and query parameters as a single JSON object. Overrides individual flags. |
 | `--json <JSON>` | Request body for POST, PUT, and PATCH methods. |
 
 ```bash
-# Path + query parameters
+# Individual flags
+contoso plants get --plant-id abc
+
+# The equivalent --params JSON object
 contoso plants get --params '{"plantId": "abc"}'
 
 # Request body
 contoso plants create \
   --json '{"name": "Monstera", "species": "Monstera deliciosa", "sunlight": "indirect"}'
 ```
+
+Run `contoso <command> --help` to list a command's flags, or `--schema` for a machine-readable JSON contract. When a flag name differs from the spec, `--help` shows the original name as `(api: <name>)`, which is the key to use in `--params`.
 
 ## Server URL variables
 
@@ -96,7 +122,7 @@ For endpoints with `format: binary` request bodies, pass a file path as the `--f
 | --- | --- | --- |
 | `0` | Success | Command completed normally. |
 | `1` | API error | Server returned a 4xx/5xx response. |
-| `2` | Auth error | Credentials missing or invalid. |
+| `2` | Auth error | [Credentials](/learn/cli-generator/get-started/authentication) missing or invalid. |
 | `3` | Validation error | Bad arguments, unknown command, or invalid JSON. |
 | `4` | Discovery error | Couldn't load API schema. |
 | `5` | Internal error | Unexpected failure. |
@@ -136,6 +162,21 @@ contoso plants list
 ```
 
 </Accordion>
+
+## User-Agent
+
+Each generated CLI sends a `User-Agent` header identifying it by binary name and version, `<binaryName>-cli/<version>` (for example, `contoso-cli/1.4.0`), so its traffic is distinguishable on the API backend. The `-cli` suffix is added automatically.
+
+A tool built on top of the CLI can append its own product token without replacing the CLI's identity, producing `contoso-cli/1.4.0 partner-app/3.1`. Supply the token at runtime with either the `--user-agent-suffix` flag or the `<NAME>_USER_AGENT_SUFFIX` environment variable; the flag takes precedence when both are set. Rename the flag and its environment variable at generation time with [`userAgentSuffixFlag`](/learn/cli-generator/get-started/configuration#config-options).
+
+```bash
+# Append a product token via flag
+contoso plants list --user-agent-suffix "partner-app/3.1"
+
+# Or via environment variable
+export CONTOSO_USER_AGENT_SUFFIX="partner-app/3.1"
+contoso plants list
+```
 
 ## Structured logging
 

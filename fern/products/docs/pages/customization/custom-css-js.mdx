@@ -399,20 +399,29 @@ js:
 </CodeBlock>
 
 <Note>
-We use `path` for local sources and `url` for remote sources.
+Use `path` for local sources and `url` for remote sources. Remote scripts get [Subresource Integrity](#properties) protection by default.
 </Note>
 
-### Strategy
-
-Optionally, specify the strategy for each custom JavaScript file. Choose from `beforeInteractive`, `afterInteractive` (default), and `lazyOnload`. 
+### Properties
 
 <CodeBlock title="docs.yml">
 ```yaml
 js:
   - path: path/to/another/js/file.js
     strategy: beforeInteractive
+  - url: https://cdn.example.com/a.js
+    disable-sri: true # rendered without an integrity attribute
+  - url: https://cdn.example.com/b.js # still gets SRI (default)
 ```
 </CodeBlock>
+
+<ParamField path="strategy" type="'beforeInteractive' | 'afterInteractive' | 'lazyOnload'" required={false} default="afterInteractive" toc={true}>
+  When the script loads.
+</ParamField>
+
+<ParamField path="disable-sri" type="boolean" required={false} default="false" toc={true}>
+  Opts a remote script out of [Subresource Integrity (SRI)](https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity). By default, Fern adds an `integrity` attribute (and `crossorigin`) to remote scripts, so the browser only runs a script whose content matches the expected hash. Set to `true` for scripts that update in place, such as auto-updating or CDN-rolled scripts, which SRI would otherwise block.
+</ParamField>
 
 ### Common use cases
 

@@ -59,9 +59,28 @@ export default {
     const proxiedRequest = new Request(upstreamUrl, request);
     proxiedRequest.headers.set("x-fern-host", FERN_HOST);
 
-    return fetch(proxiedRequest);
+    const response = await fetch(proxiedRequest, { redirect: "manual" });
+
+    if (isRedirect(response)) {
+      const location = response.headers.get("Location");
+      if (location) {
+        const redirectUrl = new URL(location, request.url);
+        if (redirectUrl.hostname === url.hostname) {
+          redirectUrl.hostname = "app.buildwithfern.com";
+          const redirectReq = new Request(redirectUrl, request);
+          redirectReq.headers.set("x-fern-host", FERN_HOST);
+          return fetch(redirectReq);
+        }
+      }
+    }
+
+    return response;
   },
 };
+
+function isRedirect(response) {
+  return [301, 302, 303, 307, 308].includes(response.status);
+}
 ```
 
 Replace `SUBPATH` and `FERN_HOST` with your subpath and bare domain.

@@ -5,7 +5,7 @@ description: Augment your Java SDK with custom utilities
 ---
 
 
-This page covers how to add custom logic, methods, and dependencies to your TypeScript SDK. 
+This page covers how to add custom logic, methods, interceptors, and dependencies to your Java SDK. 
 
 ## Adding custom logic
 
@@ -217,6 +217,7 @@ Each method serves a specific purpose and is only generated when needed:
 | `setCustomHeaders(builder)` | Add custom headers defined in API spec | Only if API defines headers |
 | `setVariables(builder)` | Configure API variables | Only if API has variables |
 | `setHttpClient(builder)` | Customize OkHttp client | Always |
+| `setInterceptors(builder)` | Attach custom OkHttp interceptors | Only if [`custom-interceptors`](/learn/sdks/generators/java/configuration#custom-interceptors) is enabled |
 | `setTimeouts(builder)` | Modify timeout settings | Always |
 | `setRetries(builder)` | Modify retry settings | Always |
 | `setAdditional(builder)` | Final extension point for any custom configuration | Always |
@@ -287,6 +288,36 @@ protected void setAdditional(ClientOptions.Builder builder) {
 
 - **Fern Java SDK version**: 2.39.6 or later
 - **Configuration**: `enable-extensible-builders: true` in `generators.yml`
+
+## Adding custom interceptors
+
+[OkHttp interceptors](https://square.github.io/okhttp/features/interceptors/) observe and rewrite every request and response an SDK sends, which covers request signing, public key client validation, and custom logging or tracing. Setting [`custom-interceptors`](/learn/sdks/generators/java/configuration#custom-interceptors) to `true` adds an `addInterceptor(okhttp3.Interceptor)` method to your generated client builder, giving the developers who install your SDK a supported extension point for those customizations:
+
+```yaml {7} title="generators.yml"
+groups:
+  java-sdk:
+    generators:
+      - name: fern-java-sdk
+        version: <Markdown src="/snippets/version-number-java.mdx"/>
+        config:
+          custom-interceptors: true
+```
+
+Developers using your SDK register interceptors as they construct the client. Each call to `addInterceptor` appends to the chain, and all are applied to the underlying `OkHttpClient` at build time:
+
+```java
+YourApiClient client = YourApiClient.builder()
+    .token("<token>")
+    .addInterceptor(chain -> chain.proceed(
+        chain.request().newBuilder()
+            .header("X-Request-Source", "checkout-service")
+            .build()))
+    .build();
+```
+
+Custom interceptors run in registration order, inside Fern's retry interceptor, so a retried request passes through them again and a signing interceptor signs each attempt. For OAuth APIs, `addInterceptor` is available both before and after the `token(...)` or `credentials(...)` call.
+
+To attach an interceptor yourself rather than requiring every caller to register one, override the protected `setInterceptors(ClientOptions.Builder)` method on a [custom builder](#adding-custom-client-configuration), and add that builder to `.fernignore` so regeneration doesn't overwrite it.
 
 ## Adding custom dependencies
 

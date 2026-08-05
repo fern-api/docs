@@ -1,19 +1,30 @@
 ---
 title: Changelog pages
-subtitle: Keep a chronological record of project changes with tagging and RSS
+subtitle: Keep a chronological record of project changes with tagging, search, and RSS
+description: Configure changelog pages in Fern, including entry files, the timeline and classic layouts, tag filtering, and the RSS feed.
 ---
 
 
-Keep a record of how your project has changed by writing changelog entries that users can sort by tag. The changelog will automatically populate with the files contained within the `changelog` folder.
+A changelog is a navigation entry that renders a dated timeline of entries. Point the `changelog` key at a folder and every Markdown file in it becomes an entry, grouped by date, with search and tag filtering built in. A changelog can go wherever a section can — as its own tab, or as an entry in your sidebar.
 
 <Frame
     caption="Keep your users updated as your project evolves"
     background="subtle"
   >
-      <img src="changelog-humanloop.png" />
+  <video
+    src="assets/changelog-timeline.mp4"
+    autoPlay
+    loop
+    playsInline
+    muted
+>
+</video>
   </Frame>
 
 ## Configure your changelog
+
+<Steps>
+<Step title="Add a `changelog` folder">
 
 Add a `changelog` folder to your project. This folder must be named `changelog` exactly — Fern won't recognize it under any other name.
 
@@ -22,8 +33,8 @@ Add a `changelog` folder to your project. This folder must be named `changelog` 
     <File name="fern.config.json" />
     <File name="docs.yml" />
     <Folder name="changelog" defaultOpen highlighted>
-      <File name="07-08-24.md" />
-      <File name="08-21-24.mdx" />
+      <File name="2024-07-08.md" />
+      <File name="2024-07-31.mdx" />
     </Folder>
   </Folder>
 </Files>
@@ -32,7 +43,10 @@ Add a `changelog` folder to your project. This folder must be named `changelog` 
 Subdirectories within the `changelog` folder aren't supported. All changelog entry files must be placed directly in the root of the `changelog` folder.
 </Note>
 
-Then, reference it in your `docs.yml`. You can place the changelog as its own tab or as a section within your navigation.
+</Step>
+<Step title="Reference it in `docs.yml`">
+
+Reference the folder in your `docs.yml`. You can place the changelog as its own tab or as a section within your navigation.
 
 <Tabs>
 <Tab title="As a tab">
@@ -58,7 +72,7 @@ navigation:
 ```
 </CodeBlock>
 
-[View an example](https://elevenlabs.io/docs/changelog) of how this renders in the ElevenLabs Changelog.
+[View an example](https://elevenlabs.io/docs/changelog) of how this renders in the ElevenLabs changelog.
 </Tab>
 <Tab title="As a section">
 <CodeBlock title="docs.yml">
@@ -83,46 +97,135 @@ Section-level changelogs **can't** be nested within an `api` entry.
 </Tab>
 </Tabs>
 
+</Step>
+</Steps>
+
 ## Write a changelog entry
 
-Create a new changelog entry by writing a Markdown file. You can use `.md` or `.mdx` files. The benefit of using `.mdx` is that you can leverage Fern's built-in [component library](/learn/docs/content/components/overview) within an entry.
+Each entry is a single Markdown file in your `changelog` folder.
 
-<Markdown src="/products/docs/snippets/changelog-example.mdx" />
+<Steps>
+<Step title="Create a dated file">
 
-### Entry date 
-
-Changelog entries are automatically sorted chronologically by the date specific in the file name. Specify the date of your entry using one of the following formats:
+Name the file with the entry's date using one of the following formats. Fern sorts entries chronologically by this date:
 
 - MM-DD-YYYY (e.g., 10-06-2024)
 - MM-DD-YY (e.g., 10-06-24)
 - YYYY-MM-DD (e.g., 2024-04-21)
 
-### Tags
+Both `.md` and `.mdx` are supported. Use `.mdx` to leverage Fern's built-in [component library](/learn/docs/writing-content/components/overview) within an entry.
 
-Add tags to changelog entries to help users filter and find relevant updates. Tags are defined in the frontmatter of your changelog entry as an array of strings:
+</Step>
+<Step title="Write the entry content">
+
+Write the entry in Markdown. Each top-level `##` heading becomes its own card on the timeline, so a single dated file can document several updates from the same day.
+
+<Markdown src="/products/docs/snippets/changelog-example.mdx" />
+
+</Step>
+<Step title="Add tags">
+
+Tags let readers filter the timeline to specific topics. They appear as badges on each entry card and in the filter bar, and link back to a filtered timeline when clicked. 
+
+Use specific, descriptive tags that readers would search for — by feature type, product area, release stage, affected platform, or user impact. Apply them per file in the frontmatter or per entry under a heading; per-entry tags replace the frontmatter tags for that entry's card, while entries without their own tags inherit them.
+
+<AccordionGroup>
+<Accordion title="Per-file tags (frontmatter)">
+
+Add a `tags` array in the file's YAML frontmatter to tag all of the entries for that date:
 
 <CodeBlock>
-```mdx
+```mdx fern/changelog/2024-07-31.mdx
 ---
 tags: ["plants-api", "breaking-change", "inventory-management"]
 ---
+
+## New plant endpoints
+
+Added `POST /plant` to add a plant to your inventory.
+
+## Bug fixes
+
+Resolved an issue with inventory counts.
 ```
 </CodeBlock>
 
-When you have multiple changelog entries, users can filter the changelog page by selecting specific tags. Use specific, descriptive tags that your users would naturally search for. Consider tagging by feature type, product area, release stage, affected platform, or user impact.
+</Accordion>
+<Accordion title="Per-entry tags">
+
+Tag individual entries by placing a `<ChangelogTags>` component directly under each `##` heading:
+
+<CodeBlock>
+```mdx fern/changelog/2024-07-31.mdx
+## New plant endpoints
+<ChangelogTags>plants-api, inventory-management</ChangelogTags>
+
+Added `POST /plant` to add a plant to your inventory.
+
+## Bug fixes
+<ChangelogTags>bug-fix</ChangelogTags>
+
+Resolved an issue with inventory counts.
+```
+</CodeBlock>
+
+`<ChangelogTags>` accepts comma-separated children or a `tags` prop (`<ChangelogTags tags={["plants-api", "inventory-management"]} />`).
+
+</Accordion>
+</AccordionGroup>
 
 <Note>
 Customize the filter UI using [changelog filter CSS selectors](/learn/docs/customization/css-selectors-reference#changelog-filter-components). These selectors only apply when tags are configured.
 </Note>
 
-### Linking to an entry
-
-Each changelog entry has a unique URL you can direct users to. For example, `https://elevenlabs.io/docs/changelog/2025/3/31`
-
-### Overview page
+</Step>
+<Step title="Add an overview page (optional)">
 
 Add an `overview.mdx` file to your `changelog` folder to include a high-level overview at the top of your changelog. This is useful for summarizing major themes, linking to external release notes, or giving users context before diving into specific entries. If present, it will automatically appear above the list of changelog entries.
 
-### RSS feed
+</Step>
+</Steps>
+
+## Customize layout
+
+Changelogs support two layouts:
+
+- `timeline` (default) — a searchable timeline of condensed entry cards with plain-text excerpts.
+- `classic` — stacked full entries rendered inline, preserving code formatting, copy buttons, and links.
+
+### Site-wide setting
+
+Set the default layout for all changelogs [in `docs.yml`](/learn/docs/configuration/site-level-settings#changelog-layout):
+
+<CodeBlock title="docs.yml">
+```yaml
+layout:
+  changelog-layout: classic
+```
+</CodeBlock>
+
+### Per-changelog override
+
+Override the site-wide layout for a single changelog by adding a `layout` property to that changelog's `overview.mdx` frontmatter:
+
+<CodeBlock title="changelog/overview.mdx">
+```mdx
+---
+layout: classic
+---
+
+Release history for the self-hosted Docker image.
+```
+</CodeBlock>
+
+The per-changelog override takes priority over the site-wide `layout.changelog-layout` setting.
+
+## Linking and sharing
+
+Each changelog entry has a unique URL you can direct users to. For example, `https://elevenlabs.io/docs/changelog/2025/3/31`
+
+Search queries sync to the `?q=` URL parameter, so a search result is shareable as a link.
+
+## RSS feed
 
 Changelogs automatically come with an RSS feed so users can subscribe to updates. Navigate to the RSS feed by appending `.rss` to the changelog path. For example, `https://elevenlabs.io/docs/changelog.rss`

@@ -50,7 +50,7 @@ navigation:
 ```
 
 <Frame>
-<img src="ordered.png" alt="Ordered API Reference" />
+<img src="assets/ordered.png" alt="Ordered API Reference" />
 </Frame>
 
 ### Ordering section contents
@@ -83,8 +83,22 @@ navigation:
 </Tabs>
 
 <Frame>
-<img src="content-ordered.png" alt="Content ordered in the API Reference" />
+<img src="assets/content-ordered.png" alt="Content ordered in the API Reference" />
 </Frame>
+
+### Ordering properties within a schema
+
+The `layout` option orders sections, endpoints, and pages, but not the properties within a request, response, or schema. Property order follows a fixed set of rules:
+
+1. **Required properties render before optional ones.** A property is required when its name appears in the schema's `required` array, regardless of its position in the `properties` block.
+2. **Within each group, properties follow their definition order** in the `properties` block. To reorder properties within a group, reorder them in your API definition.
+    <Note>
+      Schemas composed with `allOf` are an exception: their properties sort alphabetically within each group instead of by definition order. To keep definition order, inline the composed properties by setting [`inline-all-of-schemas`](/learn/api-definitions/openapi/generators-yml-reference#settingsinline-all-of-schemas) to `true` in `generators.yml`.
+    </Note>
+3. **[Deprecated properties](/learn/api-definitions/openapi/extensions/availability) render after non-deprecated ones** within each group.
+
+Required and optional properties always render as separate groups. You can't mix the two or set an arbitrary order across them.
+
 
 ## Customizing the API Reference
 
@@ -123,8 +137,22 @@ navigation:
 ```
 
 <Frame>
-<img src="flattened.png" alt="Flattened API Reference" />
+<img src="assets/flattened.png" alt="Flattened API Reference" />
 </Frame>
+
+### Paginating endpoints
+
+By default, the API Reference renders as a single long-scrolling page containing every endpoint. Set `paginated` to `true` to split it into one page per endpoint instead.
+
+```yaml title="docs.yml"
+navigation: 
+  - api: API Reference
+    paginated: true
+```
+
+<Info>
+`paginated` controls page layout only. It's unrelated to [endpoint pagination](/learn/api-definitions/openapi/extensions/pagination), which navigates through a response using cursors or offsets and requires no `docs.yml` configuration.
+</Info>
 
 ### Styling endpoints
 
@@ -157,7 +185,7 @@ To customize the display of an endpoint, you can add a `title`. You can also use
 </Tabs>
 
 <Frame>
-<img src="custom-endpoint.png" alt="Setting an endpoint title" />
+<img src="assets/custom-endpoint.png" alt="Setting an endpoint title" />
 </Frame>
 
 ### Hiding endpoints
@@ -190,6 +218,31 @@ You can hide an endpoint from the API Reference by setting `hidden` to `true`. T
   </Tab>
 </Tabs>
 
+### Setting API Explorer options
+
+The `playground` property sets three API Explorer options: `oauth` enables the [OAuth client-credentials flow](/learn/api-definitions/openapi/authentication), `environments` restricts which server environments are available (an empty list disables the Explorer), and `send-optional-defaults` [pre-fills and sends the declared defaults](/learn/docs/api-references/api-explorer#autopopulate-with-examples) of optional parameters. Set it on the `- api` entry to apply a default across all endpoints, then override it on a section or endpoint in `layout`:
+
+```yaml title="docs.yml" {3-8,12,16}
+navigation:
+  - api: API Reference
+    playground:                     # Defaults for every endpoint in this API
+      oauth: true
+      environments:
+        - Production
+        - Sandbox
+      send-optional-defaults: true
+    layout:
+      - section: Auth
+        playground:
+          oauth: true               # Override for this section
+        contents:
+          - endpoint: POST /token
+            playground:
+              oauth: false          # Override for this endpoint
+```
+
+Environment names are the [server names](/learn/api-definitions/openapi/extensions/server-names-and-url-templating) from your API definition.
+
 ### Adding custom sections
 
 You can add arbitrary folders in the sidebar by adding a `section` to your API Reference layout. A section can comprise entire groups of endpoints, individual endpoints, or even just Markdown pages. Sections can be customized by adding properties like a `icon`, `summary`, `slug` (or `skip-slug`), `availability`, and `contents`. 
@@ -207,7 +260,7 @@ navigation:
 ```
 
 <Frame>
-<img src="custom-section.png" alt="Custom section in the API Reference" />
+<img src="assets/custom-section.png" alt="Custom section in the API Reference" />
 </Frame>
 
 ### Adding a section overview
@@ -243,7 +296,7 @@ You can add overview pages to your API Reference or individual sections in two w
 </AccordionGroup>
 
 <Frame>
-<img src="summary.png" alt="API Reference with a summary page" />
+<img src="assets/summary.png" alt="API Reference with a summary page" />
 </Frame>
 
 ### Adding pages and links
@@ -279,6 +332,8 @@ navigation:
 ```
 
 When you set availability for a section, all endpoints in that section will inherit the section-level availability unless explicitly overridden in your API definition.
+
+Non-default availability renders as a [badge in the sidebar navigation](/learn/docs/configuration/navigation#availability) next to the section or endpoint. The default available states (`stable` and `generally-available`) don't render a sidebar badge.
   
 <Warning>
   You can't set availability for individual OpenAPI endpoints in `docs.yml` — endpoint availability must be configured directly in your API definition. Learn more about [availability for OpenAPI](/learn/api-definitions/openapi/extensions/availability).
@@ -349,6 +404,11 @@ The following properties can be set on the `- api` entry in your `docs.yml` navi
 
 </ParamField>
 
+<ParamField path="paginated" toc={true} type="boolean">
+  When `true`, splits the API Reference into [one page per endpoint](#paginating-endpoints) instead of a single long-scrolling page (the default). Controls page layout only; unrelated to [endpoint pagination](/learn/api-definitions/openapi/extensions/pagination).
+
+</ParamField>
+
 <ParamField path="skip-slug" toc={true} type="boolean">
   When `true`, skips slug generation for the API section.
 
@@ -366,6 +426,26 @@ The following properties can be set on the `- api` entry in your `docs.yml` navi
 
 <ParamField path="tag-description-pages" toc={true} type="boolean">
   When `true`, uses OpenAPI tag descriptions as summary pages for each section.
+
+</ParamField>
+
+<ParamField path="playground" toc={true} type="object">
+  Settings for the [API Explorer](/learn/docs/api-references/api-explorer) that affect all endpoints in this API section. Can also be [set on individual sections or endpoints](#setting-api-explorer-options) in `layout` to override.
+
+</ParamField>
+
+<ParamField path="playground.oauth" toc={true} type="boolean">
+  When `true`, enables the [OAuth client-credentials flow](/learn/docs/api-references/api-explorer#authentication) in the API Explorer.
+
+</ParamField>
+
+<ParamField path="playground.environments" toc={true} type="list<string>">
+  Restricts which server environments are available in the API Explorer. An empty list disables the Explorer.
+
+</ParamField>
+
+<ParamField path="playground.send-optional-defaults" toc={true} type="boolean">
+  When `true`, [pre-fills and sends the declared defaults](/learn/docs/api-references/api-explorer#autopopulate-with-examples) of optional header, query, and path parameters. Defaults to `false`.
 
 </ParamField>
 

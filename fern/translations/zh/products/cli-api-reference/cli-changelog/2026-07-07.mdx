@@ -1,0 +1,25 @@
+## 5.66.0
+**`(feat):`** 在 IR 生成时一次性解析 `x-fern-global-parameters` 的适用性。`HttpEndpoint.globalParameters` 现在保存适用于每个端点的完整解析后的全局参数集合（显式启用的参数以及匹配 `apply: auto` 的参数），其中位于请求体位置的参数取决于端点的请求体 schema 是否实际包含点分隔的目标路径。若显式启用的参数在其请求体中缺少目标路径，则会被丢弃并在生成时发出警告。
+
+
+## 5.65.8
+**`(fix):`** 使用 `path` 输入库的文档配置不再导致 `fern docs dev` 和 `fern generate --docs` 崩溃。`parseLibrariesConfiguration` 现在同时接受 `git` 和 `path` 库输入，而不再在遇到 `path` 时抛出异常，因此使用 `fern docs md generate --local` 在本地生成库文档的站点可以被预览和发布。
+
+
+## 5.65.7
+**`(fix):`** 当 `docs.yml` 同时包含 `navigation` 和 `products` 时，`fern check` 现在会报错。二者互斥（正如 `navigation` 和 `versions` 已经互斥一样）：在多产品站点中，导航位于每个产品所引用的文件里，因此顶层的 `navigation` 块会静默地覆盖 products 并渲染出空导航。
+
+
+## 5.65.6
+**`(chore):`** 将 `@fern-api/generator-cli` 升级到 0.9.44，以便在推送到 GitHub 时对每个仅存在于本地的提交都进行签名，而不仅仅是 HEAD。
+
+
+## 5.65.5
+**`(fix):`** 通过并行（而非顺序）预取外部 `<Code src="https://..."/>` URL，并借助提前退出检查和流式扫描优化图片处理，改进了 `fern docs dev` 的初始构建时间。对于包含大量外部代码片段的大型文档站点，这将初始构建时间从约 57 秒缩短到约 14 秒（快 75%）。
+
+
+## 5.65.4
+**`(fix):`** 当路径参数与其他请求属性（内联请求体属性、查询参数或请求头）同名时，`fern check` 现在会报错，包括仅在 camelCase 规范化后才出现的冲突。这类冲突会生成损坏或含义不明的 SDK 代码；请使用 `x-fern-parameter-name`（OpenAPI）或 `name` 属性（Fern 定义）来消除歧义。
+
+
+**`(fix):`** OpenAPI 导入器不再静默地重命名与路径参数冲突的请求体属性。这类冲突现在会以 `fern check` 错误的形式呈现，强制进行显式的消歧（例如通过 `x-fern-parameter-name`）。

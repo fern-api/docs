@@ -8,6 +8,10 @@ Publish your public-facing Fern Python SDK to the [PyPI
 registry](https://pypi.org/). After following the steps on this page,
 you'll have a versioned package published on PyPI.
 
+<Warning title="Already publishing to PyPI?">
+If you're using token-based authentication, consider switching to OIDC (trusted publishing). See [Migrating from token-based to OIDC publishing](#migrating-from-token-based-to-oidc-publishing) for the steps.
+</Warning>
+
 <Frame>
 	<img src="assets/pypi-package.png" alt="Versioned package published on PyPI" />
 </Frame>
@@ -17,6 +21,15 @@ you'll have a versioned package published on PyPI.
 
 	* An initialized `fern` folder, a GitHub repository for your Python SDK, and a Python generator group in `generators.yml`. See [Generating an SDK (Python)](/learn/sdks/generators/python/quickstart).
 </Info>
+
+<llms-only>
+Before proceeding, verify the prerequisites are actually in place:
+
+1. **Source repo with `fern/` folder**: The user should be working in their source repo, not the SDK repo. Confirm `generators.yml` exists and has a Python generator group.
+2. **Python generator group**: If they skipped the [Python quickstart](/learn/sdks/generators/python/quickstart), they need to run `fern add fern-python-sdk --group python-sdk` first.
+
+Default to OIDC authentication unless the user has a specific reason to use token-based auth. OIDC is more secure and avoids managing PyPI tokens.
+</llms-only>
 
 ## Configure SDK package settings
 
@@ -380,5 +393,243 @@ Set up a CI workflow that you can manually trigger from the GitHub UI. In your r
     </Step>
 
 </Steps>
+</Accordion>
+</AccordionGroup>
+
+---
+
+## Migrating from token-based to OIDC publishing
+
+If you're using token-based authentication and want to migrate to OIDC, follow these steps.
+
+### Why migrate to OIDC
+
+OIDC-based publishing (trusted publishing) removes security risks associated with long-lived tokens:
+
+- Tokens can be exposed in logs or configuration files
+- Compromised tokens can be used persistently until manually revoked
+- Token rotation adds operational overhead
+
+With OIDC, PyPI trusts your GitHub Actions workflow directly. No secrets to store, rotate, or leak.
+
+### Prerequisites
+
+Before migrating:
+
+- A package published to [PyPI](https://pypi.org/)
+- A GitHub repository with GitHub Actions configured
+- Access to your package settings on [PyPI](https://pypi.org/)
+- Fern CLI version `5.46.0` or later (only required for local generation with `--local`)
+
+### Choose your migration path
+
+<AccordionGroup>
+<Accordion title="Path 1: Upgrade your generator (Recommended)">
+
+This is the easiest path if you can upgrade to version `4.38.1` or later of the Python SDK generator.
+
+**When to use this path:**
+- You can upgrade to Fern Python SDK generator version `4.38.1` or later
+- You haven't `.fernignore`'d your CI workflow file
+
+<Steps>
+	<Step title="Configure trusted publishing on PyPI">
+
+	1. Navigate to your project on [PyPI](https://pypi.org/) and open **Manage** > **Publishing**
+	1. Under **Add a new publisher**, select **GitHub**
+	1. Fill in:
+		- **Owner**: Your GitHub username or organization
+		- **Repository name**: Your Python SDK repository name
+		- **Workflow name**: `ci.yml`
+		- **Environment name**: `pypi`
+
+	For more details, see PyPI's [trusted publishers documentation](https://docs.pypi.org/trusted-publishers/).
+
+	</Step>
+
+	<Step title="Update your generators.yml">
+
+	Change the `output.token` field from `${PYPI_TOKEN}` to `OIDC` and ensure you're using version `4.38.1` or later:
+
+	```yaml title="generators.yml"
+	groups:
+	  python-sdk:
+		generators:
+		  - name: fern-python-sdk
+			version: <Markdown src="/snippets/version-number-python.mdx"/>  # Must be 4.38.1 or later
+			output:
+			  location: pypi
+			  package-name: your-package-name
+			  token: OIDC  # Changed from ${PYPI_TOKEN}
+		config:
+		  client_class_name: YourClientName
+		github:
+		  repository: your-org/your-repository
+	```
+
+	</Step>
+
+	<Step title="Regenerate your SDK">
+
+	Regenerate the SDK to update the CI workflow with OIDC configuration:
+
+	**Locally:**
+
+	```bash
+	fern generate --group python-sdk
+	```
+
+	**Or via GitHub Actions:**
+
+	Push your updated `generators.yml` and let the Fern GitHub Action regenerate the SDK.
+
+	This updates `.github/workflows/ci.yml` with the required OIDC permissions and switches to the `pypa/gh-action-pypi-publish` action.
+
+	</Step>
+
+	<Step title="Remove the PYPI_TOKEN secret">
+
+	After verifying the migration works, remove the `PYPI_TOKEN` secret from your GitHub repository settings (**Settings** > **Secrets and variables** > **Actions**).
+
+	</Step>
+</Steps>
+
+</Accordion>
+
+<Accordion title="Path 2: Manual CI workflow update">
+
+Use this path if you can't upgrade the generator or have customized your CI workflow.
+
+**When to use this path:**
+- You can't upgrade due to breaking changes or compatibility concerns
+- You've customized your CI workflow and added it to `.fernignore`
+- Path 1 didn't update your workflow file
+
+<Steps>
+	<Step title="Configure trusted publishing on PyPI">
+
+	Follow the same instructions as Path 1 to add your repository as a trusted publisher on PyPI.
+
+	</Step>
+
+	<Step title="Add a build job to your CI workflow">
+
+	Open `.github/workflows/ci.yml` and add a `build` job that builds and uploads your package as an artifact:
+
+	```yaml title=".github/workflows/ci.yml"
+	  build:
+		name: Build distribution
+		runs-on: ubuntu-latest
+		steps:
+		  - name: Checkout repo
+			uses: actions/checkout@v4
+		  - name: Set up python
+			uses: actions/setup-python@v4
+			with:
+			  python-version: "3.9"
+		  - name: Bootstrap poetry
+			run: |
+			  curl -sSL https://install.python-poetry.org | python - -y --version 1.5.1
+		  - name: Install dependencies
+			run: poetry install
+		  - name: Build package
+			run: poetry build
+		  - name: Store the distribution packages
+			uses: actions/upload-artifact@v4
+			with:
+			  name: python-package-distributions
+			  path: dist/
+	```
+
+	</Step>
+
+	<Step title="Replace the publish job">
+
+	Replace your existing `publish` job with the OIDC-based version:
+
+	```yaml title=".github/workflows/ci.yml"
+	  publish:
+		name: Publish to PyPI
+		needs: [compile, test, build]
+		if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
+		runs-on: ubuntu-latest
+		environment:
+		  name: pypi
+		  url: https://pypi.org/p/${{ github.event.repository.name }}
+		permissions:
+		  contents: read   # Required for checkout
+		  id-token: write  # Required for OIDC
+		steps:
+		  - name: Download all the dists
+			uses: actions/download-artifact@v4
+			with:
+			  name: python-package-distributions
+			  path: dist/
+		  - name: Publish to PyPI
+			uses: pypa/gh-action-pypi-publish@release/v1
+			with:
+			  repository-url: https://upload.pypi.org/legacy/
+	```
+
+	**Key changes from token-based publishing:**
+	- Adds `environment` block pointing to `pypi`
+	- Adds `permissions` with `id-token: write` and `contents: read`
+	- Replaces `poetry publish` with `pypa/gh-action-pypi-publish@release/v1`
+	- Removes all `env` blocks referencing `PYPI_TOKEN` or `PYPI_PASSWORD`
+
+	</Step>
+
+	<Step title="(Optional) Add ci.yml to .fernignore">
+
+	Prevent future generator updates from overwriting your manual changes:
+
+	```text title=".fernignore"
+	.github/workflows/ci.yml
+	```
+
+	</Step>
+
+	<Step title="Remove the PYPI_TOKEN secret">
+
+	After verifying the migration works, remove the `PYPI_TOKEN` secret from your GitHub repository settings.
+
+	</Step>
+</Steps>
+
+</Accordion>
+</AccordionGroup>
+
+### Verify your migration
+
+After completing either migration path:
+
+1. **Trigger a workflow run** by creating a GitHub release with an alpha tag (e.g., `v1.0.0-alpha`)
+2. **Check the workflow logs** to verify the publish step succeeds
+3. **Verify provenance** by visiting your package on [PyPI](https://pypi.org/) — the package page displays attestation details for OIDC-published versions
+
+### Migration troubleshooting
+
+<AccordionGroup>
+<Accordion title='"invalid-publisher" or authentication errors'>
+
+**Common causes:**
+- Workflow filename doesn't match exactly (must be `ci.yml` with the `.yml` extension)
+- Environment name on PyPI doesn't match the `pypi` environment in the workflow
+- Missing `id-token: write` or `contents: read` permissions
+- Using self-hosted runners (not supported)
+
+**Solution:** Double-check your trusted publisher configuration on PyPI matches your repository name, workflow filename, and environment name exactly.
+
+</Accordion>
+
+<Accordion title="Workflow still using PYPI_TOKEN">
+
+If your workflow continues using token-based authentication:
+
+- Verify you've removed the `poetry publish` command and any `env` blocks referencing `PYPI_TOKEN` or `PYPI_PASSWORD`
+- Ensure the `publish` job uses `pypa/gh-action-pypi-publish@release/v1`
+- Ensure you're using generator version `4.38.1` or later (if using Path 1)
+- For `--local` generation, Fern CLI version `5.46.0` or later is required
+
 </Accordion>
 </AccordionGroup>

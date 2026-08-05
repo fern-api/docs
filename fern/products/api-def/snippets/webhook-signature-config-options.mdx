@@ -11,7 +11,7 @@ These fields apply to both HMAC and asymmetric verification.
   The HTTP header containing the signature. For example, `x-webhook-signature` or `x-hub-signature-256`.
 </ParamField>
 
-<ParamField path="encoding" type="'base64' | 'hex'" required={true} toc={true}>
+<ParamField path="encoding" type="'base64' | 'hex'" required={false} default="base64" toc={true}>
   The encoding format of the signature value in the header.
 </ParamField>
 
@@ -19,11 +19,11 @@ These fields apply to both HMAC and asymmetric verification.
   A prefix to strip from the signature header value before verification. For example, `"sha256="` or `"rsa="`.
 </ParamField>
 
-<ParamField path="timestamp.header" type="string" required={true} toc={true}>
-  HTTP header containing the delivery timestamp.
+<ParamField path="timestamp.header" type="string" required={false} toc={true}>
+  HTTP header containing the delivery timestamp. Required when `timestamp` is configured.
 </ParamField>
 
-<ParamField path="timestamp.format" type="'unix-seconds' | 'unix-millis' | 'iso8601'" required={true} toc={true}>
+<ParamField path="timestamp.format" type="'unix-seconds' | 'unix-millis' | 'iso8601'" required={false} default="unix-seconds" toc={true}>
   Format of the timestamp value in the header.
 </ParamField>
 
@@ -36,12 +36,12 @@ These fields apply to both HMAC and asymmetric verification.
 
 These fields apply when `type` is set to `hmac`.
 
-<ParamField path="algorithm" type="'sha256' | 'sha1' | 'sha384' | 'sha512'" required={true} toc={true}>
+<ParamField path="algorithm" type="'sha256' | 'sha1' | 'sha384' | 'sha512'" required={false} default="sha256" toc={true}>
   The HMAC hash algorithm for signature computation. `sha256` is recommended. `sha1` is deprecated and should only be used for legacy compatibility.
 </ParamField>
 
-<ParamField path="payload-format.components" type="list of strings" required={true} toc={true}>
-  Ordered list of payload components to concatenate before hashing. Available components:
+<ParamField path="payload-format.components" type="list of strings" required={false} toc={true}>
+  Ordered list of payload components to concatenate before hashing. When omitted, only the raw request body is signed. Available components:
 
   | Component | Description |
   |-----------|-------------|
@@ -51,8 +51,24 @@ These fields apply when `type` is set to `hmac`.
   | `message-id` | Provider-assigned message identifier |
 </ParamField>
 
-<ParamField path="payload-format.delimiter" type="string" required={true} toc={true}>
-  String used to join the components. Use `"."` for timestamp-prefixed payloads or `""` for direct concatenation.
+<ParamField path="payload-format.delimiter" type="string" required={false} toc={true}>
+  String used to join the components. Use `"."` for timestamp-prefixed payloads or `""` for direct concatenation. Required when `payload-format.components` is set.
+</ParamField>
+
+<ParamField path="body-hash-binding.algorithm" type="'sha256' | 'sha1' | 'sha384' | 'sha512'" required={true} toc={true}>
+  Hash algorithm applied to the raw request body. Independent of `algorithm`, which applies to the signature itself. Set `body-hash-binding` when the provider transmits a hash of the body alongside a signature computed over the notification URL.
+</ParamField>
+
+<ParamField path="body-hash-binding.encoding" type="'base64' | 'hex'" required={false} default="base64" toc={true}>
+  Encoding of the transmitted body hash.
+</ParamField>
+
+<ParamField path="body-hash-binding.location.type" type="'query-parameter'" required={true} toc={true}>
+  Where the body hash is transmitted. Query parameters on the notification URL are the only supported location.
+</ParamField>
+
+<ParamField path="body-hash-binding.location.name" type="string" required={true} toc={true}>
+  Name of the query parameter carrying the body hash.
 </ParamField>
 
 </Accordion>
@@ -62,6 +78,23 @@ These fields apply when `type` is set to `asymmetric`.
 
 <ParamField path="asymmetric-algorithm" type="'rsa-sha256' | 'rsa-sha384' | 'rsa-sha512' | 'ecdsa-sha256' | 'ecdsa-sha384' | 'ecdsa-sha512' | 'ed25519'" required={true} toc={true}>
   The asymmetric signing algorithm. `rsa-sha256` and `ecdsa-sha256` are widely supported defaults. `ed25519` is a modern, efficient option.
+</ParamField>
+
+<ParamField path="payload-format.components" type="list of strings" required={false} toc={true}>
+  Ordered list of payload components to concatenate before signing. When omitted, only the raw request body is signed. Available components:
+
+  | Component | Description |
+  |-----------|-------------|
+  | `body` | Raw request body |
+  | `timestamp` | Timestamp value from timestamp header |
+  | `notification-url` | The webhook/callback URL |
+  | `message-id` | Provider-assigned message identifier |
+
+  <Warning>Without `timestamp` in the components list, the `timestamp.tolerance` check can't protect against replay attacks because the timestamp is unauthenticated. Include `timestamp` to ensure replay protection.</Warning>
+</ParamField>
+
+<ParamField path="payload-format.delimiter" type="string" required={false} toc={true}>
+  String used to join the components. Use `"."` for timestamp-prefixed payloads or `""` for direct concatenation. Required when `payload-format.components` is set.
 </ParamField>
 
 <ParamField path="jwks-url" type="string" required={false} toc={true}>

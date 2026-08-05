@@ -1,0 +1,69 @@
+---
+title: Operating self-hosted SDK generation
+description: Infrastructure requirements, ongoing maintenance, and secure distribution for running Fern SDK generation on your own infrastructure.
+---
+
+<Markdown src="/snippets/enterprise-plan.mdx" />
+
+[Self-hosting](/learn/sdks/deep-dives/self-hosted) moves SDK generation onto infrastructure you own, which means you also own the work that Fern's cloud handles automatically: provisioning the runtime, distributing generator images, computing versions, and keeping generators current. This page covers what that work involves once the initial setup is in place.
+
+For the [infrastructure requirements](/learn/sdks/deep-dives/self-hosted#infrastructure-requirements) and step-by-step setup, see [Self-hosted SDKs](/learn/sdks/deep-dives/self-hosted). For version computation, see [Self-hosted SDK versioning](/learn/sdks/deep-dives/self-hosted-versioning).
+
+## Ongoing maintenance
+
+Self-hosting shifts recurring upkeep to your team:
+
+- **Keep generator versions current.** Run [`fern generator upgrade`](/learn/sdks/reference/generators-yml) to move `generators.yml` to newer generator versions. Generators pinned to a [private registry](/learn/sdks/deep-dives/self-hosted#private-registry-setup) are skipped, so bump those versions by hand and re-mirror the image first.
+- **Keep the CLI current.** Run `fern upgrade` to update the CLI version in `fern.config.json`. A CLI or generator bump can change SDK output, which affects the computed version.
+- **Compute versions on every release.** Cloud generation assigns version numbers; self-hosted pipelines must derive them. Wire [`--version AUTO` or `fern ir` + `fern diff`](/learn/sdks/deep-dives/self-hosted-versioning) into CI.
+- **Distribute the SDK.** Publishing to package managers is your responsibility. Push generation output to a GitHub repository and publish from there, or publish directly from your pipeline using the [language-specific publishing guides](/learn/sdks/generators/typescript/publishing).
+- **Rotate credentials.** The `FERN_TOKEN` doesn't expire, but registry tokens and `GITHUB_TOKEN` values used in CI do. Rotate them on your normal secret-rotation schedule.
+
+## Distributing to your clients securely
+
+When the SDK is for named clients rather than the public, publish it as a private, access-controlled package. The steps below use the npm registry; the same principles map to other registries.
+
+Choose where the package lives before publishing. A private scope on the public npm registry is the least setup and works when clients are willing to authenticate to npmjs.com. A self-hosted or managed registry (Verdaccio, GitHub Packages, JFrog Artifactory, AWS CodeArtifact) keeps the package inside your own network and lets you enforce access, retention, and audit logging centrally; each proxies the public registry so clients still resolve their other dependencies normally.
+
+<Steps>
+<Step title="Publish a restricted, scoped package">
+
+Give the package an org scope (`@your-org/sdk`) and publish it with restricted access so it isn't installable by default. Set the output `package-name` in `generators.yml` and publish with `--access restricted`:
+
+```bash
+npm publish --access restricted
+```
+
+For a self-hosted registry, point `publishConfig.registry` at it instead of npmjs.com.
+
+</Step>
+<Step title="Publish from CI with OIDC, not tokens">
+
+Publish through [trusted publishing (OIDC)](/learn/sdks/generators/typescript/publishing#configure-authentication) so no long-lived npm token lives in CI. OIDC also emits a provenance attestation that clients can verify against the source build, letting them confirm the artifact came from your pipeline. Provenance isn't generated for packages published from private source repositories.
+
+</Step>
+<Step title="Grant each client scoped read access">
+
+Add clients to an npm organization team with read-only access to the scope, or issue a per-client [granular access token](https://docs.npmjs.com/about-access-tokens) restricted to the package with read-only permission. Never share the publish credential. Revoking a client's team membership or token cuts their access without a re-release.
+
+Clients authenticate by scoping their `.npmrc` to your registry so only requests for your scope carry their token:
+
+```ini title=".npmrc"
+@your-org:registry=https://registry.npmjs.org/
+//registry.npmjs.org/:_authToken=${CLIENT_TOKEN}
+```
+
+</Step>
+<Step title="Steer clients between versions">
+
+Publish pre-release builds under a separate [dist-tag](https://docs.npmjs.com/cli/commands/npm-dist-tag) (for example `npm publish --tag beta`) so `npm install @your-org/sdk` still resolves the stable `latest`. When a version has a security issue, run `npm deprecate @your-org/sdk@"<1.2.3" "message"` to warn clients on install without breaking existing pins.
+
+</Step>
+<Step title="Have clients pin and verify">
+
+Instruct clients to install exact versions and commit their lockfile so an unexpected republish can't change what they resolve. Clients on npm 9.5+ can run `npm audit signatures` to verify the package's provenance and registry signatures.
+
+</Step>
+</Steps>
+
+For air-gapped clients that can't reach any registry, ship the package as a tarball with `npm pack`, deliver it over your own secure channel with a published checksum, and have clients install from the verified file (`npm install ./your-org-sdk-1.2.3.tgz`).

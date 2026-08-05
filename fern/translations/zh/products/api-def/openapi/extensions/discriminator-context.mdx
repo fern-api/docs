@@ -1,0 +1,103 @@
+---
+title: 判别器上下文
+headline: 判别器上下文 (OpenAPI)
+description: 使用 `x-fern-discriminator-context` 区分协议级判别器（如 SSE 事件类型）和嵌入在 JSON 有效载荷中的数据级判别器。
+---
+
+`x-fern-discriminator-context` 扩展告诉 Fern 判别联合体的判别器字段位于何处：数据有效载荷内部（`data`，默认值）还是协议帧级别（`protocol`）。此区别对于 SSE 端点很重要，其中 `event` 字段是 SSE 协议的一部分，而不是 `data` 有效载荷内的属性。
+
+| 值 | 含义 |
+| --- | --- |
+| `data` | 判别器是 JSON 主体内的属性（默认） |
+| `protocol` | 判别器位于协议级别（例如 SSE `event` 字段） |
+
+将 `x-fern-discriminator-context` 放置在 `oneOf` schema 的 `discriminator` 对象上。
+
+## 协议级判别（SSE）
+
+在 SSE 协议中，`event` 字段是线路帧的一部分，不包含在解析后的 `data` 有效载荷中。设置 `x-fern-discriminator-context: protocol` 告诉 Fern 和生成的 SDK 判别符位于数据之外，因此它们在反序列化每个变体的 `data` 时不会期望判别符属性存在。
+
+```yaml {5} title="openapi.yml"
+components:
+  schemas:
+    StreamEvent:
+      discriminator:
+        propertyName: event
+        x-fern-discriminator-context: protocol
+        mapping:
+          completion: "#/components/schemas/CompletionEvent"
+          error: "#/components/schemas/ErrorEvent"
+      oneOf:
+        - $ref: "#/components/schemas/CompletionEvent"
+        - $ref: "#/components/schemas/ErrorEvent"
+
+    CompletionEvent:
+      type: object
+      properties:
+        content:
+          type: string
+
+    ErrorEvent:
+      type: object
+      properties:
+        message:
+          type: string
+        code:
+          type: integer
+```
+
+对应的 SSE 流如下：
+
+```
+event: completion
+data: {"content": "Hello"}
+
+event: error
+data: {"message": "Rate limited", "code": 429}
+```
+
+如果没有 `x-fern-discriminator-context: protocol`，Fern 会将 `event` 视为每个变体 JSON 主体内的字段，并期望它出现在 `data` 有效载荷中。
+
+## 数据级判别（默认）
+
+当省略 `x-fern-discriminator-context` 或将其设置为 `data` 时，判别器是 JSON 主体内的属性。这是标准的 OpenAPI 判别联合体行为，不需要扩展。
+
+```yaml title="openapi.yml"
+components:
+  schemas:
+    Plant:
+      discriminator:
+        propertyName: type
+        mapping:
+          tree: "#/components/schemas/Tree"
+          flower: "#/components/schemas/Flower"
+      oneOf:
+        - $ref: "#/components/schemas/Tree"
+        - $ref: "#/components/schemas/Flower"
+
+    Tree:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum: ["tree"]
+        height:
+          type: number
+
+    Flower:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum: ["flower"]
+        color:
+          type: string
+```
+
+## 自动推断
+
+当判别联合体中的每个变体仅使用 SSE 规范字段（`event`、`data`、`id`、`retry`）及其预期类型时，Fern 会自动推断 `protocol` 上下文。在这种情况下，无需添加扩展。当您想要覆盖推断值或变体 schema 与 SSE 形状不完全匹配时，请显式使用 `x-fern-discriminator-context`。

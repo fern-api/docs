@@ -5,12 +5,21 @@ description: Restrict pages by role, team, or pricing tier so each audience sees
 ---
 
 <Warning title="Team and Enterprise feature">
-  Password-based RBAC is available on the [Team and Enterprise plans](https://buildwithfern.com/pricing). JWT and OAuth-based RBAC require the [Enterprise plan](https://buildwithfern.com/pricing).
+  Password-based RBAC is available on the [Team and Enterprise plans](https://buildwithfern.com/pricing). SSO, JWT, and OAuth-based RBAC require the [Enterprise plan](https://buildwithfern.com/pricing).
 </Warning>
 
-RBAC gates pages, sections, and other navigation items by role so each audience sees only the content meant for them. It works with [password protection](/learn/docs/authentication/setup/password-protection), [JWT](/learn/docs/authentication/setup/jwt), and [OAuth](/learn/docs/authentication/setup/oauth) authentication.
+RBAC gates pages, sections, and other navigation items by role so each audience sees only the content meant for them. It works with [password protection](/learn/docs/authentication/setup/password-protection), [SSO](/learn/docs/authentication/setup/sso), [JWT](/learn/docs/authentication/setup/jwt), and [OAuth](/learn/docs/authentication/setup/oauth) authentication.
 
 Use it for partner docs, beta features, tiered pricing content, and internal resources. You can combine it with [API key injection](/learn/docs/authentication/features/api-key-injection) when using JWT or OAuth authentication. When RBAC is configured, [Ask Fern](/learn/docs/ai-features/ask-fern/overview) automatically respects these permissions. By default, restricted pages are completely hidden from unauthorized users — if you'd like them to be visible but locked instead, let Fern know during setup.
+
+Restricted pages display a lock icon next to the page title. Hovering over the icon shows which roles have access. The badge appears automatically on all restricted page types, including API Reference endpoints.
+
+<Frame caption='Pages without `viewers` read "Only visible to authenticated users," while pages with `viewers` list the role names that can view the page.'>
+  <img
+    src="assets/rbac-badge.png"
+    alt="RBAC badge showing role restrictions on a page header"
+  />
+</Frame>
 
 ## Setup
 
@@ -18,7 +27,7 @@ Use it for partner docs, beta features, tiered pricing content, and internal res
   RBAC is configured in `docs.yml` and managed through the [Fern CLI](/learn/cli-api-reference/cli-reference/overview). If you set up your site using the [guided UI](https://dashboard.buildwithfern.com/get-started), you'll need to work with your Fern configuration files directly instead of through the Fern Dashboard.
 </Info>
 
-To enable RBAC, first set up an authentication method — [password protection](/learn/docs/authentication/setup/password-protection), [JWT](/learn/docs/authentication/setup/jwt), or [OAuth](/learn/docs/authentication/setup/oauth) — then define your roles in `docs.yml`:
+To enable RBAC, first set up an authentication method — [password protection](/learn/docs/authentication/setup/password-protection), [SSO](/learn/docs/authentication/setup/sso), [JWT](/learn/docs/authentication/setup/jwt), or [OAuth](/learn/docs/authentication/setup/oauth) — then define your roles in `docs.yml`:
 
 ```yml docs.yml
 roles:
@@ -28,7 +37,7 @@ roles:
  - admins
 ```
 
-Every user automatically has the `everyone` role, including unauthenticated visitors. If a user lacks the required role or isn't authenticated, Fern redirects them to your login page. There is no limit on the number of roles you can define, unless you're using [password protection](/learn/docs/authentication/setup/password-protection), which supports up to three.
+Every user automatically has the `everyone` role, including unauthenticated visitors. When an unauthenticated visitor requests a gated page, Fern redirects them to your login flow and returns them to the requested page after they authenticate. An authenticated user who lacks the required role sees a 404 page. There is no limit on the number of roles you can define, unless you're using [password protection](/learn/docs/authentication/setup/password-protection), which supports up to three.
 
 ## Restricting content
 
@@ -75,6 +84,10 @@ Use the `<If />` component to [conditionally render content](/learn/docs/writing
 ```
 
 You can also combine `roles` with `products` and `versions` props.
+
+## Preview as a role
+
+On a docs [preview link](/learn/docs/preview-publish/preview-changes#preview-links), a role selector lets you view the site as a specific viewer to verify role-based visibility before publishing. Pick one or more roles to see the site as a user with those roles, or select anonymous to see the public view. The docs re-render with that viewer's visibility applied, including nav pruning, `<If />` blocks, and role-gated tabs and products. With no selection, the preview shows all content regardless of role.
 
 ## Example
 

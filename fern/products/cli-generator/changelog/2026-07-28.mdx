@@ -1,0 +1,19 @@
+## Browser and device login
+
+<ChangelogTags>auth, generators.yml</ChangelogTags>
+
+Generated CLIs can now log users in interactively. Declaring an `authorization-code` scheme gives `<bin> auth login` a browser flow with PKCE, and a `device-code` scheme prints a user code for machines without a browser, such as SSH sessions and containers. Tokens are stored in the OS keyring, refreshed when they expire, and sent on every request. `auth logout` clears them and `auth status` shows which schemes have a credential.
+
+```yaml title="generators.yml"
+auth-schemes:
+  OAuth:
+    scheme: oauth
+    type: authorization-code
+    client-id: my-public-client-id
+    authorization-url: https://idp.example.com/authorize
+    token-url: https://idp.example.com/oauth/token
+```
+
+Omitting `redirect-uri` binds an OS-assigned loopback port at login. Pin the callback host, path, and port instead by setting one explicitly, with backup ports tried in order when the primary is busy. Authorization servers that need extra literal parameters, such as an Auth0 `audience`, accept them through per-request parameter maps.
+
+<Button intent="none" outlined rightIcon="arrow-right" href="/learn/cli-generator/get-started/authentication#oauth-flows">Read the docs</Button>

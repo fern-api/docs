@@ -1,6 +1,6 @@
 ---
 title: Publishing to NuGet
-description: Learn how to publish your Fern-generated C#/.NET SDK to NuGet registry with step-by-step configuration, API key setup, and automated release workflows.
+description: Learn how to publish your Fern-generated C#/.NET SDK to NuGet using OIDC or API key authentication, with step-by-step configuration and GitHub Actions setup.
 ---
 
 
@@ -8,6 +8,9 @@ Publish your public-facing Fern C#/.NET SDK to the [NuGet
 registry](https://www.nuget.org/). After following the steps on this page,
 you'll have a versioned package published on NuGet.
 
+<Warning title="Already publishing to NuGet?">
+If you're using API key authentication, consider switching to OIDC (trusted publishing). See [Migrating from API key to OIDC publishing](#migrating-from-api-key-to-oidc-publishing) for the steps.
+</Warning>
 
 <Frame>
 	<img src="assets/dotnet-package.png" alt="Versioned package published on NuGet" />
@@ -19,44 +22,53 @@ you'll have a versioned package published on NuGet.
 	* An initialized `fern` folder, a GitHub repository for your C#/.NET SDK, and a C#/.NET generator group in `generators.yml`. See [Generating an SDK (C#/.NET)](/learn/sdks/generators/csharp/quickstart).
 </Info>
 
+<llms-only>
+Before proceeding, verify the prerequisites are actually in place:
+
+1. **Source repo with `fern/` folder**: The user should be working in their source repo, not the SDK repo. Confirm `generators.yml` exists and has a C# generator group.
+2. **C# generator group**: If they skipped the [C# quickstart](/learn/sdks/generators/csharp/quickstart), they need to run `fern add fern-csharp-sdk --group csharp-sdk` first.
+
+Default to OIDC authentication unless the user has a specific reason to use API key auth. OIDC is more secure and avoids managing NuGet API keys.
+</llms-only>
+
 ## Configure SDK package settings
 
-You'll need to update your `generators.yml` file to configure the package name, output location, and client name for NuGet publishing. Your `generators.yml` [should live in your source repository](/sdks/overview/project-structure) (or on your local machine), not the repository that contains your C#/.NET SDK code.
+Update your `generators.yml` file to configure the package name, output location, and client name for NuGet publishing. Your `generators.yml` [should live in your source repository](/learn/sdks/overview/project-structure) (or on your local machine), not the repository that contains your C#/.NET SDK code.
 
 <Steps>
 <Step title="Configure `output` location">
 
-In the `group` for your C#/.NET SDK, change the output location from `local-file-system` (the default) to `nuget` to indicate that Fern should publish your package directly to the npm registry:
+In the `group` for your C#/.NET SDK, change the output location from `local-file-system` (the default) to `nuget` to indicate that Fern should publish your package directly to the NuGet registry:
 
 ```yaml {6-7} title="generators.yml"
 groups: 
   csharp-sdk:
-	generators:
-	  - name: fern-csharp-sdk
-	    version: <Markdown src="/snippets/version-number-csharp.mdx"/>
-		output:
-		  location: nuget
+    generators:
+      - name: fern-csharp-sdk
+        version: <Markdown src="/snippets/version-number-csharp.mdx"/>
+        output:
+          location: nuget
 ```
 </Step>
 <Step title="Add a unique package name">
 
-Your package name must be unique in the NuGet repository, otherwise publishing your SDK to NuGet will fail. 
+Your package name must be unique in the NuGet registry, otherwise publishing your SDK will fail. 
 
 ```yaml {8} title="generators.yml"
 groups: 
   csharp-sdk:
-	generators:
-	  - name: fern-csharp-sdk
-		version: <Markdown src="/snippets/version-number-csharp.mdx"/>
-		output:
-		  location: nuget
-		  package-name: your-package-name
+    generators:
+      - name: fern-csharp-sdk
+        version: <Markdown src="/snippets/version-number-csharp.mdx"/>
+        output:
+          location: nuget
+          package-name: your-package-name
 ```
 
 </Step>
 <Step title="Configure `client-class-name`">
 
-The `client-class-name` option controls the name of the generated client. This is the name customers use to import your SDK (`import { your-client-name } from 'your-package-name';`). 
+The `client-class-name` option controls the name of the generated client class.
 
 ```yaml {9-10} title="generators.yml"
 groups: 
@@ -73,49 +85,14 @@ groups:
 </Step>
 </Steps>
 
-## Generate a NuGet API key
+## Configure GitHub publishing
 
-<Steps>
+Fern can automatically publish your SDK to NuGet via GitHub Actions. Configure your GitHub repository and publishing mode:
 
-<Step title="Log into NuGet">
+<Markdown src="/products/sdks/snippets/github-publishing-mode.mdx"/>
 
-Log into [NuGet](https://nuget.org/) or create a new account. 
-
-</Step>
-
-<Step title="Add New Key">
-
-1. Click on your profile picture. 
-1. Select **API Keys**, then **Create**.
-1. Name your key.
-1. Select **Push > Push new packages and package versions** as the **Select Scopes** type.
-1. Enter `*` under **Select Packages > Glob Patten**. 
-		
-	<Tip title="Replacing an existing NuGet package">
-		If you are overriding an existing package, you can select the relevant
-		package instead of entering `*`. 
-	</Tip>
-1. Click **Create**.
-
-<Frame>
-<img src="assets/new-api-key.png" alt="Creating a New API Key" />
-</Frame>
-
-<Warning>Save your new key –  it won’t be displayed after you leave the page.</Warning>
-
-</Step>
-
-</Steps>
-
-## Configure NuGet publication
-
-<Steps>
-<Step title="Add repository location">
-
-Add the path to the GitHub repository containing your C#/.NET SDK:
-
-```yaml title="generators.yml" {11-12}
-groups: 
+```yaml title="generators.yml" {11-14}
+groups:
   csharp-sdk:
     generators:
       - name: fern-csharp-sdk
@@ -125,13 +102,141 @@ groups:
           package-name: your-package-name
         config:
           client_class_name: YourClientName
-        github: 
+        github:
           repository: your-org/company-csharp
-```	  
-</Step>
-<Step title="Configure NuGet authentication key">
+          mode: push  # or "pull-request"
+          branch: your-branch-name  # Required for mode: push
+```
 
-Add `api-key: ${NUGET_API_KEY}` to `generators.yml` to tell Fern to use the `NUGET_API_KEY` environment variable for authentication when publishing to the NuGet registry.
+## Configure authentication
+
+Choose how you want to authenticate with NuGet when publishing. **OpenID Connect (OIDC) authentication is recommended** because it removes the need to manage long-lived API keys.
+
+<AccordionGroup>
+<Accordion title="OIDC authentication (Recommended)" defaultOpen={true}>
+
+OIDC-based publishing (also known as "trusted publishing") is the most secure way to publish. With OIDC, you don't need to manage API keys — NuGet trusts your GitHub repository to publish directly via short-lived tokens scoped to your workflow.
+
+<Steps>
+<Step title="Add OIDC to generators.yml">
+
+Add `api-key: OIDC` to the `output` section:
+
+```yaml title="generators.yml" {9}
+groups:
+  csharp-sdk:
+    generators:
+      - name: fern-csharp-sdk
+        version: <Markdown src="/snippets/version-number-csharp.mdx"/>
+        output:
+          location: nuget
+          package-name: your-package-name
+          api-key: OIDC
+        config:
+          client_class_name: YourClientName
+        github:
+          repository: your-org/company-csharp
+```
+
+</Step>
+
+<Step title="Generate your SDK">
+
+Generate your SDK to create the GitHub Actions workflow with OIDC configuration:
+
+```bash
+fern generate --group csharp-sdk
+```
+
+This creates a `.github/workflows/ci.yml` file configured to use OIDC for NuGet publishing. The generated workflow includes:
+
+- A `publish` job with `permissions: { contents: read, id-token: write }`
+- The [`NuGet/login@v1`](https://github.com/NuGet/login) action, which exchanges a GitHub OIDC token for a short-lived NuGet API key (~1 hour)
+- `dotnet nuget push` using the temporary API key from the login step
+
+Alternatively, you can push your `generators.yml` changes and let the Fern GitHub Action generate the workflow for you.
+
+</Step>
+
+<Step title="Authorize your repository on nuget.org">
+
+Configure trusted publishing on nuget.org to allow your GitHub repository to publish:
+
+1. Go to [nuget.org](https://www.nuget.org/) and click your user avatar
+1. Select **Trusted Publishing** > **Create policy**
+1. Fill in:
+   - **Repository Owner**: Your GitHub organization or username
+   - **Repository**: Your C# SDK repository name
+   - **Workflow File**: `ci.yml` (filename only, without the `.github/workflows/` prefix)
+1. Choose the policy owner (organization profile or personal account). The policy applies to all packages owned by that profile.
+
+</Step>
+
+<Step title="Set the `NUGET_USER` GitHub Actions secret">
+
+The generated workflow requires a `NUGET_USER` secret containing your nuget.org profile name (not your email).
+
+1. Open your SDK repository on GitHub and go to **Settings**
+1. Navigate to **Secrets and variables** > **Actions**
+1. Click **New repository secret**
+1. Name it `NUGET_USER` and enter your nuget.org profile name
+1. Click **Add secret**
+
+</Step>
+</Steps>
+
+<Info>
+For private repositories, the trust policy starts as **temporarily active for 7 days**. It becomes permanent after the first successful login binds the repository and owner IDs. Run the publish workflow within that 7-day window.
+</Info>
+
+<Accordion title="Troubleshooting">
+
+**"Unable to authenticate" error**
+
+Common causes:
+- Workflow filename doesn't match exactly (must be `ci.yml`)
+- Trusted publisher configuration on nuget.org doesn't match your repository settings
+- A stale `NUGET_API_KEY` secret is interfering with OIDC authentication
+
+**Solution:** Double-check your trusted publisher configuration on nuget.org matches your repository name and workflow filename exactly. Remove any old `NUGET_API_KEY` secret from your repository.
+
+**Private repository limitations**
+
+For private repositories, the trust policy is temporarily active for 7 days. It becomes permanent after the first successful login. Run the publish workflow within that window.
+
+</Accordion>
+
+</Accordion>
+
+<Accordion title="API key authentication (Legacy)">
+
+<Steps>
+<Step title="Generate a NuGet API key">
+
+1. Log into [NuGet](https://nuget.org/) or create a new account
+1. Click on your profile picture
+1. Select **API Keys**, then **Create**
+1. Name your key
+1. Select **Push > Push new packages and package versions** as the **Select Scopes** type
+1. Enter `*` under **Select Packages > Glob Pattern**
+		
+	<Tip title="Replacing an existing NuGet package">
+		If you are overriding an existing package, select the relevant
+		package instead of entering `*`. 
+	</Tip>
+1. Click **Create**
+
+<Frame>
+<img src="assets/new-api-key.png" alt="Creating a new API key" />
+</Frame>
+
+<Warning>Save your new key — it won't be displayed after you leave the page.</Warning>
+
+</Step>
+
+<Step title="Add API key to generators.yml">
+
+Add `api-key: ${NUGET_API_KEY}` to the `output` section:
 
 ```yaml title="generators.yml" {9}
 groups: 
@@ -148,75 +253,58 @@ groups:
         github: 
           repository: your-org/company-csharp
 ```
-</Step>
-<Step title="Choose your publishing mode">
-
-<Markdown src="/products/sdks/snippets/github-publishing-mode.mdx"/>
-
-```yaml title="generators.yml" {14}
-groups: 
-  csharp-sdk:
-    generators:
-      - name: fern-csharp-sdk
-        version: <Markdown src="/snippets/version-number-csharp.mdx"/>
-        output:
-          location: nuget
-          package-name: your-package-name
-          api-key: ${NUGET_API_KEY}
-        config:
-          client_class_name: YourClientName
-        github: 
-          repository: your-org/company-csharp
-		  mode: push
-		  branch: your-branch-name # Required for mode: push
-```
 
 </Step>
-</Steps>
 
-## Publish your SDK
+<Step title="Add `NUGET_API_KEY` as a GitHub Actions secret">
 
-Decide how you want to publish your SDK to NuGet. You can use GitHub workflows for automated releases or publish directly via the CLI. 
-
-<AccordionGroup>
-
-<Accordion title="Release via a GitHub workflow">
-
-Set up a release workflow via [GitHub Actions](https://docs.github.com/en/actions/get-started/quickstart) so you can trigger new SDK releases directly from your source repository. 
-
-<Steps>
-<Step title="Set up authentication">
-
-Open your source repository in GitHub. Click on the **Settings** tab. Then, under the **Security** section, open **Secrets and variables** > **Actions**. 
-
-You can also use the url `https://github.com/<your-repo>/settings/secrets/actions`.
-
-</Step>
-<Step title="Add secret for your NuGet API key">
-
-1. Select **New repository secret**. 
-1. Name your secret `NUGET_API_KEY`.
-1. Add the corresponding API key you generated above.
-1. Click **Add secret**. 
+1. Open your repository on GitHub and go to **Settings**
+1. Navigate to **Secrets and variables** > **Actions**
+1. Click **New repository secret**
+1. Name it `NUGET_API_KEY` and paste your NuGet API key
+1. Click **Add secret**
 
 <Frame>
 <img src="assets/nuget-api-key-secret.png" alt="NUGET_API_KEY secret" />
 </Frame>
 
 </Step>
+</Steps>
+
+</Accordion>
+</AccordionGroup>
+
+## Publish your SDK
+
+Your SDK will automatically be published to NuGet when you create a GitHub release with a version tag:
+
+1. Create a GitHub release with a version tag (for example, `v1.0.0`)
+1. The CI workflow will run automatically and publish to NuGet
+1. View your package on nuget.org to confirm the version
+
+<AccordionGroup>
+<Accordion title="Alternative: Manual workflow dispatch">
+
+If you prefer to trigger publishes manually from your source repository, set up a release workflow via [GitHub Actions](https://docs.github.com/en/actions).
+
+<Steps>
 <Step title="Add secret for your Fern API key">
 
-1. Select **New repository secret**. 
-1. Name your secret `FERN_TOKEN`.
+1. Open your source repository on GitHub and go to **Settings**
+1. Navigate to **Secrets and variables** > **Actions**
+1. Select **New repository secret**
+1. Name your secret `FERN_TOKEN`
 1. Add your Fern API key. If you don't already have one, generate one by
 	running `fern token`. By default, the API key is generated for the
 	organization listed in `fern.config.json`.
-1. Click **Add secret**. 
+1. Click **Add secret**
+
+If you use API key authentication, also add a `NUGET_API_KEY` secret with your NuGet API key.
 
 </Step>
 <Step title="Set up a new workflow">
 
-Set up a CI workflow that you can manually trigger from the GitHub UI. In your repository, navigate to **Actions**. Select **New workflow**, then **Set up workflow yourself**. Add a workflow that's similar to this: 
+Create a CI workflow that you can manually trigger from the GitHub UI. Navigate to **Actions** > **New workflow** > **Set up workflow yourself**:
 
 	```yaml title=".github/workflows/publish.yml" maxLines=0
 	name: Publish C#/.NET SDK
@@ -242,37 +330,35 @@ Set up a CI workflow that you can manually trigger from the GitHub UI. In your r
 	      - name: Release C#/.NET SDK
 	        env:
 	          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
-	          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+	          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }} # Only needed for API key authentication
 	        run: |
 	          fern generate --group csharp-sdk --version ${{ inputs.version }} --log-level debug
 	```
-	<Note>
-		You can alternatively configure your workflow to execute `on: [push]`. See Vapi's [npm publishing GitHub Action](https://github.com/VapiAI/server-sdk-typescript/blob/main/.github/workflows/ci.yml) for an example. 
-	</Note>
+
 </Step>
 
 <Step title="Regenerate and release your SDK"> 
 
-Navigate to the **Actions** tab, select the workflow you just created, specify a version number, and click **Run workflow**. This regenerates your SDK. 
+Navigate to the **Actions** tab, select the workflow, specify a version number, and click **Run workflow**. This regenerates your SDK. 
 
 <Frame>
-	<img src="assets/csharp-sdk-release-action.png" alt="Running TS publish workflow" />
+	<img src="assets/csharp-sdk-release-action.png" alt="Running C# publish workflow" />
 </Frame>
 
 <Markdown src="/products/sdks/snippets/release-sdk.mdx"/>
 
-Once the workflow completes, you can view your new release by logging into NuGet and navigating to **Manage Packages**.
+Once the workflow completes, view your new release by logging into NuGet and navigating to **Manage Packages**.
 
 </Step>
 </Steps>
 </Accordion>
 
-<Accordion title="Release via CLI and environment variables">
+<Accordion title="Alternative: Release via CLI and environment variables">
 <Steps>
 
-<Step title="Set npm environment variable">
+<Step title="Set NuGet environment variable">
 
-Set the `NUGET_API_KEY` environment variable on your local machine:
+If you use API key authentication, set the `NUGET_API_KEY` environment variable on your local machine:
 
 ```bash
 export NUGET_API_KEY=your-actual-nuget-api-key
@@ -289,10 +375,240 @@ fern generate --group csharp-sdk --version <version>
 
 <Markdown src="/products/sdks/snippets/release-sdk.mdx"/>
 
-Once the workflow completes, you can view your new release by logging into NuGet and navigating to **Manage Packages**.
+Once the workflow completes, view your new release by logging into NuGet and navigating to **Manage Packages**.
 
 </Step>
 
 </Steps>
+</Accordion>
+</AccordionGroup>
+
+---
+
+## Migrating from API key to OIDC publishing
+
+If you're using API key authentication and want to migrate to OIDC, follow these steps.
+
+### Why migrate to OIDC
+
+OIDC-based publishing (trusted publishing) removes security risks associated with long-lived API keys:
+
+- Keys can be exposed in logs or configuration files
+- Compromised keys can be used persistently until manually revoked
+- Key rotation adds operational overhead
+
+With OIDC, NuGet trusts your GitHub Actions workflow directly. The only secret required is `NUGET_USER` (your nuget.org profile name), which isn't sensitive.
+
+### Prerequisites
+
+Before migrating:
+
+- A package published to [NuGet](https://www.nuget.org/)
+- A GitHub repository with GitHub Actions configured
+- Access to your account on [nuget.org](https://www.nuget.org/)
+
+### Choose your migration path
+
+<AccordionGroup>
+<Accordion title="Path 1: Upgrade your generator (Recommended)">
+
+This is the easiest path if you can upgrade to a version of the C# SDK generator that supports OIDC.
+
+**When to use this path:**
+- You can upgrade to a Fern C# SDK generator version that supports OIDC
+- You haven't `.fernignore`'d your CI workflow file
+
+<Steps>
+	<Step title="Configure trusted publishing on nuget.org">
+
+	1. Go to [nuget.org](https://www.nuget.org/) and click your user avatar
+	1. Select **Trusted Publishing** > **Create policy**
+	1. Fill in:
+		- **Repository Owner**: Your GitHub organization or username
+		- **Repository**: Your C# SDK repository name
+		- **Workflow File**: `ci.yml` (filename only, without the `.github/workflows/` prefix)
+	1. Choose the policy owner (organization profile or personal account). The policy applies to all packages owned by that profile.
+
+	</Step>
+
+	<Step title="Update your generators.yml">
+
+	Change the `output.api-key` field from `${NUGET_API_KEY}` to `OIDC`:
+
+	```yaml title="generators.yml"
+	groups:
+	  csharp-sdk:
+		generators:
+		  - name: fern-csharp-sdk
+			version: <Markdown src="/snippets/version-number-csharp.mdx"/>
+			output:
+			  location: nuget
+			  package-name: your-package-name
+			  api-key: OIDC  # Changed from ${NUGET_API_KEY}
+			config:
+			  client_class_name: YourClientName
+			github:
+			  repository: your-org/company-csharp
+	```
+
+	</Step>
+
+	<Step title="Regenerate your SDK">
+
+	Regenerate the SDK to update the CI workflow with OIDC configuration:
+
+	**Locally:**
+
+	```bash
+	fern generate --group csharp-sdk
+	```
+
+	**Or via GitHub Actions:**
+
+	Push your updated `generators.yml` and let the Fern GitHub Action regenerate the SDK.
+
+	This updates `.github/workflows/ci.yml` with the required OIDC permissions and switches to the `NuGet/login@v1` action.
+
+	</Step>
+
+	<Step title="Add the NUGET_USER secret">
+
+	The OIDC workflow requires a `NUGET_USER` secret containing your nuget.org profile name (not your email).
+
+	1. Open your SDK repository on GitHub and go to **Settings**
+	1. Navigate to **Secrets and variables** > **Actions**
+	1. Click **New repository secret**
+	1. Name it `NUGET_USER` and enter your nuget.org profile name
+	1. Click **Add secret**
+
+	</Step>
+
+	<Step title="Remove the NUGET_API_KEY secret">
+
+	After verifying the migration works, remove the `NUGET_API_KEY` secret from your GitHub repository settings (**Settings** > **Secrets and variables** > **Actions**). A stale API key can interfere with OIDC authentication.
+
+	</Step>
+</Steps>
+
+</Accordion>
+
+<Accordion title="Path 2: Manual CI workflow update">
+
+Use this path if you can't upgrade the generator or have customized your CI workflow.
+
+**When to use this path:**
+- You can't upgrade due to breaking changes or compatibility concerns
+- You've customized your CI workflow and added it to `.fernignore`
+- Path 1 didn't update your workflow file
+
+<Steps>
+	<Step title="Configure trusted publishing on nuget.org">
+
+	Follow the same instructions as Path 1 to create a trusted publishing policy on nuget.org.
+
+	</Step>
+
+	<Step title="Update your CI workflow manually">
+
+	Open your `.github/workflows/ci.yml` file and make these changes to the `publish` job:
+
+	```yaml title=".github/workflows/ci.yml"
+	publish:
+	  needs: [ compile, test ]
+	  if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
+	  runs-on: ubuntu-latest
+	  permissions:
+		contents: read   # ADD THIS: Required for actions/checkout@v4
+		id-token: write  # ADD THIS: Required for OIDC
+	  steps:
+		- name: Checkout repo
+		  uses: actions/checkout@v4
+
+		- name: Setup .NET
+		  uses: actions/setup-dotnet@v4
+
+		# ADD THIS: Exchange GitHub OIDC token for a short-lived NuGet API key
+		- name: NuGet OIDC login
+		  uses: NuGet/login@v1
+		  with:
+			nuget-server-url: https://api.nuget.org/v3/index.json
+			nuget-user: ${{ secrets.NUGET_USER }}
+
+		# MODIFY THIS: Remove env block with NUGET_API_KEY
+		- name: Publish to NuGet
+		  run: dotnet nuget push src/*/bin/Release/*.nupkg --api-key ${{ env.NUGET_AUTH_TOKEN }} --source https://api.nuget.org/v3/index.json
+	```
+
+	**Key changes from API key publishing:**
+	- Adds `permissions` with `id-token: write` and `contents: read`
+	- Adds the `NuGet/login@v1` step that exchanges the OIDC token for a short-lived API key
+	- Removes any `env` blocks referencing `NUGET_API_KEY`
+
+	</Step>
+
+	<Step title="Add the NUGET_USER secret">
+
+	The OIDC workflow requires a `NUGET_USER` secret. Follow the same instructions as Path 1, Step 4.
+
+	</Step>
+
+	<Step title="(Optional) Add ci.yml to .fernignore">
+
+	Prevent future generator updates from overwriting your manual changes:
+
+	```text title=".fernignore"
+	.github/workflows/ci.yml
+	```
+
+	</Step>
+
+	<Step title="Remove the NUGET_API_KEY secret">
+
+	After verifying the migration works, remove the `NUGET_API_KEY` secret from your GitHub repository settings. A stale API key can interfere with OIDC authentication.
+
+	</Step>
+</Steps>
+
+</Accordion>
+</AccordionGroup>
+
+### Verify your migration
+
+After completing either migration path:
+
+1. **Trigger a workflow run** by creating a GitHub release with an alpha tag (e.g., `v1.0.0-alpha`)
+2. **Check the workflow logs** to verify the publish step succeeds
+3. **Verify your package** by visiting it on [nuget.org](https://www.nuget.org/) to confirm the new version published correctly
+
+### Migration troubleshooting
+
+<AccordionGroup>
+<Accordion title='"Unable to authenticate" error'>
+
+**Common causes:**
+- Workflow filename doesn't match exactly (must be `ci.yml` with the `.yml` extension)
+- Trusted publisher configuration on nuget.org doesn't match your repository settings
+- Missing `id-token: write` or `contents: read` permissions in workflow
+- A stale `NUGET_API_KEY` secret is interfering with OIDC authentication
+- Using self-hosted runners (not supported)
+
+**Solution:** Double-check your trusted publisher configuration on nuget.org matches your repository name and workflow filename exactly. Remove any old `NUGET_API_KEY` secret.
+
+</Accordion>
+
+<Accordion title="Workflow still using NUGET_API_KEY">
+
+If your workflow continues using API key authentication:
+
+- Verify you've removed any `env` blocks referencing `NUGET_API_KEY` from the publish step
+- Ensure the `publish` job uses the `NuGet/login@v1` action
+- Ensure you're using a generator version that supports OIDC (if using Path 1)
+
+</Accordion>
+
+<Accordion title="Private repository limitations">
+
+For private repositories, the trust policy starts as **temporarily active for 7 days**. It becomes permanent after the first successful login binds the repository and owner IDs. Run the publish workflow within that window.
+
 </Accordion>
 </AccordionGroup>

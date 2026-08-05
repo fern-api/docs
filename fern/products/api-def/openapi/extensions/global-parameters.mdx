@@ -1,0 +1,106 @@
+---
+title: Global parameters
+headline: Global parameters (OpenAPI)
+description: Declare parameters set once at the client level and injected into every relevant request using the `x-fern-global-parameters` extension
+---
+
+A **global parameter** is a value set once — at the SDK client level or the CLI config level — and injected into every relevant request, instead of being passed on every call. Per-call values always win over the global value.
+
+Global parameters differ from [global headers](/learn/api-definitions/openapi/extensions/global-headers): a global header is always a header, while a global parameter can target a header, query parameter, path parameter, or a field in the request body.
+
+## Declare global parameters
+
+Use the `x-fern-global-parameters` extension at the root of your spec. Each entry declares one parameter:
+
+```yaml title="openapi.yml"
+x-fern-global-parameters:
+  - name: currency
+    in: body
+    target: config.currency
+    env: ACME_CURRENCY
+    default: USD
+    optional: true
+    apply: auto
+    docs: The currency code used for pricing.
+  - name: region
+    in: path
+    target: regionId
+    env: ACME_REGION
+    default: us
+    apply: explicit
+```
+
+### Fields
+
+<ParamField path="name" type="string" required={true}>
+  The canonical identifier for the parameter. It's the base for the generated flag or constructor argument, and the key operations use to [opt in](#apply-to-specific-operations).
+</ParamField>
+
+<ParamField path="in" type="string" default="body">
+  Where the value is injected on the wire: `body`, `query`, `header`, or `path`.
+</ParamField>
+
+<ParamField path="target" type="string">
+  The wire-level injection target. For `body`, a dotted path into the request body (for example, `config.currency`). For `query`, `header`, and `path`, the parameter or header name. Defaults to `name`.
+</ParamField>
+
+<ParamField path="type" type="string" default="string">
+  The value type: `string`, `integer`, `double`, or `boolean`.
+</ParamField>
+
+<ParamField path="env" type="string">
+  An environment variable the value falls back to when the caller doesn't provide one.
+</ParamField>
+
+<ParamField path="default" type="any">
+  A client-side default used when neither the caller nor the environment variable supplies a value. [`x-fern-default`](/learn/api-definitions/openapi/extensions/default-values) takes precedence over `default`.
+</ParamField>
+
+<ParamField path="optional" type="boolean" default="false">
+  Whether the parameter can be omitted. A required parameter with no value, default, or environment variable produces an error.
+</ParamField>
+
+<ParamField path="apply" type="string" default="explicit">
+  How the parameter applies to operations. `explicit` applies only to operations that [opt in](#apply-to-specific-operations); `auto` applies to every operation whose request contains the target.
+</ParamField>
+
+<ParamField path="parameter-name" type="string">
+  An SDK/CLI-facing alias. When set, this name is used for the generated flag or constructor argument instead of `name`.
+</ParamField>
+
+## Apply to specific operations
+
+When a parameter uses `apply: explicit` (the default), it applies only to operations that opt in with the per-operation `x-fern-global-parameter` extension. List the parameter names to include. The value accepts a single string or a list:
+
+```yaml title="openapi.yml" {4-6,12}
+paths:
+  /v1/products/{regionId}/search:
+    post:
+      x-fern-global-parameter:
+        - region
+        - currency
+      operationId: searchProducts
+      # ...
+  /v1/products/{regionId}/{productId}:
+    get:
+      x-fern-global-parameter: region
+      operationId: getProduct
+      # ...
+```
+
+Each name must match a parameter declared in `x-fern-global-parameters`. A parameter with `apply: auto` is injected into every operation whose request contains its target, with no opt-in required.
+
+## Resolution order
+
+At runtime, the value is resolved from the first available source, in order:
+
+1. The per-call value (a per-operation parameter or an explicit request field) — this always wins.
+2. The CLI flag or constructor argument.
+3. The environment variable (`env`).
+4. The client-side default (`x-fern-default`, then `default`).
+
+For a `body` parameter with a nested `target`, a value the caller already supplies at that path is never overwritten.
+
+## Generated CLI behavior
+
+The [CLI generator](/learn/cli-generator/get-started/openapi-extensions#global-parameters) registers each global parameter as a top-level flag (with its `env` fallback and `default`) and injects the resolved value at the declared location for every applicable command.

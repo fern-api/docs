@@ -41,19 +41,29 @@ The inline documentation comes from your API definition. During the SDK generati
 
 ## Availability
 
-When you mark an endpoint with an [availability](/learn/api-definitions/openapi/extensions/availability) status like `deprecated` or `beta`, the generated SDK includes the corresponding doc comment tag on the client method. IDEs display these as warnings and strikethrough styling so your users know which endpoints are stable and which to avoid.
+The TypeScript SDK generator adds JSDoc tags for endpoint [availability](/learn/api-definitions/openapi/extensions/availability). Deprecated endpoints receive `@deprecated`; `alpha`, `beta`, and `preview` endpoints receive `@beta`. IDEs can display deprecated methods with warnings and strikethrough styling.
+
+Other SDK generators don't emit availability annotations. Availability on types, properties, and enum values also doesn't add annotations to generated code.
 
 <Frame caption="Deprecated method with strikethrough in the [Square TypeScript SDK](https://github.com/square/square-nodejs-sdk/blob/master/src/api/resources/employees/client/Client.ts)">
-![Deprecated method with strikethrough and @deprecated tag in VS Code](../images/availability-deprecated-ide.png)
+  <img src="./images/availability-deprecated-ide.png" alt="Deprecated method with strikethrough and @deprecated tag in VS Code" />
 </Frame>
 
 ## Error handling
 
 When the API returns a 4xx or 5xx status code, the SDK throws an error that includes the status code, error message, response body, and raw response object.
 
+## Server-sent events
+
+When your API uses [server-sent events](/learn/api-definitions/openapi/endpoints/sse#server-sent-events), the generated SDK returns a streaming response that yields parsed data objects. SDK users can opt into [metadata-aware iteration](/learn/sdks/deep-dives/sse-metadata) to read SSE protocol fields (event ID, event type, retry interval) alongside the parsed data, which is useful for stream resumption via the `Last-Event-ID` header. [Newline-delimited JSON streams](/learn/api-definitions/openapi/endpoints/sse#json-streaming) yield the same async-iterable response, one parsed object per line.
+
 ## Webhook signature verification
 
 When you define webhooks in your API spec, Fern automatically [generates utilities that allow your users to verify webhook signatures](./webhook-signature-verification) and ensure events originate from your API.
+
+## WebSockets
+
+When you define [WebSocket channels](/learn/api-definitions/asyncapi/channels/pubsub) in your API spec, Fern can [generate typed WebSocket clients](./websocket-clients) with connection management, typed messages, and automatic reconnection.
 
 ## Default parameter values
 
@@ -65,7 +75,7 @@ Your SDK users can configure individual requests using language-specific options
 
 | Option | Description | Availability |
 |--------|-------------|--------------|
-| Timeouts | Configure request timeouts (default: 30 seconds for [C#](/learn/sdks/generators/csharp/configuration#default-timeout-in-seconds) and PHP, 60 seconds for all other languages) | All languages |
+| Timeouts | Configure request timeouts (default: 30 seconds for [C#](/learn/sdks/generators/csharp/configuration#default-timeout-in-milliseconds) and PHP, 60 seconds for all other languages) | All languages |
 | [Retries](/sdks/deep-dives/retries-with-backoff) | Configure maximum retries (default: 2 with exponential backoff for 408, 429, and 5xx responses) | All languages except Ruby and Swift |
 | Custom HTTP client | Override the default HTTP client for unsupported environments or custom requirements | TypeScript, Python, Java, PHP, and Swift |
 | [aiohttp transport](/learn/sdks/generators/python/aiohttp-support) | Opt into `aiohttp` as the async HTTP transport to resolve DNS concurrency bottlenecks | Python only |

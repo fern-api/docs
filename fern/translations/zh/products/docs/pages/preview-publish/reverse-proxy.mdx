@@ -1,0 +1,308 @@
+---
+title: 反向代理设置
+description: 配置反向代理以从域名的子路径提供 Fern 文档，包含各提供商的路由和缓存配置说明。
+---
+
+当您将 Fern 文档托管在[子路径](/learn/docs/preview-publish/setting-up-your-domain)（如 `mydomain.com/docs`）上时，您的基础设施必须将该路径的请求代理到 Fern 的源站。子域名设置（`docs.mydomain.com`）使用 CNAME 记录，不需要反向代理。
+
+## 工作原理
+
+有效的反向代理需要完成两件事：
+
+1. **路由请求**：将来自子路径的请求路由到 Fern 源站 `app.buildwithfern.com`，保留原始路径。`x-fern-host` 头告诉 Fern 要提供哪个文档站点。
+2. **禁用缓存**：禁用 HTML 响应的缓存，确保访客始终收到最新部署的内容。
+
+每个代理请求需要两个头：
+
+| 头 | 值 | 用途 |
+|---|---|---|
+| `x-fern-host` | 不含子路径的裸域名（例如 `mydomain.com`，而非 `mydomain.com/docs`） | 告诉 Fern 要提供哪个文档站点 |
+| `Host` | `app.buildwithfern.com` | 将请求路由到 Fern 源站 |
+
+Fern 在 HTML 响应上设置 `Cache-Control: public, max-age=0, must-revalidate`，大多数提供商默认会遵守该设置。如果您的提供商覆盖了源站缓存头或应用了自己的 TTL，请为代理路径显式禁用缓存。
+
+<Warning>
+不要缓存来自 Fern 的 HTML 响应。缓存的 HTML 引用旧部署的 JavaScript 和 CSS — 这些文件已不存在，页面将无法加载。静态资源（`/_next/static/*`）由 Fern 的 CDN 直接提供，不经过您的代理。
+</Warning>
+
+## 配置您的提供商
+
+
+<AccordionGroup>
+<Accordion title="Cloudflare Workers">
+
+<Steps>
+<Step title="创建 Worker">
+
+创建一个 [Cloudflare Worker](https://developers.cloudflare.com/workers/)，拦截发往文档子路径的请求并代理到 Fern：
+
+```js
+const SUBPATH = "/docs";
+const FERN_HOST = "mydomain.com";
+
+export default {
+  async fetch(request) {
+    const url = new URL(request.url);
+
+    if (
+      url.pathname !== SUBPATH &&
+      !url.pathname.startsWith(`${SUBPATH}/`)
+    ) {
+      return new Response("Not found", { status: 404 });
+    }
+
+    const upstreamUrl = new URL(request.url);
+    upstreamUrl.protocol = "https:";
+    upstreamUrl.hostname = "app.buildwithfern.com";
+    upstreamUrl.port = "";
+
+    const proxiedRequest = new Request(upstreamUrl, request);
+    proxiedRequest.headers.set("x-fern-host", FERN_HOST);
+
+    return fetch(proxiedRequest);
+  },
+};
+```
+
+将 `SUBPATH` 和 `FERN_HOST` 替换为您的子路径和裸域名。
+</Step>
+<Step title="将 Worker 附加到路由">
+
+在 Cloudflare 控制台的 **Workers Routes** 下，将 Worker 附加到路由模式，如 `mydomain.com/docs/*`。
+</Step>
+<Step title="检查冲突的缓存规则">
+
+Worker 会转发 Fern 的 `Cache-Control` 头，因此缓存自动生效。在 Cloudflare 控制台中确认没有 Page Rule 或 Cache Rule 为 `/docs*` 设置了"Cache Level: Cache Everything" — 如果存在，请移除或使用"Cache Level: Bypass"覆盖。
+</Step>
+</Steps>
+</Accordion>
+
+<Accordion title="AWS CloudFront">
+
+<Steps>
+<Step title="添加 Fern 源站">
+
+在 CloudFront 分配中，前往 **Origins** 并创建新源站：
+
+| 设置 | 值 |
+|---|---|
+| **Origin domain** | `app.buildwithfern.com` |
+| **Protocol** | HTTPS only |
+| **HTTPS port** | 443 |
+| **Minimum origin SSL protocol** | TLSv1.2 |
+
+在 **Add custom header** 下添加：
+
+| 头名称 | 值 |
+|---|---|
+| `x-fern-host` | `mydomain.com` |
+
+将 `mydomain.com` 替换为您的裸域名（不含子路径）。
+</Step>
+<Step title="为文档路径创建缓存行为">
+
+前往 **Behaviors** 并创建新行为：
+
+| 设置 | 值 |
+|---|---|
+| **Path pattern** | `/docs*` |
+| **Origin** | 刚创建的 Fern 源站 |
+| **Viewer protocol policy** | Redirect HTTP to HTTPS |
+| **Cache policy** | `CachingDisabled`（AWS 托管） |
+| **Origin request policy** | `AllViewerExceptHostHeader`（AWS 托管） |
+
+`AllViewerExceptHostHeader` 将所有查看器头、查询字符串和 Cookie 转发到源站，同时让 CloudFront 将 `Host` 头设置为 `app.buildwithfern.com`。这是必需的 — Fern 源站使用 `Host` 头进行路由，并拒绝不识别的主机名请求。
+
+<Warning>
+不要使用 `AllViewer` 源站请求策略。它会转发查看器的 `Host` 头（您的域名）而非源站的，这会导致 Fern 源站返回错误或原始的 React Server Component 数据而非 HTML。
+</Warning>
+</Step>
+<Step title="验证行为顺序">
+
+CloudFront 按顺序评估行为。确保 `/docs*` 行为位于默认（`*`）行为**之上**，以便文档请求被路由到 Fern 源站而非您的主站点。
+</Step>
+</Steps>
+
+<Warning>
+CloudFront 忽略 `CDN-Cache-Control` 和 `Surrogate-Control` — 只读取标准的 `Cache-Control` 头。如果您使用自定义缓存策略而非 `CachingDisabled`，请将默认、最小和最大 TTL 设置为 `0`。非零默认 TTL 会无视 Fern 的 `Cache-Control: max-age=0` 指令缓存 HTML 响应，可能导致过期内容和错误。
+</Warning>
+</Accordion>
+
+<Accordion title="Netlify">
+
+<Steps>
+<Step title="添加重写规则">
+
+在 `netlify.toml`（或 `_redirects`）中：
+
+```toml netlify.toml
+[[redirects]]
+  from = "/docs/*"
+  to = "https://app.buildwithfern.com/docs/:splat"
+  status = 200
+  force = true
+
+  [redirects.headers]
+    x-fern-host = "mydomain.com"
+```
+</Step>
+<Step title="为文档路径禁用速率限制">
+
+Fern 通过并发请求预热页面缓存来重新验证文档站点。Netlify 的[流量规则](https://docs.netlify.com/manage/security/secure-access-to-sites/traffic-rules/)可能将此视为恶意流量并阻止请求，导致重新验证失败。
+
+如果您在 Netlify 控制台的 **Security** > **Traffic rules** 下启用了速率限制，请添加规则将文档子路径（`/docs/*`）排除在速率限制之外。
+
+</Step>
+<Step title="检查代理超时">
+
+Fern 的重新验证端点在预热页面缓存时流式传输长时间运行的响应。Netlify [将代理重写请求限制为 26 秒](https://docs.netlify.com/manage/routing/redirects/rewrites-proxies/#limitations)，对于超过几百页的站点，这可能在预热完成前终止流。
+
+如果重新验证持续失败并显示"terminated"状态，此超时很可能是原因。请联系 [Netlify 支持](https://www.netlify.com/support/)请求增加站点超时，或联系 [Fern 支持](mailto:support@buildwithfern.com)获取替代预热方案。
+
+</Step>
+</Steps>
+
+<Note>
+Netlify 的 `status = 200` 重写充当反向代理 — 访客的浏览器看到的是您的域名，内容来自 Fern。Netlify 遵守源站的 `Cache-Control` 头，因此不需要额外的缓存配置。
+</Note>
+</Accordion>
+
+<Accordion title="Vercel">
+
+<Steps>
+<Step title="添加带转换的路由">
+
+使用[带转换规则的路由](https://vercel.com/changelog/transform-rules-are-now-available-in-vercel-json)在一步中重写路径并设置 `x-fern-host`：
+
+```json vercel.json
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "routes": [
+    {
+      "src": "/docs(/.*)?",
+      "dest": "https://app.buildwithfern.com/docs$1",
+      "transforms": [
+        {
+          "type": "request.headers",
+          "op": "set",
+          "target": { "key": "x-fern-host" },
+          "args": "mydomain.com"
+        }
+      ]
+    }
+  ]
+}
+```
+</Step>
+</Steps>
+
+<Note>
+Vercel 对重写目标遵守源站的 `Cache-Control` 头，因此不需要额外的缓存配置。
+</Note>
+</Accordion>
+
+<Accordion title="Nginx">
+
+<Steps>
+<Step title="添加 `location` 块">
+
+```nginx
+location /docs {
+    proxy_pass https://app.buildwithfern.com;
+    proxy_set_header Host app.buildwithfern.com;
+    proxy_set_header x-fern-host mydomain.com;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_ssl_server_name on;
+
+    # 防止 Brotli 响应的编码问题
+    proxy_set_header Accept-Encoding "gzip, deflate";
+
+    # 不缓存 HTML
+    proxy_no_cache 1;
+    proxy_cache_bypass 1;
+    add_header Cache-Control "public, max-age=0, must-revalidate" always;
+}
+```
+</Step>
+</Steps>
+
+<Warning>
+Nginx 不原生支持 [Brotli](https://github.com/google/brotli) 解压。上面的 `Accept-Encoding` 覆盖可防止由 Fern 默认 Brotli 压缩响应引起的 HTTP/2 传输错误。
+</Warning>
+</Accordion>
+
+<Accordion title="Akamai">
+
+<Steps>
+<Step title="添加路由规则">
+
+在 **Site Delivery** 或 **Ion** 属性中，添加匹配路径 `/docs*` 的规则：
+
+- **Origin Server**：`app.buildwithfern.com`
+- **Forward Host Header**：Origin Hostname
+
+添加 **Modify Outgoing Request Header** 行为：
+
+| 操作 | 头名称 | 值 |
+|---|---|---|
+| Add | `x-fern-host` | `mydomain.com` |
+</Step>
+<Step title="在规则上禁用缓存">
+
+在同一规则中添加 **Caching** 行为：
+
+| 设置 | 值 |
+|---|---|
+| Caching Option | No Store |
+
+或者，将 **Honor Origin Cache-Control** 设置为 **Yes**，让 Akamai 遵守 Fern 的 `Cache-Control: public, max-age=0, must-revalidate` 头。
+</Step>
+</Steps>
+</Accordion>
+
+<Accordion title="Caddy">
+
+<Steps>
+<Step title="添加到 Caddyfile">
+
+```caddyfile
+mydomain.com {
+    handle /docs* {
+        reverse_proxy https://app.buildwithfern.com {
+            header_up Host app.buildwithfern.com
+            header_up x-fern-host mydomain.com
+        }
+    }
+}
+```
+</Step>
+</Steps>
+
+<Note>
+Caddy 默认不缓存响应，因此除非您使用 `cache` 指令或外部模块显式启用了缓存，否则不需要额外的缓存配置。
+</Note>
+</Accordion>
+</AccordionGroup>
+
+## 验证设置
+
+对您的生产子路径运行以下检查：
+
+```bash
+# 确认页面返回 HTML（而非错误或 RSC 数据）
+curl -sI https://mydomain.com/docs | grep -i content-type
+# 预期：content-type: text/html; charset=utf-8
+
+# 验证 HTML 响应的 Cache-Control
+curl -sI https://mydomain.com/docs | grep -i cache-control
+# 预期：cache-control: public, max-age=0, must-revalidate
+
+# 验证页面未被代理缓存（age 应为 0 或不存在）
+curl -sI https://mydomain.com/docs | grep -i "^age:"
+```
+
+如果 `content-type` 是 `text/x-component` 而非 `text/html`，说明您的代理将查看器的 `Host` 头转发给了 Fern 源站。确保发送给源站的 `Host` 头是 `app.buildwithfern.com`。
+
+如果 `age` 头存在且非零，说明您的代理正在提供缓存的响应。请重新检查提供商配置，确保 HTML 缓存已禁用。

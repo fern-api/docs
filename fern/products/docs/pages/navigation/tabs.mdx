@@ -1,24 +1,27 @@
 ---
-title: Tabs and tab variants
+title: Tabs
 subtitle: Group content into switchable tabs with optional variants
 description: Learn how to configure tabs and tab variants in Fern documentation. Group content sections with custom icons and display multiple perspectives.
 max-toc-depth: 3
 ---
 
 
-Tabs let you group sections of your documentation together, while tab variants allow you to display different content perspectives within a single tab.
+Tabs split a product or version into parallel bodies of content, each with its own sidebar. Tab variants give a single tab more than one version of its content, such as REST versus GraphQL or beginner versus advanced.
+
+Two tabs make sense when the content is unrelated, like guides and an API Reference. Variants of one tab make sense when it covers the same ground for a different reader.
 
 ## Tabs
 
-Add `tabs` to group sections together. The example below shows tabs for `Help Center`, `API Reference`, and an external link to `Github`. Each tab has a `display-name` and `icon`.
+To configure tabs:
 
-In the `navigation` section, each tab reference must include either a `layout` (for content) or `variants` (for [tab variants](#tab-variants)). Tabs with an `href` property are external links and must not include `layout` or `variants`.
+- Declare each tab under the top-level `tabs` key with a `display-name` and an `icon`.
+- Reference the tab in `navigation` with `tab:`. Each tab requires either a `layout` for its content, `variants` for [tab variants](#tab-variants), or an `href` pointing at an external URL.
 
 <CodeBlock>
 {/* <!-- vale off --> */}
 
 ```yaml title="docs.yml"
-tabs: 
+tabs: # Declare each tab
   api: 
     display-name: API Reference
     icon: puzzle # Font Awesome icon
@@ -31,7 +34,7 @@ tabs:
     href: https://github.com/fern-api/fern
     target: _blank # Link opens in a new tab
     
-navigation: 
+navigation: # Reference each tab by its key
   - tab: api
     layout: 
       - section: Introduction
@@ -45,20 +48,18 @@ navigation:
         contents: 
           - page: Contact us
             path: contact-us.mdx
-  - tab: github
+  - tab: github # External link, so no layout
 ```
 {/* <!-- vale on --> */}
 </CodeBlock>
 
-<Note title="Tab icons">
-<Markdown src="/products/docs/snippets/icons.mdx" />
-</Note>
-
-Here's an example of how a tabs implementation renders:
-
 <Frame>
   <img src="./images/tabs-sidebar.png" alt="Tabs displayed in the sidebar (default)" />
 </Frame>
+
+<Note title="Tab icons">
+<Markdown src="/products/docs/snippets/icons.mdx" />
+</Note>
 
 ### Tabs placement and styling
 
@@ -101,7 +102,7 @@ theme:
 </ParamField>
 
 <ParamField path="variants" type="list" toc={true}>
-  List of [tab variants](#tab-variants) for displaying different content perspectives. Use instead of `layout`.
+  List of [tab variants](#tab-variants). Use instead of `layout`.
 </ParamField>
 
 <ParamField path="href" type="string" toc={true}>
@@ -180,27 +181,14 @@ navigation:
 
 ## Tab variants
 
-Tab variants let you display different content variations within a single tab, and [support RBAC](/learn/docs/authentication/features/rbac). This is useful for showing different user types, implementation approaches, or experience levels without creating separate tabs.
+To add variants to a tab:
 
-<Frame>
-  <video
-    autoPlay
-    muted
-    loop
-  >
-    <source src="merge-tab-variants.mp4" type="video/mp4" />
-  </video>
-</Frame>
+- Replace the tab's `layout` with a `variants` list. The declaration under `tabs:` doesn't change.
+- Give each variant a `title` and its own `layout`.
 
-<Tip title="When to use variants vs. tabs">
-  Use **variants** for different perspectives on the same content area (REST vs. GraphQL, beginner vs. advanced). Use **tabs** for completely different documentation sections (guides vs. API Reference).
-</Tip>
+Variants [support RBAC](/learn/docs/authentication/features/rbac), so a variant can be limited to readers holding a given role.
 
-### Basic usage
-
-Define a tab with a `variants` property instead of a `layout` property. Each variant has its own title and layout. The example below shows two variants for the `Help Center` tab.
-
-```yaml title="docs.yml" startLine=20 {22-34}
+```yaml title="docs.yml" startLine=16 {22-34}
 tabs: 
   api: 
     display-name: API Reference
@@ -222,8 +210,8 @@ navigation:
             path: my-page.mdx
       - api: API Reference   
   - tab: help
-    variants:
-      - title: For developers
+    variants: # Replaces this tab's layout
+      - title: For developers # Each variant has its own title and layout
         layout:
           - section: Getting started
             contents:
@@ -237,6 +225,16 @@ navigation:
                 path: ./pages/pm-overview.mdx
   - tab: github
 ```
+
+<Frame>
+  <video
+    autoPlay
+    muted
+    loop
+  >
+    <source src="assets/merge-tab-variants.mp4" type="video/mp4" />
+  </video>
+</Frame>
 
 ### Variant properties
 

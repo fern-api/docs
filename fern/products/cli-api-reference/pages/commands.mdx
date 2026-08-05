@@ -11,11 +11,15 @@ hideOnThisPage: true
 | [`fern init`](#fern-init) | Create new Fern project from OpenAPI spec or scratch |
 | [`fern check`](#fern-check) | Validate API definition & configuration |
 | [`fern upgrade`](#fern-upgrade) | Update Fern CLI & generators to latest versions |
+| [`fern downgrade`](#fern-downgrade) | Move the Fern CLI version in `fern.config.json` back to an older version |
 | [`fern login`](#fern-login) | Login to Fern CLI via GitHub, Google, Postman, or enterprise SSO |
 | [`fern logout`](#fern-logout) | Log out of the Fern CLI |
 | [`fern export`](#fern-export) | Export an OpenAPI spec for your API |
 | [`fern api update`](#fern-api-update) | Manually update your OpenAPI spec |
 | [`fern api enrich`](#fern-api-enrich) | Merge `x-fern-examples` from an overrides file into native OpenAPI examples |
+| [`fern org get`](#fern-org-get) | View your organization's CLI version policy |
+| [`fern org set cli-version`](#fern-org-set-cli-version) | Set a minimum, maximum, or exact CLI version for your organization |
+| [`fern org unset cli-version`](#fern-org-unset-cli-version) | Clear your organization's CLI version policy |
 
 ## Documentation commands
 
@@ -418,7 +422,7 @@ hideOnThisPage: true
 
   <Accordion title="fern docs preview list">
 
-    Use `fern docs preview list` to list all preview deployments for your organization.
+    Use `fern docs preview list` to list all [preview deployments](/learn/docs/preview-publish/preview-changes#manage-preview-links) for your organization.
 
     <CodeBlock title="terminal">
     ```bash
@@ -446,13 +450,24 @@ hideOnThisPage: true
 
   <Accordion title="fern docs preview delete">
 
-    Use `fern docs preview delete` to delete a preview deployment generated with `fern generate --docs --preview`. The `<url>` argument is the full preview URL to delete.
+    Use `fern docs preview delete` to delete a [preview deployment](/learn/docs/preview-publish/preview-changes#manage-preview-links) generated with `fern generate --docs --preview`. Pass the full preview URL, or use `--id` to delete by the identifier used during generation.
 
     <CodeBlock title="terminal">
     ```bash
     fern docs preview delete <url>
+
+    # Or delete by preview ID
+    fern docs preview delete --id <preview-id>
     ```
     </CodeBlock>
+
+    ### id
+
+    Use `--id` to delete a preview deployment by the identifier used during generation instead of the full preview URL.
+
+    ```bash
+    fern docs preview delete --id <preview-id>
+    ```
 
   </Accordion>
 
@@ -649,9 +664,131 @@ hideOnThisPage: true
 
     <CodeBlock title="terminal">
     ```bash
-    fern upgrade
+    fern upgrade [--version <version>] [--from <version>] [--yes]
     ```
     </CodeBlock>
+
+    When your organization sets a [CLI version policy](/learn/cli-api-reference/cli-reference/version-policy#interaction-with-fern-upgrade), `fern upgrade` writes the highest version the policy allows rather than the latest published version. A `--version` below the organization's minimum is raised to the minimum.
+
+    ### version
+
+    Use `--version` to upgrade to a specific published version of the [`fern-api` package](https://www.npmjs.com/package/fern-api?activeTab=versions) instead of the latest release. The version must be ahead of the version in `fern.config.json`; use [`fern downgrade`](#fern-downgrade) to move to an older version.
+
+    ```bash
+    fern upgrade --version 5.45.0
+    ```
+
+    ### from
+
+    Use `--from` to set the version that migrations run from. Fern infers this from `fern.config.json` and git history; pass it when that inference is wrong, such as after `fern.config.json` was edited by hand.
+
+    ```bash
+    fern upgrade --from 4.20.0
+    ```
+
+    ### yes
+
+    Use `--yes` (`-y`) to answer yes to every migration prompt, for non-interactive environments like CI.
+
+    ```bash
+    fern upgrade --yes
+    ```
+
+  </Accordion>
+
+  <Accordion title="fern downgrade">
+
+    Use `fern downgrade` to set the CLI version in [`fern.config.json`](/learn/sdks/overview/project-structure#fernconfigjson) to an older version. It rewrites the `version` field only: generator versions in `generators.yml` are left alone, and no migrations are reversed.
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern downgrade <version>
+    ```
+    </CodeBlock>
+
+    ```bash
+    fern downgrade 5.40.0
+    ```
+
+    A [CLI version policy](/learn/cli-api-reference/cli-reference/version-policy) doesn't block the downgrade, but it does override it: the new version is written to `fern.config.json`, and subsequent commands still run the minimum required by your organization.
+
+  </Accordion>
+
+  <Accordion title="fern org get">
+
+    Use `fern org get` to view your organization's [CLI version policy](/learn/cli-api-reference/cli-reference/version-policy).
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern org get [--json] [--org <org>]
+    ```
+    </CodeBlock>
+
+    ### json
+
+    Use `--json` to output the raw `cliVersionMin` and `cliVersionMax` fields instead of a one-line description.
+
+    ```bash
+    fern org get --json
+    ```
+
+    ### org
+
+    Use `--org` to override the organization ID from `fern.config.json`.
+
+    ```bash
+    fern org get --org my-org
+    ```
+
+  </Accordion>
+
+  <Accordion title="fern org set cli-version">
+
+    Use `fern org set cli-version` to [constrain the Fern CLI version](/learn/cli-api-reference/cli-reference/version-policy)  used by every project in your organization. Requires an organization admin.
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern org set cli-version [version] [--min <version>] [--max <version>] [--org <org>]
+    ```
+    </CodeBlock>
+
+    ```bash
+    # Pin an exact version
+    fern org set cli-version 5.45.0
+
+    # Set a minimum, a maximum, or both
+    fern org set cli-version --min 5.40.0
+    fern org set cli-version --max 5.50.0
+    fern org set cli-version --min 5.40.0 --max 5.50.0
+    ```
+
+    Each bound is an exact published version of the [`fern-api` package](https://www.npmjs.com/package/fern-api?activeTab=versions).
+
+    ### org
+
+    Use `--org` to override the organization ID from `fern.config.json`.
+
+    ```bash
+    fern org set cli-version 5.45.0 --org my-org
+    ```
+
+  </Accordion>
+
+  <Accordion title="fern org unset cli-version">
+
+    Use `fern org unset cli-version` to remove your organization's [CLI version policy](/learn/cli-api-reference/cli-reference/version-policy). Requires an organization admin.
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern org unset cli-version [--min] [--max] [--org <org>]
+    ```
+    </CodeBlock>
+
+    Both bounds are removed by default. Pass `--min` or `--max` to clear one end and keep the other.
+
+    ```bash
+    fern org unset cli-version --max
+    ```
 
   </Accordion>
 

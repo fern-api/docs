@@ -4,52 +4,104 @@ description: Configure webhook signature verification in your Fern-generated SDK
 ---
 
 
-When you define webhooks in your API spec, Fern automatically generates utilities that allow your SDK users to verify webhook signatures and ensure events originate from your API.
+When you define webhooks in your API spec, Fern automatically generates utilities that allow your SDK users to verify webhook signatures and ensure events originate from your API. These helpers are generated for the TypeScript, Python, Java, Go, PHP, Ruby, and C# SDKs.
 
 Fern supports two signature verification methods:
 - **Hash-based Message Authentication Code (HMAC)** — Symmetric key verification using shared secrets
 - **Asymmetric** — Public key verification using RSA, Elliptic Curve Digital Signature Algorithm (ECDSA), or Ed25519 keys
 
-<Note>Webhook signature verification is currently supported for TypeScript SDK generation only.</Note>
-
 ## Generated SDK behavior
 
-The generated SDK exposes a `verifyWebhookSignature` utility:
+The generated SDK exposes a `WebhooksHelper` class with a static `verifySignature` method that returns whether the request is authentic. It takes the raw request body, the signature header value, the signing key (a shared secret for HMAC, a public key for asymmetric verification), and one parameter per additional payload component. A webhook that overrides the document-level configuration gets its own helper, such as `PlantShippedWebhooksHelper`.
 
+These examples verify an HMAC signature over a timestamp and body:
+
+<Tabs>
+<Tab title="TypeScript" language="typescript">
 ```typescript
-import { verifyWebhookSignature } from "my-api";
+import { WebhooksHelper } from "my-api";
 
-// In your webhook handler
-app.post("/webhooks", (req, res) => {
-  // Verify the signature using your webhook secret
-  const payload = verifyWebhookSignature(req, {
-    secret: process.env.WEBHOOK_SECRET,
-  });
-
-  // Process the verified payload
-  console.log("Received event:", payload);
-
-  res.status(200).send("OK");
-});
+const isValid = await WebhooksHelper.verifySignature(
+  requestBody,
+  signatureHeader,
+  process.env.WEBHOOK_SECRET,
+  timestampHeader,
+);
 ```
+</Tab>
+<Tab title="Python" language="python">
+```python
+from my_api import WebhooksHelper
+
+is_valid = WebhooksHelper.verify_signature(
+    request_body=request_body,
+    signature_header=signature_header,
+    signature_key=os.environ["WEBHOOK_SECRET"],
+    timestamp_header=timestamp_header,
+)
+```
+</Tab>
+<Tab title="Java" language="java">
+```java
+import com.example.myapi.WebhooksHelper;
+
+boolean isValid = WebhooksHelper.verifySignature(
+    requestBody,
+    signatureHeader,
+    System.getenv("WEBHOOK_SECRET"),
+    timestampHeader);
+```
+</Tab>
+<Tab title="Go" language="go">
+```go
+import myapi "github.com/example/my-api-go"
+
+isValid, err := myapi.WebhooksHelper{}.VerifySignature(
+	requestBody,
+	signatureHeader,
+	os.Getenv("WEBHOOK_SECRET"),
+	timestampHeader,
+)
+```
+</Tab>
+<Tab title="PHP" language="php">
+```php
+use MyApi\WebhooksHelper;
+
+$isValid = WebhooksHelper::verifySignature(
+    $requestBody,
+    $signatureHeader,
+    getenv('WEBHOOK_SECRET'),
+    $timestampHeader,
+);
+```
+</Tab>
+<Tab title="Ruby" language="ruby">
+```ruby
+require "my_api"
+
+is_valid = MyApi::WebhooksHelper.verify_signature(
+  request_body: request_body,
+  signature_header: signature_header,
+  signature_key: ENV["WEBHOOK_SECRET"],
+  timestamp_header: timestamp_header
+)
+```
+</Tab>
+<Tab title="C#" language="csharp">
+```csharp
+using MyApi;
+
+var isValid = WebhooksHelper.VerifySignature(
+    requestBody,
+    signatureHeader,
+    Environment.GetEnvironmentVariable("WEBHOOK_SECRET"),
+    timestampHeader
+);
+```
+</Tab>
+</Tabs>
 
 ## Setting up webhook signature verification
 
-Configure signature verification in your API definition. Settings can be applied at the **document level** (inherited by all webhooks) or **per-webhook** (overrides document-level settings).
-
-```yaml title="openapi.yml"
-x-fern-webhook-signature:
-  type: hmac
-  header: x-webhook-signature
-  algorithm: sha256
-  encoding: hex
-  payload-format:
-    components: [timestamp, body]
-    delimiter: "."
-  timestamp:
-    header: x-webhook-timestamp
-    format: unix-seconds
-    tolerance: 300
-```
-
-For full configuration details, see [Webhook signature verification in OpenAPI](/learn/api-definitions/openapi/endpoints/webhooks#signature-verification).
+Configure signature verification in your API definition with the [`x-fern-webhook-signature` extension](/learn/api-definitions/openapi/endpoints/webhooks#sdk-signature-verification), at the document level (inherited by all webhooks) or per-webhook.

@@ -137,28 +137,83 @@ api:
     staging: "https://api.staging.com"
 ```
 
-<ParamField path="auth" type="string" toc={true}>
-  Sets the default authentication scheme for all endpoints. The value must reference a scheme name defined in [`auth-schemes`](#auth-schemes). This overrides any security schemes [defined in your OpenAPI spec](/learn/api-definitions/openapi/authentication).
+<ParamField path="auth" type="string | object" toc={true}>
+  Sets the default authentication scheme for all endpoints. Scheme names must reference entries defined in [`auth-schemes`](#auth-schemes). This overrides any security schemes [defined in your OpenAPI spec](/learn/api-definitions/openapi/authentication).
+
+  Pass a string for a single scheme, or an object with `any` or `all` to compose multiple schemes. Pass the string `endpoint-security` to route auth per endpoint instead of applying one default scheme everywhere.
+
+  <AccordionGroup>
+  <Accordion title="Single scheme">
 
   ```yaml title="generators.yml"
-  # Apply it as the default for all endpoints
   api:
-    auth: BearerAuth # Defined in auth-schemes
+    auth: BearerAuth
     specs:
       - openapi: ./openapi.yml
   ```
 
-  With this configuration, all generated SDKs will require authentication using the `BearerAuth` scheme:
+  </Accordion>
+  <Accordion title="Multiple schemes (any)">
 
-  ```ts index.ts
-  // Uses process.env.PLANTSTORE_API_KEY
-  const client = new PlantStoreClient();
+  Accept any one of several schemes. The first scheme with a credential wins.
 
-  // Or provide the API key explicitly
-  const client = new PlantStoreClient({
-    apiKey: "your-api-key"
-  });
+  ```yaml title="generators.yml"
+  auth-schemes:
+    BearerAuth:
+      scheme: bearer
+      token:
+        name: apiKey
+        env: MY_API_KEY
+    TokenAuth:
+      scheme: bearer
+      token:
+        name: token
+        env: MY_TOKEN
+
+  api:
+    auth:
+      any:
+        - BearerAuth
+        - TokenAuth
+    specs:
+      - openapi: ./openapi.yml
+        overrides: ./openapi-overrides.yml
   ```
+
+  Both schemes must also be declared in the OpenAPI spec's [`securitySchemes` and `security` array](/learn/api-definitions/openapi/authentication#multiple-auth-schemes). A scheme that's missing from the spec is silently ignored, even when its credential is set.
+
+  </Accordion>
+  <Accordion title="Multiple schemes (all)">
+
+  Require every scheme simultaneously (for example, HMAC signature plus API key).
+
+  ```yaml title="generators.yml"
+  api:
+    auth:
+      all:
+        - HmacAuth
+        - ApiKeyAuth
+    specs:
+      - openapi: ./openapi.yml
+  ```
+
+  </Accordion>
+  <Accordion title="Per-endpoint routing (endpoint-security)">
+
+  Instead of applying one default scheme to every endpoint, `endpoint-security` routes auth per endpoint using each operation's declared `security`: `OR` across the requirement list, `AND` within a single requirement. An operation with `security: []` sends no credentials, and an operation with no satisfiable requirement raises an error naming the missing scheme(s). This is supported across all SDK languages.
+
+  ```yaml title="generators.yml"
+  api:
+    auth: endpoint-security
+    specs:
+      - openapi: ./openapi.yml
+  ```
+
+  For example, if `POST /plants/{plantId}` declares OAuth Bearer `OR` an API key header, the SDK sends whichever credential is set; a token endpoint with `security: []` is called anonymously.
+
+  </Accordion>
+  </AccordionGroup>
+
   <Tip>
     You can also override authentication for individual generators using the [generator-level `api.auth`](#override-api-authentication-settings) setting.
   </Tip>
@@ -205,6 +260,31 @@ api:
   For example, use this to ensure consistent parsing behavior across all your OpenAPI specs. For available settings, see the [specification type](#specification-types) documentation below.
 </ParamField>
 
+<ParamField path="settings.auto-generate-idempotency-key" type="boolean | object" default="false" toc={true}>
+  Enables [idempotency-key auto-generation](/learn/sdks/deep-dives/idempotency#auto-generate-idempotency-keys) for every generator in the API, instead of setting it under each generator's `config`. When enabled, generated SDKs attach a UUIDv4 idempotency-key header on eligible methods unless the caller supplies one.
+
+  Pass `true` for the defaults, or an object to set `header-name` (default `Idempotency-Key`) and `methods` (default `["POST", "PUT"]`). A generator's own `config.auto-generate-idempotency-key` overrides this value, including an explicit `false` to opt out.
+
+  ```yaml title="generators.yml"
+  api:
+    settings:
+      auto-generate-idempotency-key: true
+  ```
+
+  Or pass an object to customize the header and methods:
+
+  ```yaml title="generators.yml"
+  api:
+    settings:
+      auto-generate-idempotency-key:
+        header-name: X-Idempotency-Key
+        methods:
+          - POST
+          - PUT
+          - PATCH
+  ```
+</ParamField>
+
 ### Specification types
 
 Each specification type (OpenAPI, AsyncAPI, etc.) supports various configuration options including the spec file location, namespace, overrides, and type-specific settings.
@@ -226,10 +306,39 @@ api:
         message-naming: "v2"
         title-as-schema-name: false
         respect-nullable-schemas: true
+    - asyncapi:
+        git:
+          repo: https://github.com/org/event-specs.git
+          ref: main
+          path: asyncapi/events.yml
 ```
 
-<ParamField path="asyncapi" type="string" required={true} toc={true}>
-  Path to the AsyncAPI specification file.
+<ParamField path="asyncapi" type="string | git" required={true} toc={true}>
+  Location of the AsyncAPI specification file. Accepts a local file path or a remote git reference.
+
+  ```yaml
+  # Local file
+  asyncapi: ./asyncapi.yml
+
+  # Remote git repository
+  asyncapi:
+    git:
+      repo: https://github.com/org/event-specs.git
+      ref: main
+      path: asyncapi/events.yml
+  ```
+</ParamField>
+
+<ParamField path="asyncapi.git.repo" type="string" required={true} toc={true}>
+  The git repository URL (e.g., `https://github.com/org/repo.git`). The CLI shallow-clones this repository at generation time using your system's git credential configuration (credential helpers, SSH keys, `GIT_ASKPASS`).
+</ParamField>
+
+<ParamField path="asyncapi.git.ref" type="string" toc={true}>
+  Branch, tag, or commit SHA to check out. Defaults to the repository's default branch when omitted.
+</ParamField>
+
+<ParamField path="asyncapi.git.path" type="string" required={true} toc={true}>
+  Path to the spec file within the repository.
 </ParamField>
 
 <ParamField path="origin" type="string" toc={true}>
@@ -479,7 +588,7 @@ groups:
 <ParamField path="audiences" type="list of strings" required={false} toc={true}>
   Filter which API elements are included in generated SDKs on audience tags. Only endpoints, schemas, and properties tagged with the specified audiences in your API spec will be included. Without this filter, all endpoints are included regardless of their audience tags.
 
-  To use audiences, first tag your API elements with [`x-fern-audiences` in OpenAPI](/learn/api-definitions/openapi/extensions/audiences), then specify which audiences to include here. 
+  [Filtering your SDKs by audience](/learn/sdks/deep-dives/audiences) takes two steps: [tag your API elements](/learn/api-definitions/openapi/extensions/audiences) in your spec, then list the audiences to include here.
 
   For OpenAPI, you can also configure path-based filtering at the spec level using [`settings.filter`](#settingsfilter).
 </ParamField>
@@ -681,7 +790,7 @@ Publish Python SDKs to Python Package Index.
 output:
   location: pypi
   package-name: "myorg-api-sdk"
-  token: "${PYPI_TOKEN}"
+  token: OIDC  # or "${PYPI_TOKEN}" for token-based auth
   metadata:
     keywords: ["api", "sdk", "client"]
     documentation-link: "https://docs.myorg.com"
@@ -701,7 +810,7 @@ Python package name (e.g., "myorg-api-sdk")
 </ParamField>
 
 <ParamField path="token" type="string" required={false}>
-PyPI authentication token for publishing
+PyPI authentication token. Set to `OIDC` for [trusted publishing](/learn/sdks/generators/python/publishing#configure-authentication) (recommended) or use an environment variable reference (e.g., `${PYPI_TOKEN}`) for token-based auth.
 </ParamField>
 
 <ParamField path="username" type="string" required={false}>

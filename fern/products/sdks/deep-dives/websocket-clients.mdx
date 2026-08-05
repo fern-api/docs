@@ -1,0 +1,293 @@
+---
+title: WebSocket clients
+description: Generate typed WebSocket clients in your SDKs for bidirectional communication with connection management, typed messages, and automatic reconnection.
+---
+
+Fern generates typed WebSocket clients from your [AsyncAPI channel definitions](/learn/api-definitions/asyncapi/channels/pubsub). The generated clients handle connection management, typed send/receive messages, and automatic reconnection.
+
+Fern generates WebSocket clients for TypeScript, Python, Java, C#, and Rust. Go generates types only, and Ruby is not yet supported.
+
+## Enable WebSocket client generation
+
+Add the config flag to the relevant generator in your `generators.yml`:
+
+<CodeBlocks>
+```yaml TypeScript
+groups:
+  ts-sdk:
+    generators:
+      - name: fernapi/fern-typescript-sdk
+        version: ...
+        config:
+          generateWebSocketClients: true
+```
+
+```yaml Python
+groups:
+  python-sdk:
+    generators:
+      - name: fernapi/fern-python-sdk
+        version: ...
+        config:
+          should_generate_websocket_clients: true
+```
+
+```yaml C#
+groups:
+  csharp-sdk:
+    generators:
+      - name: fernapi/fern-csharp-sdk
+        version: ...
+        config:
+          experimental-enable-websockets: true
+```
+
+```yaml Rust
+groups:
+  rust-sdk:
+    generators:
+      - name: fernapi/fern-rust-sdk
+        version: ...
+        config:
+          enableWebsockets: true
+```
+</CodeBlocks>
+
+Java generates WebSocket clients by default with no additional configuration.
+
+## Generated SDK behavior
+
+Given an AsyncAPI channel definition like:
+
+```yaml title="asyncapi.yml"
+asyncapi: 3.0.0
+info:
+  title: Plant Monitoring Service
+  version: 1.0.0
+channels:
+  plantUpdates:
+    address: /plants/{plant_id}/updates
+    parameters:
+      plant_id:
+        description: Plant identifier
+    messages:
+      SensorReading:
+        $ref: '#/components/messages/SensorReading'
+      PlantStatus:
+        $ref: '#/components/messages/PlantStatus'
+operations:
+  sendReading:
+    action: send
+    channel:
+      $ref: '#/channels/plantUpdates'
+    messages:
+      - $ref: '#/channels/plantUpdates/messages/SensorReading'
+  receivePlantStatus:
+    action: receive
+    channel:
+      $ref: '#/channels/plantUpdates'
+    messages:
+      - $ref: '#/channels/plantUpdates/messages/PlantStatus'
+components:
+  messages:
+    SensorReading:
+      payload:
+        type: object
+        properties:
+          temperature:
+            type: number
+          humidity:
+            type: number
+    PlantStatus:
+      payload:
+        type: object
+        properties:
+          health:
+            type: string
+          needsWater:
+            type: boolean
+```
+
+Fern generates the following client code.
+
+Send methods are named `send` + the operation name from the spec. The `sendReading` operation produces `sendSendReading` in TypeScript, Python, Java, and Rust. C# uses overloaded `Send()` methods instead.
+
+Receive handling varies by language:
+
+- **TypeScript** — a generic `socket.on("message", handler)` callback
+- **Python** — typed responses from `ws.recv()`
+- **Java** — per-message-type handlers like `onPlantStatus(handler)`
+- **C#** — typed `Event<T>` properties like `PlantStatus.Subscribe(handler)`
+- **Rust** — a typed enum from `ws.recv()`
+
+<Tabs>
+<Tab title="TypeScript" language="typescript">
+
+The TypeScript SDK generates a typed socket class with `send` methods, event handlers, and a `ReconnectingWebSocket` that automatically retries dropped connections.
+
+```typescript
+const client = new PlantClient({ token: "..." });
+
+const socket = await client.plantUpdates.createPlantUpdatesConnection({
+  plantId: "plant-123",
+});
+
+socket.on("open", () => {
+  console.log("Connected");
+});
+
+socket.on("message", (message) => {
+  // message is typed as PlantStatus
+  console.log(message.health);
+});
+
+socket.on("error", (error) => {
+  console.error(error);
+});
+
+socket.sendSendReading({ temperature: 22.5, humidity: 65 });
+
+socket.close();
+```
+
+</Tab>
+<Tab title="Python" language="python">
+
+The Python SDK generates both sync (`contextmanager`) and async (`asynccontextmanager`) WebSocket clients.
+
+**Sync:**
+```python
+with client.plant_updates.create_plant_updates_connection(
+    plant_id="plant-123",
+) as ws:
+    ws.send_send_reading(SensorReading(temperature=22.5, humidity=65))
+    response = ws.recv()  # typed as PlantStatus
+    print(response)
+```
+
+**Async:**
+```python
+async with client.plant_updates.create_plant_updates_connection(
+    plant_id="plant-123",
+) as ws:
+    await ws.send_send_reading(SensorReading(temperature=22.5, humidity=65))
+    response = await ws.recv()
+    print(response)
+```
+
+Both clients also support iteration and event-based listening:
+
+```python
+from my_sdk.core.events import EventType
+
+# Iteration
+with client.plant_updates.create_plant_updates_connection(
+    plant_id="plant-123",
+) as ws:
+    for message in ws:
+        print(message)
+
+# Event-based
+with client.plant_updates.create_plant_updates_connection(
+    plant_id="plant-123",
+) as ws:
+    ws.on(EventType.MESSAGE, lambda msg: print(msg))
+    ws.start_listening()
+```
+
+</Tab>
+<Tab title="Java" language="java">
+
+The Java SDK generates a `PlantUpdatesWebSocketClient` with `CompletableFuture`-based async connect/send and typed message handlers via `Consumer<T>` callbacks.
+
+```java
+PlantClient client = PlantClient.builder()
+    .apiKey("...")
+    .build();
+
+PlantUpdatesWebSocketClient ws = client.plantUpdates().plantUpdatesWebSocket("plant-123");
+
+ws.onConnected(() -> System.out.println("Connected"));
+ws.onPlantStatus(status -> System.out.println(status.getHealth()));
+ws.onError(error -> error.printStackTrace());
+
+ws.connect().join();
+ws.sendSendReading(SensorReading.builder()
+    .temperature(22.5)
+    .humidity(65)
+    .build()).join();
+
+ws.disconnect();
+```
+
+</Tab>
+<Tab title="C#" language="csharp">
+
+The C# SDK generates a `PlantUpdatesApi` class implementing `IAsyncDisposable` with `Event<T>` subscriptions for typed message handling. The WebSocket client is created through the root client's factory method, which requires `BaseUrl` and channel parameters in the `Options` object.
+
+```csharp
+var client = new PlantClient();
+
+var api = client.CreatePlantUpdatesApi(new PlantUpdatesApi.Options
+{
+    BaseUrl = "wss://api.example.com",
+    PlantId = "plant-123",
+});
+
+api.Connected.Subscribe(() => Console.WriteLine("Connected"));
+api.PlantStatus.Subscribe(status => Console.WriteLine(status.Health));
+
+await api.ConnectAsync();
+await api.Send(new SensorReading { Temperature = 22.5, Humidity = 65 });
+
+await api.CloseAsync();
+```
+
+</Tab>
+<Tab title="Rust" language="rust">
+
+The Rust SDK generates an async client using `tokio` with typed send/receive methods and channel-based message streaming.
+
+```rust
+let mut ws = client.plant_updates
+    .create_plant_updates_connection(
+        "plant-123",
+        &PlantUpdatesConnectOptions::default(),
+    )
+    .await?;
+
+ws.send_send_reading(&SensorReading {
+    temperature: Some(22.5),
+    humidity: Some(65.0),
+}).await?;
+
+if let Some(Ok(message)) = ws.recv().await {
+    println!("{:?}", message);
+}
+
+ws.close().await?;
+```
+
+</Tab>
+</Tabs>
+
+## Authentication
+
+In TypeScript, Python, Java, and Rust, WebSocket clients automatically inherit the authentication configured on the root client. Headers — including bearer tokens, API keys, and custom headers — are sent with the WebSocket handshake request.
+
+```typescript
+const client = new PlantClient({
+  token: "your-bearer-token",
+});
+
+// Auth headers are forwarded to the WebSocket handshake
+const socket = await client.plantUpdates.createPlantUpdatesConnection({
+  plantId: "plant-123",
+});
+```
+
+In C#, the WebSocket client is constructed with an `Options` object that includes the connection URL and channel parameters. Configure authentication through the `HttpInvoker` option or by setting headers on the underlying client.
+
+## Defining WebSocket channels
+
+WebSocket clients are generated from channel definitions in your [AsyncAPI specification](/learn/api-definitions/asyncapi/overview). For defining channels, messages, and operations, see [Publish/subscribe operations](/learn/api-definitions/asyncapi/channels/pubsub).

@@ -10,7 +10,7 @@ The CLI generator is in early access. [Reach out](https://buildwithfern.com/book
 
 Each generated CLI reads authentication credentials from the security schemes declared in your OpenAPI spec. Credentials can come from environment variables, CLI flags, files, or a combination of these through fallback chains.
 
-Without a credential, the CLI still works — you can explore the command tree, view help, and use `--dry-run`.
+Without a credential, the CLI still works — you can explore the command tree, view help, and use [`--dry-run`](/learn/cli-generator/get-started/features#dry-run-mode).
 
 ## Credential sources
 
@@ -48,7 +48,86 @@ The CLI supports every scheme type that OpenAPI's `securitySchemes` defines:
 | Bearer (`http: bearer`) | Sends `Authorization: Bearer <token>`. |
 | API key (`apiKey`) | Sends the key in the configured header (for example, `X-Auth-Token`). |
 | Basic (`http: basic`) | Sends `Authorization: Basic <base64(user:pass)>`. Each field has its own credential source. |
-| OAuth 2 | Treated as bearer — sends `Authorization: Bearer <token>`. |
+| OAuth 2 | Sends `Authorization: Bearer <token>`. Declare an [OAuth flow](#oauth-flows) to have the CLI obtain and refresh the token itself. |
+
+## OAuth flows
+
+Declaring an `oauth` scheme under `auth-schemes` in `generators.yml` makes the CLI acquire tokens on its own instead of reading a pre-issued token from the environment. Three flows are supported through the `type` field:
+
+| Flow | `type` | Use case |
+| --- | --- | --- |
+| Client credentials | `client-credentials` | Machine-to-machine. The CLI exchanges a client ID and secret from environment variables for a token, configured with the same [`auth-schemes` fields the SDKs use](/learn/sdks/reference/generators-yml#auth-schemes). |
+| Authorization code with Proof Key for Code Exchange (PKCE) | `authorization-code` | Interactive login. The CLI opens a browser and receives the callback on a loopback listener. |
+| Device code | `device-code` | Interactive login on machines without a browser, such as SSH sessions and containers. |
+
+The interactive flows are public-client only: they use PKCE rather than a client secret. They require CLI generator `0.29.0` or later.
+
+### Log in and out
+
+Every generated CLI exposes an `auth` command group:
+
+```bash
+my-cli auth login    # run the declared flow and store the token
+my-cli auth status   # show each scheme and whether a credential is present
+my-cli auth logout   # remove the stored credential
+```
+
+Tokens are stored in the OS keyring, refreshed automatically when they expire, and sent as `Authorization: Bearer <token>` on every request. Pass `--no-browser` to `auth login` to print the authorization URL instead of opening a browser, and `--with-token` to skip the flow and read a token from stdin.
+
+### Authorization code with PKCE
+
+```yaml title="generators.yml"
+auth-schemes:
+  OAuth:
+    scheme: oauth
+    type: authorization-code
+    client-id: my-public-client-id
+    authorization-url: https://idp.example.com/authorize
+    token-url: https://idp.example.com/oauth/token
+    refresh-url: https://idp.example.com/oauth/token
+    scopes:
+      - plants:read
+      - plants:write
+```
+
+Omitting `redirect-uri` binds an OS-assigned loopback port at login (recommended, no port registration needed). To pin a port, set `redirect-uri` to a loopback URL, and list `ports` to add fallbacks tried in order when the primary port is busy:
+
+```yaml title="generators.yml"
+    redirect-uri:
+      url: http://127.0.0.1:8484/callback
+      ports: [8485, 8486]
+```
+
+The host must be `127.0.0.1` or `localhost` over `http`, the port is required, and the path is arbitrary. Register every redirect URI the CLI can produce, including each backup port, with the authorization server.
+
+### Device code
+
+```yaml title="generators.yml"
+auth-schemes:
+  OAuth:
+    scheme: oauth
+    type: device-code
+    client-id: my-public-client-id
+    device-authorization-url: https://idp.example.com/oauth/device/code
+    token-url: https://idp.example.com/oauth/token
+```
+
+`auth login` prints a user code and verification URL, then polls the token endpoint until the user approves. `redirect-uri` and `pkce` are rejected for this flow.
+
+### Extra request parameters
+
+Authorization servers that require additional literal parameters, such as an Auth0 `audience`, accept them through per-request maps.
+
+```yaml title="generators.yml"
+    authorization-parameters:
+      audience: https://api.example.com
+    token-parameters:
+      audience: https://api.example.com
+    refresh-parameters:
+      audience: https://api.example.com
+```
+
+The device-code flow uses `device-authorization-parameters` in place of `authorization-parameters`.
 
 ## Auth strategies
 
@@ -62,6 +141,45 @@ When a spec declares multiple security schemes, the CLI composes them according 
 | Routing | Per-operation dispatch. Each endpoint's `security` block determines which schemes to use. |
 
 Operations that declare `security: []` (an empty list) opt out of authentication entirely — no credentials are sent regardless of what's configured.
+
+### Configure the `any` strategy
+
+When an API accepts more than one credential under the `any` strategy, the CLI authenticates with whichever source is populated, using the first scheme that has a credential. Declaring the schemes requires two steps:
+
+1. In your OpenAPI spec, define the schemes under `securitySchemes` and list them as [multiple auth schemes](/learn/api-definitions/openapi/authentication#multiple-auth-schemes) in the `security` array.
+
+    ```yaml title="openapi.yml" {5-6}
+    components:
+      securitySchemes:
+        # ...BearerAuth and TokenAuth defined here
+    security:
+      - BearerAuth: []
+      - TokenAuth: []
+    ```
+
+2. In `generators.yml`, define the same schemes under [`auth-schemes`](/learn/sdks/reference/generators-yml#auth-schemes) and compose them with [`api.auth`](/learn/sdks/reference/generators-yml#auth) set to `any`.
+
+    ```yaml title="generators.yml" {5}
+    auth-schemes:
+      # ...BearerAuth and TokenAuth defined here, each with its env var
+    api:
+      auth:
+        any: [BearerAuth, TokenAuth]
+    ```
+
+The scheme names must match across both files.
+
+A scheme that's missing from the spec is ignored without warning, even when its environment variable is set. With both declared, set either variable and the command runs:
+
+```bash
+# Authenticate with MY_API_KEY
+export MY_API_KEY=sk-123
+my-cli users list
+
+# Or authenticate with MY_TOKEN instead
+export MY_TOKEN=tok-456
+my-cli users list
+```
 
 ## Help output
 

@@ -1,3 +1,34 @@
+## 3.72.10
+**`(fix):`** Fix inferred auth providers generating an invalid token request when the token
+endpoint uses a referenced request body. The generated provider now sends the
+request body keys using the same casing as the generated request type (the wire
+value when the serde layer is disabled) instead of always camelCasing them.
+
+
+## 3.72.9
+**`(fix):`** Fix OAuth client-credentials providers when the token endpoint request body has
+required properties beyond the client id and secret (e.g. a scopes mapping or
+other custom fields). Those required, non-literal properties are now surfaced on
+the client-credentials options and forwarded to the token request, so the
+generated provider compiles and sends a complete request.
+
+
+## 3.72.8
+**`(fix):`** Fix the serialization layer for discriminated unions that both `extend` another
+type and declare `base-properties`. The generated `_Base` schema now extends the
+parent type schemas (in addition to the base properties), so its inferred raw
+type matches the declared `Raw` type and the union schema compiles.
+
+
+## 3.72.7
+**`(fix):`** Fixed a runtime error in the serialization layer when a type references a
+same-named type in another package. Such references are now wrapped with
+`lazy()`/`lazyObject()` so they are resolved through the `serializers`
+namespace barrel after all modules have initialized, instead of being read
+eagerly during module load (which could throw "Cannot read properties of
+undefined").
+
+
 ## 3.72.6
 **`(fix):`** Fixed the generated wire test for paginated endpoints when `neverThrowErrors`
 is enabled. In that mode the SDK returns a wrapped `APIResponse` instead of a
