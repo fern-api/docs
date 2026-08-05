@@ -117,6 +117,25 @@ When enabled, the generated SDK omits the `X-Fern-Language`, `X-Fern-SDK-Name`, 
 When enabled, the generated SDK sends a single structured `User-Agent` header of the form `{sdkName}/{version} ({os}; {arch}) {runtime}/{runtimeVersion}` (for example, `com.fern.sdk/0.0.1 (linux; x86_64) Java/17.0.13`), carrying SDK, operating system, architecture, and runtime information in place of the default `User-Agent` and discrete platform headers. If `omit-fern-headers` is enabled, no `User-Agent` or platform headers are sent and this option has no effect.
 </ParamField>
 
+<ParamField path="allowUserAgentAppInfo" type="boolean" default="false" required={false} toc={true}>
+When enabled, the generated client builder exposes an `appInfo(String name, String version, String comment)` method, with a required name and optional version and comment (pass `null` to omit either). Its product token is appended to the `User-Agent` header, which lets an application built on the SDK identify itself to the API, following the [HTTP `User-Agent` grammar](https://www.rfc-editor.org/rfc/rfc9110#name-user-agent).
+
+```java
+AcmeApiClient client = AcmeApiClient.builder()
+    .token("...")
+    .appInfo("partner-app", "3.1.0", "+https://partner.example")
+    .build();
+```
+
+The token is formatted as `{name}/{version} ({comment})`, dropping `/{version}` and `({comment})` when blank, and is appended to whatever `User-Agent` the SDK would otherwise send, including the structured header from [`includePlatformHeaders`](#includePlatformHeaders) and the version resolved by [`runtime-version`](#runtime-version):
+
+```
+User-Agent: com.fern.sdk/0.0.1 (linux; x86_64) Java/17.0.13 partner-app/3.1.0 (+https://partner.example)
+```
+
+Caller-supplied values are sanitized before they reach the header. An explicit `User-Agent` header takes precedence, the header is unchanged when no name is passed, and [`omit-fern-headers`](#omit-fern-headers) suppresses it entirely.
+</ParamField>
+
 <ParamField path="package-layout" type="'nested' | 'flat'" default="nested" required={false} toc={true}>
 Determines the organization of generated Java packages. Choose 'nested' for a hierarchical package structure that mirrors your API organization, or 'flat' for a simpler structure with fewer nested packages.
 </ParamField>

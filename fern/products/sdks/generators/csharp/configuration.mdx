@@ -99,6 +99,25 @@ When enabled, the generated SDK omits the `X-Fern-Language`, `X-Fern-SDK-Name`, 
 When enabled, the generated SDK sends a single structured `User-Agent` header of the form `{sdkName}/{version} ({os}; {arch}) {runtime}/{runtimeVersion}` (for example, `my-sdk/1.2.0 (linux; x86_64) dotnet/8.0.4`), carrying SDK, operating system, architecture, and runtime information in place of the default `User-Agent` and discrete platform headers. If `omit-fern-headers` is enabled, no `User-Agent` or platform headers are sent and this option has no effect.
 </ParamField>
 
+<ParamField path="allow-user-agent-app-info" type="boolean" default="false" required={false} toc={true}>
+When enabled, the generated SDK emits an `AppInfo` record with a required `Name` and optional `Version` and `Comment`, and exposes it as an `AppInfo` property on `ClientOptions`. Its product token is appended to the `User-Agent` header, which lets an application built on the SDK identify itself to the API, following the [HTTP `User-Agent` grammar](https://www.rfc-editor.org/rfc/rfc9110#name-user-agent).
+
+```csharp
+var client = new AcmeApiClient("...", new ClientOptions
+{
+    AppInfo = new AppInfo { Name = "partner-app", Version = "3.1.0", Comment = "+https://partner.example" }
+});
+```
+
+The token is formatted as `{Name}/{Version} ({Comment})`, dropping `/{Version}` and `({Comment})` when blank, and is appended to whatever `User-Agent` the SDK would otherwise send, including the structured header from [`include-platform-headers`](#include-platform-headers):
+
+```
+User-Agent: my-sdk/1.2.0 (linux; x86_64) dotnet/8.0.4 partner-app/3.1.0 (+https://partner.example)
+```
+
+Caller-supplied values are sanitized before they reach the header. An explicit `User-Agent` header takes precedence, the header is unchanged when no `AppInfo` is set, and [`omit-fern-headers`](#omit-fern-headers) suppresses it entirely.
+</ParamField>
+
 <ParamField path="package-id" type="string" required={false} toc={true}>
 Sets the NuGet package identifier for the generated SDK. This is used when publishing the SDK to NuGet or other package repositories.
 </ParamField>
