@@ -1,0 +1,102 @@
+---
+title: Fern's MCP servers
+description: Connect your coding agent to Fern's product documentation and to your organization's docs data over MCP.
+---
+
+Fern hosts two [Model Context Protocol (MCP)](https://modelcontextprotocol.io) servers for teams that build with Fern. One serves Fern's product documentation to any agent; the other serves your organization's own data after you log in. Both are read-only, and both are separate from the [MCP server Fern generates for your documentation site](/learn/docs/ai-features/mcp-server), which answers your readers' questions about your product.
+
+| Server | URL | Authentication |
+| --- | --- | --- |
+| Fern documentation | `https://buildwithfern.com/learn/_mcp/server` | None |
+| Your Fern organization | `https://fai.buildwithfern.com/mcp` | OAuth with your Fern account |
+
+## Fern documentation server
+
+The documentation server answers questions about Fern itself: configuration syntax, components, CLI commands, and API definitions. Use it while writing `docs.yml`, authoring pages, or configuring generators. It needs no authentication.
+
+<CodeBlocks>
+<CodeBlock title="Claude Code">
+```bash
+claude mcp add --transport http fern https://buildwithfern.com/learn/_mcp/server
+```
+</CodeBlock>
+<CodeBlock title="Codex">
+```bash
+codex mcp add fern --url https://buildwithfern.com/learn/_mcp/server
+```
+</CodeBlock>
+<CodeBlock title="Cursor (.cursor/mcp.json)">
+```json
+{
+  "mcpServers": {
+    "fern": { "url": "https://buildwithfern.com/learn/_mcp/server" }
+  }
+}
+```
+</CodeBlock>
+<CodeBlock title="GitHub Copilot (.vscode/mcp.json)">
+```json
+{
+  "servers": {
+    "fern": { "url": "https://buildwithfern.com/learn/_mcp/server" }
+  }
+}
+```
+</CodeBlock>
+</CodeBlocks>
+
+Pair the server with the [`fern-docs` agent skill](/learn/docs/ai-features/agent-skills), which teaches agents the conventions the server can't infer, such as building internal links from `docs.yml`.
+
+## Your organization's server
+
+The organization server exposes your live Fern data to your agent, scoped to one organization per connection:
+
+- **Sites and configuration**: your docs sites, their `docs.yml` configuration and Dashboard settings, and the Markdown source of published pages
+- **Deployments**: deployment history, and pull request status and preview URLs for connected repositories
+- **Analytics**: traffic summaries, top pages, 404s, referring domains, and LLM bot traffic
+- **Reader signals**: search queries, Ask Fern conversations and resolution rates, and page feedback
+- **Members**: the people in your organization
+
+The server is read-only. Tools that edit docs are available to the [Fern agent in the Dashboard](https://dashboard.buildwithfern.com), not over MCP.
+
+<CodeBlocks>
+<CodeBlock title="Claude Code">
+```bash
+claude mcp add --transport http fern-org https://fai.buildwithfern.com/mcp
+```
+</CodeBlock>
+<CodeBlock title="Codex">
+```bash
+codex mcp add fern-org --url https://fai.buildwithfern.com/mcp
+```
+</CodeBlock>
+<CodeBlock title="Cursor (.cursor/mcp.json)">
+```json
+{
+  "mcpServers": {
+    "fern-org": { "url": "https://fai.buildwithfern.com/mcp" }
+  }
+}
+```
+</CodeBlock>
+<CodeBlock title="GitHub Copilot (.vscode/mcp.json)">
+```json
+{
+  "servers": {
+    "fern-org": { "url": "https://fai.buildwithfern.com/mcp" }
+  }
+}
+```
+</CodeBlock>
+</CodeBlocks>
+
+Your client opens a browser window for you to log in the first time it connects. Like `fern login`, this step needs a human at the browser and can't be completed by a coding agent on its own.
+
+If your Fern account belongs to more than one organization, the server can't pick one for you: tool calls return the organization-scoped URLs to choose from. Reconnect using the URL of the organization you want.
+
+```bash
+claude mcp add --transport http fern-org \
+  https://fai.buildwithfern.com/organizations/{{YOUR_ORGANIZATION}}/mcp
+```
+
+Agents load MCP servers at startup, so a server registered mid-session, by command or by editing a config file, becomes callable in the next session.

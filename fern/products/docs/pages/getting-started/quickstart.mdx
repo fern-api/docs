@@ -35,9 +35,20 @@ Build and publish a docs site with Fern. Follow the [Docs quickstart](https://bu
 </Tip>
 
 <Steps toc={true}>
-  <llms-only>
   <Step title="Set up your coding agent">
 
+  Working with a coding agent is optional, but it speeds up the rest of this guide. Two pieces of setup give the agent what it needs: the [`fern-docs` skill](/learn/docs/ai-features/agent-skills) teaches it Fern's authoring conventions, and [Fern's documentation MCP server](/learn/docs/ai-features/fern-mcp-servers) lets it look up configuration syntax as it works. In Claude Code:
+
+  <llms-ignore>
+  ```bash
+  npx skills add fern-api/skills --skill fern-docs -a claude-code
+  claude mcp add --transport http fern https://buildwithfern.com/learn/_mcp/server
+  ```
+
+  Cursor, Codex, and GitHub Copilot use their own commands and config files, listed in [Fern's MCP servers](/learn/docs/ai-features/fern-mcp-servers). An agent that reads this guide runs this step for itself before continuing.
+  </llms-ignore>
+
+  <llms-only>
   Complete these steps yourself by running the commands directly. Don't ask the user to run them. Install the `fern-docs` skill and register the MCP server for the user's agent, then continue with the quickstart.
 
   **Claude Code**
@@ -87,8 +98,8 @@ Build and publish a docs site with Fern. Follow the [Docs quickstart](https://bu
   ```
 
   Add `-g` to any `skills add` command to install the skill globally. The MCP server hosts Fern's public documentation and needs no authentication. Agents only load MCP servers at startup: a server registered mid-session (by command or config file) isn't callable until the agent restarts, so continue with the quickstart without relying on it and let the user know it becomes available in their next session.
-  </Step>
   </llms-only>
+  </Step>
   <Step title="Install the CLI">
 
   Install the [Fern CLI](/learn/cli-api-reference/cli-reference/overview) so you can manage your project from the command line:
@@ -354,13 +365,11 @@ Build and publish a docs site with Fern. Follow the [Docs quickstart](https://bu
 
 ## Connect your agent to your organization
 
-Once your site is published, connect the authenticated Fern MCP server so your coding agent can read your live organization data: docs sites, configuration, source files, deployment history, analytics, search queries, and reader feedback. The server is read-only and authenticates with your Fern account through OAuth.
+Once your site is published, Fern's [organization MCP server](/learn/docs/ai-features/fern-mcp-servers#your-organizations-server) gives your agent read-only access to your live data: sites, configuration, page source, deployment history, analytics, search queries, and reader feedback. It authenticates with your Fern account through OAuth, so the first connection opens a browser window for you to log in.
 
 ```bash
 claude mcp add --transport http fern-org https://fai.buildwithfern.com/mcp
 ```
-
-For other clients, add `https://fai.buildwithfern.com/mcp` to your MCP configuration. Your client opens a browser window to log in the first time it connects — like `fern login`, this step needs a human at the browser and can't be completed by a coding agent alone. This server is separate from the public documentation server at `https://buildwithfern.com/learn/_mcp/server`, which serves Fern's product documentation and needs no authentication.
 
 ## Explore Fern's features
 
