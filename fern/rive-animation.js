@@ -45,15 +45,18 @@
 
         try {
             // Set container aspect ratio while respecting existing layout
-            const currentWidth = riveContainer.offsetWidth || riveContainer.clientWidth;
-            if (currentWidth > 0) {
-                // Use existing width, set height based on aspect ratio
-                riveContainer.style.height = (currentWidth / aspectRatio) + 'px';
-            } else {
-                // Fallback: use CSS aspect-ratio if container has no initial width
-                riveContainer.style.aspectRatio = aspectRatio.toString();
-                riveContainer.style.width = '100%';
-            }
+            const syncContainerHeight = () => {
+                const currentWidth = riveContainer.offsetWidth || riveContainer.clientWidth;
+                if (currentWidth > 0) {
+                    // Use existing width, set height based on aspect ratio
+                    riveContainer.style.height = (currentWidth / aspectRatio) + 'px';
+                } else {
+                    // Fallback: use CSS aspect-ratio if container has no initial width
+                    riveContainer.style.aspectRatio = aspectRatio.toString();
+                    riveContainer.style.width = '100%';
+                }
+            };
+            syncContainerHeight();
             
             // Let Rive handle canvas sizing internally - much simpler!
             const r = new rive.Rive({
@@ -107,6 +110,7 @@
             
             // Simple resize handling (following Rive best practices)
             const windowResizeHandler = () => {
+                syncContainerHeight();
                 // Let Rive handle the canvas sizing internally
                 if (r && r.resizeDrawingSurfaceToCanvas) {
                     r.resizeDrawingSurfaceToCanvas();
