@@ -61,6 +61,8 @@ versions:
 ```
 </CodeBlock>
 
+`path` points at a version file in your working tree. A version whose content lives at a git [branch, tag, or commit](#build-a-version-from-a-git-ref) can name a `ref` instead.
+
 <Markdown src="/products/docs/snippets/default-version.mdx" />
 
 </Step>
@@ -89,9 +91,33 @@ If your `docs.yml` file includes a `navigation` field or a `tabs` field, be sure
 
 ## Customize version behavior
 
-These optional settings let you control how versions appear in URLs and who can access them.
+These optional settings let you control where each version's content comes from, how versions appear in URLs, and who can access them.
 
 <AccordionGroup>
+<Accordion title="Build a version from a git ref" toc={true}>
+
+Instead of a `path` into your working tree, a version entry can name a `ref`: a git branch, tag, or commit SHA. On publish, Fern resolves the ref to a commit, checks out the repository at that commit, and builds that version's content from it, composed with the current branch's theme, shell, and `versions` metadata.
+
+<CodeBlock title="docs.yml">
+```yaml {5,8}
+versions:
+  - display-name: Latest
+    path: ./versions/latest.yml   # built from the working tree
+  - display-name: v2
+    ref: release/v2               # built from the branch release/v2
+  - display-name: v1
+    ref: v1.0.0                   # built from the tag v1.0.0
+    availability: deprecated
+```
+</CodeBlock>
+
+Use a `ref` for a version of your docs that no longer receives content updates, such as a past release. Keep actively maintained versions on `path` in your working tree. `fern docs dev` previews working-tree versions only, so ref-backed content can't be previewed or edited locally: changing it means committing to the ref (or cutting a new tag) and republishing.
+
+Tags and commit SHAs are immutable, so a published version stays byte-for-byte stable. Branch refs resolve to whatever commit the remote branch points at when you publish, which means a republish can change already-published content.
+
+If the ref's own `docs.yml` is versioned, Fern builds its default version and ignores the rest; otherwise it builds the ref's top-level `navigation`. Publishing a ref-backed version requires git and access to the remote.
+
+</Accordion>
 <Accordion title="Change version slugs" toc={true}>
 
 By default, Fern generates URL slugs from the `display-name` by converting it to lowercase and replacing spaces with hyphens. For example, a version with `display-name: v3 (Deprecated)` would get the slug `v-3-deprecated` in the URL path.
