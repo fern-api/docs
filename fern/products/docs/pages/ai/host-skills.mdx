@@ -6,6 +6,10 @@ availability: beta
 
 Fern Docs sites can serve your own [Agent Skills](https://www.skills.sh) so your users can discover and install them with the [skills CLI](https://www.skills.sh). Point `page-actions.options.skills.path` at a directory of skills in your docs repo, and Fern validates the bundle, generates the discovery manifest, and publishes it — so anyone can run `npx skills add https://<your-docs-domain>`. You can also add an "Install skills" button to your docs UI that opens a modal with the install command and your skill list.
 
+<Note>
+Already keeping a hand-built bundle under `fern/.well-known/skills/` or `fern/.well-known/agent-skills/`? Those files are still uploaded as-is when no `path` is set, so nothing breaks. Move the skills into their own directory and declare `path` to have Fern validate them and generate the manifest for you — a declared `path` takes precedence over the hand-built folder.
+</Note>
+
 <Steps toc={true} tocDepth={2}>
   <Step title="Lay out your skills directory">
 
@@ -91,7 +95,7 @@ With the bundle published, anyone can install your skills with:
 npx skills add https://your-docs-domain.com
 ```
 
-The `https://` scheme is required: a bare domain is treated as a GitHub repository shorthand.
+Include your basepath if you have one, as in `npx skills add https://example.com/docs`. The `https://` scheme is required: without it the argument is read as a Git source, so a bare domain is cloned and `domain/basepath` is parsed as a GitHub `owner/repo` shorthand.
 
   </Step>
   <Step title="Customize the Install skills button">
@@ -108,7 +112,7 @@ page-actions:
       learn-more-url: https://your-docs-domain.com/skills
 ```
 
-By default the modal shows `npx skills add https://<your-docs-domain>`. Override it with `install-command` when that command won't work as-is — for example auth-walled docs, a private registry, or a multi-step install:
+By default the modal shows `npx skills add https://<your-docs-domain>`. Override it with `install-command` when that command won't work as-is — for example auth-walled docs, a private registry, a multi-step install, or a site served under a basepath, which the generated command leaves out:
 
 ```yaml title="fern/docs.yml"
 page-actions:
