@@ -1016,23 +1016,6 @@ h1, h2, h3 {
 
 
 
-.sdk-rive {
-  aspect-ratio: 369/93;
-  width: 100%;
-  display: block;
-  overflow: visible; /* Changed from hidden - was clipping interactive areas */
-  transform: translateY(0px);
-  transition: transform 250ms ease-out !important;
-  will-change: transform;
-  /* Ensure click events can reach the canvas */
-  pointer-events: auto;
-  min-height: 104px;
-}
-
-.sdk-rive:hover {
-  transform: translateY(-3px) !important;
-}
-
 .docs-rive {
   min-height: 213px;
 }
@@ -1042,10 +1025,6 @@ h1, h2, h3 {
 }
 
 @media (max-width: 640px) {
-  .sdk-rive {
-    min-height: inherit;
-  }
-
   .docs-rive {
     min-height: inherit;
   }
@@ -1084,69 +1063,215 @@ h1, h2, h3 {
   display: inline-block;
 }
 
-/* Live Swift and Rust tabs layered over the SDK animation.
-   Positions and sizes are percentages of the 369x93 Rive artboard, so they track the canvas as it scales. */
-.sdk-rive .rive-container {
+/* SDK language tabs.
+   Sizes and positions are expressed in --u, one unit of the 369x93 grid the card is laid out on,
+   so everything scales with the card width. */
+.sdk-card {
+  --u: 0.271003cqw; /* 100cqw / 369 */
+  --tab-pitch: 39.03;
+  --tab-first: 9.8;
+  --tab-index: 0;
+  --underline-width: calc(37.1 * var(--u));
+  --sdk-card-bg: #fcfcfd;
+  --sdk-card-subdued-bg: #f5f5f6;
+  --sdk-card-border: #e0e1e6;
+  --sdk-card-skeleton: #cacaca;
+  --sdk-card-text: #191919;
+  --sdk-card-subdued-text: #5a5a5b;
+  --sdk-card-copy: #b3b3b4;
+  --sdk-card-active: #008700;
   container-type: inline-size;
+  box-sizing: border-box;
+  aspect-ratio: 369/93;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 4px;
+  /* Drawn inside the box so the 369x93 grid is not shrunk by the border */
+  box-shadow: inset 0 0 0 1px var(--sdk-card-border);
+  background-color: var(--sdk-card-bg);
+  transition: transform 250ms ease-out;
 }
 
-.rive-tab-overlay {
+.dark .sdk-card {
+  --sdk-card-bg: #111113;
+  --sdk-card-subdued-bg: #1b1b1d;
+  --sdk-card-border: #303136;
+  --sdk-card-skeleton: #47484f;
+  --sdk-card-text: #e7e7e7;
+  --sdk-card-subdued-text: #a3a4a8;
+  --sdk-card-copy: #2d2e33;
+  --sdk-card-active: #9cdd8d;
+}
+
+.sdk-card:hover {
+  transform: translateY(-3px);
+}
+
+.sdk-card * {
+  box-sizing: border-box;
+}
+
+/* Visually hidden, but still focusable and operable with the arrow keys */
+.sdk-card-radio {
   position: absolute;
-  inset: 0;
-  z-index: 2;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
   pointer-events: none;
 }
 
-.rive-tab {
-  position: absolute;
-  top: 34.34%;
-  height: 28.6%;
-  width: 10.46%;
+.sdk-card-header {
+  flex: none;
+  height: calc(19.25 * var(--u));
+  padding: calc(8.6 * var(--u)) 0 0 calc(6.15 * var(--u));
+  border-bottom: 1px solid var(--sdk-card-border);
+}
+
+.sdk-card-skeleton {
+  display: block;
+  width: calc(51.6 * var(--u));
+  height: calc(2 * var(--u));
+  border-radius: 999px;
+  background-color: var(--sdk-card-skeleton);
+}
+
+.sdk-card-tabs {
+  position: relative;
+  flex: 1;
   display: flex;
-  flex-direction: column;
+  padding: 0 calc(7.9 * var(--u)) 0 calc(var(--tab-first) * var(--u));
+  border-bottom: 1px solid var(--sdk-card-border);
+}
+
+.sdk-card-tab {
+  flex: 1;
+  display: grid;
+  grid-template-rows: calc(13.7 * var(--u)) auto;
+  justify-items: center;
   align-items: center;
-  gap: 1.92cqw;
-  text-decoration: none;
-  background-color: #fcfcfd;
-  pointer-events: auto;
+  gap: calc(0.5 * var(--u));
+  padding-top: calc(10.9 * var(--u));
+  margin: 0;
+  cursor: pointer;
+  transform-origin: 50% 60%;
+  transition: transform 150ms ease-out;
 }
 
-.dark .rive-tab {
-  background-color: #111113;
+.sdk-card-tab:hover {
+  transform: scale(1.048);
 }
 
-.rive-tab-swift {
-  left: 76.53%;
-}
-
-.rive-tab-rust {
-  left: 86.99%;
-}
-
-.rive-tab-icon {
-  width: 2.88cqw;
-  height: 2.88cqw;
+.sdk-card-tab-icon {
+  width: var(--icon-size);
+  height: var(--icon-size);
   margin: 0;
   object-fit: contain;
 }
 
-.rive-tab-label {
-  font-family: "JetBrains Mono", ui-monospace, monospace;
-  font-size: 1.73cqw;
-  line-height: 1;
-  color: #4a4a4a;
+.sdk-card-tab-typescript { --icon-size: calc(10.63 * var(--u)); }
+.sdk-card-tab-python { --icon-size: calc(13.62 * var(--u)); }
+.sdk-card-tab-go { --icon-size: calc(13.06 * var(--u)); }
+.sdk-card-tab-java { --icon-size: calc(13.66 * var(--u)); }
+.sdk-card-tab-dotnet { --icon-size: calc(13.27 * var(--u)); }
+.sdk-card-tab-php { --icon-size: calc(13.68 * var(--u)); }
+.sdk-card-tab-ruby { --icon-size: calc(10.57 * var(--u)); }
+.sdk-card-tab-swift { --icon-size: calc(10.07 * var(--u)); }
+.sdk-card-tab-rust { --icon-size: calc(10.02 * var(--u)); }
+
+.sdk-card-tab-label {
+  font-family: var(--font-code);
+  font-size: calc(6.16 * var(--u));
+  line-height: calc(7.3 * var(--u));
+  color: var(--sdk-card-text);
+  white-space: nowrap;
 }
 
-.dark .rive-tab-label {
-  color: #a9a9a9;
+.sdk-card-underline {
+  position: absolute;
+  bottom: -1px; /* sits on the separator, like the animation did */
+  left: calc((var(--tab-first) + (var(--tab-index) + 0.5) * var(--tab-pitch)) * var(--u) - var(--underline-width) / 2);
+  width: var(--underline-width);
+  height: calc(0.9 * var(--u));
+  background-color: var(--sdk-card-active);
+  transition: left 150ms ease-out, width 150ms ease-out;
 }
 
-.rive-tab:hover .rive-tab-label {
-  color: #21201c;
+#sdk-card-python:checked ~ .sdk-card-tabs { --tab-index: 1; --underline-width: calc(22.4 * var(--u)); }
+#sdk-card-go:checked ~ .sdk-card-tabs { --tab-index: 2; --underline-width: calc(19 * var(--u)); }
+#sdk-card-java:checked ~ .sdk-card-tabs { --tab-index: 3; --underline-width: calc(19 * var(--u)); }
+#sdk-card-dotnet:checked ~ .sdk-card-tabs { --tab-index: 4; --underline-width: calc(18.7 * var(--u)); }
+#sdk-card-php:checked ~ .sdk-card-tabs { --tab-index: 5; --underline-width: calc(18.5 * var(--u)); }
+#sdk-card-ruby:checked ~ .sdk-card-tabs { --tab-index: 6; --underline-width: calc(19.9 * var(--u)); }
+#sdk-card-swift:checked ~ .sdk-card-tabs { --tab-index: 7; --underline-width: calc(18.6 * var(--u)); }
+#sdk-card-rust:checked ~ .sdk-card-tabs { --tab-index: 8; --underline-width: calc(19 * var(--u)); }
+
+#sdk-card-typescript:focus-visible ~ .sdk-card-tabs .sdk-card-tab-typescript,
+#sdk-card-python:focus-visible ~ .sdk-card-tabs .sdk-card-tab-python,
+#sdk-card-go:focus-visible ~ .sdk-card-tabs .sdk-card-tab-go,
+#sdk-card-java:focus-visible ~ .sdk-card-tabs .sdk-card-tab-java,
+#sdk-card-dotnet:focus-visible ~ .sdk-card-tabs .sdk-card-tab-dotnet,
+#sdk-card-php:focus-visible ~ .sdk-card-tabs .sdk-card-tab-php,
+#sdk-card-ruby:focus-visible ~ .sdk-card-tabs .sdk-card-tab-ruby,
+#sdk-card-swift:focus-visible ~ .sdk-card-tabs .sdk-card-tab-swift,
+#sdk-card-rust:focus-visible ~ .sdk-card-tabs .sdk-card-tab-rust {
+  outline: 2px solid var(--sdk-card-active);
+  outline-offset: calc(-1 * var(--u));
+  border-radius: 2px;
 }
 
-.dark .rive-tab:hover .rive-tab-label {
-  color: #fcfcfd;
+.sdk-card-command {
+  flex: none;
+  height: calc(30.5 * var(--u));
+  display: flex;
+  align-items: center;
+  gap: calc(4 * var(--u));
+  padding: 0 calc(8.12 * var(--u)) 0 calc(7 * var(--u));
+  background-color: var(--sdk-card-subdued-bg);
+}
+
+.sdk-card-command-text {
+  flex: 1;
+  display: none;
+  overflow: hidden;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  background: none;
+  font-family: var(--font-code);
+  font-size: calc(6.97 * var(--u));
+  line-height: 1.2;
+  white-space: nowrap;
+  color: var(--sdk-card-subdued-text);
+}
+
+#sdk-card-typescript:checked ~ .sdk-card-command .sdk-card-command-typescript,
+#sdk-card-python:checked ~ .sdk-card-command .sdk-card-command-python,
+#sdk-card-go:checked ~ .sdk-card-command .sdk-card-command-go,
+#sdk-card-java:checked ~ .sdk-card-command .sdk-card-command-java,
+#sdk-card-dotnet:checked ~ .sdk-card-command .sdk-card-command-dotnet,
+#sdk-card-php:checked ~ .sdk-card-command .sdk-card-command-php,
+#sdk-card-ruby:checked ~ .sdk-card-command .sdk-card-command-ruby,
+#sdk-card-swift:checked ~ .sdk-card-command .sdk-card-command-swift,
+#sdk-card-rust:checked ~ .sdk-card-command .sdk-card-command-rust {
+  display: block;
+}
+
+.sdk-card-copy {
+  flex: none;
+  width: calc(6.88 * var(--u));
+  height: calc(8 * var(--u));
+  color: var(--sdk-card-copy);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sdk-card,
+  .sdk-card-tab,
+  .sdk-card-underline {
+    transition: none;
+  }
 }
 
 /*** END -- LANDING PAGE STYLING ***/
