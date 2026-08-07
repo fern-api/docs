@@ -25,17 +25,15 @@ If your docs are hosted on a subpath (like `buildwithfern.com/learn`), include t
       destination: "/new-location"
       permanent: false # Use 307 (temporary) instead of 308 (permanent)
 
-    # Regex-based redirects
+    # Pattern-based redirects
     - source: "/old-folder/:slug" # Matches single segments: /old-folder/foo
       destination: "/new-folder/:slug"
     - source: "/old-folder/:slug*" # Matches multiple segments: /old-folder/foo/bar/baz
       destination: "/new-folder/:slug*"
+    - source: "/old-:slug(.*)" # Matches mid-segment: /old-guides/setup
+      destination: "/new-:slug(.*)"
   ```
 </CodeBlock>
-
-<Info>
-  Parameters suffixed with an asterisk (`*`) match zero or more path segments, capturing everything that follows in the URL. Use this when redirecting entire folder structures while preserving nested paths.
-</Info>
 
 Redirects are evaluated top-to-bottom and the first match wins:
 
@@ -53,6 +51,24 @@ Redirects are evaluated top-to-bottom and the first match wins:
 </CodeBlock>
 
 A broader pattern listed before a more specific one prevents the specific rule from ever matching.
+
+## Pattern syntax
+
+A parameter is a name prefixed with `:`. Each one captures part of the incoming URL and is replayed in `destination` under the same name.
+
+| Pattern | Captures |
+|---------|----------|
+| `:slug` | A single path segment, starting immediately after a `/`. |
+| `:slug*` | Zero or more path segments, including the separating slashes. |
+| `:slug+` | One or more path segments. |
+| `:slug(regex)` | Whatever the regular expression matches. Unlike the forms above, this can start mid-segment and can span `/`. |
+| `(regex)` | An unnamed group, replayed in `destination` as `:0`. |
+
+A plain `:slug` only starts after a `/` and never spans one, so reach for a regular expression when a URL changes mid-segment. `/plants-:slug` matches `/plants-monstera` but not `/plants-monstera/care`, while `/plants-:slug(.*)` matches both. The same syntax narrows a parameter instead of widening it: `/v:version(\d+)/plants/:slug*` matches `/v2/plants/monstera/care` and captures `version` as `2`.
+
+Repeat the regular expression in `destination`. A parameter written as `:slug(.*)` in `source` must stay `:slug(.*)` in `destination`, because a bare `:slug` can't hold a value containing `/`, and the redirect then resolves to the literal text `/new-folder/:slug`.
+
+The optional modifier (`?`) is unsupported. Fern strips each `source` at the first `?` to remove search parameters, so `/old-folder/:slug?` is matched as `/old-folder/:slug`.
 
 ## Properties
 
