@@ -257,26 +257,7 @@
             // No eventHandlers - this animation only uses native interactions
         });
 
-        // Docs Animation
-        createRiveAnimation({
-            canvasSelector: '#docs-rive-canvas',
-            riveUrl: 'https://cdn.prod.website-files.com/67880ff570cdb1a85eee946f/68825994c55f0eece04ce4e2_9a50e77828a014e927d67fa21d3edf9d_docs_animation.riv',
-            aspectRatio: 404/262,
-            stateMachine: "State Machine 1",
-            fallbackImages: [
-                {
-                    src: './images/docs-preview-light.svg',
-                    className: 'docs-preview-img dark:hidden',
-                    alt: 'Docs Animation Preview'
-                },
-                {
-                    src: './images/docs-preview-dark.svg',
-                    className: 'docs-preview-img hidden dark:block',
-                    alt: 'Docs Animation Preview'
-                }
-            ]
-            // No eventHandlers - this animation only uses native interactions
-        });
+        // Docs Animation is now an HTML/CSS implementation (see welcome.mdx + styles.css)
 
         // AI Animation with custom event handling
         createRiveAnimation({
