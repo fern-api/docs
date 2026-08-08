@@ -96,7 +96,7 @@ These optional settings let you control where each version's content comes from,
 <AccordionGroup>
 <Accordion title="Build a version from a git ref" toc={true}>
 
-Instead of a `path` into your working tree, a version entry can name a `ref`: a git branch, tag, or commit SHA. On publish, Fern resolves the ref to a commit, checks out the repository at that commit, and builds that version's content from it, composed with the current branch's theme, shell, and `versions` metadata.
+Instead of a `path` into your working tree, a version entry can name a `ref`: a git branch, tag, or commit SHA. On publish, Fern resolves the ref to a commit, checks out the repository at that commit, and builds that version's pages, navigation, assets, and API references from it, composed with the current branch's theme, shell, and `versions` metadata.
 
 <CodeBlock title="docs.yml">
 ```yaml {5,8}
@@ -111,11 +111,13 @@ versions:
 ```
 </CodeBlock>
 
+A version entry sets either `ref` or `path`, never both; `fern check` reports an entry that sets both as a configuration error.
+
 Use a `ref` for a version of your docs that no longer receives content updates, such as a past release. Keep actively maintained versions on `path` in your working tree. `fern docs dev` previews working-tree versions only, so ref-backed content can't be previewed or edited locally: changing it means committing to the ref (or cutting a new tag) and republishing.
 
 Tags and commit SHAs are immutable, so a published version stays byte-for-byte stable. Branch refs resolve to whatever commit the remote branch points at when you publish, which means a republish can change already-published content.
 
-If the ref's own `docs.yml` is versioned, Fern builds its default version and ignores the rest; otherwise it builds the ref's top-level `navigation`. Publishing a ref-backed version requires git and access to the remote.
+If the ref's own `docs.yml` is versioned, Fern builds its default version and ignores the rest; otherwise it builds the ref's top-level `navigation`. Publishing a ref-backed version requires git, access to the remote, and a `fern` folder at the same path at that ref. [Library reference](/learn/docs/api-references/library-reference) sections are skipped with a warning when their generated MDX is missing at the ref, so a version that predates a library still publishes.
 
 </Accordion>
 <Accordion title="Change version slugs" toc={true}>
