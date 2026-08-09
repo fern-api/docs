@@ -1241,8 +1241,30 @@ h1, h2, h3 {
   background-color: var(--sdk-card-subdued-bg);
 }
 
+/* Wraps every command so the typing reveal runs once on load, rather than restarting each time
+   a command is shown. Shrinks to the visible command, which makes the clip-path steps below
+   land on character boundaries. */
+.sdk-card-command-typing {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  animation: sdk-card-type-in 400ms steps(24) 120ms backwards;
+}
+
+/* 24 steps, one per character of the Typescript command shown on load */
+@keyframes sdk-card-type-in {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+
+  to {
+    clip-path: inset(0);
+  }
+}
+
 .sdk-card-command-text {
-  flex: 1;
   display: none;
   overflow: hidden;
   padding: 0;
@@ -1271,9 +1293,40 @@ h1, h2, h3 {
 
 .sdk-card-copy {
   flex: none;
+  margin-left: auto;
   width: calc(6.88 * var(--u));
   height: calc(8 * var(--u));
   color: var(--sdk-card-copy);
+}
+
+/* Draws the card in on load: a curtain in the row background colours that retreats to the right,
+   revealing the outline, separators and tabs in turn. Its soft trailing edge is what makes each
+   tab fade up rather than snap in, and it starts one softness-width off the left edge so the
+   card is fully covered on the first frame. */
+.sdk-card-intro {
+  --draw-softness: 34.5%;
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    var(--sdk-card-bg) calc(62.5 * var(--u)),
+    var(--sdk-card-subdued-bg) calc(62.5 * var(--u))
+  );
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 var(--draw-softness));
+  mask-image: linear-gradient(to right, transparent, #000 var(--draw-softness));
+  animation: sdk-card-draw-in 700ms cubic-bezier(0.15, 0.2, 0.4, 1) forwards;
+}
+
+@keyframes sdk-card-draw-in {
+  from {
+    transform: translateX(calc(-1 * var(--draw-softness)));
+  }
+
+  to {
+    transform: translateX(100%);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1281,6 +1334,14 @@ h1, h2, h3 {
   .sdk-card-tab,
   .sdk-card-underline {
     transition: none;
+  }
+
+  .sdk-card-intro {
+    display: none;
+  }
+
+  .sdk-card-command-typing {
+    animation: none;
   }
 }
 
