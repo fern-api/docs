@@ -56,19 +56,21 @@ A broader pattern listed before a more specific one prevents the specific rule f
 
 A parameter is a name prefixed with `:`. Each one captures part of the incoming URL and is replayed in `destination` under the same name.
 
-| Pattern | Captures |
-|---------|----------|
-| `:slug` | A single path segment, starting immediately after a `/`. |
-| `:slug*` | Zero or more path segments, including the separating slashes. Must follow a `/`. |
-| `:slug+` | One or more path segments. Must follow a `/`. |
-| `:slug(regex)` | Whatever the regular expression matches. Unlike the forms above, this can start mid-segment and can span `/`. |
-| `(regex)` | An unnamed group, replayed in `destination` as `:0`. |
+| Pattern | Captures | Example `source` | Matches |
+|---------|----------|------------------|---------|
+| `:slug` | A single path segment. Must follow a `/`. | `/plants/:slug` | `/plants/monstera`, not `/plants/indoor/monstera` |
+| `:slug*` | Zero or more path segments, including the separating slashes. Must follow a `/`. | `/plants/:slug*` | `/plants` and `/plants/indoor/monstera` |
+| `:slug+` | One or more path segments. Must follow a `/`. | `/plants/:slug+` | `/plants/indoor/monstera`, not `/plants` |
+| `:slug(regex)` | Whatever the regular expression matches. Can start mid-segment and span `/`. | `/plants-:slug(.*)` | `/plants-indoor/monstera` |
+| `(regex)` | An unnamed group, replayed in `destination` as `:0`. | `/plants/(\d+)` | `/plants/42` |
 
-A plain `:slug` only starts after a `/` and never spans one, and `:slug*` and `:slug+` can't start mid-segment at all, so reach for a regular expression when a URL changes mid-segment. `/plants-:slug` matches `/plants-monstera` but not `/plants-monstera/care`, while `/plants-:slug(.*)` matches both. The same syntax narrows a parameter instead of widening it: `/v:version(\d+)/plants/:slug*` matches `/v2/plants/monstera/care` and captures `version` as `2`.
+Three behaviors aren't visible from the syntax itself:
 
-Repeat the regular expression in `destination`. A parameter written as `:slug(.*)` in `source` must stay `:slug(.*)` in `destination`, because a bare `:slug` can't hold a value containing `/`, and the redirect then resolves to the literal text `/new-folder/:slug`.
+- **A regular expression is the only way to match mid-segment.** `:slug*` and `:slug+` must follow a `/`, and a plain `:slug` never spans one. `/plants-:slug` matches `/plants-monstera` but not `/plants-monstera/care`; `/plants-:slug(.*)` matches both.
+- **The regular expression must be repeated in `destination`.** A parameter written as `:slug(.*)` in `source` stays `:slug(.*)` in `destination`, because a bare `:slug` can't hold a value containing `/`. Omitting it resolves the redirect to the literal text `/new-folder/:slug`.
+- **The optional modifier (`?`) is unsupported.** Fern strips each `source` at the first `?` to remove search parameters, so `/old-folder/:slug?` is matched as `/old-folder/:slug`.
 
-The optional modifier (`?`) is unsupported. Fern strips each `source` at the first `?` to remove search parameters, so `/old-folder/:slug?` is matched as `/old-folder/:slug`.
+A regular expression narrows a parameter as well as widening one: `/v:version(\d+)/plants/:slug*` matches `/v2/plants/monstera/care` and captures `version` as `2`.
 
 ## Properties
 
