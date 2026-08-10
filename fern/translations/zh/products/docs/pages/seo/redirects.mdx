@@ -8,7 +8,7 @@ subtitle: 学习如何在 Fern Docs 中配置重定向。设置精确路径重�
 
 ## 设置重定向
 
-在 `docs.yml` 中使用精确路径或正则表达式模式进行配置，可指向内部路径或外部 URL。
+在 `docs.yml` 中配置重定向，可指向内部路径或外部 URL。当单个 URL 发生变更时使用精确路径；当某个路径及其下层内容一并变更时，请使用[模式](#pattern-syntax)：精确的 `source` 只匹配该 URL 本身，不匹配其下层路径，因此 `/old-folder` 不会影响 `/old-folder/page`。
 
 如果您的文档托管在子路径上（如 `buildwithfern.com/learn`），请在源路径和目标路径中都包含该子路径。
 
@@ -36,7 +36,29 @@ subtitle: 学习如何在 Fern Docs 中配置重定向。设置精确路径重�
   ```
 </CodeBlock>
 
-重定向按从上到下的顺序进行评估，第一个匹配的规则生效：
+### 模式语法 [#pattern-syntax]
+
+参数是以 `:` 为前缀的名称。每个参数捕获传入 URL 的一部分，并在 `destination` 中以相同的名称回填。
+
+| 模式 | 示例 `source` | 匹配 |
+|------|---------------|------|
+| `:slug` | `/plants/:slug` | 匹配 `/plants/monstera`，不匹配 `/plants/indoor/monstera` |
+| `:slug*` | `/plants/:slug*` | 匹配 `/plants` 和 `/plants/indoor/monstera` |
+| `:slug+` | `/plants/:slug+` | 匹配 `/plants/indoor/monstera`，不匹配 `/plants` |
+| `:slug(regex)` | `/plants-:slug(.*)` | 匹配 `/plants-indoor/monstera` |
+| `(regex)` | `/plants/(\d+)` | 匹配 `/plants/42` |
+
+未命名的分组没有可回填的名称，因此在 `destination` 中以 `:0` 出现。
+
+正则表达式是从段中间开始匹配的唯一方式，因为 `:slug`、`:slug*` 和 `:slug+` 都必须紧跟在 `/` 之后。它同样可以收窄参数，而不只是放宽参数：`/v:version(\d+)/plants/:slug*` 匹配 `/v2/plants/monstera/care`，并将 `version` 捕获为 `2`。
+
+必须在 `destination` 中重复该正则表达式。在 `source` 中写成 `:slug(.*)` 的参数，在 `destination` 中也要保持 `:slug(.*)`，因为不带正则表达式的 `:slug` 无法容纳包含 `/` 的值；省略它会使重定向解析为字面文本 `/new-folder/:slug`。
+
+不支持可选修饰符 (`?`)。Fern 会在第一个 `?` 处截断每个 `source` 以去除查询参数，因此 `/old-folder/:slug?` 会按 `/old-folder/:slug` 进行匹配。
+
+## 评估顺序
+
+重定向按从上到下的顺序进行评估，第一个匹配的规则生效，因此请将具体路径放在更宽泛的路径之前：
 
 <CodeBlock title="docs.yml">
   ```yml
@@ -53,38 +75,17 @@ subtitle: 学习如何在 Fern Docs 中配置重定向。设置精确路径重�
 
 将更宽泛的模式放在更具体的模式之前会阻止具体规则匹配。
 
-## 模式语法
-
-参数是以 `:` 为前缀的名称。每个参数捕获传入 URL 的一部分，并在 `destination` 中以相同的名称回填。
-
-| 模式 | 捕获内容 | 示例 `source` | 匹配 |
-|------|----------|---------------|------|
-| `:slug` | 单个路径段。必须紧跟在 `/` 之后。 | `/plants/:slug` | 匹配 `/plants/monstera`，不匹配 `/plants/indoor/monstera` |
-| `:slug*` | 零个或多个路径段，包括分隔用的斜杠。必须紧跟在 `/` 之后。 | `/plants/:slug*` | 匹配 `/plants` 和 `/plants/indoor/monstera` |
-| `:slug+` | 一个或多个路径段。必须紧跟在 `/` 之后。 | `/plants/:slug+` | 匹配 `/plants/indoor/monstera`，不匹配 `/plants` |
-| `:slug(regex)` | 正则表达式匹配到的任何内容。可以从段中间开始，也可以跨越 `/`。 | `/plants-:slug(.*)` | 匹配 `/plants-indoor/monstera` |
-| `(regex)` | 未命名的分组，在 `destination` 中以 `:0` 回填。 | `/plants/(\d+)` | 匹配 `/plants/42` |
-
-有三种行为无法从语法本身看出：
-
-- **正则表达式是从段中间开始匹配的唯一方式。** `:slug*` 和 `:slug+` 必须紧跟在 `/` 之后，普通的 `:slug` 也不能跨越 `/`。`/plants-:slug` 匹配 `/plants-monstera`，但不匹配 `/plants-monstera/care`；`/plants-:slug(.*)` 两者都匹配。
-- **必须在 `destination` 中重复该正则表达式。** 在 `source` 中写成 `:slug(.*)` 的参数，在 `destination` 中也要保持 `:slug(.*)`，因为不带正则表达式的 `:slug` 无法容纳包含 `/` 的值。省略它会使重定向解析为字面文本 `/new-folder/:slug`。
-- **不支持可选修饰符 (`?`)。** Fern 会在第一个 `?` 处截断每个 `source` 以去除查询参数，因此 `/old-folder/:slug?` 会按 `/old-folder/:slug` 进行匹配。
-
-正则表达式既能放宽参数，也能收窄参数：`/v:version(\d+)/plants/:slug*` 匹配 `/v2/plants/monstera/care`，并将 `version` 捕获为 `2`。
-
 ## 属性
+
+`redirects` 下的每个条目都接受以下属性。
 
 <Markdown src="/products/docs/snippets/redirects.mdx" />
 
-## 最佳实践
+## 何时不应添加重定向
 
-为了获得最佳的站点性能，只在必要时添加重定向。避免对 Fern 已经自动处理的行为使用重定向，例如 404 处理和版本路由。
+为了获得最佳的站点性能，只在必要时添加重定向。Fern 已经自动处理 404 和版本路由，重复这些行为的重定向反而会起反作用。
 
-<AccordionGroup>
-<Accordion title="404 处理">
-
-不要创建重定向将损坏的链接发送到您的主页：
+不要将损坏的链接重定向到您的主页：
 
 ```yaml title="docs.yml"
 redirects:
@@ -92,19 +93,14 @@ redirects:
     destination: / # 不要这样做
 ```
 
-相反，[在您的 `docs.yml` 中启用自动主页重定向](/docs/configuration/site-level-settings#settings-configuration)，将损坏的链接发送到您的主页，而不是显示 404 页面：
+相反，[启用自动主页重定向](/learn/docs/configuration/site-level-settings#settings-configuration)，让损坏的链接落到您的主页，而不是显示 404 页面：
 
 ```yaml title="docs.yml"
 settings:
   hide-404-page: true
 ```
 
-</Accordion>
-<Accordion title="版本控制和重定向">
-
-如果您配置了[版本](/docs/configuration/versions)，您的默认版本使用无版本路径（`/docs/getting-started`），而其他版本使用有版本路径（`/docs/v2/getting-started`）。Fern 通过将损坏的有版本链接重定向到默认版本并管理规范 URL 来自动处理版本路由。
-
-避免从无版本 URL 重定向到有版本 URL：
+不要从无版本 URL 重定向到有版本 URL。如果您配置了[版本](/learn/docs/configuration/versions)，您的默认版本使用无版本路径（`/docs/getting-started`），而其他版本使用有版本路径（`/docs/v2/getting-started`），Fern 会通过将损坏的有版本链接重定向到默认版本并管理规范 URL 来自动完成版本路由。
 
 ```yaml title="docs.yml"
 redirects:
@@ -112,18 +108,11 @@ redirects:
     destination: /docs/v2/event-notifications # 不要这样做
 ```
 
-手动覆盖默认版本控制行为可能导致意外的重定向模式。
-
-如果您经常需要从默认版本重定向到另一个版本，请考虑在版本配置中更改哪个版本设置为默认版本。
-
-</Accordion>
-</AccordionGroup>
+手动覆盖默认版本控制行为可能导致意外的重定向模式。如果您经常需要从默认版本重定向到另一个版本，请在版本配置中更改哪个版本设置为默认版本。
 
 ## 捕获缺失的重定向
 
-[`missing-redirects` 规则](/learn/docs/configuration/site-level-settings#check-configuration)由 [`fern check`](/learn/cli-api-reference/cli-reference/commands#fern-check) 运行，它将从您的本地 YAML 构建的导航树与您站点最近**发布**的状态进行比较，并标记那些之前发布的 URL，这些 URL 现在无法解析且不在 `redirects:` 条目中。这可以在页面开始为现有入站链接返回 404 错误之前，捕获您已移动或删除的页面。
-
-使用 `docs.yml` 中的 [`missing-redirects` 规则](/learn/docs/configuration/site-level-settings#check-configuration)调整严重级别。
+[`missing-redirects` 规则](/learn/docs/configuration/site-level-settings#check-configuration)由 [`fern check`](/learn/cli-api-reference/cli-reference/commands#fern-check) 运行，它将从您的本地 YAML 构建的导航树与您站点最近**发布**的状态进行比较，并标记那些之前发布的 URL，这些 URL 现在无法解析且不在 `redirects:` 条目中。这可以在页面开始为现有入站链接返回 404 错误之前，捕获您已移动或删除的页面。可在 `docs.yml` 中调整其严重级别。
 
 <llms-only>
 ## Common errors
