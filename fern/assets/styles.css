@@ -1250,6 +1250,9 @@ h1, h2, h3 {
   max-width: 100%;
   min-width: 0;
   overflow: hidden;
+}
+
+.sdk-card[data-drawing-in] .sdk-card-command-typing {
   animation: sdk-card-type-in 400ms steps(24) 120ms backwards;
 }
 
@@ -1302,8 +1305,12 @@ h1, h2, h3 {
 /* Draws the card in on load: a curtain in the row background colours that retreats to the right,
    revealing the outline, separators and tabs in turn. Its soft trailing edge is what makes each
    tab fade up rather than snap in, and it starts one softness-width off the left edge so the
-   card is fully covered on the first frame. */
+   card is fully covered on the first frame. sdk-card-draw-in.js adds the attribute once the page
+   is loaded and the card is on screen, the way the Rive canvases start once their runtime is
+   fetched; without it the animation would run against the browser's first frame, which on a
+   refresh can be composited before the page is presented and so go unseen. */
 .sdk-card-intro {
+  display: none;
   --draw-softness: calc(127 * var(--u));
   position: absolute;
   top: 0;
@@ -1319,6 +1326,10 @@ h1, h2, h3 {
   );
   -webkit-mask-image: linear-gradient(to right, transparent, #000 var(--draw-softness));
   mask-image: linear-gradient(to right, transparent, #000 var(--draw-softness));
+}
+
+.sdk-card[data-drawing-in] .sdk-card-intro {
+  display: block;
   animation: sdk-card-draw-in 700ms cubic-bezier(0.15, 0.2, 0.4, 1) forwards;
 }
 
@@ -1339,11 +1350,11 @@ h1, h2, h3 {
     transition: none;
   }
 
-  .sdk-card-intro {
+  .sdk-card[data-drawing-in] .sdk-card-intro {
     display: none;
   }
 
-  .sdk-card-command-typing {
+  .sdk-card[data-drawing-in] .sdk-card-command-typing {
     animation: none;
   }
 }
