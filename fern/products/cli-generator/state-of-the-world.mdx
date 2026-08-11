@@ -1,0 +1,98 @@
+---
+title: CLI generator overview and roadmap
+description: "Current capabilities and roadmap for Fern's CLI generator."
+---
+
+<Note>
+State of the world as of 2026-08-06.
+</Note>
+
+Fern generates a command-line interface from the same API definition that already produces your SDKs and documentation, in the same generation run. When the spec changes, the CLI updates with the SDKs and docs, not after them.
+
+## At a glance
+
+- **One binary, everywhere.** Native Rust binary, no language runtime. macOS, Linux, Windows.
+- **Your whole API surface in one CLI.** Many specs, one binary, one namespace per product.
+- **Consistent by construction.** One runtime drives naming, auth, output, and errors across every command.
+- **Built for scripts, terminals, and agents.** JSON or human output per invocation, plus a machine-readable schema for AI agents.
+- **Extensible past generated commands.** Custom workflow commands mount alongside generated ones.
+- **Tested on the wire.** Generated wire tests run the real binary against a mock server and assert on the exact request each endpoint sends.
+- **Ships with your other interfaces.** Same source, same generation run as SDKs and docs. No lag.
+
+## Current capabilities
+
+<AccordionGroup>
+<Accordion title="The binary">
+
+- Native Rust binaries with no language runtime; each release builds macOS, Linux, and Windows from the same generated source, with fully static Linux artifacts for containers.
+- Distributed via npm, GitHub Releases, `curl | bash`, or a PowerShell installer.
+- HTTPS uses the operating system's TLS stack by default (so corporate certificates and policies apply); the static Linux build bundles TLS into the binary itself, so it runs in scratch containers and stripped-down CI hosts with no system libraries at all.
+- Proxy, CA-bundle, and timeout env vars scoped per binary; structured JSON error envelope on stdout with a human-readable summary on stderr; stable exit codes.
+
+</Accordion>
+<Accordion title="Generation">
+
+- Many specs, one binary: each product under its own namespace, one shared auth binding.
+- Nested resources become nested subcommands; names derive from tags and operation IDs, and spec extensions or overlays control the command tree when the defaults need shaping.
+- JSON, form-urlencoded, multipart, and binary bodies; query, path, and header serialization is spec-exact, backed by byte-level test coverage in the runtime.
+- Pagination from the pagination extension on your endpoints: `--page-all`, `--page-limit`, page streaming.
+- Overlays reshape a spec for CLI ergonomics without forking it.
+- `@file` references in flag values for reading request data from disk.
+
+</Accordion>
+<Accordion title="Testing">
+
+- Generated wire tests: a suite that runs the compiled binary against a mock server and asserts on the exact request each endpoint sends, built from the spec's examples.
+- The runtime itself carries byte-level test coverage of body encodings and query, path, and header serialization styles, so encoding regressions fail tests instead of reaching users.
+- Repos generated in GitHub mode include a build-and-test CI workflow, so every regeneration PR is validated before merge.
+
+</Accordion>
+<Accordion title="One command model">
+
+- Naming, nesting, auth, output shape, errors, and exit codes come from one runtime, so consistency holds by construction.
+- Bearer, API key, HTTP Basic, and OAuth: client credentials plus interactive `auth login` with Proof Key for Code Exchange (PKCE) and device-code flows, tokens stored in the OS keyring, and `auth status` to show which source is active.
+- Retries with backoff and jitter: always on 408 and 429, and on 5xx when the request is safe to replay; automatic idempotency keys on mutating requests; `--dry-run` prints the exact request without sending it; inputs validated before any request is built.
+
+</Accordion>
+<Accordion title="Output">
+
+- JSON, table, YAML, CSV, raw, JSON Lines (JSONL), or full HTTP, switchable per invocation.
+- JMESPath queries, NDJSON page streaming, file output, quiet mode, debug HTTP dump.
+- Terminal-aware defaults: formatted tables in an interactive terminal, clean JSON when piped.
+- For agents: `--schema` emits a machine-readable contract per operation, and `generate-skills` writes agent skill files.
+
+</Accordion>
+<Accordion title="Extensibility">
+
+- Hand-written commands mount alongside generated ones, share client and auth, inherit global flags, and survive regeneration.
+- A typed Rust SDK is co-generated in, so workflow commands are compile-time checked against the API.
+- The generated tree can sit under a namespace such as `api`, leaving the top level for your own verbs.
+- Server-sent event streaming is generated alongside REST; AsyncAPI/WebSocket commands can be hand-mounted on the same runtime as custom commands.
+
+</Accordion>
+<Accordion title="Ergonomics">
+
+- Completions for bash, zsh, fish, PowerShell, and elvish; man pages via a `man` subcommand.
+- Response schemas inlined in `--help`, so users see the output shape before calling.
+- Path variables declared in the spec become global flags with env-var fallbacks.
+- Global request parameters declared once in the spec and applied across every command.
+- "Did you mean" on typos; missing-parameter errors name the exact flag.
+- Generated README and full command reference in the repository.
+
+</Accordion>
+</AccordionGroup>
+
+## Roadmap
+
+| In active development | Next | Later |
+| --- | --- | --- |
+| **File uploads**: multipart and binary uploads from flags and `@file` references | **`serve`**: the same surface over MCP | **Grouped interactive prompts** for missing parameters |
+| **Comprehensive wire tests**: covering responses and response types, not only requests | **Multiple credential profiles** | **Interactive explore view** for nested responses |
+| **Richer error display**: 401 and 422 hints, links into docs | **Homebrew and Scoop distribution** | **Infrastructure-as-code mode**: state file, plan/diff, apply |
+| **Agent-readiness scoring** of generated CLIs | **CLI snippets** in the docs site and API Explorer | **Per-endpoint default output format** |
+| | **`docs` command**: documentation from inside the CLI | **Webhook listener**: `webhooks listen` for local development |
+| | **Multi-scheme auth refinements** | **GraphQL generation** on the existing runtime support |
+
+## How generation runs
+
+By default Fern regenerates on spec changes and opens a pull request against your CLI repository, then publishes to the configured channels on release. Teams that need generation on their own infrastructure can run the generator from its Docker image in their own CI.
