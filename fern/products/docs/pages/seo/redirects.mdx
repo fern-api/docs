@@ -1,6 +1,6 @@
 ---
 title: Configure redirects
-subtitle: Learn how to configure redirects in Fern Docs. Set up exact path redirects and regex patterns to preserve SEO equity when pages move.
+subtitle: Learn how to configure redirects in Fern Docs. Set up exact path redirects and regex patterns to preserve SEO equity when pages move or when you migrate to a new custom domain.
 ---
 
 Redirects map old URLs to new ones so inbound links and search rankings survive when pages move, change slugs, or are deleted. They apply to [Markdown URLs](/learn/docs/ai-features/markdown) too: a redirected page's `.md` or `.mdx` twin returns a `308` to the destination's twin.
@@ -112,6 +112,23 @@ redirects:
 ```
 
 Overriding the default versioning behavior manually can lead to unexpected redirect patterns. If you frequently need to redirect from the default version to another version, change which version is set as default in your versions configuration.
+
+## Moving to a new custom domain
+
+The `redirects` configuration in `docs.yml` is **path-based only**. The `source` property must be a relative path, not an absolute URL, so you cannot redirect one domain to another with a `redirects` entry.
+
+To forward traffic from an old custom domain to a new one, handle it at the DNS or reverse-proxy layer (Cloudflare, AWS CloudFront, Nginx, and similar), or contact Fern to register the old domain as an additional alias on the site — see [Multiple custom domains](/learn/docs/preview-publish/setting-up-your-domain#multiple-custom-domains).
+
+Use `redirects` for the complementary case: when paths change *within* the new domain. If the URL structure shifted during the move, map the old paths to the new ones with pattern redirects. Remember to include the subpath in both `source` and `destination` if the site is hosted on one.
+
+<CodeBlock title="docs.yml">
+```yaml
+redirects:
+  # Map old path structure to new one after a domain migration
+  - source: "/learn/old-section/:slug(.*)"
+    destination: "/learn/new-section/:slug(.*)"
+```
+</CodeBlock>
 
 ## Catching missing redirects
 
