@@ -62,21 +62,12 @@ When enabled, the generated SDK sends a single structured `User-Agent` header of
 </ParamField>
 
 <ParamField path="allowUserAgentAppInfo" type="boolean" default="false" required={false} toc={true}>
-When enabled, the generated client accepts an optional `appInfo` client option of the shape `array{name: string, version?: string, comment?: string}`. Its product token is appended to the `User-Agent` header, which lets an application built on the SDK identify itself to the API, following the [HTTP `User-Agent` grammar](https://www.rfc-editor.org/rfc/rfc9110#name-user-agent).
+When enabled, the generated client accepts an optional `appInfo` client option of the shape `array{name: string, version?: string, comment?: string}`, which appends a `{name}/{version} ({comment})` [product token](https://www.rfc-editor.org/rfc/rfc9110#name-user-agent) to the `User-Agent` header so an application built on the SDK can identify itself to the API. Omit `version` or `comment` to drop them from the token. An explicit `User-Agent` header takes precedence, and [`omitFernHeaders`](#omitfernheaders) suppresses the header entirely.
 
 ```php
-$client = new AcmeClient('...', [
-    'appInfo' => ['name' => 'partner-app', 'version' => '3.1.0', 'comment' => '+https://partner.example'],
-]);
+'appInfo' => ['name' => 'partner-app', 'version' => '3.1.0', 'comment' => '+https://partner.example']
+// User-Agent: my-sdk/0.0.1 (linux; x86_64) PHP/8.2.0 partner-app/3.1.0 (+https://partner.example)
 ```
-
-The token is formatted as `{name}/{version} ({comment})`, dropping `/{version}` and `({comment})` when blank, and is appended to whatever `User-Agent` the SDK would otherwise send, including the structured header from [`includePlatformHeaders`](#includeplatformheaders):
-
-```
-User-Agent: my-sdk/0.0.1 (linux; x86_64) PHP/8.2.0 partner-app/3.1.0 (+https://partner.example)
-```
-
-Caller-supplied values are sanitized before they reach the header. An explicit `User-Agent` header takes precedence, the header is unchanged when no `appInfo` is passed, and [`omitFernHeaders`](#omitfernheaders) suppresses it entirely.
 </ParamField>
 
 <ParamField path="packageName" type="string" required={false} toc={true}>

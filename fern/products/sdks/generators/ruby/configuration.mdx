@@ -105,22 +105,12 @@ When enabled, the generated SDK sends a single structured `User-Agent` header of
 </ParamField>
 
 <ParamField path="allowUserAgentAppInfo" type="boolean" default="false" required={false} toc={true}>
-When enabled, the generated client accepts an optional `app_info` keyword of the shape `{ name:, version:, comment: }`, where `name` is required. Its product token is appended to the `User-Agent` header, which lets an application built on the SDK identify itself to the API, following the [HTTP `User-Agent` grammar](https://www.rfc-editor.org/rfc/rfc9110#name-user-agent).
+When enabled, the generated client accepts an optional `app_info` keyword of the shape `{ name:, version:, comment: }`, which appends a `{name}/{version} ({comment})` [product token](https://www.rfc-editor.org/rfc/rfc9110#name-user-agent) to the `User-Agent` header so an application built on the SDK can identify itself to the API. `name` is required; omit `version` or `comment` to drop them from the token. An explicit `User-Agent` header takes precedence, and [`omitFernHeaders`](#omitfernheaders) suppresses the header entirely.
 
 ```ruby
-client = Acme::Client.new(
-  token: "...",
-  app_info: { name: "partner-app", version: "3.1.0", comment: "+https://partner.example" }
-)
+app_info: { name: "partner-app", version: "3.1.0", comment: "+https://partner.example" }
+# User-Agent: my-sdk/0.0.1 (linux; x86_64) Ruby/3.2.0 partner-app/3.1.0 (+https://partner.example)
 ```
-
-The token is formatted as `{name}/{version} ({comment})`, dropping `/{version}` and `({comment})` when blank, and is appended to whatever `User-Agent` the SDK would otherwise send, including the structured header from [`includePlatformHeaders`](#includeplatformheaders):
-
-```
-User-Agent: my-sdk/0.0.1 (linux; x86_64) Ruby/3.2.0 partner-app/3.1.0 (+https://partner.example)
-```
-
-Caller-supplied values are sanitized before they reach the header. An explicit `User-Agent` header takes precedence, the header is unchanged when no `app_info` is passed, and [`omitFernHeaders`](#omitfernheaders) suppresses it entirely.
 </ParamField>
 
 <ParamField path="requirePaths" type="array of strings" required={false} toc={true}>
