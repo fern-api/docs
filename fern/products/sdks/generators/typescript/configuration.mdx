@@ -21,7 +21,7 @@ groups:
 <ParamField path="allowExtraFields" type="boolean" toc={true}>
 Allow fields that are not defined in object schemas. This only applies to serde.
 
-See [TypeScript serde layer](/sdks/generators/typescript/serde-layer) for more information.
+See [TypeScript serde layer](/learn/sdks/generators/typescript/serde-layer) for more information.
 </ParamField>
 
 <ParamField path="auto-generate-idempotency-key" type="boolean | object" default="false" toc={true}>
@@ -391,7 +391,7 @@ Controls whether the serde layer is enabled for serialization/deserialization.
 
 When `noSerdeLayer: false`, the generated client includes custom serialization code that transforms property names to camelCase, validates requests/responses at runtime, and supports complex types.
 
-See [TypeScript serde layer](/sdks/generators/typescript/serde-layer) for detailed guidance on when to enable this option.
+See [TypeScript serde layer](/learn/sdks/generators/typescript/serde-layer) for detailed guidance on when to enable this option.
 </ParamField>
 
 <ParamField path="offsetSemantics" type="'item-index' | 'page-index'" default="item-index" toc={true}>
@@ -407,6 +407,21 @@ When enabled, the generated SDK omits the `X-Fern-Language`, `X-Fern-SDK-Name`, 
 
 <ParamField path="includePlatformHeaders" type="boolean" default="false" toc={true}>
 When enabled, the generated SDK sends a single structured `User-Agent` header of the form `{sdkName}/{version} ({os}; {arch}) {runtime}/{runtimeVersion}` (for example, `my-sdk/0.0.1 (linux; x86_64) Node/20.11.0`), carrying SDK, operating system, architecture, and runtime information in place of the default `User-Agent` and discrete platform headers. A configured [`user-agent`](#user-agent) template supplies the leading product token. If `omitFernHeaders` is enabled, no `User-Agent` or platform headers are sent and this option has no effect.
+</ParamField>
+
+<ParamField path="allowUserAgentAppInfo" type="boolean" default="false" toc={true}>
+When enabled, the generated client accepts an optional `appInfo` client option, which appends a `{name}/{version} ({comment})` [product token](https://www.rfc-editor.org/rfc/rfc9110#name-user-agent) to the `User-Agent` header so an application built on the SDK can identify itself to the API. The application passes a required `name` plus an optional `version` and `comment`; omitted or blank values are dropped from the token. A `User-Agent` set explicitly in client or request headers takes precedence.
+
+```typescript
+appInfo: { name: "partner-app", version: "3.1.0", comment: "+https://partner.example" }
+// User-Agent: my-sdk/0.0.1 (linux; x86_64) Node/20.11.0 partner-app/3.1.0 (+https://partner.example)
+```
+</ParamField>
+
+<ParamField path="optional-auth" type="boolean" default="false" toc={true}>
+When enabled, client auth parameters (bearer token, basic auth credentials, header auth) remain optional even when the spec's [security requirements](/learn/api-definitions/openapi/authentication) mandate auth on every endpoint, and requests are sent without an auth header when no credential is provided. By default, the client throws when a mandatory credential is missing.
+
+Enable this when callers authenticate through a mechanism other than the API's own scheme, such as cloud provider credentials, and would otherwise have to pass a placeholder value.
 </ParamField>
 
 <ParamField path="outputSourceFiles" type="boolean" default="true" toc={true}>
@@ -434,7 +449,7 @@ config:
       email: developers@acmecorp.com
 ```
 
-You can also use `packageJson.exports` to register custom subpath exports (e.g. `import { myHelper } from "@acme/sdk/helper"`). The generator only auto-generates export entries for your API definition, so custom files need to be added manually—otherwise Node.js won't resolve subpath imports for them. See [Adding custom code](/sdks/generators/typescript/custom-code) for details.
+You can also use `packageJson.exports` to register custom subpath exports (e.g. `import { myHelper } from "@acme/sdk/helper"`). The generator only auto-generates export entries for your API definition, so custom files need to be added manually—otherwise Node.js won't resolve subpath imports for them. See [Adding custom code](/learn/sdks/generators/typescript/custom-code) for details.
 </ParamField>
 
 <ParamField path="package-name" type="string" default="null" required={false} toc={true}>
@@ -454,6 +469,16 @@ Specify the path where the source files for the generated SDK should be placed.
 <ParamField path="publishToJsr" type="boolean" toc={true}>
 Publish your SDK to [JSR](https://jsr.io/). When enabled, the generator will
 generate a `jsr.json` as well as a GitHub workflow to publish to JSR.
+</ParamField>
+
+<ParamField path="requireBaseUrl" type="boolean" default="false" toc={true}>
+When enabled, `baseUrl` becomes a required client option and `environment` becomes optional. Generated code snippets and the `README.md` construct the client with `baseUrl` and omit the environments section.
+
+```typescript
+const client = new AcmeClient({ baseUrl: "https://api.acme.com" });
+```
+
+Enable this for APIs with no named environments, or when callers point the SDK at an arbitrary host. The option is ignored for APIs with [multiple base URLs](/learn/sdks/deep-dives/server-url-templating), whose clients resolve each URL from `environment`.
 </ParamField>
 
 <ParamField path="retainOriginalCasing" type="boolean" default="false" toc={true}>
@@ -541,7 +566,7 @@ This configuration sends `User-Agent: plantstore-node-sdk/0.1.0`. With [`include
 When `useBigInt` is set to `true`, a customized JSON serializer & deserializer is used that will preserve the precision of `bigint`'s, as opposed to the native `JSON.stringify` and `JSON.parse` function which converts `bigint`'s to number's losing precision.
 
 When combining `useBigInt` with our serialization layer (`noSerdeLayer: false`), both the request and response properties that are marked as `long` and `bigint` in OpenAPI/Fern spec, will consistently be `bigint`'s.
-However, when disabling the serialization layer (`noSerdeLayer: true`), they will be typed as `number | bigint`. See [TypeScript serde layer](/sdks/generators/typescript/serde-layer) for more information.
+However, when disabling the serialization layer (`noSerdeLayer: true`), they will be typed as `number | bigint`. See [TypeScript serde layer](/learn/sdks/generators/typescript/serde-layer) for more information.
 
 Here's an overview of what to expect from the generated types when combining `useBigInt` and `noSerdeLayer` with the following Fern definition:
 

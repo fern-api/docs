@@ -69,8 +69,12 @@ The name of the generated client class. Must be PascalCase. For example, setting
 The default number of retries for failed requests in the generated SDK. Set to `0` to disable retries by default. SDK users can still override this per-request via request options.
 </ParamField>
 
+<ParamField path="encode_path_params" type="bool" default="false" required={false} toc={true}>
+Percent-encodes path parameter values when the generated SDK substitutes them into the request path. By default, values are inserted unencoded, so a value containing `/` or `..` changes the path the request resolves to: for an endpoint `GET /plants/{plantId}`, a `plantId` of `../plants` requests `/plants`. When enabled, the same value requests `/plants/..%2Fplants`.
+</ParamField>
+
 <ParamField path="enable_wire_tests" type="bool" default="false" required={false} toc={true}>
-When enabled, generates [mock server (wire) tests](/sdks/deep-dives/testing#mock-server-tests) to verify that the SDK sends and receives HTTP requests as expected.
+When enabled, generates [mock server (wire) tests](/learn/sdks/deep-dives/testing#mock-server-tests) to verify that the SDK sends and receives HTTP requests as expected.
 </ParamField>
 
 <ParamField path="exclude_types_from_init_exports" type="boolean" default="false" required={false} toc={true}>
@@ -182,6 +186,21 @@ When enabled, the generated SDK omits the `X-Fern-Language`, `X-Fern-SDK-Name`, 
 
 <ParamField path="include_platform_headers" type="bool" default="false" required={false} toc={true}>
 When enabled, the generated SDK sends a single structured `User-Agent` header of the form `{sdkName}/{version} ({os}; {arch}) {runtime}/{runtimeVersion}` (for example, `fern_examples/0.0.1 (linux; x86_64) Python/3.11.0`), carrying SDK, operating system, architecture, and runtime information in place of the default `User-Agent` and discrete platform headers. A configured [`user-agent`](#user-agent) template supplies the leading product token. If `omit_fern_headers` is enabled, no `User-Agent` or platform headers are sent and this option has no effect.
+</ParamField>
+
+<ParamField path="allow_user_agent_app_info" type="bool" default="false" required={false} toc={true}>
+When enabled, the generated client constructor accepts `app_info: typing.Optional[typing.Dict[str, str]] = None`, which appends a `{name}/{version} ({comment})` [product token](https://www.rfc-editor.org/rfc/rfc9110#name-user-agent) to the `User-Agent` header so an application built on the SDK can identify itself to the API. The application passes a required `name` key plus optional `version` and `comment` keys; omitted or blank values are dropped from the token. An explicit `User-Agent` header takes precedence, and [`omit_fern_headers`](#omit_fern_headers) suppresses the header entirely.
+
+```python
+app_info={"name": "partner-app", "version": "3.1.0", "comment": "+https://partner.example"}
+# User-Agent: fern_examples/0.0.1 (linux; x86_64) Python/3.11.0 partner-app/3.1.0 (+https://partner.example)
+```
+</ParamField>
+
+<ParamField path="optional_auth" type="bool" default="false" required={false} toc={true}>
+When enabled, client auth parameters (bearer token, basic auth username and password, header auth) remain optional even when the spec's [security requirements](/learn/api-definitions/openapi/authentication) mandate auth on every endpoint, and requests are sent without an auth header when no credential is provided. By default, the client raises an error when a mandatory credential is missing. Also accepted as `optional-auth` or `optionalAuth`.
+
+Enable this when callers authenticate through a mechanism other than the API's own scheme, such as cloud provider credentials, and would otherwise have to pass a placeholder value.
 </ParamField>
 
 <ParamField path="pyproject_python_version" type="string" default="^3.10" required={false} toc={true}>

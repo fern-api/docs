@@ -1,0 +1,301 @@
+---
+title: Scroll walkthrough
+description: Learn how to use the ScrollWalkthrough component in Fern Docs to pair prose steps with a code panel that follows the reader's scroll position.
+---
+
+
+The `<ScrollWalkthrough>` component pairs a column of prose steps with a code panel pinned beside them. Each step or substep names a file and a line range. When it scrolls into view, the panel shows that file with the other lines dimmed. Use it for quickstarts and integration guides where successive steps add to the same few files.
+
+## Usage
+
+A walkthrough can contain a single file or several. Declare each file once as a fenced code block inside the component, then point steps and substeps at it with `file` and a line range in `focus` or `highlight`. A step or substep that omits `file` keeps the previously targeted file.
+
+<ScrollWalkthrough>
+  <Step title="Install the SDK" file="Terminal" focus="1">
+    Add the Plant Store SDK to your project.
+  </Step>
+  <Step title="Create the client" file="garden.ts" focus="1-5">
+    Point the client at your garden with an API key.
+    <Substep file="garden.ts" focus="1">Import the client.</Substep>
+    <Substep file="garden.ts" focus="3-5">Construct it with your API key.</Substep>
+  </Step>
+  <Step title="Add a plant" file="garden.ts" focus="7-11">
+    Create your first plant record. The `wateringDays` interval drives care reminders.
+  </Step>
+
+  ```bash Terminal
+  npm install @plantstore/sdk
+  ```
+
+  ```ts garden.ts
+  import { PlantStore } from "@plantstore/sdk";
+
+  const client = new PlantStore({
+    apiKey: process.env.PLANT_API_KEY,
+  });
+
+  await client.plants.create({
+    name: "Monstera deliciosa",
+    light: "bright-indirect",
+    wateringDays: 7,
+  });
+  ```
+</ScrollWalkthrough>
+
+````jsx Markdown
+<ScrollWalkthrough>
+  <Step title="Install the SDK" file="Terminal" focus="1">
+    Add the Plant Store SDK to your project.
+  </Step>
+  <Step title="Create the client" file="garden.ts" focus="1-5">
+    Point the client at your garden with an API key.
+    <Substep file="garden.ts" focus="1">Import the client.</Substep>
+    <Substep file="garden.ts" focus="3-5">Construct it with your API key.</Substep>
+  </Step>
+  <Step title="Add a plant" file="garden.ts" focus="7-11">
+    Create your first plant record. The `wateringDays` interval drives care reminders.
+  </Step>
+
+  ```bash Terminal
+  npm install @plantstore/sdk
+  ```
+
+  ```ts garden.ts
+  import { PlantStore } from "@plantstore/sdk";
+
+  const client = new PlantStore({
+    apiKey: process.env.PLANT_API_KEY,
+  });
+
+  await client.plants.create({
+    name: "Monstera deliciosa",
+    light: "bright-indirect",
+    wateringDays: 7,
+  });
+  ```
+</ScrollWalkthrough>
+````
+
+On narrow screens the panel pins to the top of the viewport, step headers stop sticking, and each substep's code renders inline beneath it.
+
+## Variants
+
+### Wide layout
+
+Set `layout="wide"` to narrow the prose column and give the code panel more room. Pair it with `panelHeight` to set the panel's height.
+
+<ScrollWalkthrough layout="wide" panelHeight="20rem">
+  <Step title="Fetch a plant" file="garden.ts" focus="1-3">
+    Read a single plant by ID.
+  </Step>
+  <Step title="Log a watering" file="garden.ts" focus="5-8">
+    Record care events to keep the plant's schedule accurate.
+  </Step>
+
+  ```ts garden.ts
+  const plant = await client.plants.get("monstera-1", {
+    includeCareHistory: true,
+  });
+
+  await client.plants.logWatering("monstera-1", {
+    wateredAt: new Date().toISOString(),
+    amountMl: 250,
+  });
+  ```
+</ScrollWalkthrough>
+
+````jsx Markdown
+<ScrollWalkthrough layout="wide" panelHeight="20rem">
+  <Step title="Fetch a plant" file="garden.ts" focus="1-3">
+    Read a single plant by ID.
+  </Step>
+  <Step title="Log a watering" file="garden.ts" focus="5-8">
+    Record care events to keep the plant's schedule accurate.
+  </Step>
+
+  ```ts garden.ts
+  const plant = await client.plants.get("monstera-1", {
+    includeCareHistory: true,
+  });
+
+  await client.plants.logWatering("monstera-1", {
+    wateredAt: new Date().toISOString(),
+    amountMl: 250,
+  });
+  ```
+</ScrollWalkthrough>
+````
+
+### Bulleted substeps
+
+Set `substepStyle="bullet"` to mark substeps with dots instead of numbers. Use it when the substeps under a step aren't ordered.
+
+<ScrollWalkthrough substepStyle="bullet">
+  <Step title="Configure care defaults" file="garden.ts">
+    Each field controls one reminder.
+    <Substep file="garden.ts" focus="2">Set the watering interval in days.</Substep>
+    <Substep file="garden.ts" focus="3">Set the fertilizing interval in weeks.</Substep>
+    <Substep file="garden.ts" focus="4">Choose where reminders are delivered.</Substep>
+  </Step>
+
+  ```ts garden.ts
+  await client.gardens.updateDefaults({
+    wateringDays: 7,
+    fertilizingWeeks: 6,
+    remindVia: "email",
+  });
+  ```
+</ScrollWalkthrough>
+
+````jsx Markdown
+<ScrollWalkthrough substepStyle="bullet">
+  <Step title="Configure care defaults" file="garden.ts">
+    Each field controls one reminder.
+    <Substep file="garden.ts" focus="2">Set the watering interval in days.</Substep>
+    <Substep file="garden.ts" focus="3">Set the fertilizing interval in weeks.</Substep>
+    <Substep file="garden.ts" focus="4">Choose where reminders are delivered.</Substep>
+  </Step>
+
+  ```ts garden.ts
+  await client.gardens.updateDefaults({
+    wateringDays: 7,
+    fertilizingWeeks: 6,
+    remindVia: "email",
+  });
+  ```
+</ScrollWalkthrough>
+````
+
+### Highlighted lines
+
+`focus` dims every line outside its range. `highlight` marks its range with an accent background and leaves the rest of the file at full contrast. Use `highlight` for steps where the surrounding code still matters.
+
+<ScrollWalkthrough>
+  <Step title="Configure the client" file="garden.ts" focus="1-4">
+    Set your API key and a request timeout.
+  </Step>
+  <Step title="Shorten the watering interval" file="garden.ts" highlight="8">
+    Summer growth needs more frequent watering, so drop the interval to five days.
+  </Step>
+
+  ```ts garden.ts
+  const client = new PlantStore({
+    apiKey: process.env.PLANT_API_KEY,
+    timeoutMs: 10000,
+  });
+
+  await client.plants.update("monstera-1", {
+    light: "bright-indirect",
+    wateringDays: 5,
+  });
+  ```
+</ScrollWalkthrough>
+
+````jsx Markdown
+<ScrollWalkthrough>
+  <Step title="Configure the client" file="garden.ts" focus="1-4">
+    Set your API key and a request timeout.
+  </Step>
+  <Step title="Shorten the watering interval" file="garden.ts" highlight="8">
+    Summer growth needs more frequent watering, so drop the interval to five days.
+  </Step>
+
+  ```ts garden.ts
+  const client = new PlantStore({
+    apiKey: process.env.PLANT_API_KEY,
+    timeoutMs: 10000,
+  });
+
+  await client.plants.update("monstera-1", {
+    light: "bright-indirect",
+    wateringDays: 5,
+  });
+  ```
+</ScrollWalkthrough>
+````
+
+## Properties
+
+### `<ScrollWalkthrough>` properties
+
+<ParamField path="layout" type="'default' | 'wide'" required={false} default="default">
+  Column split. `wide` narrows the prose column to give the code panel more room.
+</ParamField>
+
+<ParamField path="panelHeight" type="string" required={false}>
+  Height of the code panel as a CSS length, such as `32rem`. Defaults to a viewport-based height.
+</ParamField>
+
+<ParamField path="stickyHeaders" type="boolean" required={false} default="true">
+  Whether each step's header stays pinned while its substeps scroll.
+</ParamField>
+
+<ParamField path="dim" type="boolean" required={false} default="true">
+  Whether inactive steps and substeps fade out.
+</ParamField>
+
+<ParamField path="substepStyle" type="'bullet' | 'step'" required={false} default="step">
+  Whether substeps are marked with numbers (`step`) or dots (`bullet`).
+</ParamField>
+
+<ParamField path="className" type="string" required={false}>
+  Additional CSS classes to apply to the walkthrough
+</ParamField>
+
+### `<Step>` properties
+
+Inside a walkthrough, [`<Step>`](/learn/docs/writing-content/components/steps) accepts these properties:
+
+<ParamField path="title" type="string" required={false}>
+  The step's heading
+</ParamField>
+
+<ParamField path="description" type="string" required={false}>
+  A short summary rendered under the title
+</ParamField>
+
+<ParamField path="file" type="string | number" required={false}>
+  The file this step targets, matching a code block's title or its 0-based index among the walkthrough's code blocks. When omitted, the step keeps the previously targeted file.
+</ParamField>
+
+<ParamField path="focus" type="string | number | number[]" required={false}>
+  Lines to focus in the targeted file, dimming the rest. Accepts a range string such as `1-5,8`, a single line number, or an array of line numbers.
+</ParamField>
+
+<ParamField path="highlight" type="string | number | number[]" required={false}>
+  Lines to highlight in the targeted file, using the same formats as `focus`.
+</ParamField>
+
+<ParamField path="startLine" type="number" required={false}>
+  The 1-based line the panel scrolls to when the step becomes active. Defaults to the first focused or highlighted line.
+</ParamField>
+
+<ParamField path="id" type="string" required={false}>
+  The unique ID for the step, used for linking. Generated automatically when unset.
+</ParamField>
+
+### `<Substep>` properties
+
+<ParamField path="title" type="string" required={false}>
+  A short heading rendered above the substep's prose
+</ParamField>
+
+<ParamField path="file" type="string | number" required={false}>
+  The file this substep targets, matching a code block's title or its 0-based index. When omitted, the substep inherits the step's file.
+</ParamField>
+
+<ParamField path="focus" type="string | number | number[]" required={false}>
+  Lines to focus in the targeted file, dimming the rest. Accepts a range string such as `1-5,8`, a single line number, or an array of line numbers.
+</ParamField>
+
+<ParamField path="highlight" type="string | number | number[]" required={false}>
+  Lines to highlight in the targeted file, using the same formats as `focus`.
+</ParamField>
+
+<ParamField path="startLine" type="number" required={false}>
+  The 1-based line the panel scrolls to when the substep becomes active. Defaults to the first focused or highlighted line.
+</ParamField>
+
+<ParamField path="id" type="string" required={false}>
+  The unique ID for the substep, used for linking. Generated from the parent step when unset.
+</ParamField>

@@ -155,10 +155,14 @@ hideOnThisPage: true
 
     Use `fern export` to generate an OpenAPI spec for your API. This is useful when you've defined your API in a format other than OpenAPI (such as the [Fern Definition](/learn/api-definitions/ferndef/overview)) and need to export it for integration with other tools or services.
 
+    The path argument is the **output file** to write. Use a `.yml` or `.json` extension to choose the format of the generated spec.
 
     <CodeBlock title="terminal">
     ```bash
+    # Write the exported spec as YAML
     fern export [--api <api>] path/to/openapi.yml
+
+    # ...or as JSON
     fern export [--api <api>] path/to/openapi.json
     ```
     </CodeBlock>
@@ -167,10 +171,19 @@ hideOnThisPage: true
 
     Use `--api` to specify which API to export when you have multiple APIs defined in your `fern/apis/` folder.
 
-        <CodeBlock title="terminal">
+    <CodeBlock title="terminal">
     ```bash
     fern export --api public-api path/to/openapi.yml
-    fern export --api public-api path/to/openapi.json
+    ```
+    </CodeBlock>
+
+    ### indent
+
+    Use `--indent` to set the indentation size, in spaces, of the generated spec.
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern export --indent 4 path/to/openapi.yml
     ```
     </CodeBlock>
 
@@ -181,7 +194,7 @@ hideOnThisPage: true
 
     <CodeBlock title="terminal">
     ```bash
-    fern generate [--group <group>] [--api <api>] [--version <version>] [--preview] [--fernignore <path>] [--local] [--force] [--no-replay]
+    fern generate [--group <group>] [--api <api>] [--version <version>] [--preview] [--fernignore <path>] [--local] [--force] [--no-replay] [--package] [--package-mode <mode>] [--package-only]
     ```
     </CodeBlock>
 
@@ -293,6 +306,64 @@ hideOnThisPage: true
     <Note>
     `--no-replay` works only for local generation (`--local`).
     </Note>
+
+    ### package
+
+    Use `--package` to build a distributable package artifact for every generator in the run whose [output location](/learn/sdks/reference/generators-yml#output) is `local-file-system`. Artifacts are written to a `fern-dist/` folder inside that generator's output directory, so a generated SDK can be handed to internal consumers without publishing it to a public registry. `--package` works with both cloud and local (`--local`) generation.
+
+    ```bash
+    # Package every local-file-system output
+    fern generate --package
+
+    # Package one group generated locally
+    fern generate --group plantstore-python-sdk --local --package
+    ```
+
+    | Language | Artifact |
+    |----------|----------|
+    | TypeScript | npm tarball (`.tgz`) |
+    | Python | wheel (`.whl`) |
+    | Java | JAR |
+    | C# | NuGet package (`.nupkg`) |
+    | Ruby | gem (`.gem`) |
+    | PHP | Composer archive (`.zip`) |
+    | Rust | crate (`.crate`) |
+    | Go | module source zip (`<output-dir>-source.zip`) |
+
+    <Note>
+    Not available for Swift.
+    </Note>
+
+    ### package-mode
+
+    Use `--package-mode <mode>` to choose where `--package` runs the packaging toolchains. `host` (the default) uses the toolchains installed on the machine. `docker` runs each toolchain inside its official image with the output directory mounted, so no language toolchains are required locally, and uses `docker` as the container runtime unless you pass `--runner podman`.
+
+    | Language | Host toolchain | Docker image |
+    |----------|----------------|--------------|
+    | TypeScript | `npm` | `node` |
+    | Python | `pip` | `python` |
+    | Java | `gradle` | `gradle` |
+    | C# | `dotnet` | `dotnet/sdk` |
+    | Ruby | `gem` | `ruby` |
+    | PHP | `composer` | `composer` |
+    | Rust | `cargo` | `rust` |
+
+    ```bash
+    fern generate --group plantstore-python-sdk --package --package-mode docker
+    ```
+
+    `--package-mode` requires `--package` or `--package-only`.
+
+    ### package-only
+
+    Use `--package-only` to keep only the artifact: after packaging, everything in the output directory except `fern-dist/` is deleted, so the generated SDK source isn't left behind. `--package-only` implies `--package`.
+
+    Deletion happens per generator, so a generator that produced no artifact keeps its source. `.git`, `.fernignore`, and any top-level path a `.fernignore` entry covers are always preserved.
+
+    ```bash
+    fern generate --group plantstore-node-sdk --version 0.0.1 --package-only --package-mode docker
+    # SDKs/plantstore-node-sdk/ contains only fern-dist/plantstore-0.0.1.tgz
+    ```
 
   </Accordion>
 
@@ -1037,7 +1108,7 @@ hideOnThisPage: true
 
   <Accordion title="fern api update">
   Pulls the latest OpenAPI spec from the specified `origin` in `generators.yml` and
-  updates the local spec. Alternatively, you can [automate this process by setting up a GitHub Action](/api-definitions/openapi/sync-your-open-api-specification).
+  updates the local spec. Alternatively, you can [automate this process by setting up a GitHub Action](/learn/api-definitions/openapi/sync-your-open-api-specification).
 
   <CodeBlock title="terminal">
     ```bash

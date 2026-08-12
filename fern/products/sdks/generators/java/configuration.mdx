@@ -52,6 +52,10 @@ Example:
 
 </ParamField>
 
+<ParamField path="custom-interceptors" type="boolean" default="false" required={false} toc={true}>
+When enabled, the generated client builder exposes an `addInterceptor(Interceptor)` method for registering [custom OkHttp interceptors](/learn/sdks/generators/java/custom-code#adding-custom-interceptors). Interceptors are applied to the `OkHttpClient` when the client is built, which covers HTTP-level customizations such as request signing and public key client validation.
+</ParamField>
+
 <ParamField path="disable-required-property-builder-checks" type="boolean" default="false" required={false} toc={true}>
 When enabled, disables validation checks in builder patterns for required properties. This removes compile-time checks that ensure all required fields are set before building an object, providing more flexibility but less safety.
 </ParamField>
@@ -75,7 +79,7 @@ When enabled, generates public constructors for model types.
 </ParamField>
 
 <ParamField path="enable-wire-tests" type="boolean" default="false" required={false} toc={true}>
-When enabled, generates [mock server (wire) tests](/sdks/deep-dives/testing#mock-server-tests) to verify that the SDK sends and receives HTTP requests as expected.
+When enabled, generates [mock server (wire) tests](/learn/sdks/deep-dives/testing#mock-server-tests) to verify that the SDK sends and receives HTTP requests as expected.
 </ParamField>
 
 <ParamField path="generate-unknown-as-json-node" type="boolean" default="false" required={false} toc={true}>
@@ -111,6 +115,15 @@ When enabled, the generated SDK omits the `X-Fern-Language`, `X-Fern-SDK-Name`, 
 
 <ParamField path="includePlatformHeaders" type="boolean" default="false" required={false} toc={true}>
 When enabled, the generated SDK sends a single structured `User-Agent` header of the form `{sdkName}/{version} ({os}; {arch}) {runtime}/{runtimeVersion}` (for example, `com.fern.sdk/0.0.1 (linux; x86_64) Java/17.0.13`), carrying SDK, operating system, architecture, and runtime information in place of the default `User-Agent` and discrete platform headers. A configured [`user-agent`](#user-agent) template supplies the leading product token. If `omit-fern-headers` is enabled, no `User-Agent` or platform headers are sent and this option has no effect.
+</ParamField>
+
+<ParamField path="allowUserAgentAppInfo" type="boolean" default="false" required={false} toc={true}>
+When enabled, the generated client builder exposes `appInfo(String name, String version, String comment)`, which appends a `{name}/{version} ({comment})` [product token](https://www.rfc-editor.org/rfc/rfc9110#name-user-agent) to the `User-Agent` header so an application built on the SDK can identify itself to the API. The application passes a required name plus an optional version and comment; `null` drops that part of the token. An explicit `User-Agent` header takes precedence, and [`omit-fern-headers`](#omit-fern-headers) suppresses the header entirely.
+
+```java
+.appInfo("partner-app", "3.1.0", "+https://partner.example")
+// User-Agent: com.fern.sdk/0.0.1 (linux; x86_64) Java/17.0.13 partner-app/3.1.0 (+https://partner.example)
+```
 </ParamField>
 
 <ParamField path="package-layout" type="'nested' | 'flat'" default="nested" required={false} toc={true}>
