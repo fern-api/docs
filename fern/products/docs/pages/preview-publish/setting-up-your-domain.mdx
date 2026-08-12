@@ -237,3 +237,38 @@ instances:
 ```
 
 Listing extra domains in `docs.yml` doesn't activate them on its own. Contact Fern via your dedicated Slack channel or [email](mailto:support@buildwithfern.com) to register and verify each additional domain. You'll receive DNS configuration details for each.
+
+## Forwarding traffic from an old custom domain
+
+If you have changed your custom domain (for example, from `docs.oldcompany.com` to `docs.newcompany.com`), forward traffic from the old domain to the new one so that existing inbound links and search rankings are preserved.
+
+Fern's `redirects` configuration works within a single domain and cannot forward traffic across domains. To forward an entire old domain to a new one, use one of the following approaches:
+
+### Option 1: DNS-level redirect (recommended)
+
+Configure a redirect at your DNS provider or CDN. Most providers support this natively:
+
+- **Cloudflare:** Use a *Page Rule* or *Redirect Rule* to forward `docs.oldcompany.com/*` to `https://docs.newcompany.com/$1` with a 301 (permanent) redirect.
+- **AWS Route 53 + CloudFront:** Create a CloudFront distribution for the old domain that returns a 301 redirect to the new domain.
+- **Vercel / Netlify:** Add the old domain to a project and configure a redirect in `vercel.json` or `netlify.toml`.
+
+### Option 2: Keep the old domain as an alias
+
+If you are on the Team or Enterprise plan, you can list both domains under `custom-domain` in your `docs.yml`. Fern will serve the same content on both domains, and you can then configure a canonical URL via your SEO metadata to tell search engines which domain is authoritative.
+
+```yaml title="docs.yml"
+instances:
+  - url: mysite.docs.buildwithfern.com
+    custom-domain:
+      - docs.newcompany.com      # primary domain
+      - docs.oldcompany.com      # legacy alias — still serves content
+```
+
+Listing the old domain as an alias keeps it live but does not issue a redirect. Search engines will see both domains as serving the same content unless you set a canonical URL. Contact Fern via your dedicated Slack channel or [email](mailto:support@buildwithfern.com) to register and verify each domain.
+
+### Which approach should I use?
+
+| Goal | Recommended approach |
+|---|---|
+| Permanently retire the old domain and pass SEO equity | DNS-level 301 redirect |
+| Keep the old domain live while migrating gradually | Alias in `custom-domain` + canonical URL |
