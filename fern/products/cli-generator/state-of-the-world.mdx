@@ -16,7 +16,7 @@ Fern generates a command-line interface from the same API definition that alread
 - **Consistent by construction.** One runtime drives naming, auth, output, and errors across every command.
 - **Built for scripts, terminals, and agents.** JSON or human output per invocation, plus a machine-readable schema for AI agents.
 - **Extensible past generated commands.** Custom workflow commands mount alongside generated ones.
-- **Tested on the wire.** Generated wire tests run the real binary against a mock server and assert on the exact request each endpoint sends.
+- **Tested on the wire.** Generated wire tests run the real binary against a mock server and assert on the exact request each endpoint sends and the response it renders.
 - **Ships with your other interfaces.** Same source, same generation run as SDKs and docs. No lag.
 
 ## Current capabilities
@@ -45,7 +45,7 @@ Fern generates a command-line interface from the same API definition that alread
 <Accordion title="Testing">
 
 - Generated wire tests: a suite that runs the compiled binary against a mock server and asserts on the exact request each endpoint sends, built from the spec's examples. Assertions cover JSON request bodies through a partial-JSON matcher, the credential header on endpoints that declare auth, and each multipart part's `Content-Disposition`, `Content-Type`, and `filename`. Multipart and binary endpoints are driven with real files through the generated field flags.
-- Every positive case has a non-2xx twin asserting that the CLI exits non-zero and surfaces an error.
+- Response coverage: a happy-path case asserts the rendered response body on stdout against the mocked payload, and every positive case has a non-2xx twin asserting that the CLI exits non-zero and surfaces an error. Streaming and NDJSON responses reshape the payload, so those cases assert that output was produced rather than comparing it byte for byte.
 - Cases are hermetic: each runs with its own temporary home directory and file-backed credential store, so a run neither depends on nor writes to the machine's keyring.
 - A mismatch reports the command, exit code, stdout, stderr, the full received URL, and a self-probe of the mock, so a failing case says whether the mock matched anything at all.
 - The runtime itself carries byte-level test coverage of body encodings and query, path, and header serialization styles, so encoding regressions fail tests instead of reaching users.
@@ -91,9 +91,9 @@ Fern generates a command-line interface from the same API definition that alread
 
 | In active development | Next | Later |
 | --- | --- | --- |
-| **Wire test response assertions**: asserting response bodies and response types, beyond the request-side coverage that already ships | **`serve`**: the same surface over MCP | **Grouped interactive prompts** for missing parameters |
-| **Richer error display**: 401 and 422 hints, links into docs | **Multiple credential profiles** | **Interactive explore view** for nested responses |
-| **Agent-readiness scoring** of generated CLIs | **CLI snippets** in the docs site and API Explorer | **Infrastructure-as-code mode**: state file, plan/diff, apply |
+| **Richer error display**: 401 and 422 hints, links into docs | **`serve`**: the same surface over MCP | **Grouped interactive prompts** for missing parameters |
+| **Agent-readiness scoring** of generated CLIs | **Multiple credential profiles** | **Interactive explore view** for nested responses |
+| **Wire test assertions for streaming and error response payloads**, the two cases that assert output was produced rather than comparing it | **CLI snippets** in the docs site and API Explorer | **Infrastructure-as-code mode**: state file, plan/diff, apply |
 | | **`docs` command**: documentation from inside the CLI | **Per-endpoint default output format** |
 | | **Multi-scheme auth refinements** | **Webhook listener**: `webhooks listen` for local development |
 | | | **GraphQL generation** on the existing runtime support |
