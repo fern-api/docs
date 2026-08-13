@@ -4,7 +4,7 @@ description: "Current capabilities and roadmap for Fern's CLI generator."
 ---
 
 <Note>
-State of the world as of 2026-08-06.
+State of the world as of 2026-08-13, covering CLI generator 0.31.0.
 </Note>
 
 Fern generates a command-line interface from the same API definition that already produces your SDKs and documentation, in the same generation run. When the spec changes, the CLI updates with the SDKs and docs, not after them.
@@ -26,6 +26,7 @@ Fern generates a command-line interface from the same API definition that alread
 
 - Native Rust binaries with no language runtime; each release builds macOS, Linux, and Windows from the same generated source, with fully static Linux artifacts for containers.
 - Distributed via npm, GitHub Releases, `curl | bash`, or a PowerShell installer.
+- Homebrew and Scoop are opt-in on top of that, publishing from the same tagged release: set `distribution.homebrew.tap` and `distribution.scoop.bucket`, and the generated README gains the matching `brew install` and `scoop install` instructions. Both channels require `output.location: github`, public tap and bucket repositories, and a token with write access to them (the workflow's built-in token can't push across repositories). The Scoop manifest declares `64bit` only, and `self-update` doesn't defer to `brew upgrade` or `scoop update`.
 - HTTPS uses the operating system's TLS stack by default (so corporate certificates and policies apply); the static Linux build bundles TLS into the binary itself, so it runs in scratch containers and stripped-down CI hosts with no system libraries at all.
 - Proxy, CA-bundle, and timeout env vars scoped per binary; structured JSON error envelope on stdout with a human-readable summary on stderr; stable exit codes.
 
@@ -35,6 +36,7 @@ Fern generates a command-line interface from the same API definition that alread
 - Many specs, one binary: each product under its own namespace, one shared auth binding.
 - Nested resources become nested subcommands; names derive from tags and operation IDs, and spec extensions or overlays control the command tree when the defaults need shaping.
 - JSON, form-urlencoded, multipart, and binary bodies; query, path, and header serialization is spec-exact, backed by byte-level test coverage in the runtime.
+- File uploads from flags and `@file` references, on both multipart and whole-body binary endpoints. A part's content type resolves from the spec's declared `encoding`, then from the file's extension, then `application/octet-stream`, so servers that validate a part's media type accept the upload. Optional nullable binary fields declared through `anyOf`, `oneOf`, or `allOf` are recognized as file uploads rather than text.
 - Pagination from the pagination extension on your endpoints: `--page-all`, `--page-limit`, page streaming.
 - Overlays reshape a spec for CLI ergonomics without forking it.
 - `@file` references in flag values for reading request data from disk.
@@ -42,7 +44,10 @@ Fern generates a command-line interface from the same API definition that alread
 </Accordion>
 <Accordion title="Testing">
 
-- Generated wire tests: a suite that runs the compiled binary against a mock server and asserts on the exact request each endpoint sends, built from the spec's examples.
+- Generated wire tests: a suite that runs the compiled binary against a mock server and asserts on the exact request each endpoint sends, built from the spec's examples. Assertions cover JSON request bodies through a partial-JSON matcher, the credential header on endpoints that declare auth, and each multipart part's `Content-Disposition`, `Content-Type`, and `filename`. Multipart and binary endpoints are driven with real files through the generated field flags.
+- Every positive case has a non-2xx twin asserting that the CLI exits non-zero and surfaces an error.
+- Cases are hermetic: each runs with its own temporary home directory and file-backed credential store, so a run neither depends on nor writes to the machine's keyring.
+- A mismatch reports the command, exit code, stdout, stderr, the full received URL, and a self-probe of the mock, so a failing case says whether the mock matched anything at all.
 - The runtime itself carries byte-level test coverage of body encodings and query, path, and header serialization styles, so encoding regressions fail tests instead of reaching users.
 - Repos generated in GitHub mode include a build-and-test CI workflow, so every regeneration PR is validated before merge.
 
@@ -86,12 +91,12 @@ Fern generates a command-line interface from the same API definition that alread
 
 | In active development | Next | Later |
 | --- | --- | --- |
-| **File uploads**: multipart and binary uploads from flags and `@file` references | **`serve`**: the same surface over MCP | **Grouped interactive prompts** for missing parameters |
-| **Comprehensive wire tests**: covering responses and response types, not only requests | **Multiple credential profiles** | **Interactive explore view** for nested responses |
-| **Richer error display**: 401 and 422 hints, links into docs | **Homebrew and Scoop distribution** | **Infrastructure-as-code mode**: state file, plan/diff, apply |
-| **Agent-readiness scoring** of generated CLIs | **CLI snippets** in the docs site and API Explorer | **Per-endpoint default output format** |
-| | **`docs` command**: documentation from inside the CLI | **Webhook listener**: `webhooks listen` for local development |
-| | **Multi-scheme auth refinements** | **GraphQL generation** on the existing runtime support |
+| **Wire test response assertions**: asserting response bodies and response types, beyond the request-side coverage that already ships | **`serve`**: the same surface over MCP | **Grouped interactive prompts** for missing parameters |
+| **Richer error display**: 401 and 422 hints, links into docs | **Multiple credential profiles** | **Interactive explore view** for nested responses |
+| **Agent-readiness scoring** of generated CLIs | **CLI snippets** in the docs site and API Explorer | **Infrastructure-as-code mode**: state file, plan/diff, apply |
+| | **`docs` command**: documentation from inside the CLI | **Per-endpoint default output format** |
+| | **Multi-scheme auth refinements** | **Webhook listener**: `webhooks listen` for local development |
+| | | **GraphQL generation** on the existing runtime support |
 
 ## How generation runs
 
