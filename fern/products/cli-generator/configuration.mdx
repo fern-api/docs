@@ -131,11 +131,47 @@ Keywords for crates.io search.
 </ParamField>
 </Indent>
 
+<ParamField path="distribution" type="object" toc={true} required={false}>
+Adds Homebrew and Scoop publishing on top of the GitHub Release archives every generated CLI already ships. Both channels install from a tagged release, so `distribution` is honored only when the generator delivers to a GitHub repository through the `github` block. Enabling a channel adds a publish job to the release workflow and the matching install command to the generated README. For the tap and bucket repositories and the tokens each job needs, see [Publishing](/learn/cli-generator/get-started/publishing#distribution-channels).
+
+```yaml title="generators.yml"
+config:
+  binaryName: plant
+  distribution:
+    homebrew:
+      tap: garden/homebrew-tap
+      formula: plant
+    scoop:
+      bucket: garden/scoop-bucket
+```
+</ParamField>
+<Indent>
+<ParamField path="distribution.homebrew.tap" type="string" required={true}>
+Tap repository as `<owner>/<repo>`, such as `garden/homebrew-tap`. The repository must already exist and be public.
+</ParamField>
+
+<ParamField path="distribution.homebrew.formula" type="string" required={false}>
+Formula name, which is also the `.rb` filename `brew install <tap>/<formula>` resolves against. Must start with a lowercase letter and contain only `[a-z0-9-]`. Defaults to `binaryName`.
+</ParamField>
+
+<ParamField path="distribution.homebrew.tokenEnvironmentVariable" type="string" default="HOMEBREW_TAP_TOKEN" required={false}>
+Name of the GitHub Actions secret holding a token with write access to the tap repository. The workflow's built-in `GITHUB_TOKEN` is scoped to the CLI repository and is rejected here.
+</ParamField>
+
+<ParamField path="distribution.scoop.bucket" type="string" required={true}>
+Bucket repository as `<owner>/<repo>`, such as `garden/scoop-bucket`. The repository must already exist and be public. The generated manifest declares a `64bit` architecture only.
+</ParamField>
+
+<ParamField path="distribution.scoop.tokenEnvironmentVariable" type="string" default="SCOOP_BUCKET_TOKEN" required={false}>
+Name of the GitHub Actions secret holding a token with write access to the bucket repository.
+</ParamField>
+</Indent>
+
 ## Publishing & delivery
 
 ### `output`
 
-Configures where to publish the generated CLI. The CLI generator supports `npm` and `local-file-system` output locations. For the full publishing workflow (OIDC auth, CI builds, Homebrew tap), see [Publishing](/learn/cli-generator/get-started/publishing). For Docker-based generation on your own machine, see [Self-hosted generation](/learn/cli-generator/get-started/local-generation).
+Configures where to publish the generated CLI. The CLI generator supports `npm` and `local-file-system` output locations; binaries also reach users through the GitHub Release that each tag produces, plus the opt-in Homebrew and Scoop channels configured under [`distribution`](#config-options). For the full publishing workflow (OIDC auth, CI builds, tap and bucket setup), see [Publishing](/learn/cli-generator/get-started/publishing). For Docker-based generation on your own machine, see [Self-hosted generation](/learn/cli-generator/get-started/local-generation).
 
 <AccordionGroup>
 <Accordion title="npm">

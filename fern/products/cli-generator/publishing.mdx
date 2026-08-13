@@ -1,6 +1,6 @@
 ---
 title: Publishing
-description: Publish your generated CLI to npm with automated cross-platform builds.
+description: Publish your generated CLI to npm, GitHub Releases, Homebrew, and Scoop with automated cross-platform builds.
 availability: beta
 ---
 
@@ -8,7 +8,7 @@ availability: beta
 The CLI generator is in early access. [Reach out](https://buildwithfern.com/book-demo?type=cli) to get started.
 </Note>
 
-Publish your generated CLI to npm. After following the steps on this page, each tagged release builds cross-platform binaries and publishes them automatically. Homebrew and GitHub Releases distribution are coming soon. To keep generation on your own infrastructure, you can [self-host the generator](/learn/cli-generator/get-started/local-generation) instead of using Fern's cloud.
+Publish your generated CLI to npm. After following the steps on this page, each tagged release builds cross-platform binaries, attaches them to a GitHub Release, and publishes them to npm automatically. Homebrew and Scoop are opt-in channels on top of the same release. To keep generation on your own infrastructure, you can [self-host the generator](/learn/cli-generator/get-started/local-generation) instead of using Fern's cloud.
 
 <Info>
 This page assumes that you have:
@@ -260,7 +260,70 @@ How you trigger a publish depends on your `mode`:
 - In `release` mode, `fern generate --group cli` commits the updated source and tags a release. The tag triggers the CI workflow (no manual release step).
 - In `pull-request` mode, `fern generate --group cli` opens a PR. Merge it, then create a GitHub release with a version tag (e.g. `v1.0.0`) to trigger publishing.
 
-The CI workflow then builds binaries for all platforms and publishes to npm.
+The CI workflow then builds binaries for all platforms, attaches the archives and the `curl | bash` and PowerShell installers to the GitHub Release, and publishes to npm.
+
+## Distribution channels
+
+Homebrew and Scoop install from the archives already attached to each GitHub Release, so both require a `github` block in `generators.yml`. Configure them under [`distribution`](/learn/cli-generator/get-started/configuration#config-options):
+
+```yaml title="generators.yml" {10-16}
+groups:
+  cli:
+    generators:
+      - name: fern-cli-generator
+        version: <Markdown src="/snippets/version-number-cli-generator.mdx"/>
+        output:
+          location: npm
+          package-name: "@myorg/my-cli"
+        config:
+          binaryName: my-cli
+          distribution:
+            homebrew:
+              tap: my-org/homebrew-tap
+              formula: my-cli
+            scoop:
+              bucket: my-org/scoop-bucket
+        github:
+          repository: my-org/my-cli
+          mode: release
+```
+
+Each channel needs a repository and a token before the first release:
+
+<Steps>
+
+<Step title="Create the tap and bucket repositories">
+
+Create a public GitHub repository for each channel you enable — conventionally `homebrew-tap` and `scoop-bucket`. They can be empty; the release workflow commits the formula and the manifest into them. A private tap or bucket breaks installation for users who lack access to it.
+
+</Step>
+
+<Step title="Add a token with write access to them">
+
+The workflow's built-in `GITHUB_TOKEN` is scoped to the CLI repository and can't push to another one, so each channel reads a personal access token (or GitHub App token) from a repository secret with write access to the tap or bucket:
+
+| Secret | Channel | Overridden by |
+| --- | --- | --- |
+| `HOMEBREW_TAP_TOKEN` | Homebrew | `distribution.homebrew.tokenEnvironmentVariable` |
+| `SCOOP_BUCKET_TOKEN` | Scoop | `distribution.scoop.tokenEnvironmentVariable` |
+
+Add them under **Settings** > **Secrets and variables** > **Actions** in the CLI repository.
+
+</Step>
+
+<Step title="Regenerate and tag a release">
+
+```bash
+fern generate --group cli
+```
+
+Regeneration adds a `publish-homebrew-formula` job, a `publish-scoop` job, or both to the release workflow, and adds the matching install commands to the generated README. Prereleases are skipped: a tap and a bucket have no prerelease channel, so an RC never becomes the version users install.
+
+</Step>
+
+</Steps>
+
+The Scoop manifest declares a `64bit` architecture only, matching the single Windows target the workflow builds. Users on ARM64 Windows install through npm or the PowerShell installer instead. `self-update` replaces the binary in place for every channel; it doesn't defer to `brew upgrade` or `scoop update`, so a package manager can later report an older version than the one installed.
 
 ## Build targets
 
@@ -278,10 +341,23 @@ The npm package wraps the native binary with a Node.js launcher. Platform-specif
 
 ## Install instructions for users
 
-After publishing, direct users to install with npm:
+After publishing, direct users to whichever channel they prefer. Every generated CLI supports npm and the installers attached to the GitHub Release:
 
 ```bash
 npm install -g @myorg/my-cli
+```
+
+With `distribution.homebrew` configured, a tap named `my-org/homebrew-tap` resolves as `my-org/tap`:
+
+```bash
+brew install my-org/tap/my-cli
+```
+
+With `distribution.scoop` configured, users add the bucket once, then install:
+
+```bash
+scoop bucket add my-org https://github.com/my-org/scoop-bucket
+scoop install my-cli
 ```
 
 
