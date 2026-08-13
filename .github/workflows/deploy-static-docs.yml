@@ -1,15 +1,18 @@
 name: Deploy Static Docs
 
-# Renders the published docs site to static HTML and uploads it to Cloudflare
-# Pages using the public fernenterprise/docs-static-build container.
+# Renders the published docs site to static HTML, uploads it to the docs-static R2
+# bucket as an immutable build, and flips the docs-router-prod Worker's KV pointer
+# at it — all inside the public fernenterprise/docs-static-build container.
 #
 # Runs AFTER "Publish Docs" completes successfully, so the ledger manifest + CAS
 # blobs the container reads from S3 are already up to date. Also runnable
 # manually via workflow_dispatch.
 #
 # The container takes three logical inputs (see the fern-platform astro
-# package README): the docs URL, an S3 key to READ the ledger blobs, and a CF
-# Pages key to UPLOAD the built site. All are provided as GitHub secrets.
+# package README): the docs URL, an S3 key to READ the ledger blobs, and the
+# Cloudflare credentials to UPLOAD the built site + promote it. All are provided as
+# GitHub secrets. Going live is one KV write, so the swap is atomic; the previous
+# builds stay in R2, so a rollback is the same write aimed at an older build id.
 
 # workflow_run is required so this runs after "Publish Docs" updates the ledger.
 # It's safe here: the job checks out no (untrusted) code, is granted no token
@@ -45,7 +48,7 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       github.event.workflow_run.conclusion == 'success'
     steps:
-      - name: Build static docs and deploy to Cloudflare Pages
+      - name: Build static docs and publish through docs-router-prod
         env:
           # 1. Docs URL — the site to build.
           NEXT_PUBLIC_DOCS_DOMAIN: fern.docs.buildwithfern.com/learn
@@ -60,11 +63,17 @@ jobs:
           AWS_REGION: us-east-1
           DOCS_DEFINITION_S3_BUCKET_NAME: fdr-prod-docs-definitions-public
           CONTENT_ADDRESSABLE_FILES_S3_BUCKET_NAME: fdr-prod-content-addressable-storage
-          # 3. CF Pages key — upload the built dist/ to Cloudflare Pages.
+          # 3. Cloudflare keys — upload the built dist/ to R2 and promote it in KV.
+          # Setting FERN_DOCS_STATIC_BUCKET is what selects this publish path over
+          # the container's legacy Cloudflare Pages deploy.
+          FERN_DOCS_STATIC_BUCKET: fern-docs-static
+          # Bearer token for the KV pointer flip (Workers KV Storage: Edit).
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CF_PAGES_PROJECT: ${{ secrets.CF_PAGES_PROJECT }}
-          CF_PAGES_BRANCH: ${{ secrets.CF_PAGES_BRANCH }}
+          # R2 speaks S3, not the Cloudflare REST API, so the upload needs its own
+          # S3 key pair (R2 → Manage R2 API Tokens), scoped to the bucket above.
+          CLOUDFLARE_R2_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}
+          CLOUDFLARE_R2_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
           # Optional: used only to resolve Ask AI enablement at build time.
           FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
           # Vercel Edge Config connection string. Read at build time to resolve
@@ -103,10 +112,11 @@ jobs:
             -e AWS_REGION \
             -e DOCS_DEFINITION_S3_BUCKET_NAME \
             -e CONTENT_ADDRESSABLE_FILES_S3_BUCKET_NAME \
+            -e FERN_DOCS_STATIC_BUCKET \
             -e CLOUDFLARE_API_TOKEN \
             -e CLOUDFLARE_ACCOUNT_ID \
-            -e CF_PAGES_PROJECT \
-            -e CF_PAGES_BRANCH \
+            -e CLOUDFLARE_R2_ACCESS_KEY_ID \
+            -e CLOUDFLARE_R2_SECRET_ACCESS_KEY \
             -e FERN_TOKEN \
             -e EDGE_CONFIG \
             -e NEXT_PUBLIC_POSTHOG_API_KEY \
