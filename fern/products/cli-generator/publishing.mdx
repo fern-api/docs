@@ -253,18 +253,9 @@ groups:
 
 </AccordionGroup>
 
-## Publish your CLI
+## Configure distribution channels
 
-How you trigger a publish depends on your `mode`:
-
-- In `release` mode, `fern generate --group cli` commits the updated source and tags a release. The tag triggers the CI workflow (no manual release step).
-- In `pull-request` mode, `fern generate --group cli` opens a PR. Merge it, then create a GitHub release with a version tag (e.g. `v1.0.0`) to trigger publishing.
-
-The CI workflow then builds binaries for all platforms, attaches the archives and the `curl | bash` and PowerShell installers to the GitHub Release, and publishes to npm.
-
-## Distribution channels
-
-Homebrew and Scoop install from the archives already attached to each GitHub Release, so both require a `github` block in `generators.yml`. Configure them under [`distribution`](/learn/cli-generator/get-started/configuration#config-options):
+Homebrew and Scoop are optional channels that install from the archives attached to each GitHub Release, so both require a `github` block in `generators.yml`. Configure them under [`distribution`](/learn/cli-generator/get-started/configuration#config-options):
 
 ```yaml title="generators.yml" {10-16}
 groups:
@@ -311,19 +302,18 @@ Add them under **Settings** > **Secrets and variables** > **Actions** in the CLI
 
 </Step>
 
-<Step title="Regenerate and tag a release">
-
-```bash
-fern generate --group cli
-```
-
-Regeneration adds a `publish-homebrew-formula` job, a `publish-scoop` job, or both to the release workflow, and adds the matching install commands to the generated README. Prereleases are skipped: a tap and a bucket have no prerelease channel, so an RC never becomes the version users install.
-
-</Step>
-
 </Steps>
 
-The Scoop manifest declares a `64bit` architecture only, matching the single Windows target the workflow builds. Users on ARM64 Windows install through npm or the PowerShell installer instead. `self-update` replaces the binary in place for every channel; it doesn't defer to `brew upgrade` or `scoop update`, so a package manager can later report an older version than the one installed.
+The next generation adds a `publish-homebrew-formula` job, a `publish-scoop` job, or both to the release workflow, along with the matching install commands in the generated README. Prereleases are skipped: a tap and a bucket have no prerelease channel, so an RC never becomes the version users install.
+
+## Publish your CLI
+
+How you trigger a publish depends on your `mode`:
+
+- In `release` mode, `fern generate --group cli` commits the updated source and tags a release. The tag triggers the CI workflow (no manual release step).
+- In `pull-request` mode, `fern generate --group cli` opens a PR. Merge it, then create a GitHub release with a version tag (e.g. `v1.0.0`) to trigger publishing.
+
+The CI workflow then builds binaries for all platforms, attaches the archives and the `curl | bash` and PowerShell installers to the GitHub Release, publishes to npm, and updates any configured tap or bucket.
 
 ## Build targets
 
@@ -359,5 +349,7 @@ With `distribution.scoop` configured, users add the bucket once, then install:
 scoop bucket add my-org https://github.com/my-org/scoop-bucket
 scoop install my-cli
 ```
+
+Scoop covers x86_64 Windows only; ARM64 Windows users install through npm or the PowerShell installer. `self-update` replaces the binary in place rather than deferring to `brew upgrade` or `scoop update`, so those package managers can report an older version than the one installed.
 
 
