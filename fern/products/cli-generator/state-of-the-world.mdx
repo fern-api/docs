@@ -29,6 +29,8 @@ Fern generates a command-line interface from the same API definition that alread
 - Homebrew and Scoop are opt-in on top of that, publishing from the same tagged release: set `distribution.homebrew.tap` and `distribution.scoop.bucket`, and the generated README gains the matching `brew install` and `scoop install` instructions. Both channels require `output.location: github`, public tap and bucket repositories, and a token with write access to them (the workflow's built-in token can't push across repositories). The Scoop manifest declares `64bit` only, and `self-update` doesn't defer to `brew upgrade` or `scoop update`.
 - HTTPS uses the operating system's TLS stack by default (so corporate certificates and policies apply); the static Linux build bundles TLS into the binary itself, so it runs in scratch containers and stripped-down CI hosts with no system libraries at all.
 - Proxy, CA-bundle, and timeout env vars scoped per binary; structured JSON error envelope on stdout with a human-readable summary on stderr; stable exit codes.
+- Credentials stay on the host they were meant for: redirects and pagination links that cross a host boundary are refused, so a spec-declared credential header isn't resent to another origin, and a `.env` file found on the way up the directory tree can't repoint the base URL, weaken TLS, set a proxy, or choose the pager. Credential headers print as `[REDACTED]` in `--debug` and `--dry-run` output.
+- Generated projects satisfy `cargo build --locked`, so `cargo audit` and `cargo metadata --locked` run against them unchanged.
 
 </Accordion>
 <Accordion title="Generation">
@@ -44,8 +46,8 @@ Fern generates a command-line interface from the same API definition that alread
 </Accordion>
 <Accordion title="Testing">
 
-- Generated wire tests: a suite that runs the compiled binary against a mock server and asserts on the exact request each endpoint sends, built from the spec's examples. Assertions cover JSON request bodies through a partial-JSON matcher, the credential header on endpoints that declare auth, and each multipart part's `Content-Disposition`, `Content-Type`, and `filename`. Multipart and binary endpoints are driven with real files through the generated field flags.
-- Response coverage: a happy-path case asserts the rendered response body on stdout against the mocked payload, and every positive case has a non-2xx twin asserting that the CLI exits non-zero and surfaces an error. Streaming and NDJSON responses reshape the payload, so those cases assert that output was produced rather than comparing it byte for byte.
+- Generated wire tests, enabled with `generateWireTests: true`: a suite that runs the compiled binary against a mock server and asserts on the exact request each endpoint sends, built from the spec's examples. Assertions cover JSON request bodies through a partial-JSON matcher, the credential header on endpoints that declare auth, and each multipart part's `Content-Disposition`, `Content-Type`, and `filename`. Multipart and binary endpoints are driven with real files through the generated field flags.
+- Response coverage: a happy-path case asserts the rendered response body on stdout against the mocked payload, and every positive case has a non-2xx twin asserting that the CLI exits non-zero and surfaces an error. Streaming and NDJSON commands chunk or collect the payload, so those cases assert that output was produced rather than comparing it to the mock's single payload.
 - Cases are hermetic: each runs with its own temporary home directory and file-backed credential store, so a run neither depends on nor writes to the machine's keyring.
 - A mismatch reports the command, exit code, stdout, stderr, the full received URL, and a self-probe of the mock, so a failing case says whether the mock matched anything at all.
 - The runtime itself carries byte-level test coverage of body encodings and query, path, and header serialization styles, so encoding regressions fail tests instead of reaching users.
@@ -56,6 +58,7 @@ Fern generates a command-line interface from the same API definition that alread
 
 - Naming, nesting, auth, output shape, errors, and exit codes come from one runtime, so consistency holds by construction.
 - Bearer, API key, HTTP Basic, and OAuth: client credentials plus interactive `auth login` with Proof Key for Code Exchange (PKCE) and device-code flows, tokens stored in the OS keyring, and `auth status` to show which source is active.
+- `--debug` dumps the fully built request and the response for generated commands and for custom commands that call the co-generated SDK.
 - Retries with backoff and jitter: always on 408 and 429, and on 5xx when the request is safe to replay; automatic idempotency keys on mutating requests; `--dry-run` prints the exact request without sending it; inputs validated before any request is built.
 
 </Accordion>
@@ -93,7 +96,7 @@ Fern generates a command-line interface from the same API definition that alread
 | --- | --- | --- |
 | **Richer error display**: 401 and 422 hints, links into docs | **`serve`**: the same surface over MCP | **Grouped interactive prompts** for missing parameters |
 | **Agent-readiness scoring** of generated CLIs | **Multiple credential profiles** | **Interactive explore view** for nested responses |
-| **Wire test assertions for streaming and error response payloads**, the two cases that assert output was produced rather than comparing it | **CLI snippets** in the docs site and API Explorer | **Infrastructure-as-code mode**: state file, plan/diff, apply |
+| | **CLI snippets** in the docs site and API Explorer | **Infrastructure-as-code mode**: state file, plan/diff, apply |
 | | **`docs` command**: documentation from inside the CLI | **Per-endpoint default output format** |
 | | **Multi-scheme auth refinements** | **Webhook listener**: `webhooks listen` for local development |
 | | | **GraphQL generation** on the existing runtime support |
