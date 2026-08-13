@@ -1,0 +1,152 @@
+---
+title: Fern in Slack
+description: >-
+  Tag @Fern in Slack to get instant answers from your documentation or update your docs via pull request — all without leaving Slack.
+---
+
+`@Fern` is a unified Slack bot that brings your documentation into your workflow. Tag it in any channel to get instant, cited answers to questions about your product, or ask it to update your docs and it will open a GitHub pull request with the changes.
+
+## What @Fern can do
+
+<CardGroup>
+  <Card title="Answer questions" icon="fa-regular fa-circle-question">
+    Ask @Fern anything about your product and it will search your documentation and reply with a cited answer in the thread.
+  </Card>
+  <Card title="Update your docs" icon="fa-regular fa-pen-to-square">
+    Describe a docs change and @Fern will open a GitHub pull request with the edits. Review and iterate in the thread, then merge when ready.
+  </Card>
+</CardGroup>
+
+## Setup
+
+<Note>Installing @Fern in a Slack workspace requires Slack admin access.</Note>
+
+### Answer questions
+
+<Steps>
+<Step title="Get your unique install link">
+Use the [API Explorer](/learn/docs/ai-features/ask-fern/api-reference/slack-ask-fern/get-slack-install-link) to get a unique Slack installation link for your organization. Provide:
+- Your Fern API key
+- Your domain without protocol or path (e.g., `website.com`, not `https://website.com/docs`)
+
+Or use this cURL request:
+```bash
+curl -G https://fai.buildwithfern.com/slack/get-install \
+     -H "Authorization: Bearer <YOUR_FERN_TOKEN>" \
+     --data-urlencode domain=<YOUR_DOMAIN>
+```
+
+Follow the URL returned in the `install_url` response field.
+</Step>
+<Step title="Add to your workspace">
+You'll be redirected to Slack to authorize the app. Select your workspace and click **Allow**.
+</Step>
+<Step title="Add to channels">
+Add @Fern to the channels where you want it to be available. Members will see `@Fern was added to the channel` and can start asking questions immediately.
+</Step>
+</Steps>
+
+### Update docs
+
+Docs updates require a connected GitHub repository. GitLab and other Git providers are not currently supported.
+
+<Steps>
+<Step title="Confirm the Fern GitHub App is installed">
+If you connected a repo through the Fern Dashboard, the GitHub App is already installed — skip this step. Otherwise, install it on your docs repo (requires GitHub org admin access). The app lets @Fern read your repository, open pull requests, and push commits attributed to `fern-support`.
+</Step>
+<Step title="Get your unique install link">
+Provide your Fern API key and the GitHub repository in `owner/repo` format (e.g., `acme/docs`):
+
+```bash
+curl -G https://fai.buildwithfern.com/scribe/slack/get-install \
+     -H "Authorization: Bearer <YOUR_FERN_TOKEN>" \
+     --data-urlencode github_repo=<OWNER/REPO>
+```
+
+Follow the URL returned in the response.
+</Step>
+<Step title="Add to your workspace">
+You'll be redirected to Slack to authorize the app. Select your workspace and click **Allow**.
+</Step>
+<Step title="Add to channels">
+Add @Fern to the channels where your team discusses documentation.
+</Step>
+</Steps>
+
+## Configuration
+
+### Bot settings per channel
+
+Use the `/fern` slash command in any channel to control how @Fern responds:
+
+| Command | Description | Example |
+|---|---|---|
+| `respond_to` | Set whether @Fern responds to `all` messages, `mentions_only` (when directly tagged), or `auto` (default — context-dependent). | `/fern respond_to all` |
+| `roles` | Filter responses by RBAC roles (comma-separated), if role-based access control is configured. | `/fern roles developer,admin` |
+| `show` | Display the current channel settings. | `/fern show` |
+| `help` | Show available slash commands. | `/fern help` |
+
+### Customize the bot name
+
+You can rename @Fern to match your brand (e.g., `@Acme Support`):
+
+1. In Slack, go to **Apps** in the sidebar and click **Fern**
+2. Click the **About** tab, then **Configuration**
+3. Scroll to the **Bot User** section and click **Edit**
+4. Enter your preferred name and save
+
+### Customize docs update behavior
+
+@Fern can be customized for docs updates via an `AGENTS.md` file in your docs repository. Use this file to define your writing style, preferred Fern components, and any conventions you want @Fern to follow when opening pull requests.
+
+## Answering questions
+
+When a member asks @Fern a question, it searches your documentation database and replies in the thread with a cited answer.
+
+### How it works
+
+1. A member asks @Fern a question in a channel
+2. A Slack webhook fires to Fern's servers
+3. The query is converted to a vector
+4. If RBAC is enabled, user roles are checked
+5. Relevant documentation chunks are retrieved
+6. @Fern generates a response using the query and retrieved context
+7. The answer is returned in the Slack thread
+8. The question and answer are stored for [analytics](/learn/docs/ai-features/ask-fern/overview#analytics)
+
+### Improve answers over time
+
+You can teach @Fern from real interactions to improve future responses:
+
+1. A member asks a question and @Fern responds
+2. If the answer needs improvement, reply in the thread with corrections or additional context
+3. Ask @Fern to index the improved response (e.g., "Index this response")
+4. @Fern drafts an improved Q&A pair — iterate until it looks right
+5. Confirm, and @Fern saves the pair to the knowledge base
+
+Once indexed, @Fern uses the curated Q&A pair to inform future responses to similar questions.
+
+## Updating docs
+
+Tag @Fern in any channel and describe the change you need. @Fern will react to confirm receipt, then open a GitHub pull request and reply with a link. Request changes by replying in the thread. When the PR looks good, merge it.
+
+@Fern supports image and file attachments for additional context. When tagged in an existing thread, it reads the full conversation before responding.
+
+### Pull request attribution
+
+Each pull request includes a **Requested by** field attributing the change to the person who initiated it. Commits are signed and attributed to `fern-support`, making automated changes clearly distinguishable from manual contributions.
+
+### Example requests
+
+- `@Fern document the new rate limiting feature added in PR #123`
+- `@Fern add a section about webhook retry behavior to the webhooks guide`
+- `@Fern merge the authentication and authorization pages and add a redirect from the old URL`
+- `@Fern fix the broken code example in the quickstart and update the package version to v2.1.0`
+
+## Privacy and data handling
+
+@Fern does not store your Slack messages directly. When you tag @Fern or reference a thread, the content is held in a session to complete the task and is **not retained** afterwards.
+
+Neither Fern nor its underlying AI providers use your data to train models. Your channel messages, code, and documentation content are never used for training purposes.
+
+Questions and answers from Q&A interactions are stored for [analytics purposes](/learn/docs/ai-features/ask-fern/overview#analytics).
