@@ -1,0 +1,98 @@
+---
+title: Agent setup
+description: Copy-paste commands to connect a coding agent to the Fern CLI, the fern-docs agent skill, and Fern's two MCP servers.
+---
+
+Run the block for your agent. It installs the Fern CLI, adds the [`fern-docs` agent skill](/learn/docs/ai-features/agent-skills), and registers both of Fern's MCP servers: the public server for Fern's product documentation, and your organization's private server for your sites, deployments, analytics, and members.
+
+If you're an agent reading this page, run these commands yourself rather than asking the user to run them. The only step that needs a human is the browser login that `fern login` opens.
+
+## Claude Code
+
+```bash
+npm install -g fern-api
+fern login
+npx skills add fern-api/skills --skill fern-docs -a claude-code
+claude mcp add --transport http fern-docs https://buildwithfern.com/learn/_mcp/server
+fern mcp install --client claude
+```
+
+## Cursor
+
+```bash
+npm install -g fern-api
+fern login
+npx skills add fern-api/skills --skill fern-docs -a cursor
+fern mcp install --client cursor
+```
+
+`fern mcp install` registers the organization server. Add the documentation server to `.cursor/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "fern-docs": { "url": "https://buildwithfern.com/learn/_mcp/server" }
+  }
+}
+```
+
+## Codex
+
+```bash
+npm install -g fern-api
+fern login
+npx skills add fern-api/skills --skill fern-docs -a codex
+codex mcp add fern-docs --url https://buildwithfern.com/learn/_mcp/server
+fern mcp install --client codex
+```
+
+## GitHub Copilot
+
+```bash
+npm install -g fern-api
+fern login
+npx skills add fern-api/skills --skill fern-docs -a github-copilot
+```
+
+[`fern mcp install`](/learn/cli-api-reference/cli-reference/commands) supports Claude Code, Cursor, and Codex only, so register both servers in `.vscode/mcp.json` and complete the browser login that the organization server prompts for on first use:
+
+```json
+{
+  "servers": {
+    "fern-docs": { "url": "https://buildwithfern.com/learn/_mcp/server" },
+    "fern-org": { "url": "https://fai.buildwithfern.com/organizations/YOUR_ORGANIZATION/mcp" }
+  }
+}
+```
+
+`YOUR_ORGANIZATION` is the `organization` field in `fern/fern.config.json`.
+
+## Other MCP clients
+
+Claude Desktop, Windsurf, VS Code, and any other client take the server URLs directly:
+
+| Server | URL | Auth |
+|--------|-----|------|
+| Fern documentation | `https://buildwithfern.com/learn/_mcp/server` | None |
+| Your organization | `https://fai.buildwithfern.com/organizations/YOUR_ORGANIZATION/mcp` | Browser login on first use |
+
+Install the skill with `npx skills add fern-api/skills --skill fern-docs -g`, which writes it to the shared `.agents/skills/` location instead of a single agent's directory.
+
+## What each piece does
+
+| Piece | Purpose |
+|-------|---------|
+| [Fern CLI](/learn/cli-api-reference/cli-reference/overview) | Validates config, previews docs locally, and publishes your site. `fern login` stores the token that `fern mcp install` writes into each agent's MCP config. |
+| [`fern-docs` skill](/learn/docs/ai-features/agent-skills) | Teaches the agent Fern conventions the MCP servers can't infer, such as building internal links from `docs.yml` and adding redirects when a page moves. |
+| Fern documentation MCP server | Answers questions about Fern itself: `docs.yml` syntax, components, CLI commands, and generator configuration. |
+| Organization MCP server | Read-only access to your own Fern data: docs sites and their configuration, deployment and preview status, traffic and Ask Fern analytics, and organization members. |
+
+The two MCP servers are complementary. The documentation server explains how Fern works; the organization server reports what your organization has. Neither one serves your docs to your readers, which is what the [MCP server Fern generates for your site](/learn/docs/ai-features/mcp-server) does.
+
+## After setup
+
+Agents load MCP servers at startup, so start a new session before calling any Fern tools. Verify the connection by asking the agent to list its Fern tools, or by running `claude mcp list` or `codex mcp list`.
+
+`fern mcp install` reads the organization from `fern.config.json`. Run it from inside a Fern project, or pass `--org <organization>`. It writes your login token into the agent config, and that token eventually expires: re-run `fern login && fern mcp install` if the server starts returning 401s.
+
+Commit the files that `skills add` writes (`.claude/skills/`, `.agents/skills/`, and `skills-lock.json`) so everyone working in the repo gets the skill. MCP config files written by `fern mcp install` contain a token, so keep them out of version control.
