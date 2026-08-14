@@ -1,9 +1,12 @@
 ---
 title: Standalone search widget
-description: Embed Fern's AI-powered search in any React application using the @fern-api/search-widget package.
+description: Embed Fern's AI-powered search and Ask AI chat in any React application using the @fern-api/search-widget package.
 ---
 
-The [`@fern-api/search-widget`](https://www.npmjs.com/package/@fern-api/search-widget) package provides a standalone React component that brings Ask Fern's AI-powered search to any React application outside of your Fern Docs site. Embed a search modal in your dashboard, marketing site, or internal tool so users can find relevant documentation without leaving their workflow.
+The [`@fern-api/search-widget`](https://www.npmjs.com/package/@fern-api/search-widget) package brings Ask Fern to any React application outside of your Fern Docs site, so users can find relevant documentation without leaving their dashboard, marketing site, or internal tool. It exports two components:
+
+- `SearchModal` — a command palette with keyword search and Ask AI as one of its modes.
+- `AskAiChat` — an Ask AI chat with no keyword-search UI, rendered as a floating card anchored to a corner of the viewport.
 
 <Frame caption="Search widget embedded in a dashboard. Try the [live demo](https://fern-demo.github.io/fern-search-widget-demo/) or browse the [demo source](https://github.com/fern-demo/fern-search-widget-demo).">
   <video
@@ -75,6 +78,46 @@ The [`@fern-api/search-widget`](https://www.npmjs.com/package/@fern-api/search-w
   </Step>
 </Steps>
 
+## Ask AI chat
+
+`AskAiChat` renders an Ask AI-only chat: streaming answers, citations, a control to start a new chat, and thumbs up or thumbs down feedback on each answer. It ships its own launcher and floats above the page, so it never shifts the layout of the page hosting it. Below the `md` breakpoint the card becomes a bottom drawer.
+
+```tsx
+import { AskAiChat } from '@fern-api/search-widget';
+import '@fern-api/search-widget/styles';
+
+function App() {
+  return <AskAiChat domain="https://docs.example.com" />;
+}
+```
+
+The default launcher is a styled pill in the corner of the viewport. Set `trigger="inline"` to render an unstyled button carrying the `fern-ask-ai-button` class wherever you place it, such as your own nav bar:
+
+```tsx
+<AskAiChat domain="https://docs.example.com" trigger="inline" className="my-nav-button">
+  Ask AI
+</AskAiChat>
+```
+
+`cmd+/` toggles the chat and `Escape` closes it. Citations open your docs site in a new tab. A control in the card header expands the card to a larger size and collapses it again.
+
+### Styling the chat
+
+Override these CSS custom properties to match your application's design:
+
+| Property | Default | Controls |
+|----------|---------|----------|
+| `--fern-ask-ai-font-family` | `ui-sans-serif` stack | Typeface. The widget has no `docs.yml` to read your docs site's font from, so set this to your host page's typeface. |
+| `--background` | — | Surface color of the card and launcher. |
+| `--accent` | — | Icon and link color. |
+| `--fern-ask-ai-radius` | `12px` | Corner radius of the card and launcher. |
+| `--fern-ask-ai-offset` | `20px` | Distance from the corner of the viewport. |
+| `--fern-ask-ai-width` | `400px` | Card width. |
+| `--fern-ask-ai-height` | `640px` | Card height, capped to the viewport. |
+| `--fern-ask-ai-expanded-width` | `480px` | Card width when expanded. |
+| `--fern-ask-ai-expanded-height` | `900px` | Card height when expanded. |
+| `--fern-ask-ai-z-index` | `2147483646` | Stacking order of the launcher and card. |
+
 ## Content Security Policy
 
 If your application enforces a Content Security Policy, allow the widget's runtime requests in `connect-src`:
@@ -88,7 +131,7 @@ Content-Security-Policy: connect-src 'self' https://docs.example.com https://*.a
 
 Replace `https://docs.example.com` with your `domain`. The Algolia wildcards cover the hosts the widget resolves at runtime: `<app-id>-dsn.algolia.net` and `<app-id>-1.algolianet.com` through `<app-id>-3.algolianet.com`.
 
-## Properties
+## SearchModal properties
 
 All standard HTML button attributes are also supported and forwarded to the trigger button.
 
@@ -122,4 +165,34 @@ All standard HTML button attributes are also supported and forwarded to the trig
 
 <ParamField path="onClick" type="function">
   Additional click handler that runs before the modal opens.
+</ParamField>
+
+## AskAiChat properties
+
+<ParamField path="domain" type="string" required={true}>
+  The URL of your published Fern Docs site that answers come from (for example, `https://docs.example.com`). Include the full path if your docs aren't at the root (for example, `https://buildwithfern.com/learn`).
+</ParamField>
+
+<ParamField path="trigger" type="'floating' | 'inline'" default="floating">
+  `floating` renders a styled launcher pill in the corner of the viewport. `inline` renders an unstyled button with the `fern-ask-ai-button` class in place.
+</ParamField>
+
+<ParamField path="placement" type="'bottom-right' | 'bottom-left' | 'top-right' | 'top-left'" default="bottom-right">
+  Corner of the viewport that the floating launcher and card anchor to.
+</ParamField>
+
+<ParamField path="icon" type="React.ReactNode">
+  Icon element to display in the launcher.
+</ParamField>
+
+<ParamField path="children" type="React.ReactNode">
+  Launcher label, replacing the default `Ask AI` text.
+</ParamField>
+
+<ParamField path="className" type="string">
+  CSS class names for the inline trigger.
+</ParamField>
+
+<ParamField path="style" type="React.CSSProperties">
+  Inline styles for the inline trigger.
 </ParamField>
