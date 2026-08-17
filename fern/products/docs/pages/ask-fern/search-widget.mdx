@@ -3,11 +3,13 @@ title: Standalone widgets
 description: Embed Fern's AI-powered search and Ask AI chat in any React application using the @fern-api/search-widget package.
 ---
 
-The [`@fern-api/search-widget`](https://www.npmjs.com/package/@fern-api/search-widget) package provides standalone React components that bring Ask Fern to any React application outside of your Fern Docs site. Embed them in your dashboard, marketing site, or internal tool so users can find relevant documentation without leaving their workflow.
+The [`@fern-api/search-widget`](https://www.npmjs.com/package/@fern-api/search-widget) package provides standalone React components that search and answer questions from your documentation anywhere outside your Fern Docs site. Embed them in your dashboard, marketing site, or internal tool so users can get answers without leaving their workflow.
 
-The package ships two components: `SearchModal`, which opens a search modal combining keyword search with AI answers, and `AskAiChat`, which is the Ask Fern chat experience without any keyword-search UI.
+The package ships two components: 
+*  `SearchModal`, a modal that opens over the page and combines keyword search with AI chat
+*  `AskAiChat`, sidebar panel with AI chat (no keyword search).
 
-<Frame caption="Search widget embedded in a dashboard. Try the [live demo](https://fern-demo.github.io/fern-search-widget-demo/) or browse the [demo source](https://github.com/fern-demo/fern-search-widget-demo).">
+<Frame caption="The `SearchModal` embedded in a dashboard. Try the [live demo](https://fern-demo.github.io/fern-search-widget-demo/) or browse the [demo source](https://github.com/fern-demo/fern-search-widget-demo).">
   <video
     autoPlay
     muted
@@ -43,9 +45,7 @@ The package ships two components: `SearchModal`, which opens a search modal comb
     </llms-only>
   </Step>
   <Step title="Add a widget">
-    Import the component and the bundled styles, then render it with your docs domain. Both components render their own trigger button.
-
-    `SearchModal` opens a modal where users search across your documentation and get AI answers, so it fits applications that need keyword search. `AskAiChat` opens a chat card anchored to a corner of the viewport, and becomes a bottom drawer below 768px. `cmd`/`ctrl` + `/` toggles the card and Escape closes it. Citations in answers link to your docs domain and open in a new tab.
+    Import the component and the bundled styles, then render it with your docs domain. Both components render their own trigger button, and citations in their answers link to your docs domain and open in a new tab.
 
     <Tabs>
       <Tab title="SearchModal">
@@ -63,9 +63,14 @@ The package ships two components: `SearchModal`, which opens a search modal comb
         ```
       </Tab>
       <Tab title="AskAiChat">
-        `AskAiChat` is a client component. In the Next.js App Router, the file that renders it requires the `"use client"` directive, otherwise the page fails with `TypeError: createContext only works in Client Components`. A static import is all that's needed: `next/dynamic` and `ssr: false` aren't required. The Pages Router, Vite, Create React App, and Remix need no additional configuration.
+        `cmd`/`ctrl` + `/` toggles the panel, and it becomes a bottom drawer below 768px.
+
+        <llms-only>
+          Without `"use client"`, the page fails with `TypeError: createContext only works in Client Components`. A static import is enough: `next/dynamic` and `ssr: false` aren't required. The Pages Router, Vite, Create React App, and Remix need no additional configuration.
+        </llms-only>
 
         ```tsx
+        // Required in the Next.js App Router
         'use client';
 
         import { AskAiChat } from '@fern-api/search-widget';
@@ -79,12 +84,12 @@ The package ships two components: `SearchModal`, which opens a search modal comb
     </Tabs>
   </Step>
   <Step title="Customize the appearance">
-    Style the `SearchModal` trigger button with `className`, `style`, or by targeting the default `fern-search-button` class. All standard HTML button attributes are forwarded to the trigger button of either component.
-
-    `AskAiChat` ships a styled launcher pinned to a corner of the viewport, so it takes `theme` and `accentColor` instead. `theme` controls light and dark mode, and `accentColor` sets the accent used for the sparkles, the send button, and links in answers, in both modes.
+    All standard HTML button attributes are forwarded to the trigger button of either component.
 
     <Tabs>
       <Tab title="SearchModal">
+        Style the trigger button with `className`, `style`, or by targeting the default `fern-search-button` class.
+
         ```tsx
         <SearchModal
           domain="https://docs.example.com"
@@ -94,17 +99,19 @@ The package ships two components: `SearchModal`, which opens a search modal comb
           Search Docs
         </SearchModal>
         ```
+
+        <llms-only>
+          A global CSS reset like `* { margin: 0; padding: 0; }` will break the modal's internal layout. Scope global resets to exclude elements inside the search modal.
+        </llms-only>
       </Tab>
       <Tab title="AskAiChat">
+        `AskAiChat` ships a styled trigger button, so match it to your product with `theme` and `accentColor`. `theme` controls light and dark mode, and `accentColor` sets the accent used for the sparkles, the send button, and links in answers, in both modes.
+
         ```tsx
         <AskAiChat domain="https://docs.example.com" theme="inherit" accentColor="#6b4eff" />
         ```
       </Tab>
     </Tabs>
-
-    <llms-only>
-      A global CSS reset like `* { margin: 0; padding: 0; }` will break the modal's internal layout. Scope global resets to exclude elements inside the search modal.
-    </llms-only>
   </Step>
 </Steps>
 
