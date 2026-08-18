@@ -132,7 +132,7 @@ Keywords for crates.io search.
 </Indent>
 
 <ParamField path="distribution" type="object" toc={true} required={false}>
-Adds Homebrew and Scoop publishing on top of the GitHub Release archives every generated CLI already ships. Both channels install from a tagged release, so `distribution` is honored only when the generator delivers to a GitHub repository through the `github` block. Enabling a channel adds a publish job to the release workflow and the matching install command to the generated README. Each job pushes to a public [tap or bucket repository](/learn/cli-generator/get-started/publishing#configure-distribution-channels) you create, using a token you store as a repository secret.
+Adds Homebrew and Scoop publishing on top of the GitHub Release archives every generated CLI already ships. Both channels install from a tagged release, so `distribution` is honored only when the generator delivers to a GitHub repository through the `github` block. Enabling a channel adds a publish job to the release workflow and the matching install command to the generated README. Each job pushes to a public [tap or bucket repository](/learn/cli-generator/get-started/publishing#configure-distribution-channels) you create, authenticating with either a personal access token per channel or a [GitHub App](/learn/cli-generator/get-started/publishing#publish-with-a-github-app) whose credentials you store as repository secrets.
 
 ```yaml title="generators.yml"
 config:
@@ -146,6 +146,18 @@ config:
 ```
 </ParamField>
 <Indent>
+<ParamField path="distribution.githubApp" type="object" required={false}>
+GitHub App the Homebrew and Scoop jobs mint a short-lived installation token from at release time, instead of reading a long-lived personal access token. Declared once for the whole `distribution` block, since one App normally serves both channels; each job passes its own tap or bucket owner, so a tap and a bucket under different accounts mint from the right installation. A channel's `tokenEnvironmentVariable` takes precedence over `githubApp`.
+</ParamField>
+
+<ParamField path="distribution.githubApp.appIdSecret" type="string" required={true}>
+Name of the GitHub Actions secret holding the App's App ID or Client ID.
+</ParamField>
+
+<ParamField path="distribution.githubApp.privateKeySecret" type="string" required={true}>
+Name of the GitHub Actions secret holding the entire contents of the App's private key `.pem` file, line breaks included.
+</ParamField>
+
 <ParamField path="distribution.homebrew.tap" type="string" required={true}>
 Tap repository as `<owner>/<repo>`, such as `garden/homebrew-tap`. The repository must already exist and be public.
 </ParamField>
