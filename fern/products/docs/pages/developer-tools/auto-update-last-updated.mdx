@@ -8,146 +8,119 @@ You can use a GitHub Action to automatically update the [`last-updated` frontmat
 
 ## Set up the workflow
 
-Add this GitHub Action workflow to your documentation repository.
-
 When a pull request is opened or updated, the workflow detects which MDX files changed, updates or adds a `last-updated` field in their frontmatter with the current date, and commits the changes back to the PR branch.
 
-The stamp commit is pushed with a personal access token rather than the built-in `GITHUB_TOKEN`, because a `GITHUB_TOKEN` push leaves the PR's other checks waiting for a manual approval. [Push the stamp commit with your own token](#push-the-stamp-commit-with-your-own-token) covers the token setup.
+Choose the token the workflow pushes that commit with:
 
-<Note>
-The date format is "Month Day, Year" (e.g., "December 11, 2025"). You can customize this by modifying the `date` command in the workflow.
-</Note>
-
-```yml title=".github/workflows/update-last-updated.yml" maxLines=14
-name: Update last updated date
-
-# Trigger this workflow when PRs are opened or updated
-on:
-  pull_request:
-    types: [opened, synchronize]
-    branches:
-      - main  # Adjust to match your main branch name
-
-jobs:
-  update-last-updated:
-    runs-on: ubuntu-latest
-    # No token can push to a contributor's fork, so the push would fail.
-    # Skip fork PRs instead.
-    if: github.event.pull_request.head.repo.full_name == github.repository
-    permissions:
-      contents: write         # Required to commit changes
-      pull-requests: write    # Required to update the PR
-    steps:
-      # Step 1: Check out the PR branch
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}  # Check out the PR's source branch
-          fetch-depth: 0
-          token: ${{ secrets.DOCS_BOT_TOKEN }}  # A PAT, not GITHUB_TOKEN
-
-      # Step 2: Identify which MDX files changed in this PR
-      - name: Get changed MDX files
-        id: changed-files
-        uses: tj-actions/changed-files@v45
-        with:
-          files: |
-            **/*.mdx  # Only track changes to .mdx files
-
-      # Step 3: Update the last-updated field in each changed MDX file
-      - name: Update last-updated frontmatter
-        if: steps.changed-files.outputs.any_changed == 'true'
-        run: |
-          # Generate current date in "Month Day, Year" format (e.g., "December 11, 2025")
-          # Modify the date format here if you prefer a different style
-          CURRENT_DATE=$(date +"%B %-d, %Y")
-          echo "Current date: $CURRENT_DATE"
-
-          # Process each changed MDX file
-          for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
-            echo "Processing: $file"
-
-            # Skip if file was deleted or doesn't exist
-            if [ ! -f "$file" ]; then
-              echo "File not found, skipping: $file"
-              continue
-            fi
-
-            # Check if file has frontmatter (must start with ---)
-            if ! head -1 "$file" | grep -q "^---"; then
-              echo "No frontmatter found, skipping: $file"
-              continue
-            # If file already has a last-updated field, update it
-            elif grep -q "^last-updated:" "$file"; then
-              echo "Updating existing last-updated field"
-              sed -i "s/^last-updated:.*$/last-updated: $CURRENT_DATE/" "$file"
-            # If file has frontmatter but no last-updated field, add it
-            else
-              echo "Adding last-updated field to existing frontmatter"
-              # This awk command inserts the last-updated field just before the closing ---
-              awk -v date="$CURRENT_DATE" '
-                BEGIN { in_frontmatter=0; added=0 }
-                NR==1 && /^---$/ { in_frontmatter=1; print; next }
-                in_frontmatter && /^---$/ && !added { print "last-updated: " date; added=1; print; in_frontmatter=0; next }
-                { print }
-              ' "$file" > "${file}.tmp" && mv "${file}.tmp" "$file"
-            fi
-          done
-
-      # Step 4: Commit and push the updated files back to the PR
-      - name: Commit changes
-        if: steps.changed-files.outputs.any_changed == 'true'
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git add -A
-          # Only commit if there are actual changes
-          if git diff --staged --quiet; then
-            echo "No changes to commit"
-          else
-            git commit -m "chore: update last-updated date in MDX files"
-            git push
-          fi
-```
-
-## Push the stamp commit with your own token
-
-When a workflow updates a pull request using `GITHUB_TOKEN`, GitHub creates the resulting `pull_request` runs in an approval-required state: `fern check`, preview deploys, and every other PR check sit behind an **Approve workflows to run** banner in the merge box until someone with write access approves them. Every docs PR then needs that manual step, which defeats the automation. No repository or organization setting turns this off — the Actions approval settings only govern pull requests from forks.
-
-A push authenticated as anything other than `GITHUB_TOKEN` avoids the gate: it triggers `pull_request` workflows the same way a human push does. Any token with write access to the repository's contents works, including one your repository already uses for release or sync automation.
-
-To set one up:
+- **Personal access token (recommended).** The stamp push triggers the PR's other workflows the same way a human push does, so `fern check` and preview deploys run automatically.
+- **`GITHUB_TOKEN`.** No secret to create, but GitHub holds every `pull_request` run the stamp push triggers behind an **Approve workflows to run** banner until someone with write access approves it. No repository or organization setting turns this off. Use it only when the repository runs no other checks on docs PRs.
 
 <Steps>
-  <Step title="Create a fine-grained personal access token">
-    Under **Settings > Developer settings > Personal access tokens**, create a token scoped to your docs repository with **Contents: Read and write**. Classic tokens with the `repo` scope also work.
+  <Step title="Create a token">
+    Under **Settings > Developer settings > Personal access tokens**, create a fine-grained token scoped to your docs repository with **Contents: Read and write**. Classic tokens with the `repo` scope also work.
+
+    Add it under **Settings > Secrets and variables > Actions** as `DOCS_BOT_TOKEN`. A token your repository already uses for release or sync automation works too, as does a [GitHub App installation token](https://github.com/actions/create-github-app-token), which avoids per-user expiry on team-maintained repositories.
+
+    Skip this step if you're using `GITHUB_TOKEN`.
   </Step>
-  <Step title="Store it as a repository secret">
-    Add it under **Settings > Secrets and variables > Actions** as `DOCS_BOT_TOKEN`, matching the name the workflow references.
+  <Step title="Add the workflow">
+    Add this workflow to your documentation repository, with `token` set to the secret you created. It stamps dates in "Month Day, Year" format (e.g., "December 11, 2025"); change the `date` command to use a different format.
+
+    ```yml title=".github/workflows/update-last-updated.yml" maxLines=14
+    name: Update last updated date
+
+    # Trigger this workflow when PRs are opened or updated
+    on:
+      pull_request:
+        types: [opened, synchronize]
+        branches:
+          - main  # Adjust to match your main branch name
+
+    jobs:
+      update-last-updated:
+        runs-on: ubuntu-latest
+        # No token can push to a contributor's fork, so the push would fail.
+        # Skip fork PRs instead.
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        permissions:
+          contents: write         # Required to commit changes
+          pull-requests: write    # Required to update the PR
+        steps:
+          # Step 1: Check out the PR branch
+          - name: Checkout repository
+            uses: actions/checkout@v4
+            with:
+              ref: ${{ github.head_ref }}  # Check out the PR's source branch
+              fetch-depth: 0
+              token: ${{ secrets.DOCS_BOT_TOKEN }}  # A PAT, not GITHUB_TOKEN
+
+          # Step 2: Identify which MDX files changed in this PR
+          - name: Get changed MDX files
+            id: changed-files
+            uses: tj-actions/changed-files@v45
+            with:
+              files: |
+                **/*.mdx  # Only track changes to .mdx files
+
+          # Step 3: Update the last-updated field in each changed MDX file
+          - name: Update last-updated frontmatter
+            if: steps.changed-files.outputs.any_changed == 'true'
+            run: |
+              # Generate current date in "Month Day, Year" format (e.g., "December 11, 2025")
+              # Modify the date format here if you prefer a different style
+              CURRENT_DATE=$(date +"%B %-d, %Y")
+              echo "Current date: $CURRENT_DATE"
+
+              # Process each changed MDX file
+              for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
+                echo "Processing: $file"
+
+                # Skip if file was deleted or doesn't exist
+                if [ ! -f "$file" ]; then
+                  echo "File not found, skipping: $file"
+                  continue
+                fi
+
+                # Check if file has frontmatter (must start with ---)
+                if ! head -1 "$file" | grep -q "^---"; then
+                  echo "No frontmatter found, skipping: $file"
+                  continue
+                # If file already has a last-updated field, update it
+                elif grep -q "^last-updated:" "$file"; then
+                  echo "Updating existing last-updated field"
+                  sed -i "s/^last-updated:.*$/last-updated: $CURRENT_DATE/" "$file"
+                # If file has frontmatter but no last-updated field, add it
+                else
+                  echo "Adding last-updated field to existing frontmatter"
+                  # This awk command inserts the last-updated field just before the closing ---
+                  awk -v date="$CURRENT_DATE" '
+                    BEGIN { in_frontmatter=0; added=0 }
+                    NR==1 && /^---$/ { in_frontmatter=1; print; next }
+                    in_frontmatter && /^---$/ && !added { print "last-updated: " date; added=1; print; in_frontmatter=0; next }
+                    { print }
+                  ' "$file" > "${file}.tmp" && mv "${file}.tmp" "$file"
+                fi
+              done
+
+          # Step 4: Commit and push the updated files back to the PR
+          - name: Commit changes
+            if: steps.changed-files.outputs.any_changed == 'true'
+            run: |
+              git config --local user.email "github-actions[bot]@users.noreply.github.com"
+              git config --local user.name "github-actions[bot]"
+              git add -A
+              # Only commit if there are actual changes
+              if git diff --staged --quiet; then
+                echo "No changes to commit"
+              else
+                git commit -m "chore: update last-updated date in MDX files"
+                git push
+              fi
+    ```
   </Step>
 </Steps>
 
-Personal access tokens expire and are tied to one person's account. For a repository maintained by a team, a GitHub App with **Contents: Read and write** installed on the repository avoids both problems; mint its token in the job and check out with that instead:
-
-```yml
-      - name: Generate a token
-        id: app-token
-        uses: actions/create-github-app-token@v2
-        with:
-          app-id: ${{ secrets.DOCS_BOT_APP_ID }}
-          private-key: ${{ secrets.DOCS_BOT_PRIVATE_KEY }}
-
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
-          fetch-depth: 0
-          token: ${{ steps.app-token.outputs.token }}
-```
-
-Keeping `token: ${{ secrets.GITHUB_TOKEN }}` is reasonable only when the repository runs no other checks on docs PRs, since there is nothing for the approval gate to hold back.
-
-Either token makes the stamp commit a real `synchronize` event, so this workflow runs a second time on its own commit. That run stamps the same date, finds no diff, and exits without committing.
+The stamp commit is itself a `synchronize` event, so this workflow runs a second time on its own commit. That run stamps the same date, finds no diff, and exits without committing.
 
 ## Skip specific pull requests
 
