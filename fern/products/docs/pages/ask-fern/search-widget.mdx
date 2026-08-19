@@ -143,7 +143,7 @@ Rendering `AskAiChat` inside a dropdown menu item doesn't work:
 
 Selecting the item closes the menu, and Radix (like Headless UI and most menu libraries) unmounts the menu's contents when it closes. That destroys the chat before it renders: nothing appears and no error is thrown.
 
-Instead, split the widget with `AskAiChat.Root`, `AskAiChat.Trigger`, and `AskAiChat.Panel`. The trigger lives inside the menu, where unmounting is harmless, and the chat lives outside it:
+For this case only, split the widget with `AskAiChat.Root`, `AskAiChat.Trigger`, and `AskAiChat.Panel`. The single `<AskAiChat />` component remains the normal integration; the split form is opt-in for triggers that sit inside something that unmounts its children. The trigger lives inside the menu, where unmounting is harmless, and the chat lives outside it:
 
 ```jsx
 import { AskAiChat } from '@fern-api/search-widget';
@@ -171,7 +171,7 @@ function HelpMenu() {
 
 *  `AskAiChat.Root` holds the state and renders no DOM of its own. It accepts the same props as `AskAiChat` except `trigger`. Wrap it around both the menu and the panel.
 *  `AskAiChat.Trigger` is a real `<button>`, so `asChild` works and the menu library keeps its menu-item keyboard behavior. It carries the localized `Ask AI` label, the sparkle icon, and the `aria-haspopup="dialog"` and `aria-controls` attributes. `variant="floating"` renders the corner launcher instead of an unpainted button; `children` and `icon` replace the label and the icon.
-*  `AskAiChat.Panel` is the chat. Render exactly one per root, outside any menu. A root with a trigger but no panel logs a console warning.
+*  `AskAiChat.Panel` is the chat. Render exactly one per root, outside any menu: two panels collide on a fixed element id. A root with a trigger but no panel logs a console warning.
 
 This shape also covers a popover, a command palette, or a nav bar dropdown, and a single root supports multiple triggers.
 
@@ -201,7 +201,7 @@ const [askAiOpen, setAskAiOpen] = useState(false);
 />
 ```
 
-`open` is controlled in the usual React sense: the widget renders what you give it, so `onOpenChange` must be wired back to your state or the chat's own controls (its close button, `Escape`, and `cmd`/`ctrl` + `/`) will appear to do nothing. Pass neither prop and the widget manages its own state; `onOpenChange` on its own works as a notification hook.
+`open` is controlled in the usual React sense: the widget renders what you give it, so `onOpenChange` must be wired back to your state or the chat's own controls (its close button, `Escape`, and `cmd`/`ctrl` + `/`) will appear to do nothing. Pass neither prop and the widget manages its own state; `onOpenChange` on its own works as a notification hook. With `trigger="none"`, `ref` stays `null` since there's no built-in button to attach it to, and the trigger's accessibility (`aria-haspopup="dialog"`, plus `aria-expanded` on a button) is yours to provide.
 
 `AskAiChat.Sparkles` is the Ask AI sparkle icon the built-in trigger uses, for making your own trigger read as the same affordance. It sizes to `1em` of the surrounding text and takes its color.
 
