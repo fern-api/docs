@@ -8,21 +8,19 @@ You can use a GitHub Action to automatically update the [`last-updated` frontmat
 
 ## Set up the workflow
 
-When a pull request is opened or updated, the workflow detects which MDX files changed, updates or adds a `last-updated` field in their frontmatter with the current date, and commits the changes back to the PR branch.
+When a pull request is opened or updated, the workflow detects which MDX files changed, updates or adds a `last-updated` field in their frontmatter with the current date, and commits the changes back to the PR branch. That stamp commit is itself a `synchronize` event, so the workflow runs a second time on its own commit; the second run stamps the same date, finds no diff, and exits without committing.
 
 <Steps>
-  <Step title="Choose a token">
-    The workflow pushes its stamp commit with one of two tokens:
+  <Step title="Create a token">
+    Give the workflow a personal access token to push its stamp commit with. A push authenticated this way triggers the PR's other workflows the same way a human push does, so `fern check` and preview deploys run automatically.
 
-    - **Personal access token (recommended).** The stamp push triggers the PR's other workflows the same way a human push does, so `fern check` and preview deploys run automatically.
-    - **`GITHUB_TOKEN`.** No secret to create, but GitHub holds every `pull_request` run the stamp push triggers behind an **Approve workflows to run** banner until someone with write access approves it. No repository or organization setting turns this off. Use it only when the repository runs no other checks on docs PRs.
-  </Step>
-  <Step title="Create the token">
-    Under **Settings > Developer settings > Personal access tokens**, create a fine-grained token scoped to your docs repository with **Contents: Read and write**. Classic tokens with the `repo` scope also work.
+    1. Under **Settings > Developer settings > Personal access tokens**, create a fine-grained token scoped to your docs repository with **Contents: Read and write**. Classic tokens with the `repo` scope also work.
 
-    Add it under **Settings > Secrets and variables > Actions** as `DOCS_BOT_TOKEN`. A token your repository already uses for release or sync automation works too, as does a [GitHub App installation token](https://github.com/actions/create-github-app-token), which avoids per-user expiry on team-maintained repositories.
+    1. Add it under **Settings > Secrets and variables > Actions** as `DOCS_BOT_TOKEN`. A token your repository already uses for release or sync automation works too, as does a [GitHub App installation token](https://github.com/actions/create-github-app-token), which avoids per-user expiry on team-maintained repositories.
 
-    Skip this step if you chose `GITHUB_TOKEN`.
+    <Note>
+      If your repository runs no other checks on docs PRs, you can skip adding the secret and use the built-in `GITHUB_TOKEN` instead. GitHub holds every `pull_request` run the stamp push triggers behind an **Approve workflows to run** banner until someone with write access approves it, and no repository or organization setting turns this off.
+    </Note>
   </Step>
   <Step title="Add the workflow">
     Add this workflow to your documentation repository, with `token` set to the secret you created. It stamps dates in "Month Day, Year" format (e.g., "December 11, 2025"); change the `date` command to use a different format.
@@ -120,8 +118,6 @@ When a pull request is opened or updated, the workflow detects which MDX files c
     ```
   </Step>
 </Steps>
-
-The stamp commit is itself a `synchronize` event, so this workflow runs a second time on its own commit. That run stamps the same date, finds no diff, and exits without committing.
 
 ## Skip specific pull requests
 
