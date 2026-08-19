@@ -12,7 +12,7 @@ Add this GitHub Action workflow to your documentation repository.
 
 When a pull request is opened or updated, the workflow detects which MDX files changed, updates or adds a `last-updated` field in their frontmatter with the current date, and commits the changes back to the PR branch.
 
-The stamp commit is pushed with a GitHub App installation token rather than the built-in `GITHUB_TOKEN`, because a `GITHUB_TOKEN` push leaves the PR's other checks waiting for a manual approval. [Push the stamp commit with an app token](#push-the-stamp-commit-with-an-app-token) covers the setup and the alternatives.
+The stamp commit is pushed with a personal access token rather than the built-in `GITHUB_TOKEN`, because a `GITHUB_TOKEN` push leaves the PR's other checks waiting for a manual approval. [Push the stamp commit with your own token](#push-the-stamp-commit-with-your-own-token) covers the token setup.
 
 <Note>
 The date format is "Month Day, Year" (e.g., "December 11, 2025"). You can customize this by modifying the `date` command in the workflow.
@@ -31,30 +31,22 @@ on:
 jobs:
   update-last-updated:
     runs-on: ubuntu-latest
-    # GitHub App tokens aren't valid for a contributor's fork, so the push would
-    # fail. Skip fork PRs instead.
+    # No token can push to a contributor's fork, so the push would fail.
+    # Skip fork PRs instead.
     if: github.event.pull_request.head.repo.full_name == github.repository
     permissions:
       contents: write         # Required to commit changes
       pull-requests: write    # Required to update the PR
     steps:
-      # Step 1: Mint an installation token for the GitHub App
-      - name: Generate a token
-        id: app-token
-        uses: actions/create-github-app-token@v2
-        with:
-          app-id: ${{ secrets.DOCS_BOT_APP_ID }}
-          private-key: ${{ secrets.DOCS_BOT_PRIVATE_KEY }}
-
-      # Step 2: Check out the PR branch
+      # Step 1: Check out the PR branch
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           ref: ${{ github.head_ref }}  # Check out the PR's source branch
           fetch-depth: 0
-          token: ${{ steps.app-token.outputs.token }}
+          token: ${{ secrets.DOCS_BOT_TOKEN }}  # A PAT, not GITHUB_TOKEN
 
-      # Step 3: Identify which MDX files changed in this PR
+      # Step 2: Identify which MDX files changed in this PR
       - name: Get changed MDX files
         id: changed-files
         uses: tj-actions/changed-files@v45
@@ -62,7 +54,7 @@ jobs:
           files: |
             **/*.mdx  # Only track changes to .mdx files
 
-      # Step 4: Update the last-updated field in each changed MDX file
+      # Step 3: Update the last-updated field in each changed MDX file
       - name: Update last-updated frontmatter
         if: steps.changed-files.outputs.any_changed == 'true'
         run: |
@@ -102,7 +94,7 @@ jobs:
             fi
           done
 
-      # Step 5: Commit and push the updated files back to the PR
+      # Step 4: Commit and push the updated files back to the PR
       - name: Commit changes
         if: steps.changed-files.outputs.any_changed == 'true'
         run: |
@@ -118,24 +110,40 @@ jobs:
           fi
 ```
 
-## Push the stamp commit with an app token
+## Push the stamp commit with your own token
 
 When a workflow updates a pull request using `GITHUB_TOKEN`, GitHub creates the resulting `pull_request` runs in an approval-required state: `fern check`, preview deploys, and every other PR check sit behind an **Approve workflows to run** banner in the merge box until someone with write access approves them. Every docs PR then needs that manual step, which defeats the automation. No repository or organization setting turns this off — the Actions approval settings only govern pull requests from forks.
 
-Pushing with a GitHub App installation token or a personal access token avoids the gate entirely: those pushes trigger `pull_request` workflows the same way a human push does.
+A push authenticated as anything other than `GITHUB_TOKEN` avoids the gate: it triggers `pull_request` workflows the same way a human push does. Any token with write access to the repository's contents works, including one your repository already uses for release or sync automation.
 
-To use an app token:
+To set one up:
 
 <Steps>
-  <Step title="Create a GitHub App">
-    In your organization settings, create a GitHub App with **Contents: Read and write** repository permission, then install it on your docs repository.
+  <Step title="Create a fine-grained personal access token">
+    Under **Settings > Developer settings > Personal access tokens**, create a token scoped to your docs repository with **Contents: Read and write**. Classic tokens with the `repo` scope also work.
   </Step>
-  <Step title="Store its credentials as secrets">
-    Add the app ID as `DOCS_BOT_APP_ID` and the generated private key as `DOCS_BOT_PRIVATE_KEY` in your repository's Actions secrets.
+  <Step title="Store it as a repository secret">
+    Add it under **Settings > Secrets and variables > Actions** as `DOCS_BOT_TOKEN`, matching the name the workflow references.
   </Step>
 </Steps>
 
-A [fine-grained personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens) with **Contents: Read and write** works as a drop-in substitute: drop the token-generating step and check out with `token: ${{ secrets.DOCS_BOT_TOKEN }}`. Tokens expire and are tied to one person's account, so an app is the better fit for a shared repository.
+Personal access tokens expire and are tied to one person's account. For a repository maintained by a team, a GitHub App with **Contents: Read and write** installed on the repository avoids both problems; mint its token in the job and check out with that instead:
+
+```yml
+      - name: Generate a token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.DOCS_BOT_APP_ID }}
+          private-key: ${{ secrets.DOCS_BOT_PRIVATE_KEY }}
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+```
 
 Keeping `token: ${{ secrets.GITHUB_TOKEN }}` is reasonable only when the repository runs no other checks on docs PRs, since there is nothing for the approval gate to hold back.
 
