@@ -169,11 +169,11 @@ function HelpMenu() {
 }
 ```
 
-*  `AskAiChat.Root` holds the state and renders no DOM of its own. It accepts the same props as `AskAiChat` except `trigger`. Wrap it around both the menu and the panel.
+*  `AskAiChat.Root` holds the state and renders no DOM of its own. It takes `domain`, `lang`, `searchLocale`, `placement`, `theme`, `accentColor`, `open`, `defaultOpen`, and `onOpenChange`. Styling props (`className`, `style`, `icon`, and any button attributes) go on `AskAiChat.Trigger` instead. Note that `children` here is the subtree to wrap — the menu and the panel — not the trigger label it is on `AskAiChat`.
 *  `AskAiChat.Trigger` is a real `<button>`, so `asChild` works and the menu library keeps its menu-item keyboard behavior. It carries the localized `Ask AI` label, the sparkle icon, and the `aria-haspopup="dialog"` and `aria-controls` attributes. `variant="floating"` renders the corner launcher instead of an unpainted button; `children` and `icon` replace the label and the icon.
 *  `AskAiChat.Panel` is the chat. Render exactly one per root, outside any menu: two panels collide on a fixed element id. A root with a trigger but no panel logs a console warning.
 
-This shape also covers a popover, a command palette, or a nav bar dropdown, and a single root supports multiple triggers.
+This shape also covers a popover, a command palette, or a nav bar dropdown, and a single root supports multiple triggers. Only one of them may be `variant="floating"`: the floating launcher carries a fixed element id, so two would collide.
 
 <Warning>
   Don't keep the menu open with `onSelect={(event) => event.preventDefault()}` as a workaround. Radix's modal menu sets `pointer-events: none` on `<body>` while it's open, and the chat, portaled to `<body>`, inherits it: the chat paints correctly but ignores all pointer and keyboard input. Let the menu close instead.
