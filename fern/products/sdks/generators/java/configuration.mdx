@@ -143,6 +143,19 @@ config:
 Publish target for Maven packages. Use `central` for Maven Central Portal or `ossrh` for legacy Nexus Repository.
 </ParamField>
 
+<ParamField path="respect-optional-request-body" type="boolean" default="false" required={false} toc={true}>
+Lets callers omit the request body on endpoints with an optional request body. A call that omits it sends no body and no `Content-Type` header, instead of an empty JSON object (`{}`). Enable this when your API treats a missing body differently from an empty one.
+
+Each affected endpoint gains an overload without the body parameter, rather than an `Optional<T>` parameter:
+
+```java
+waterPlant(String plantId);
+waterPlant(String plantId, WaterRequest request);
+```
+
+Only applies to request bodies declared as a single named type. Required bodies and inlined request properties are unaffected.
+</ParamField>
+
 <ParamField path="runtime-version" type="boolean" default="false" required={false} toc={true}>
 When enabled, the generated SDK resolves the version it reports in the `X-Fern-SDK-Version` header and the [`User-Agent`](#user-agent) version segment at runtime from the jar manifest, instead of the version baked in at generation time. The generated `build.gradle` records the project version in the manifest, and the generation-time version is used as a fallback when the manifest attribute is absent. Enable this when external release tooling determines the published version after generation, so the reported version always matches the published artifact. If [`omit-fern-headers`](#omit-fern-headers) is enabled, the SDK reports no version at all and this option has no effect.
 </ParamField>

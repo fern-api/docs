@@ -46,6 +46,63 @@ results instead of managing pagination complexity manually.
     print(user)
   ```
 </Tab>
+<Tab title="Go" language="go">
+
+  Once you've configured pagination for an endpoint, Fern generates a Go SDK
+  method that returns a `*core.Page[T]` where `T` is the underlying data type.
+  `Page.Iterator()` returns an iterator that fetches subsequent pages as needed,
+  and `Page.GetNextPage(ctx)` iterates page by page.
+
+  ```go
+  page, err := client.Users.List(ctx)
+  if err != nil {
+    return err
+  }
+  iter := page.Iterator()
+  for iter.Next(ctx) {
+    fmt.Println(iter.Current())
+  }
+  return iter.Err()
+  ```
+
+  A page property that lives in the request body rather than in a query parameter
+  requires the [`enableRequestBodyPagination`](/learn/sdks/generators/go/configuration#enablerequestbodypagination)
+  configuration option.
+</Tab>
+<Tab title="Java" language="java">
+
+  Once you've configured pagination for an endpoint, Fern generates a Java SDK
+  method that returns a `SyncPagingIterable<T>` where `T` is the underlying data
+  type. The iterable fetches subsequent pages as your users loop over or stream
+  the items, and `nextPage()` paginates manually.
+
+  ```java
+  SyncPagingIterable<User> response = client.users().list();
+  for (User user : response) {
+    System.out.println(user);
+  }
+  ```
+
+  or as a stream:
+  ```java
+  client.users().list().streamItems().forEach(System.out::println);
+  ```
+</Tab>
+<Tab title="C#" language="csharp">
+
+  Once you've configured pagination for an endpoint, Fern generates a C# SDK
+  method that returns a `Pager<T>` where `T` is the underlying data type. The
+  `Pager<T>` implements `IAsyncEnumerable<T>`, allowing your users to use it in
+  an `await foreach` loop.
+
+  ```csharp
+  var users = await client.Users.ListAsync();
+  await foreach (var user in users)
+  {
+    Console.WriteLine(user);
+  }
+  ```
+</Tab>
 </Tabs>
 
 ## Setting up auto-pagination

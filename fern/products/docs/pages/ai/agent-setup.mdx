@@ -1,0 +1,77 @@
+---
+title: Agent setup
+description: Copy-paste commands to connect a coding agent to the Fern CLI, the fern-docs agent skill, and Fern's two MCP servers.
+---
+
+If you're an agent reading this page, run these commands yourself rather than asking the user to run them. The only step that needs a human is the browser login that `fern login` opens.
+
+## Claude Code
+
+```bash
+npm install -g fern-api
+fern login
+npx skills add fern-api/skills --skill fern-docs -a claude-code
+claude mcp add --transport http fern-docs https://buildwithfern.com/learn/_mcp/server
+fern mcp install --client claude
+```
+
+## Cursor
+
+```bash
+npm install -g fern-api
+fern login
+npx skills add fern-api/skills --skill fern-docs -a cursor
+fern mcp install --client cursor
+```
+
+`fern mcp install` registers the organization server. Add the documentation server to `.cursor/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "fern-docs": { "url": "https://buildwithfern.com/learn/_mcp/server" }
+  }
+}
+```
+
+## Codex
+
+```bash
+npm install -g fern-api
+fern login
+npx skills add fern-api/skills --skill fern-docs -a codex
+codex mcp add fern-docs --url https://buildwithfern.com/learn/_mcp/server
+fern mcp install --client codex
+```
+
+## GitHub Copilot
+
+```bash
+npm install -g fern-api
+fern login
+npx skills add fern-api/skills --skill fern-docs -a github-copilot
+```
+
+[`fern mcp install`](/learn/cli-api-reference/cli-reference/commands) supports Claude Code, Cursor, and Codex only, so register both servers in `.vscode/mcp.json` and complete the browser login that the organization server prompts for on first use:
+
+```json
+{
+  "servers": {
+    "fern-docs": { "url": "https://buildwithfern.com/learn/_mcp/server" },
+    "fern-org": { "url": "https://fai.buildwithfern.com/organizations/YOUR_ORGANIZATION/mcp" }
+  }
+}
+```
+
+`YOUR_ORGANIZATION` is the `organization` field in `fern/fern.config.json`.
+
+## Other MCP clients
+
+Claude Desktop, Windsurf, VS Code, and any other client take the server URLs directly:
+
+| Server | URL | Auth |
+|--------|-----|------|
+| Fern documentation | `https://buildwithfern.com/learn/_mcp/server` | None |
+| Your organization | `https://fai.buildwithfern.com/organizations/YOUR_ORGANIZATION/mcp` | Browser login on first use |
+
+Install the skill with `npx skills add fern-api/skills --skill fern-docs -g`, which writes it to the shared `.agents/skills/` location instead of a single agent's directory.

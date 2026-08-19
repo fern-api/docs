@@ -222,6 +222,16 @@ api:
 <ParamField path="headers" type="string or list of objects" toc={true}>
   Global headers to include with all API requests. This is an alternative to configuring [global headers in your OpenAPI spec](/learn/api-definitions/openapi/extensions/global-headers). You can specify headers as simple string values or as objects with additional configuration for code generation.
 
+  The object form supports these keys:
+
+  - `name`: the parameter name used in generated SDK code. Defaults to the header name.
+  - `type`: the header type for code generation, such as `string`, `optional<string>`, or `literal<"1234">`.
+  - `env`: the environment variable the generated SDK reads when the caller doesn't supply the header.
+  - `client-default`: the value the generated SDK sends when neither an explicit value nor `env` supplies one. This is the equivalent of [`x-fern-default`](/learn/api-definitions/openapi/extensions/default-values) on an OpenAPI global header.
+  - `default`: a documentation-only value displayed in the API Reference. It has no effect on generated SDKs.
+
+  Generated SDKs resolve a [global header](/learn/sdks/deep-dives/global-headers) value in a fixed order: an option set on a single request, then the value passed to the client constructor, then the `env` environment variable, then `client-default`.
+
   <AccordionGroup>
   <Accordion title="Simple string values">
 
@@ -232,19 +242,18 @@ api:
       X-App-Version: "1.0.0"
   ```
   </Accordion>
-  <Accordion title="Advanced configuration with type information">
+  <Accordion title="Object configuration">
 
   ```yaml title="generators.yml"
   api:
-    - openapi: ./path/to/openapi
-      headers: 
-        X-Version: 
-          # The variable name to use in generated SDK code. 
-          # If not specified, uses the header name.
-          name: version 
-          # The type of the header value for code generation 
-          # (e.g., "string", "literal<'value'>", "number").
-          type: literal<"1234">
+    specs:
+      - openapi: ./path/to/openapi
+    headers:
+      X-API-Version:
+        name: version
+        type: optional<string>
+        env: MY_API_VERSION
+        client-default: "2024-01-01"
   ```
   </Accordion>
   </AccordionGroup>

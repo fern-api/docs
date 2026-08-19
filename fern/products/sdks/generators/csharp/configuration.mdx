@@ -120,6 +120,18 @@ Specifies a list of types that should be generated using ReadOnlyMemory&lt;T&gt;
 When enabled, prevents raw response bodies from leaking into exception messages and logs. Deserialization error exceptions pass `null` instead of the raw response body, and the base API exception class includes a custom `ToString()` override that excludes the response body.
 </ParamField>
 
+<ParamField path="respect-optional-request-body" type="boolean" default="false" required={false} toc={true}>
+Lets callers omit the request body on endpoints with an optional request body. A call that omits it sends no body and no `Content-Type` header, instead of an empty JSON object (`{}`). Enable this when your API treats a missing body differently from an empty one.
+
+The body parameter is defaulted, and `Body` on a wrapped request is no longer `required`:
+
+```csharp
+Task<Plant> WaterPlantAsync(string plantId, WaterRequest? request = null, ...)
+```
+
+Only applies to request bodies declared as a single named type. Required bodies and inlined request properties are unaffected.
+</ParamField>
+
 <ParamField path="root-client-class-access" type="'public' | 'internal'" required={false} toc={true}>
 Controls the access modifier for the root client class. Use 'public' to make the client accessible from other assemblies, or 'internal' to restrict access within the same assembly.
 </ParamField>

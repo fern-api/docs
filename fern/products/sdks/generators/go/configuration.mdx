@@ -67,6 +67,10 @@ option.WithUserAgentAppInfo("partner-app", "3.1.0", "+https://partner.example")
 ```
 </ParamField>
 
+<ParamField path="enableRequestBodyPagination" type="boolean" default="false" required={false} toc={true}>
+Generates [auto-pagination](/learn/sdks/deep-dives/auto-pagination) for endpoints whose cursor or offset page property is a top-level request body property (for example, `cursor: $request.cursor`). The generated pager advances the page by setting the field on the request object instead of on the query string. This defaults to `false` because enabling it changes the affected methods' return types from a response to a pager. Nested body page properties (for example, `cursor: $request.pagination.cursor`) are unsupported and still generate a plain, non-paginated method.
+</ParamField>
+
 <ParamField path="enableWireTests" type="boolean" default="true" required={false} toc={true}>
 Generates [mock server (wire) tests](/learn/sdks/deep-dives/testing#mock-server-tests) to verify that the SDK sends the correct HTTP requests and correctly handles responses per the API spec. When enabled, Docker is required as a runtime dependency to run the generated tests.
 </ParamField>
@@ -169,6 +173,12 @@ replace "github.com/your/sdk" v0.0.0 => "path/to/generated/sdk"
 
 <ParamField path="packageName" type="string" required={false} toc={true}>
 Specifies the package name for the generated Go code. This determines the package declaration that will appear at the top of generated Go files and affects how users import the SDK.
+</ParamField>
+
+<ParamField path="respectOptionalRequestBody" type="boolean" default="false" required={false} toc={true}>
+Lets callers omit the request body on endpoints with an optional request body. A request wrapper with a `nil` body sends no body and no `Content-Type` header, instead of the JSON literal `null`. Enable this when your API treats a missing body differently from a `null` one.
+
+Only applies to request bodies declared as a single named type. Required bodies and inlined request properties are unaffected.
 </ParamField>
 
 <ParamField path="serverUrlVariables" type="boolean" default="true" required={false} toc={true}>

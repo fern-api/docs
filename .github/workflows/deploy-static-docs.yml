@@ -73,6 +73,13 @@ jobs:
           # returns undefined and getEdgeFlags falls back to all-false defaults,
           # leaking the badge onto every page — see the guard in the run step.
           EDGE_CONFIG: ${{ secrets.EDGE_CONFIG }}
+          # Fern's internal PostHog key, inlined into the client bundle at build
+          # time (the astro config `define`s it, defaulting to ""). Without it the
+          # internal PostHog client no-ops and the dashboard's docs page-view
+          # metrics stay at zero — the build prints a warning in that case. The
+          # env var name is what the build reads; the NEXT_PUBLIC_ prefix is
+          # meaningless off Next, hence the plainer secret name.
+          NEXT_PUBLIC_POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
           IMAGE_TAG: ${{ github.event.inputs.image_tag || 'latest' }}
         run: |
           IMAGE="fernenterprise/docs-static-build:${IMAGE_TAG}"
@@ -102,4 +109,5 @@ jobs:
             -e CF_PAGES_BRANCH \
             -e FERN_TOKEN \
             -e EDGE_CONFIG \
+            -e NEXT_PUBLIC_POSTHOG_API_KEY \
             "$IMAGE"

@@ -166,7 +166,7 @@ function FernStatusWidget() {
         }} />
         <span style={{
           fontSize: '0.875rem',
-          color: 'var(--grayscale-10)',
+          color: 'var(--grayscale-a11)',
           fontWeight: 400,
         }}>{status.statusMessage}</span>
       </div>
@@ -229,7 +229,7 @@ export default function FernFooter() {
 
         .fern-cf-status-text {
           font-size: 0.875rem;
-          color: var(--grayscale-10);
+          color: var(--grayscale-a11);
           font-weight: 400;
         }
 
@@ -283,10 +283,13 @@ export default function FernFooter() {
           min-width: 120px;
         }
 
+        /* Rendered as a div, not a heading, so the footer does not break the
+           page's heading order; keeps the heading font of the previous markup. */
         .fern-cf-column-title {
+          font-family: var(--typography-heading-font-family, var(--font-heading));
           font-size: 0.875rem;
           font-weight: 400;
-          color: var(--grayscale-9);
+          color: var(--grayscale-a12);
           letter-spacing: -0.025em;
         }
 
@@ -327,7 +330,7 @@ export default function FernFooter() {
         .fern-cf-bottom-text {
           font-weight: 400;
           font-size: 0.875rem;
-          color: var(--grayscale-10);
+          color: var(--grayscale-a11);
           text-decoration: none;
           transition: color 0.15s ease-in-out;
           width: fit-content;
@@ -410,7 +413,7 @@ export default function FernFooter() {
 
       <footer className="fern-cf">
         <div className="fern-cf-top">
-          <a className="fern-cf-logo" href="https://buildwithfern.com">
+          <a className="fern-cf-logo" href="https://buildwithfern.com" aria-label="Built with Fern">
             <span className="fern-cf-light">
               <BuiltWithFernLight className="fern-cf-logo-img" />
             </span>
@@ -436,7 +439,7 @@ export default function FernFooter() {
 
           <div className="fern-cf-columns">
             <div className="fern-cf-column">
-              <h4 className="fern-cf-column-title">Documentation</h4>
+              <div className="fern-cf-column-title">Documentation</div>
               <div className="fern-cf-column-links">
                 <a href="/learn/sdks/overview/introduction" className="fern-cf-link">SDKs</a>
                 <a href="/learn/docs/getting-started/overview" className="fern-cf-link">Docs</a>
@@ -446,7 +449,7 @@ export default function FernFooter() {
             </div>
 
             <div className="fern-cf-column">
-              <h4 className="fern-cf-column-title">API Definitions</h4>
+              <div className="fern-cf-column-title">API Definitions</div>
               <div className="fern-cf-column-links">
                 <a href="/learn/api-definitions/openapi/overview" className="fern-cf-link">OpenAPI</a>
                 <a href="/learn/api-definitions/asyncapi/overview" className="fern-cf-link">AsyncAPI</a>
@@ -456,7 +459,7 @@ export default function FernFooter() {
             </div>
 
             <div className="fern-cf-column">
-              <h4 className="fern-cf-column-title">Resources</h4>
+              <div className="fern-cf-column-title">Resources</div>
               <div className="fern-cf-column-links">
                 <a href="https://buildwithfern.com/blog" className="fern-cf-link">Blog</a>
                 <a href="/learn/home#get-support" className="fern-cf-link">Support</a>
@@ -465,7 +468,7 @@ export default function FernFooter() {
             </div>
 
             <div className="fern-cf-column">
-              <h4 className="fern-cf-column-title">Company</h4>
+              <div className="fern-cf-column-title">Company</div>
               <div className="fern-cf-column-links">
                 <a href="https://brandfetch.com/buildwithfern.com" className="fern-cf-link">Brand Kit</a>
                 <a href="https://buildwithfern.com/privacy-policy" className="fern-cf-link">Privacy Policy</a>
@@ -474,15 +477,15 @@ export default function FernFooter() {
             </div>
 
             <div className="fern-cf-socials">
-              <a href="https://github.com/fern-api/fern" className="fern-cf-link">
+              <a href="https://github.com/fern-api/fern" className="fern-cf-link" aria-label="Fern on GitHub">
                 <span className="fern-cf-light"><GitHubIcon color="#62636C" className="fern-cf-social-icon" /></span>
                 <span className="fern-cf-dark"><GitHubIcon color="#B2B3BD" className="fern-cf-social-icon" /></span>
               </a>
-              <a href="https://x.com/buildwithfern" className="fern-cf-link">
+              <a href="https://x.com/buildwithfern" className="fern-cf-link" aria-label="Fern on X">
                 <span className="fern-cf-light"><XIcon color="#62636C" className="fern-cf-social-icon" /></span>
                 <span className="fern-cf-dark"><XIcon color="#B2B3BD" className="fern-cf-social-icon" /></span>
               </a>
-              <a href="https://www.linkedin.com/company/buildwithfern" className="fern-cf-link">
+              <a href="https://www.linkedin.com/company/buildwithfern" className="fern-cf-link" aria-label="Fern on LinkedIn">
                 <span className="fern-cf-light"><LinkedInIcon color="#62636C" className="fern-cf-social-icon" /></span>
                 <span className="fern-cf-dark"><LinkedInIcon color="#B2B3BD" className="fern-cf-social-icon" /></span>
               </a>

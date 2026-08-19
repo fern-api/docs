@@ -5,7 +5,7 @@ max-toc-depth: 3
 ---
 
 
-Fern selectors use Tailwind CSS utilities and CSS custom properties. This page is a reference of all `.fern-*` selectors for customizing your documentation site.
+Fern selectors use Tailwind CSS utilities and CSS custom properties. This page is a reference of the stable `fern-*` selectors for customizing your documentation site.
 
 ## Layout and structure
 
@@ -180,14 +180,21 @@ Changelog page layout.
 Selectors for the site header, tabs, and mobile menu.
 
 <AccordionGroup>
-<Accordion title=".fern-header">
+<Accordion title="#fern-header">
 
 Site header container.
 
 ```css Default CSS
-.fern-header {
-  backdrop-filter: blur(0.5rem);
-  background-color: transparent;
+#fern-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 30;
+  pointer-events: auto;
+  border-bottom: 1px solid var(--border-concealed);
+  background-color: var(--header-background);
+  backdrop-filter: blur(16px);
 }
 ```
 
@@ -2581,90 +2588,176 @@ Next page link.
 
 ## Changelog components
 
-Selectors for [changelog pages](/learn/docs/configuration/changelogs).
+Selectors for [changelog pages](/learn/docs/configuration/changelogs). The changelog overview renders a feed: a control bar (search and tag filters) above a vertical timeline of entry cards grouped by day. The page layout container is `.fern-layout-changelog` (documented under [Layout and structure](#layout-and-structure)).
 
 <AccordionGroup>
-<Accordion title=".fern-changelog">
+<Accordion title=".fern-changelog-feed">
 
-Changelog page container.
+Centered column that holds the changelog header, control bar, and timeline.
 
 ```css Default CSS
-.fern-changelog {
-  display: flex;
-  justify-content: space-between;
-  padding-left: 1rem;
-  padding-right: 1rem;
-}
-
-@media (min-width: 768px) {
-  .fern-changelog {
-    padding-left: 1.5rem;
-    padding-right: 1.5rem;
-  }
-}
-
-@media (min-width: 1024px) {
-  .fern-changelog {
-    padding-left: 2rem;
-    padding-right: 2rem;
-  }
-}
-
-.fern-changelog > main {
+.fern-changelog-feed {
+  width: var(--content-wide-width);
+  max-width: 100%;
   margin-left: auto;
   margin-right: auto;
-  width: 100%;
-  max-width: 1024px;
-  word-wrap: break-word;
-}
-```
-
-**Variants:**
-- `.full-width` - Full-width layout with sidebar date display
-
-</Accordion>
-
-<Accordion title=".fern-changelog-entry">
-
-Changelog entry.
-
-```css Default CSS
-.fern-changelog-entry {
   display: flex;
-  align-items: stretch;
-}
-
-.fern-changelog-entry:is(article) {
-  padding-top: 2rem;
-  padding-bottom: 2rem;
-}
-
-@media (min-width: 1024px) {
-  .fern-changelog-entry:is(article) {
-    padding-top: 4rem;
-    padding-bottom: 4rem;
-  }
+  flex-direction: column;
+  gap: 2rem;
 }
 ```
 
 </Accordion>
 
-<Accordion title=".fern-changelog-date">
+<Accordion title=".fern-changelog-controls">
 
-Changelog date.
+Control bar with the full-text search and tag filter. Inner elements: `.fern-changelog-controls-row` and `.fern-changelog-search`.
 
 ```css Default CSS
-.fern-changelog-date {
-  color: var(--grayscale-a11);
-  font-size: 1rem;
-  margin-bottom: 2rem;
+.fern-changelog-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-top: 0.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--grayscale-a4);
 }
 
-@media (min-width: 1024px) {
-  .fern-changelog.full-width .fern-changelog-entry > aside .fern-changelog-date {
-    position: sticky;
-    top: calc(var(--header-height) + 1rem);
-  }
+.fern-changelog-controls-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.fern-changelog-search {
+  min-width: 0;
+  flex: 1 1 0%;
+}
+```
+
+</Accordion>
+
+<Accordion title=".fern-changelog-timeline">
+
+Vertical timeline: a left date gutter beside a rail of entry cards. Entries are grouped per day into `.fern-changelog-day-group`, with the date in `.fern-changelog-day` and that day's cards in `.fern-changelog-day-entries`.
+
+```css Default CSS
+.fern-changelog-timeline {
+  display: flex;
+  flex-direction: column;
+}
+
+.fern-changelog-day-group {
+  display: flex;
+  gap: 1rem;
+}
+
+.fern-changelog-day {
+  color: var(--grayscale-a11);
+  width: 6rem;
+  flex-shrink: 0;
+  align-self: flex-start;
+  padding-top: 1.25rem;
+  font-size: 0.75rem;
+  line-height: 1.5rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  position: sticky;
+  top: calc(var(--fern-changelog-sticky-top, var(--spacing-header-height-padded)) + 0.5rem);
+}
+
+.fern-changelog-day-entries {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 0%;
+  flex-direction: column;
+  border-left: 1px solid var(--grayscale-a4);
+}
+```
+
+</Accordion>
+
+<Accordion title=".fern-changelog-card">
+
+A single clickable changelog entry card in the timeline. Inner elements: `.fern-changelog-card-marker` (timeline dot), `.fern-changelog-card-body`, `.fern-changelog-card-title`, `.fern-changelog-card-link`, `.fern-changelog-card-excerpt`, `.fern-changelog-card-preview` (rich MDX preview), and `.fern-changelog-card-tags`.
+
+```css Default CSS
+.fern-changelog-card {
+  position: relative;
+  border-radius: var(--radius-3);
+  padding: 1.25rem 1rem 1.25rem 1.5rem;
+  transition: color, background-color;
+}
+
+.fern-changelog-card:hover {
+  background-color: var(--grayscale-a2);
+}
+
+.fern-changelog-card-marker {
+  position: absolute;
+  left: 0;
+  top: 2rem;
+  width: 0.625rem;
+  height: 0.625rem;
+  transform: translate(-50%, -50%);
+  border-radius: 9999px;
+  background-color: var(--grayscale-6);
+}
+
+.fern-changelog-card:hover .fern-changelog-card-marker {
+  background-color: var(--accent);
+}
+
+.fern-changelog-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.fern-changelog-card-title {
+  margin: 0;
+  color: var(--grayscale-a12);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.fern-changelog-card-excerpt {
+  margin: 0;
+  color: var(--grayscale-a11);
+  font-size: 0.875rem;
+  line-height: 1.625;
+}
+```
+
+</Accordion>
+
+<Accordion title=".fern-changelog-tags">
+
+Tag chips as rendered inside a full changelog entry page. In the timeline cards the chips render in `.fern-changelog-card-tags`. Search matches are highlighted with `.fern-changelog-highlight`, and `.fern-changelog-empty` shows when no entries match the active filters.
+
+```css Default CSS
+.fern-changelog-tags {
+  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.fern-changelog-highlight {
+  background-color: var(--accent-a3);
+  color: var(--accent-a11);
+  border-radius: var(--radius-1);
+}
+
+.fern-changelog-empty {
+  color: var(--grayscale-a11);
+  padding-top: 4rem;
+  padding-bottom: 4rem;
+  text-align: center;
+  font-size: 0.875rem;
 }
 ```
 
@@ -2681,7 +2774,7 @@ Changelog content area.
   margin-right: auto;
   display: grid;
   width: 100%;
-  max-width: var(--content-wide-width);
+  max-width: var(--content-width);
   grid-template-columns: 1fr;
   gap: 1rem;
 }
@@ -2710,3 +2803,419 @@ Changelog entry label.
 
 </Accordion>
 </AccordionGroup>
+
+## Complete selector index
+
+The sections of this page document the most commonly customized selectors in detail. The table below is the complete set of stable `fern-*` selectors present in the rendered docs, generated from the Fern docs source. Any `fern-*` selector not in the table doesn't exist in the rendered site.
+
+<table sticky searchable paginate pageSize={25} className="fern-table" placeholder="Search selectors...">
+  <thead>
+    <tr>
+      <th>Selector</th>
+      <th>Type</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td><code>.fern-accordion</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-accordion-item</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-accordion-trigger</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-accordion-trigger-arrow</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-accordion-trigger-title</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-air</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-analytics-ga</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-analytics-gtm</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-analytics-segment</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-anchor</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-anchor-icon</code></td><td>Class</td></tr>
+    <tr><td><code>#fern-announcement</code></td><td>ID</td></tr>
+    <tr><td><code>.fern-announcement-dismissed</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-api-property</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-api-property-constraint</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-api-property-default</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-api-property-header</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-api-property-key</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-api-property-meta</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-api-property-optional</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-api-property-readonly</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-api-property-required</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-api-property-type</code></td><td>Class</td></tr>
+    <tr><td><code>#fern-ask-ai-button</code></td><td>ID</td></tr>
+    <tr><td><code>#fern-ask-ai-button-icon</code></td><td>ID</td></tr>
+    <tr><td><code>#fern-ask-ai-panel</code></td><td>ID</td></tr>
+    <tr><td><code>#fern-ask-ai-panel-header</code></td><td>ID</td></tr>
+    <tr><td><code>#fern-ask-ai-panel-header-icon</code></td><td>ID</td></tr>
+    <tr><td><code>#fern-ask-ai-panel-input</code></td><td>ID</td></tr>
+    <tr><td><code>.fern-audio-player</code></td><td>Class</td></tr>
+    <tr><td><code>#fern-auth-button</code></td><td>ID</td></tr>
+    <tr><td><code>.fern-back-to-top</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-background-image</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-bleed</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-breadcrumb</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-breadcrumb-arrow</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-breadcrumb-item</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-button</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-button-content</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-button-group</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-button-text</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-callout</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-card</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-card-group</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-changelog-card</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-changelog-card-body</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-changelog-card-excerpt</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-changelog-card-link</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-changelog-card-marker</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-changelog-card-preview</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-changelog-card-tags</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-changelog-card-title</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-changelog-content</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-changelog-controls</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-changelog-controls-row</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-changelog-day</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-changelog-day-entries</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-changelog-day-group</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-changelog-empty</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-changelog-feed</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-changelog-highlight</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-changelog-highlight-style</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-changelog-label</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-changelog-overview</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-changelog-search</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-changelog-tags</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-changelog-timeline</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-checkbox-indicator</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-checkbox-item</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-checkbox-label</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-code</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-code-actions</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-code-block</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-code-block-actions</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-code-block-content</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-code-block-header</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-code-block-header-inner</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-code-block-title</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-code-block-title-label</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-code-content</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-code-group</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-code-group-actions</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-code-group-content</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-code-group-header</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-code-group-header-inner</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-code-group-tab</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-code-group-tab-label</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-code-group-tabs</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-code-header</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-code-header-inner</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-code-label</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-code-link</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-collapse-trigger</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-collapsible</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-collapsible-card</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-collapsible-card-nested</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-collapsible-card-print-truncated</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-collapsible-child</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-copy-button</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-copy-inline</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-dashboard</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-docs-badge</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-docs-feedback</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-docs-static</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-docs-track-analytics</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-dropdown</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-dropdown-checkmark</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-dropdown-item</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-dropdown-item-indicator</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-endpoint-code-snippets</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-endpoint-request-snippet</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-endpoint-response-snippet</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-endpoint-section-auth</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-endpoint-section-errors</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-endpoint-section-headers</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-endpoint-section-path-parameters</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-endpoint-section-query-parameters</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-endpoint-section-request-body</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-endpoint-section-response-body</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-endpoint-section-response-headers</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-endpoint-selector</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-env-switcher</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-expand-button</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-explorer-auth-form</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-explorer-clear-form-button</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-explorer-endpoint-form</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-explorer-example-selector</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-explorer-form</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-explorer-form-buttons</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-explorer-request-card</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-explorer-request-header</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-explorer-request-title</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-explorer-response-card</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-explorer-response-header</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-explorer-response-title</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-explorer-section-body</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-explorer-section-body-parameters</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-explorer-section-content</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-explorer-section-header</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-explorer-section-headers</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-explorer-section-multipart-form</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-explorer-section-parameters</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-explorer-section-path-parameters</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-explorer-section-query-parameters</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-explorer-send-request-button</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-feedback-button</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-file-icon</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-filter-badge</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-filter-badge-selected</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-filter-badge-unselected</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-filter-dropdown-button</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-filter-dropdown-button-content</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-filter-dropdown-button-icon</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-filter-dropdown-button-text</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-filter-dropdown-item</code></td><td>Class</td></tr>
+    <tr><td><code>#fern-footer</code></td><td>ID</td></tr>
+    <tr><td><code>.fern-footer-nav</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-footer-nav--simple</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-footer-next</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-footer-prev</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-ground</code></td><td>Class</td></tr>
+    <tr><td><code>#fern-header</code></td><td>ID</td></tr>
+    <tr><td><code>.fern-header-content</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-header-height</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-header-logo-container</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-header-mobile-menu-button</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-header-navbar-links</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-header-search-bar</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-header-selectors</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-header-switchers</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-header-switchers-separator</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-header-tabs</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-highlight</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-image-loader</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-indent</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-input</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-input-clear-button</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-input-group</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-input-icon</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-input-right-element</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-kbd</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-language-dropdown-content</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-language-dropdown-item</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-language-dropdown-item-label</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-language-selector</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-language-selector-radio-group</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-layout-changelog</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-layout-changelog-entry</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-layout-content-wrapper</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-layout-footer</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-layout-footer-toolbar</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-layout-guide</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-layout-overview</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-layout-page</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-layout-reference</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-layout-reference-aside</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-layout-reference-content</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-logo-text</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-main</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-mdx-icon</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-mdx-link</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-mdx-tooltip-content</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-mdx-tooltip-trigger</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-mermaid</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-navigation-storage</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-not-found-shell</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-numeric-input-group</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-numeric-input-step</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-page-actions</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-page-heading</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-page-roles</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-page-subtitle</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-pdf-cover-date</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-pdf-cover-footer</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-pdf-cover-footer-brand</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-pdf-cover-root</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-pdf-cover-subtitle</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-pdf-cover-title</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-playground-field</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-playground-field-actions</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-playground-field-block</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-playground-field-control</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-playground-field-count</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-playground-field-header</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-playground-field-help-icon</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-playground-field-inline</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-playground-field-item</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-playground-field-key</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-playground-field-label</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-playground-field-list</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-playground-field-remove</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-playground-field-type</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-playground-floating-button</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-playground-object-properties</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-product-item</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-product-item-link</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-product-selector</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-product-selector-radio-group</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-product-tabs</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-product-tabs-row</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-programming-language</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-prompt</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-prompt-code</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-prompt-code-wrapper</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-prompt-icon</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-prompt-icon-wrapper</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-prose</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-radio-group</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-radio-indicator</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-radio-item</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-radio-label</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-rss-feed-button</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-runnable-actions</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-runnable-auth</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-runnable-auth-content</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-runnable-auth-fields</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-runnable-auth-title</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-runnable-auth-toggle</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-runnable-card</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-runnable-clear-button</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-runnable-endpoint</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-runnable-endpoint-values</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-runnable-form</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-runnable-form-inner</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-runnable-header</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-runnable-header-actions</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-runnable-header-inner</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-runnable-response</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-runnable-response-header</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-runnable-response-label</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-runnable-response-meta</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-runnable-response-size</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-runnable-response-status</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-runnable-response-time</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-runnable-section-content</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-runnable-section-title</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-runnable-send-button</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-scroll-area</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-scroll-area-corner</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-scroll-area-scrollbar</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-scroll-area-scrollbar-fade-in</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-scroll-area-scrollbar-fade-out</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-scroll-area-thumb</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-scroll-area-viewport</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-scroll-walkthrough</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-scroll-walkthrough-aside</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-scroll-walkthrough-aside-sticky</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-scroll-walkthrough-code</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-scroll-walkthrough-main</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-scroll-walkthrough-panel</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-scroll-walkthrough-panel-header</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-scroll-walkthrough-panel-header-inner</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-scroll-walkthrough-spacer</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-scroll-walkthrough-step-body</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-scroll-walkthrough-step-description</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-scroll-walkthrough-step-detail</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-scroll-walkthrough-step-head</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-scroll-walkthrough-step-item</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-scroll-walkthrough-step-marker</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-scroll-walkthrough-step-title</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-scroll-walkthrough-steps</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-scroll-walkthrough-substep</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-scroll-walkthrough-substep-body</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-scroll-walkthrough-substep-code</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-scroll-walkthrough-substep-content</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-scroll-walkthrough-substep-marker</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-scroll-walkthrough-substep-title</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-scroll-walkthrough-substeps</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-scroll-walkthrough-tab</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-scroll-walkthrough-tabs</code></td><td>Class</td></tr>
+    <tr><td><code>#fern-search-button</code></td><td>ID</td></tr>
+    <tr><td><code>.fern-search-desktop-command</code></td><td>Class</td></tr>
+    <tr><td><code>#fern-search-dialog</code></td><td>ID</td></tr>
+    <tr><td><code>#fern-search-dialog-overlay</code></td><td>ID</td></tr>
+    <tr><td><code>.fern-search-hit-breadcrumb</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-search-hit-endpoint-path</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-search-hit-highlighted</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-search-hit-non-highlighted</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-search-hit-snippet</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-search-hit-title</code></td><td>Class</td></tr>
+    <tr><td><code>#fern-search-mobile-command</code></td><td>ID</td></tr>
+    <tr><td><code>.fern-segmented-control</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-selection-item</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-selection-item-end-icon</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-selection-item-icon</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-selection-item-subtitle</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-selection-item-title</code></td><td>Class</td></tr>
+    <tr><td><code>#fern-sidebar</code></td><td>ID</td></tr>
+    <tr><td><code>.fern-sidebar-desktop</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-sidebar-group</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-sidebar-group-level-1</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-sidebar-group-root</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-sidebar-header</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-sidebar-heading</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-sidebar-heading-content</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-sidebar-level-0</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-sidebar-link</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-sidebar-link-inline-badge</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-sidebar-link-title</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-sidebar-link-title-inner</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-sidebar-marquee</code></td><td>Class</td></tr>
+    <tr><td><code>#fern-sidebar-overlay</code></td><td>ID</td></tr>
+    <tr><td><code>#fern-sidebar-scroll-area</code></td><td>ID</td></tr>
+    <tr><td><code>.fern-sidebar-scroll-position</code></td><td>Class</td></tr>
+    <tr><td><code>#fern-sidebar-spacer</code></td><td>ID</td></tr>
+    <tr><td><code>.fern-sidebar-tabs</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-step</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-steps</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-stream</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-table</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-table-collapse</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-table-pagination</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-table-pagination-controls</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-table-pagination-label</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-table-root</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-table-search</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-table-search-clear</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-table-search-icon</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-table-search-input</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-table-show-all</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-textarea</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-textarea-group</code></td><td>Class</td></tr>
+    <tr><td><code>#fern-theme-color</code></td><td>ID</td></tr>
+    <tr><td><code>#fern-theme-color-preferred-dark</code></td><td>ID</td></tr>
+    <tr><td><code>#fern-theme-color-preferred-light</code></td><td>ID</td></tr>
+    <tr><td><code>#fern-toc</code></td><td>ID</td></tr>
+    <tr><td><code>.fern-token</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-toolbar</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-user</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-variant-selector</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-variant-selector-dropdown</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-variant-selector-radio-group</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-version-selector</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-version-selector-radio-group</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-walkthrough</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-walkthrough-aside</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-walkthrough-aside-sticky</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-walkthrough-close</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-walkthrough-control</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-walkthrough-controls</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-walkthrough-frame</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-walkthrough-progress</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-walkthrough-step</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-walkthrough-step-body</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-walkthrough-step-description</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-walkthrough-step-item</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-walkthrough-step-number</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-walkthrough-step-title</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-walkthrough-steps</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-walkthrough-toolbar</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-web-socket-badge</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-web-socket-chevron</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-web-socket-client</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-web-socket-content</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-web-socket-copy</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-web-socket-end-sample</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-web-socket-server</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-web-socket-trigger</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-web-socket-trigger-data</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-web-socket-type</code></td><td>Class</td></tr>
+    <tr><td><code>.fern-x-overflow</code></td><td>Class</td></tr>
+  </tbody>
+</table>
