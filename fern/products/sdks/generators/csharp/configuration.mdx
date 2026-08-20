@@ -96,7 +96,7 @@ When enabled, the generated SDK omits the `X-Fern-Language`, `X-Fern-SDK-Name`, 
 </ParamField>
 
 <ParamField path="include-platform-headers" type="boolean" default="false" required={false} toc={true}>
-When enabled, the generated SDK sends a single structured `User-Agent` header of the form `{sdkName}/{version} ({os}; {arch}) {runtime}/{runtimeVersion}` (for example, `my-sdk/1.2.0 (linux; x86_64) dotnet/8.0.4`), carrying SDK, operating system, architecture, and runtime information in place of the default `User-Agent` and discrete platform headers. If `omit-fern-headers` is enabled, no `User-Agent` or platform headers are sent and this option has no effect.
+When enabled, the generated SDK sends a single structured `User-Agent` header of the form `{sdkName}/{version} ({os}; {arch}) {runtime}/{runtimeVersion}` (for example, `my-sdk/1.2.0 (linux; x86_64) dotnet/8.0.4`), carrying SDK, operating system, architecture, and runtime information in place of the default `User-Agent` and discrete platform headers. A configured [`user-agent`](#user-agent) template supplies the leading product token. If `omit-fern-headers` is enabled, no `User-Agent` or platform headers are sent and this option has no effect.
 </ParamField>
 
 <ParamField path="allow-user-agent-app-info" type="boolean" default="false" required={false} toc={true}>
@@ -142,4 +142,15 @@ When enabled, places core SDK classes (like base client classes and utilities) i
 
 <ParamField path="use-discriminated-unions" type="boolean" required={false} toc={true}>
 When enabled, generates discriminated union types for API responses that can contain multiple different object types. This provides type-safe handling of polymorphic responses.
+</ParamField>
+
+<ParamField path="user-agent" type="string" default="{packageName}/{version}" required={false} toc={true}>
+Sets a custom `User-Agent` header template for requests sent by the generated SDK. The template is resolved at generation time and supports the `{packageName}`, `{version}`, `{language}`, `{generatorVersion}`, `{organization}`, and `{apiName}` placeholders.
+
+```yaml title="generators.yml"
+config:
+  user-agent: "plantstore-dotnet-sdk/{version}"
+```
+
+This sends `User-Agent: plantstore-dotnet-sdk/0.1.0`. With [`include-platform-headers`](#include-platform-headers) enabled, the resolved value leads the structured header: `User-Agent: plantstore-dotnet-sdk/0.1.0 (linux; x86_64) dotnet/8.0.4`. A value that doesn't end in a version, such as `plantstore/sdk-dotnet`, is used as-is. The [`allow-user-agent-app-info`](#allow-user-agent-app-info) token is appended after either form.
 </ParamField>

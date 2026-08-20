@@ -1,0 +1,390 @@
+---
+title: 'Docs commands'
+description: 'Complete reference for all Fern CLI commands for generating and managing documentation.'
+subtitle: 'Learn about the Fern CLI docs commands.'
+hideOnThisPage: true
+---
+
+These commands build, preview, and publish a Fern documentation site, and validate the MDX pages and links behind it. Creating a docs project with `fern init --docs` and validating `docs.yml` with `fern check` are [general commands](/learn/cli-api-reference/cli-reference/general-commands), and [SDK commands](/learn/cli-api-reference/cli-reference/sdk-commands) generate client libraries from the same API definition your docs render. Each docs command accepts the [global options](/learn/cli-api-reference/cli-reference/options).
+
+| Command | Description |
+|---------|-------------|
+| [`fern docs dev`](#fern-docs-dev) | Run local documentation preview server |
+| [`fern docs diff`](#fern-docs-diff) <Badge intent="warning" minimal>Beta</Badge> | Generate visual diffs between preview and production docs |
+| [`fern generate --docs`](#fern-generate---docs) | Build & publish documentation updates |
+| [`fern docs preview list`](#fern-docs-preview-list) | List all preview deployments |
+| [`fern docs preview delete`](#fern-docs-preview-delete) | Delete a preview deployment |
+| [`fern docs md check`](#fern-docs-md-check) | Validate MDX syntax in documentation files |
+| [`fern docs md generate`](#fern-docs-md-generate) | Generate MDX pages from library source code |
+| [`fern docs theme export`](#fern-docs-theme-export) | Export theme-eligible fields from `docs.yml` into a standalone directory |
+| [`fern docs theme upload`](#fern-docs-theme-upload) | Upload a theme to Fern's registry |
+| [`fern docs link check`](#fern-docs-link-check) | Check for broken links on a live documentation site |
+| [`fern docs theme list`](#fern-docs-theme-list) | List all themes for your organization |
+
+## Detailed command documentation
+
+<AccordionGroup>
+  <Accordion title="fern generate --docs">
+
+    Use `fern generate --docs` to create a documentation site for your API. 
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern generate --docs [--instance <instance-url>] [--preview] [--id <name>] [--force]
+    ```
+    </CodeBlock>
+
+    ### instance
+
+    Use `--instance` to specify which instance URL in your `docs.yml` to generate documentation for.
+
+    ```bash
+    fern generate --docs --instance your-organization.docs.buildwithfern.com
+    ```
+
+    ### preview
+
+    Use `--preview` to preview updates to your documentation before publishing changes to your production site. 
+
+    ```bash
+    fern generate --docs --preview
+    ```
+
+    ### id
+
+    Use `--id` with `--preview` to create a stable, named preview link. The preview URL follows the format `{org}-preview-{id}.docs.buildwithfern.com`, so rerunning with the same `--id` updates the existing preview in place rather than creating a new one.
+
+    ```bash
+    fern generate --docs --preview --id my-feature
+    # -> https://your-org-preview-my-feature.docs.buildwithfern.com
+    ```
+
+    This is useful in CI workflows where you want one preview URL per pull request. See [Preview changes](/learn/docs/preview-publish/preview-changes#preview-links) for details.
+
+    ### force
+
+    When reusing an `--id` that already exists, Fern prompts you to confirm the overwrite. Use `--force` to skip the confirmation. This is detected automatically in GitHub Actions, but is needed for other CI environments like Azure Pipelines.
+
+    ```bash
+    fern generate --docs --preview --id my-feature --force
+    ```
+
+  </Accordion>
+
+  <Accordion title="fern docs dev">
+
+    Use `fern docs dev` to run a local development server to preview your docs.
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern docs dev [--port <port-number>]
+    ```
+    </CodeBlock>
+
+    <Warning title="Windows: enable long path support">
+    On Windows, `fern docs dev` requires [long path support](https://learn.microsoft.com/en-us/windows/win32/fileio/maximum-file-path-limitation#enable-long-paths-in-windows-10-version-1607-and-later) to be enabled.
+
+    To enable long path support, run the following command in an elevated PowerShell prompt, then restart your terminal:
+
+    ```powershell
+    New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem' -Name 'LongPathsEnabled' -Value 1 -PropertyType DWORD -Force
+    ```
+
+    If you can't enable long path support, use [Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/windows/wsl/install) to run `fern docs dev` in a Linux environment instead.
+    </Warning>
+
+    ### port
+
+    Use `--port <port-number>` to specify the port the docs preview will be run on. 
+
+    ```bash
+    fern docs dev --port 57908
+    ```
+
+  </Accordion>
+
+  <Accordion title="fern docs diff">
+  <Badge intent="warning" minimal>Beta</Badge>
+
+    Use `fern docs diff` to generate visual diffs between your preview deployment and production docs. This command is intended for use in [GitHub Actions](https://github.com/fern-api/docs/blob/main/.github/workflows/preview-docs.yml). It captures screenshots of both versions and creates side-by-side comparison images.
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern docs diff <preview-url> <files..> [--output <output-dir>]
+    ```
+    </CodeBlock>
+
+    Pass the preview URL from `fern generate --docs --preview` and one or more MDX file paths. Diff images are saved to `.fern/diff` by default.
+
+    ```bash
+    fern docs diff acme-preview-abc123.docs.buildwithfern.com fern/pages/intro.mdx fern/pages/quickstart.mdx
+    ```
+
+    ### output
+
+    Use `--output` to specify a custom directory for diff images.
+
+    ```bash
+    fern docs diff acme-preview-abc123.docs.buildwithfern.com fern/pages/intro.mdx --output ./my-diffs
+    ```
+
+  </Accordion>
+
+  <Accordion title="fern docs preview list">
+
+    Use `fern docs preview list` to list all [preview deployments](/learn/docs/preview-publish/preview-changes#manage-preview-links) for your organization.
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern docs preview list [--limit <number>] [--page <number>]
+    ```
+    </CodeBlock>
+
+    ### limit
+
+    Use `--limit` to specify the number of preview deployments to display per page.
+
+    ```bash
+    fern docs preview list --limit 20
+    ```
+
+    ### page
+
+    Use `--page` to specify which page of results to display.
+
+    ```bash
+    fern docs preview list --page 2
+    ```
+
+  </Accordion>
+
+  <Accordion title="fern docs preview delete">
+
+    Use `fern docs preview delete` to delete a [preview deployment](/learn/docs/preview-publish/preview-changes#manage-preview-links) generated with `fern generate --docs --preview`. Pass the full preview URL, or use `--id` to delete by the identifier used during generation.
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern docs preview delete <url>
+
+    # Or delete by preview ID
+    fern docs preview delete --id <preview-id>
+    ```
+    </CodeBlock>
+
+    ### id
+
+    Use `--id` to delete a preview deployment by the identifier used during generation instead of the full preview URL.
+
+    ```bash
+    fern docs preview delete --id <preview-id>
+    ```
+
+  </Accordion>
+
+  <Accordion title="fern docs md check">
+
+    Use `fern docs md check` to validate MDX syntax across all documentation pages referenced in your navigation configuration, including `docs.yml`, versioned configuration files, and product-specific YAML files.
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern docs md check
+    ```
+    </CodeBlock>
+
+    The command parses each MDX file and reports syntax errors with file paths and line:column numbers. The command accounts for frontmatter offsets, so reported line numbers correspond to the actual lines in your file.
+
+    ```plaintext
+    fern/pages/quickstart.mdx:12:5
+      Unexpected closing tag, expected corresponding closing tag for `<CodeBlock>`
+
+    fern/pages/guide.mdx:45:1
+      Expected a closing tag for `<Note>` before the end of `paragraph`
+    ```
+
+    When all files are valid, you'll see a success message:
+
+    ```plaintext
+    ✓ All 42 MDX files are valid
+    ```
+
+  </Accordion>
+
+  <Accordion title="fern docs md generate">
+
+    Use `fern docs md generate` to generate [MDX documentation pages from your library source code](/learn/docs/api-references/library-reference). The command reads `libraries` entries in `docs.yml` and produces pages for modules, classes, functions, and types.
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern docs md generate [--local] [--library <name>]
+    ```
+    </CodeBlock>
+
+    For `git` inputs, the command sends the repository URL to Fern's servers for parsing. For `path` inputs, pass `--local` to parse the source on your machine instead.
+
+    ### local
+
+    Use `--local` to parse library source locally rather than on Fern's servers. Required when the library uses a `path` input. Local generation does not require authentication.
+
+    ```bash
+    fern docs md generate --local
+    ```
+
+    ### library
+
+    Use `--library` to generate docs for a single library when multiple libraries are configured.
+
+    ```bash
+    fern docs md generate --library plant-sdk
+    ```
+
+    When `--library` is omitted, all configured libraries are processed in parallel.
+
+  </Accordion>
+
+  <Accordion title="fern docs theme export">
+
+    Use `fern docs theme export` to extract the [theme-eligible fields](/learn/docs/customization/global-themes) from your `docs.yml` into a standalone directory. The exported `theme.yml` and its assets can then be uploaded with `fern docs theme upload`.
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern docs theme export [--output <directory>]
+    ```
+    </CodeBlock>
+
+    By default, files are written to `./fern/theme/`.
+
+    ### output
+
+    Use `--output` to specify a custom directory for the exported theme.
+
+    ```bash
+    fern docs theme export --output ./my-theme
+    ```
+
+  </Accordion>
+
+  <Accordion title="fern docs theme upload">
+
+    Use `fern docs theme upload` to upload a [theme](/learn/docs/customization/global-themes) to Fern's registry. The command reads `theme.yml` from `./fern/theme/` and uploads it along with any referenced file assets.
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern docs theme upload [--name <name>] [--org <org>]
+    ```
+    </CodeBlock>
+
+    ### name
+
+    Use `--name` to set the theme name. Defaults to `default`.
+
+    ```bash
+    fern docs theme upload --name my-theme
+    ```
+
+    ### org
+
+    Use `--org` to override the organization ID from `fern.config.json`.
+
+    ```bash
+    fern docs theme upload --org my-org
+    ```
+
+  </Accordion>
+
+  <Accordion title="fern docs link check">
+
+    Use `fern docs link check` to scan a live documentation site for broken links. The command crawls the published site, checks every link, and reports broken (404) and blocked (403) URLs along with their source pages.
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern docs link check [--url <url>] [--output <format>]
+    ```
+    </CodeBlock>
+
+    <Info>
+      Unlike the [`broken-links` rule](/learn/cli-api-reference/cli-reference/general-commands#fern-check) in `fern check`, which validates only internal links in your local YAML navigation tree, `fern docs link check` checks all links — internal and external — on your live deployed site.
+    </Info>
+
+    By default, the command auto-detects your docs URL from the `instances` in `docs.yml`. When all links are valid, the command exits with a success message.
+
+    The command first scrapes every page on the site, then checks each link it finds. When broken links are found, the output includes a summary and a grouped list of broken URLs with status codes and source file paths.
+
+    ```plaintext
+    ◆ Checking links on your-org.docs.buildwithfern.com...
+
+      Scraping pages [████████████████████] 100% | 42/42
+      Checking links [████████████████████] 100% | 240/240
+
+    Finished in 2 minutes, 23 seconds
+
+    Summary
+        Pages scanned    42
+        Links checked    240
+        ✓ Working        228
+        ✗ Broken         8 (external)
+        ⚠ Blocked        4
+
+    ─────────────────────────────────────
+
+    External Broken Links (8)
+
+      ✗ https://example.com/removed-page → 404
+            fern/pages/quickstart.mdx
+            fern/pages/overview.mdx
+
+      ✗ https://example.com/old-endpoint → 404
+            fern/pages/integrations.mdx
+    ```
+
+    ### url
+
+    Use `--url` to specify which docs site to check. This is useful when you have multiple instances or want to check a preview deployment.
+
+    ```bash
+    fern docs link check --url https://your-org.docs.buildwithfern.com
+    ```
+
+    ### output
+
+    Use `--output` to control the output format. Supported values are `text` (default), `json`, and `csv`.
+
+    ```bash
+    # JSON output for programmatic use
+    fern docs link check --output json
+
+    # CSV output for spreadsheets or reporting
+    fern docs link check --output csv
+    ```
+
+  </Accordion>
+
+  <Accordion title="fern docs theme list">
+
+    Use `fern docs theme list` to list all [themes](/learn/docs/customization/global-themes) uploaded for your organization.
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern docs theme list [--json] [--org <org>]
+    ```
+    </CodeBlock>
+
+    By default, outputs one theme name per line.
+
+    ### json
+
+    Use `--json` to output the full list as a JSON array, including `updatedAt` timestamps.
+
+    ```bash
+    fern docs theme list --json
+    ```
+
+    ### org
+
+    Use `--org` to override the organization ID from `fern.config.json`.
+
+    ```bash
+    fern docs theme list --org my-org
+    ```
+
+  </Accordion>
+</AccordionGroup>

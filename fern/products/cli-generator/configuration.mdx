@@ -85,6 +85,18 @@ config:
 ```
 </ParamField>
 
+<ParamField path="splitTypeCrates" type="boolean" default="false" toc={true}>
+Splits the generated types into one crate per API, plus a shared `core` crate for types that more than one API references, nested inside `<binaryName>-types/crates/`. By default, every generated model lands in a single `<binaryName>-types` crate.
+
+Enable it for workspaces with many specs, where that single crate is one `rustc` compilation unit large enough to exhaust the memory of a standard CI runner and get `cargo build` killed. Splitting also shortens builds, because the per-API crates compile in parallel and cache independently. `<binaryName>-types` remains as a facade that re-exports everything, so imports such as `use plant_types::Plant;` keep resolving and [custom command](/learn/cli-generator/get-started/customization) handlers need no changes. The shipped artifact is the same either way: one binary with every spec embedded.
+
+```yaml title="generators.yml"
+config:
+  binaryName: plant
+  splitTypeCrates: true
+```
+</ParamField>
+
 <ParamField path="packageIdentity" type="object" toc={true} required={false}>
 Sets the Cargo `[package]` metadata of the generated crate. Use `packageIdentity` to publish the crate under your own name, license, repository, and authors instead of Fern's.
 

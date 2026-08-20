@@ -185,7 +185,7 @@ When enabled, the generated SDK omits the `X-Fern-Language`, `X-Fern-SDK-Name`, 
 </ParamField>
 
 <ParamField path="include_platform_headers" type="bool" default="false" required={false} toc={true}>
-When enabled, the generated SDK sends a single structured `User-Agent` header of the form `{sdkName}/{version} ({os}; {arch}) {runtime}/{runtimeVersion}` (for example, `fern_examples/0.0.1 (linux; x86_64) Python/3.11.0`), carrying SDK, operating system, architecture, and runtime information in place of the default `User-Agent` and discrete platform headers. If `omit_fern_headers` is enabled, no `User-Agent` or platform headers are sent and this option has no effect.
+When enabled, the generated SDK sends a single structured `User-Agent` header of the form `{sdkName}/{version} ({os}; {arch}) {runtime}/{runtimeVersion}` (for example, `fern_examples/0.0.1 (linux; x86_64) Python/3.11.0`), carrying SDK, operating system, architecture, and runtime information in place of the default `User-Agent` and discrete platform headers. A configured [`user-agent`](#user-agent) template supplies the leading product token. If `omit_fern_headers` is enabled, no `User-Agent` or platform headers are sent and this option has no effect.
 </ParamField>
 
 <ParamField path="allow_user_agent_app_info" type="bool" default="false" required={false} toc={true}>
@@ -248,6 +248,17 @@ When enabled, skips code formatting (like black) on the generated Python code.
 
 <ParamField path="timeout" type="number | 'infinity'" default="60" required={false} toc={true}>
   Sets the client timeout in seconds, or `infinity` to disable timeouts.
+</ParamField>
+
+<ParamField path="user-agent" type="string" default="{packageName}/{version}" required={false} toc={true}>
+Sets a custom `User-Agent` header template for requests sent by the generated SDK. The template is resolved at generation time and supports the `{packageName}`, `{version}`, `{language}`, `{generatorVersion}`, `{organization}`, and `{apiName}` placeholders.
+
+```yaml title="generators.yml"
+config:
+  user-agent: "plantstore-python-sdk/{version}"
+```
+
+This sends `User-Agent: plantstore-python-sdk/0.1.0`. With [`include_platform_headers`](#include_platform_headers) enabled, the resolved value leads the structured header: `User-Agent: plantstore-python-sdk/0.1.0 (linux; x86_64) Python/3.11.0`. A value that doesn't end in a version, such as `plantstore/sdk-python`, is used as-is. The [`allow_user_agent_app_info`](#allow_user_agent_app_info) token is appended after either form, and [`runtime_version`](#runtime_version) replaces the trailing version segment at runtime.
 </ParamField>
 
 <ParamField path="use_api_name_in_package" type="bool" default="false" required={false} toc={true}>
