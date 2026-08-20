@@ -15,6 +15,8 @@ description: Embed Fern's Ask AI chat panel in any React application, with a flo
   </video>
 </Frame>
 
+## Setup
+
 <Steps>
   <Step title="Render the chat">
     Import the component and the bundled styles, then render it with your docs domain. By default, the component renders its own trigger button, and citations in its answers link to your docs domain and open in a new tab. `cmd`/`ctrl` + `/` toggles the panel, and it becomes a bottom drawer below 768px.
@@ -44,75 +46,78 @@ description: Embed Fern's Ask AI chat panel in any React application, with a flo
   </Step>
 </Steps>
 
-## Placing the trigger in a dropdown menu
+## Custom triggers
 
-Rendering `AskAiChat` inside a dropdown menu item doesn't work. Selecting the item closes the menu, and most menu libraries unmount the menu's contents when it closes, destroying the chat before it renders: nothing appears and no error is thrown.
+<AccordionGroup>
+  <Accordion title="Placing the trigger in a dropdown menu">
+    A dropdown menu item can hold the trigger, but not the whole widget: selecting the item closes the menu, and most menu libraries unmount the menu's contents when it closes, destroying the chat before it renders.
 
-For this case, split the widget into `AskAiChat.Root`, `AskAiChat.Trigger`, and `AskAiChat.Panel`, keeping the trigger inside the menu and the chat outside it. The single `<AskAiChat />` component remains the normal integration.
+    Split the widget into `AskAiChat.Root`, `AskAiChat.Trigger`, and `AskAiChat.Panel` instead, keeping the trigger inside the menu and the chat outside it. The single `<AskAiChat />` component remains the normal integration.
 
-```jsx
-import { AskAiChat } from '@fern-api/search-widget';
-import '@fern-api/search-widget/styles';
+    ```jsx
+    import { AskAiChat } from '@fern-api/search-widget';
+    import '@fern-api/search-widget/styles';
 
-function HelpMenu() {
-  return (
-    <AskAiChat.Root domain="https://docs.example.com">
-      <DropdownMenu.Root>
-        <DropdownMenu.Trigger>Help</DropdownMenu.Trigger>
-        <DropdownMenu.Portal>
-          <DropdownMenu.Content>
-            <DropdownMenu.Item>Contact support</DropdownMenu.Item>
-            <DropdownMenu.Item asChild>
-              <AskAiChat.Trigger />
-            </DropdownMenu.Item>
-          </DropdownMenu.Content>
-        </DropdownMenu.Portal>
-      </DropdownMenu.Root>
-      <AskAiChat.Panel />
-    </AskAiChat.Root>
-  );
-}
-```
+    function HelpMenu() {
+      return (
+        <AskAiChat.Root domain="https://docs.example.com">
+          <DropdownMenu.Root>
+            <DropdownMenu.Trigger>Help</DropdownMenu.Trigger>
+            <DropdownMenu.Portal>
+              <DropdownMenu.Content>
+                <DropdownMenu.Item>Contact support</DropdownMenu.Item>
+                <DropdownMenu.Item asChild>
+                  <AskAiChat.Trigger />
+                </DropdownMenu.Item>
+              </DropdownMenu.Content>
+            </DropdownMenu.Portal>
+          </DropdownMenu.Root>
+          <AskAiChat.Panel />
+        </AskAiChat.Root>
+      );
+    }
+    ```
 
-*  `AskAiChat.Root` holds the state and takes the configuration props: `domain`, `lang`, `searchLocale`, `placement`, `theme`, `accentColor`, `open`, `defaultOpen`, and `onOpenChange`. Its `children` is the subtree to wrap, the menu and the panel.
-*  `AskAiChat.Trigger` is a real `<button>`, so `asChild` works and the menu keeps its keyboard behavior. Styling props (`className`, `style`, `icon`, and any button attributes) go here. `variant="floating"` renders the corner launcher instead of an unpainted button.
-*  `AskAiChat.Panel` is the chat. Render exactly one per root, outside any menu.
+    *  `AskAiChat.Root` holds the state and takes the configuration props: `domain`, `lang`, `searchLocale`, `placement`, `theme`, `accentColor`, `open`, `defaultOpen`, and `onOpenChange`. Its `children` is the subtree to wrap, the menu and the panel.
+    *  `AskAiChat.Trigger` is a real `<button>`, so `asChild` works and the menu keeps its keyboard behavior. Styling props (`className`, `style`, `icon`, and any button attributes) go here. `variant="floating"` renders the corner launcher instead of an unpainted button.
+    *  `AskAiChat.Panel` is the chat. Render exactly one per root, outside any menu.
 
-The same shape covers a popover, a command palette, or a nav bar dropdown, and a single root supports multiple triggers, at most one of them `variant="floating"`.
+    The same shape covers a popover, a command palette, or a nav bar dropdown, and a single root supports multiple triggers, at most one of them `variant="floating"`.
 
-<Warning>
-  Don't keep the menu open with `onSelect={(event) => event.preventDefault()}` as a workaround. A modal menu sets `pointer-events: none` on `<body>`, and the chat, portaled to `<body>`, inherits it: the chat paints correctly but ignores all pointer and keyboard input. Let the menu close instead.
-</Warning>
+    <Warning>
+      Don't keep the menu open with `onSelect={(event) => event.preventDefault()}` as a workaround. A modal menu sets `pointer-events: none` on `<body>`, and the chat, portaled to `<body>`, inherits it: the chat paints correctly but ignores all pointer and keyboard input. Let the menu close instead.
+    </Warning>
+  </Accordion>
+  <Accordion title="Opening the chat from your own UI">
+    If the trigger is an element you already have (a link, a list row, a command palette entry), set `trigger="none"` so the widget renders no button, and drive `open` yourself:
 
-## Opening the chat from your own UI
+    ```jsx
+    import { AskAiChat } from '@fern-api/search-widget';
+    import '@fern-api/search-widget/styles';
 
-If the trigger is an element you already have (a link, a list row, a command palette entry), set `trigger="none"` so the widget renders no button, and drive `open` yourself:
+    const [askAiOpen, setAskAiOpen] = useState(false);
 
-```jsx
-import { AskAiChat } from '@fern-api/search-widget';
-import '@fern-api/search-widget/styles';
+    <a href="#" onClick={() => setAskAiOpen(true)}>
+      <AskAiChat.Sparkles /> Still stuck? Ask AI
+    </a>
 
-const [askAiOpen, setAskAiOpen] = useState(false);
+    <AskAiChat
+      domain="https://docs.example.com"
+      trigger="none"
+      open={askAiOpen}
+      onOpenChange={setAskAiOpen}
+    />
+    ```
 
-<a href="#" onClick={() => setAskAiOpen(true)}>
-  <AskAiChat.Sparkles /> Still stuck? Ask AI
-</a>
+    Wire `onOpenChange` back to your state, or the chat's own controls (its close button, `Escape`, and `cmd`/`ctrl` + `/`) will appear to do nothing. Pass neither prop and the widget manages its own state. With `trigger="none"`, the trigger's accessibility attributes (`aria-haspopup="dialog"`, plus `aria-expanded` on a button) are yours to provide.
 
-<AskAiChat
-  domain="https://docs.example.com"
-  trigger="none"
-  open={askAiOpen}
-  onOpenChange={setAskAiOpen}
-/>
-```
+    <llms-only>
+      With `trigger="none"`, `ref` stays `null` since there's no built-in button to attach it to.
+    </llms-only>
 
-Wire `onOpenChange` back to your state, or the chat's own controls (its close button, `Escape`, and `cmd`/`ctrl` + `/`) will appear to do nothing. Pass neither prop and the widget manages its own state. With `trigger="none"`, the trigger's accessibility attributes (`aria-haspopup="dialog"`, plus `aria-expanded` on a button) are yours to provide.
-
-<llms-only>
-  With `trigger="none"`, `ref` stays `null` since there's no built-in button to attach it to.
-</llms-only>
-
-`AskAiChat.Sparkles` is the sparkle icon the built-in trigger uses, for making your own trigger read as the same affordance. It sizes to `1em` of the surrounding text and takes its color.
+    `AskAiChat.Sparkles` is the sparkle icon the built-in trigger uses, for making your own trigger read as the same affordance. It sizes to `1em` of the surrounding text and takes its color.
+  </Accordion>
+</AccordionGroup>
 
 ## Properties
 
@@ -143,7 +148,7 @@ All standard HTML button attributes are also supported and forwarded to the trig
 </ParamField>
 
 <ParamField path="trigger" type="'floating' | 'inline' | 'none'" default="floating">
-  `floating` renders a styled launcher pinned to a corner of the viewport. `inline` renders an unpainted button to place and style yourself, such as in a nav bar. Both carry the sparkle icon and an `Ask AI` label by default. `none` renders no trigger at all, for [opening the chat from your own UI](#opening-the-chat-from-your-own-ui).
+  `floating` renders a styled launcher pinned to a corner of the viewport. `inline` renders an unpainted button to place and style yourself, such as in a nav bar. Both carry the sparkle icon and an `Ask AI` label by default. `none` renders no trigger at all, for [driving the open state from your own UI](#custom-triggers).
 </ParamField>
 
 <ParamField path="open" type="boolean">
