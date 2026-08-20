@@ -1,5 +1,5 @@
 ---
-title: AskAiChat
+title: Ask AI chat panel
 description: Embed Fern's Ask AI chat panel in any React application, with a floating, inline, or custom trigger.
 ---
 
@@ -15,48 +15,40 @@ description: Embed Fern's Ask AI chat panel in any React application, with a flo
   </video>
 </Frame>
 
-## Usage
+<Steps>
+  <Step title="Render the chat">
+    Import the component and the bundled styles, then render it with your docs domain. By default, the component renders its own trigger button, and citations in its answers link to your docs domain and open in a new tab. `cmd`/`ctrl` + `/` toggles the panel, and it becomes a bottom drawer below 768px.
 
-Import the component and the bundled styles, then render it with your docs domain. By default, the component renders its own trigger button, and citations in its answers link to your docs domain and open in a new tab. `cmd`/`ctrl` + `/` toggles the panel, and it becomes a bottom drawer below 768px.
+    <llms-only>
+      Without `"use client"`, the page fails with `TypeError: createContext only works in Client Components`. A static import is enough: `next/dynamic` and `ssr: false` aren't required. The Pages Router, Vite, Create React App, and Remix need no additional configuration.
+    </llms-only>
 
-<llms-only>
-  Without `"use client"`, the page fails with `TypeError: createContext only works in Client Components`. A static import is enough: `next/dynamic` and `ssr: false` aren't required. The Pages Router, Vite, Create React App, and Remix need no additional configuration.
-</llms-only>
+    ```tsx
+    // Required in the Next.js App Router
+    'use client';
 
-```tsx
-// Required in the Next.js App Router
-'use client';
+    import { AskAiChat } from '@fern-api/search-widget';
+    import '@fern-api/search-widget/styles';
 
-import { AskAiChat } from '@fern-api/search-widget';
-import '@fern-api/search-widget/styles';
+    export function AskAi() {
+      return <AskAiChat domain="https://docs.example.com" />;
+    }
+    ```
+  </Step>
+  <Step title="Match the chat to your product">
+    `theme` controls light and dark mode, and `accentColor` sets the accent used for the sparkles, the send button, and links in answers, in both modes. `trigger` chooses between the corner launcher (`floating`), an unpainted button you place and style yourself (`inline`), and no button at all (`none`).
 
-export function AskAi() {
-  return <AskAiChat domain="https://docs.example.com" />;
-}
-```
-
-## Customizing the appearance
-
-`AskAiChat` ships a styled trigger button, so match it to your product with `theme` and `accentColor`. `theme` controls light and dark mode, and `accentColor` sets the accent used for the sparkles, the send button, and links in answers, in both modes.
-
-```tsx
-<AskAiChat domain="https://docs.example.com" theme="inherit" accentColor="#6b4eff" />
-```
+    ```tsx
+    <AskAiChat domain="https://docs.example.com" theme="inherit" accentColor="#6b4eff" />
+    ```
+  </Step>
+</Steps>
 
 ## Placing the trigger in a dropdown menu
 
-Rendering `AskAiChat` inside a dropdown menu item doesn't work:
+Rendering `AskAiChat` inside a dropdown menu item doesn't work. Selecting the item closes the menu, and most menu libraries unmount the menu's contents when it closes, destroying the chat before it renders: nothing appears and no error is thrown.
 
-```jsx
-{/* Broken */}
-<DropdownMenu.Item asChild>
-  <AskAiChat domain="https://docs.example.com" trigger="inline" />
-</DropdownMenu.Item>
-```
-
-Selecting the item closes the menu, and Radix (like Headless UI and most menu libraries) unmounts the menu's contents when it closes. That destroys the chat before it renders: nothing appears and no error is thrown.
-
-For this case only, split the widget with `AskAiChat.Root`, `AskAiChat.Trigger`, and `AskAiChat.Panel`. The single `<AskAiChat />` component remains the normal integration; the split form is opt-in for triggers that sit inside something that unmounts its children. The trigger lives inside the menu, where unmounting is harmless, and the chat lives outside it:
+For this case, split the widget into `AskAiChat.Root`, `AskAiChat.Trigger`, and `AskAiChat.Panel`, keeping the trigger inside the menu and the chat outside it. The single `<AskAiChat />` component remains the normal integration.
 
 ```jsx
 import { AskAiChat } from '@fern-api/search-widget';
@@ -82,14 +74,14 @@ function HelpMenu() {
 }
 ```
 
-*  `AskAiChat.Root` holds the state and renders no DOM of its own. It takes `domain`, `lang`, `searchLocale`, `placement`, `theme`, `accentColor`, `open`, `defaultOpen`, and `onOpenChange`. Styling props (`className`, `style`, `icon`, and any button attributes) go on `AskAiChat.Trigger` instead. `children` here is the subtree to wrap — the menu and the panel — unlike on `AskAiChat`, where it replaces the trigger label.
-*  `AskAiChat.Trigger` is a real `<button>`, so `asChild` works and the menu library keeps its menu-item keyboard behavior. It carries the localized `Ask AI` label, the sparkle icon, and the `aria-haspopup="dialog"` and `aria-controls` attributes. `variant="floating"` renders the corner launcher instead of an unpainted button; `children` and `icon` replace the label and the icon.
-*  `AskAiChat.Panel` is the chat. Render exactly one per root, outside any menu: two panels collide on a fixed element id. A root with a trigger but no panel logs a console warning.
+*  `AskAiChat.Root` holds the state and takes the configuration props: `domain`, `lang`, `searchLocale`, `placement`, `theme`, `accentColor`, `open`, `defaultOpen`, and `onOpenChange`. Its `children` is the subtree to wrap, the menu and the panel.
+*  `AskAiChat.Trigger` is a real `<button>`, so `asChild` works and the menu keeps its keyboard behavior. Styling props (`className`, `style`, `icon`, and any button attributes) go here. `variant="floating"` renders the corner launcher instead of an unpainted button.
+*  `AskAiChat.Panel` is the chat. Render exactly one per root, outside any menu.
 
-This shape also covers a popover, a command palette, or a nav bar dropdown, and a single root supports multiple triggers. Only one of them may be `variant="floating"`: the floating launcher carries a fixed element id, so two would collide.
+The same shape covers a popover, a command palette, or a nav bar dropdown, and a single root supports multiple triggers, at most one of them `variant="floating"`.
 
 <Warning>
-  Don't keep the menu open with `onSelect={(event) => event.preventDefault()}` as a workaround. Radix's modal menu sets `pointer-events: none` on `<body>` while it's open, and the chat, portaled to `<body>`, inherits it: the chat paints correctly but ignores all pointer and keyboard input. Let the menu close instead.
+  Don't keep the menu open with `onSelect={(event) => event.preventDefault()}` as a workaround. A modal menu sets `pointer-events: none` on `<body>`, and the chat, portaled to `<body>`, inherits it: the chat paints correctly but ignores all pointer and keyboard input. Let the menu close instead.
 </Warning>
 
 ## Opening the chat from your own UI
@@ -114,9 +106,13 @@ const [askAiOpen, setAskAiOpen] = useState(false);
 />
 ```
 
-`open` is controlled in the usual React sense: the widget renders what you give it, so `onOpenChange` must be wired back to your state or the chat's own controls (its close button, `Escape`, and `cmd`/`ctrl` + `/`) will appear to do nothing. Pass neither prop and the widget manages its own state; `onOpenChange` on its own works as a notification hook. With `trigger="none"`, `ref` stays `null` since there's no built-in button to attach it to, and the trigger's accessibility (`aria-haspopup="dialog"`, plus `aria-expanded` on a button) is yours to provide.
+Wire `onOpenChange` back to your state, or the chat's own controls (its close button, `Escape`, and `cmd`/`ctrl` + `/`) will appear to do nothing. Pass neither prop and the widget manages its own state. With `trigger="none"`, the trigger's accessibility attributes (`aria-haspopup="dialog"`, plus `aria-expanded` on a button) are yours to provide.
 
-`AskAiChat.Sparkles` is the Ask AI sparkle icon the built-in trigger uses, for making your own trigger read as the same affordance. It sizes to `1em` of the surrounding text and takes its color.
+<llms-only>
+  With `trigger="none"`, `ref` stays `null` since there's no built-in button to attach it to.
+</llms-only>
+
+`AskAiChat.Sparkles` is the sparkle icon the built-in trigger uses, for making your own trigger read as the same affordance. It sizes to `1em` of the surrounding text and takes its color.
 
 ## Properties
 
