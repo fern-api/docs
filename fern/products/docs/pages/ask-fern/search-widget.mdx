@@ -5,9 +5,9 @@ description: Embed Fern's AI-powered search and Ask AI chat in any React applica
 
 The [`@fern-api/search-widget`](https://www.npmjs.com/package/@fern-api/search-widget) package provides standalone React components that search and answer questions from your documentation anywhere outside your Fern Docs site. Embed them in your dashboard, marketing site, or internal tool so users can get answers without leaving their workflow.
 
-The package ships two components: 
-*  `SearchModal`, a modal that opens over the page and combines keyword search with AI chat
-*  `AskAiChat`, sidebar panel with AI chat (no keyword search). It also ships as `AskAiChat.Root`, `AskAiChat.Trigger`, and `AskAiChat.Panel` for placing the [trigger inside a dropdown menu](#placing-the-trigger-in-a-dropdown-menu), and supports [controlled open state](#opening-the-chat-from-your-own-ui) for opening it from your own UI.
+The package ships two components:
+*  [`SearchModal`](/learn/docs/ai-features/ask-fern/search-widget/search-modal), a modal that opens over the page and combines keyword search with AI chat
+*  [`AskAiChat`](/learn/docs/ai-features/ask-fern/search-widget/ask-ai-chat), a sidebar panel with AI chat (no keyword search), with floating, inline, and custom trigger options
 
 <Tabs>
   <Tab title="SearchModal">
@@ -40,170 +40,44 @@ The package ships two components:
 - **A live, cloud-hosted Fern Docs site with [Ask Fern enabled](/learn/docs/ai-features/ask-fern/overview)** — the widget connects to your published docs site at runtime. Self-hosted and local preview environments aren't supported.
 - **Public documentation** — the widget only supports public docs. If your site uses [authentication](/learn/docs/authentication/overview), the widget will only return unauthenticated results.
 
-## Getting started
+## Installation
 
-<Steps>
-  <Step title="Install the package">
-    <CodeBlocks>
-    ```bash npm
-    npm install @fern-api/search-widget react@19 react-dom@19
-    ```
-    ```bash pnpm
-    pnpm add @fern-api/search-widget react@19 react-dom@19
-    ```
-    ```bash yarn
-    yarn add @fern-api/search-widget react@19 react-dom@19
-    ```
-    </CodeBlocks>
-    <llms-only>
-      The package is approximately 2 MB (JS + CSS combined).
-    </llms-only>
-  </Step>
-  <Step title="Add a widget">
-    Import the component and the bundled styles, then render it with your docs domain. By default, both components render their own trigger button, and citations in their answers link to your docs domain and open in a new tab.
+Both components ship in the same package:
 
-    <Tabs>
-      <Tab title="SearchModal">
-        ```tsx
-        import { SearchModal } from '@fern-api/search-widget';
-        import '@fern-api/search-widget/styles';
-
-        function App() {
-          return (
-            <SearchModal domain="https://docs.example.com" lang="en">
-              Search Docs
-            </SearchModal>
-          );
-        }
-        ```
-      </Tab>
-      <Tab title="AskAiChat">
-        `cmd`/`ctrl` + `/` toggles the panel, and it becomes a bottom drawer below 768px.
-
-        <llms-only>
-          Without `"use client"`, the page fails with `TypeError: createContext only works in Client Components`. A static import is enough: `next/dynamic` and `ssr: false` aren't required. The Pages Router, Vite, Create React App, and Remix need no additional configuration.
-        </llms-only>
-
-        ```tsx
-        // Required in the Next.js App Router
-        'use client';
-
-        import { AskAiChat } from '@fern-api/search-widget';
-        import '@fern-api/search-widget/styles';
-
-        export function AskAi() {
-          return <AskAiChat domain="https://docs.example.com" />;
-        }
-        ```
-      </Tab>
-    </Tabs>
-  </Step>
-  <Step title="Customize the appearance">
-    All standard HTML button attributes are forwarded to the trigger button of either component.
-
-    <Tabs>
-      <Tab title="SearchModal">
-        Style the trigger button with `className`, `style`, or by targeting the default `fern-search-button` class.
-
-        ```tsx
-        <SearchModal
-          domain="https://docs.example.com"
-          lang="en"
-          className="my-search-button"
-        >
-          Search Docs
-        </SearchModal>
-        ```
-
-        <llms-only>
-          A global CSS reset like `* { margin: 0; padding: 0; }` will break the modal's internal layout. Scope global resets to exclude elements inside the search modal.
-        </llms-only>
-      </Tab>
-      <Tab title="AskAiChat">
-        `AskAiChat` ships a styled trigger button, so match it to your product with `theme` and `accentColor`. `theme` controls light and dark mode, and `accentColor` sets the accent used for the sparkles, the send button, and links in answers, in both modes.
-
-        ```tsx
-        <AskAiChat domain="https://docs.example.com" theme="inherit" accentColor="#6b4eff" />
-        ```
-      </Tab>
-    </Tabs>
-  </Step>
-</Steps>
-
-## Placing the trigger in a dropdown menu
-
-Rendering `AskAiChat` inside a dropdown menu item doesn't work:
-
-```jsx
-{/* Broken */}
-<DropdownMenu.Item asChild>
-  <AskAiChat domain="https://docs.example.com" trigger="inline" />
-</DropdownMenu.Item>
+<CodeBlocks>
+```bash npm
+npm install @fern-api/search-widget react@19 react-dom@19
 ```
-
-Selecting the item closes the menu, and Radix (like Headless UI and most menu libraries) unmounts the menu's contents when it closes. That destroys the chat before it renders: nothing appears and no error is thrown.
-
-For this case only, split the widget with `AskAiChat.Root`, `AskAiChat.Trigger`, and `AskAiChat.Panel`. The single `<AskAiChat />` component remains the normal integration; the split form is opt-in for triggers that sit inside something that unmounts its children. The trigger lives inside the menu, where unmounting is harmless, and the chat lives outside it:
-
-```jsx
-import { AskAiChat } from '@fern-api/search-widget';
-import '@fern-api/search-widget/styles';
-
-function HelpMenu() {
-  return (
-    <AskAiChat.Root domain="https://docs.example.com">
-      <DropdownMenu.Root>
-        <DropdownMenu.Trigger>Help</DropdownMenu.Trigger>
-        <DropdownMenu.Portal>
-          <DropdownMenu.Content>
-            <DropdownMenu.Item>Contact support</DropdownMenu.Item>
-            <DropdownMenu.Item asChild>
-              <AskAiChat.Trigger />
-            </DropdownMenu.Item>
-          </DropdownMenu.Content>
-        </DropdownMenu.Portal>
-      </DropdownMenu.Root>
-      <AskAiChat.Panel />
-    </AskAiChat.Root>
-  );
-}
+```bash pnpm
+pnpm add @fern-api/search-widget react@19 react-dom@19
 ```
-
-*  `AskAiChat.Root` holds the state and renders no DOM of its own. It takes `domain`, `lang`, `searchLocale`, `placement`, `theme`, `accentColor`, `open`, `defaultOpen`, and `onOpenChange`. Styling props (`className`, `style`, `icon`, and any button attributes) go on `AskAiChat.Trigger` instead. `children` here is the subtree to wrap — the menu and the panel — unlike on `AskAiChat`, where it replaces the trigger label.
-*  `AskAiChat.Trigger` is a real `<button>`, so `asChild` works and the menu library keeps its menu-item keyboard behavior. It carries the localized `Ask AI` label, the sparkle icon, and the `aria-haspopup="dialog"` and `aria-controls` attributes. `variant="floating"` renders the corner launcher instead of an unpainted button; `children` and `icon` replace the label and the icon.
-*  `AskAiChat.Panel` is the chat. Render exactly one per root, outside any menu: two panels collide on a fixed element id. A root with a trigger but no panel logs a console warning.
-
-This shape also covers a popover, a command palette, or a nav bar dropdown, and a single root supports multiple triggers. Only one of them may be `variant="floating"`: the floating launcher carries a fixed element id, so two would collide.
-
-<Warning>
-  Don't keep the menu open with `onSelect={(event) => event.preventDefault()}` as a workaround. Radix's modal menu sets `pointer-events: none` on `<body>` while it's open, and the chat, portaled to `<body>`, inherits it: the chat paints correctly but ignores all pointer and keyboard input. Let the menu close instead.
-</Warning>
-
-## Opening the chat from your own UI
-
-If the trigger is an element you already have (a link, a list row, a command palette entry), set `trigger="none"` so the widget renders no button, and drive `open` yourself:
-
-```jsx
-import { AskAiChat } from '@fern-api/search-widget';
-import '@fern-api/search-widget/styles';
-
-const [askAiOpen, setAskAiOpen] = useState(false);
-
-<a href="#" onClick={() => setAskAiOpen(true)}>
-  <AskAiChat.Sparkles /> Still stuck? Ask AI
-</a>
-
-<AskAiChat
-  domain="https://docs.example.com"
-  trigger="none"
-  open={askAiOpen}
-  onOpenChange={setAskAiOpen}
-/>
+```bash yarn
+yarn add @fern-api/search-widget react@19 react-dom@19
 ```
+</CodeBlocks>
 
-`open` is controlled in the usual React sense: the widget renders what you give it, so `onOpenChange` must be wired back to your state or the chat's own controls (its close button, `Escape`, and `cmd`/`ctrl` + `/`) will appear to do nothing. Pass neither prop and the widget manages its own state; `onOpenChange` on its own works as a notification hook. With `trigger="none"`, `ref` stays `null` since there's no built-in button to attach it to, and the trigger's accessibility (`aria-haspopup="dialog"`, plus `aria-expanded` on a button) is yours to provide.
+<llms-only>
+  The package is approximately 2 MB (JS + CSS combined).
+</llms-only>
 
-`AskAiChat.Sparkles` is the Ask AI sparkle icon the built-in trigger uses, for making your own trigger read as the same affordance. It sizes to `1em` of the surrounding text and takes its color.
+Then follow the component page for usage, customization, and the full list of properties:
+
+<CardGroup cols={2}>
+  <Card
+    title="SearchModal"
+    icon="regular magnifying-glass"
+    href="/learn/docs/ai-features/ask-fern/search-widget/search-modal"
+  >
+    A modal combining keyword search with AI chat.
+  </Card>
+  <Card
+    title="AskAiChat"
+    icon="regular sparkles"
+    href="/learn/docs/ai-features/ask-fern/search-widget/ask-ai-chat"
+  >
+    A sidebar chat panel with floating, inline, and custom triggers.
+  </Card>
+</CardGroup>
 
 ## Content Security Policy
 
@@ -218,77 +92,3 @@ Content-Security-Policy: connect-src 'self' https://docs.example.com https://*.a
 ```
 
 Replace `https://docs.example.com` with your `domain`. The Algolia wildcards cover the hosts the widget resolves at runtime: `<app-id>-dsn.algolia.net` and `<app-id>-1.algolianet.com` through `<app-id>-3.algolianet.com`.
-
-## Properties
-
-All standard HTML button attributes are also supported and forwarded to the trigger button.
-
-### Shared properties
-
-<ParamField path="domain" type="string" required={true}>
-  The URL of your published Fern Docs site (for example, `https://docs.example.com`). Include the full path if your docs aren't at the root (for example, `https://buildwithfern.com/learn`).
-</ParamField>
-
-<ParamField path="lang" type="string" default="en">
-  Language code for the interface.
-</ParamField>
-
-<ParamField path="icon" type="React.ReactNode">
-  Icon element to display in the trigger button.
-</ParamField>
-
-<ParamField path="children" type="React.ReactNode">
-  Trigger button content (text, icons, etc.).
-</ParamField>
-
-### `SearchModal` properties
-
-<ParamField path="className" type="string">
-  CSS class names for the trigger button.
-</ParamField>
-
-<ParamField path="style" type="React.CSSProperties">
-  Inline styles for the trigger button.
-</ParamField>
-
-<ParamField path="disabled" type="boolean">
-  Disables the button.
-</ParamField>
-
-<ParamField path="onClick" type="function">
-  Additional click handler that runs before the modal opens.
-</ParamField>
-
-### `AskAiChat` properties
-
-<ParamField path="theme" type="'inherit' | 'light' | 'dark' | 'auto'" default="inherit">
-  `inherit` follows the host page's theme (a `dark` class or `data-theme="dark"` on `<html>` or `<body>`) and switches live with it. `light` and `dark` pin the widget to that mode. `auto` follows the visitor's `prefers-color-scheme`.
-</ParamField>
-
-<ParamField path="accentColor" type="string">
-  Accent color for the sparkles, send button, and links in answers. Accepts any CSS color (for example, `#6b4eff`), and derives the light and dark variants from it. Defaults to a neutral gray.
-</ParamField>
-
-<ParamField path="trigger" type="'floating' | 'inline' | 'none'" default="floating">
-  `floating` renders a styled launcher pinned to a corner of the viewport. `inline` renders an unpainted button to place and style yourself, such as in a nav bar. Both carry the sparkle icon and an `Ask AI` label by default. `none` renders no trigger at all, for [opening the chat from your own UI](#opening-the-chat-from-your-own-ui).
-</ParamField>
-
-<ParamField path="open" type="boolean">
-  Controls the open state instead of letting the widget own it. Wire `onOpenChange` back to your state when passing this prop.
-</ParamField>
-
-<ParamField path="defaultOpen" type="boolean">
-  The initial open state when uncontrolled. Ignored once `open` is passed.
-</ParamField>
-
-<ParamField path="onOpenChange" type="(open: boolean) => void">
-  Fires whenever the chat wants to open or close, from any source: the trigger, the close button, `Escape`, or `cmd`/`ctrl` + `/`. Called in both controlled and uncontrolled mode.
-</ParamField>
-
-<ParamField path="placement" type="'bottom-right' | 'bottom-left' | 'top-right' | 'top-left'" default="bottom-right">
-  The corner the launcher and card anchor to.
-</ParamField>
-
-<ParamField path="searchLocale" type="string">
-  Locale used for retrieval. Defaults to `lang`.
-</ParamField>
