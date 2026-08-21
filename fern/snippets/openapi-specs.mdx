@@ -12,6 +12,7 @@ api:
         inline-path-parameters: false
         inline-all-of-schemas: true
         prefer-undiscriminated-unions-with-literals: true
+        respect-parameter-content: true
         filter:
           endpoints: ["POST /users", "GET /users/{id}"]
         example-generation:
@@ -123,6 +124,24 @@ api:
 
 <ParamField path="settings.respect-readonly-schemas" type="boolean" toc={true}>
   Enables exploring readonly schemas in OpenAPI specifications.
+</ParamField>
+
+<ParamField path="settings.respect-parameter-content" type="boolean" default="false" toc={true}>
+  Types a header parameter from the schema under its JSON `content` media type instead of falling back to `string`. OpenAPI allows a parameter to describe its value with a `content` map rather than `schema`, which is how a header carrying a JSON-encoded object is expressed:
+
+  ```yaml
+  - name: X-Plant-Filter
+    in: header
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: "#/components/schemas/PlantFilter"
+  ```
+
+  With this setting enabled, that header is typed as `PlantFilter` in generated SDKs, and the API Reference renders it as an object with per-field playground inputs. The setting is off by default because enabling it changes generated SDK method signatures.
+
+  Query parameters are unaffected: one declared with `content` stays a `string`, since Fern serializes object query parameters as deep key-value pairs rather than a single JSON-encoded value.
 </ParamField>
 
 <ParamField path="settings.respect-forward-compatible-enums" type="boolean" default="false" toc={true}>
