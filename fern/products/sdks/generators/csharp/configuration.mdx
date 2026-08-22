@@ -60,6 +60,10 @@ When enabled, generates code with explicit namespace declarations throughout the
 Sets the name of the exported client class that will be used in code examples and documentation. This is useful for customizing how the client appears in generated documentation.
 </ParamField>
 
+<ParamField path="generate-documentation-file" type="boolean" default="true" required={false} toc={true}>
+Controls whether the generated project emits an XML documentation file. When enabled, the published package ships `lib/<framework>/<namespace>.xml`, which supplies IntelliSense to consumers of the SDK. `CS1591` is suppressed, so public members without a documentation comment don't produce build warnings.
+</ParamField>
+
 <ParamField path="generate-error-types" type="boolean" required={false} toc={true}>
 When enabled, generates specific error type classes for different API errors. This provides strongly typed error handling instead of using generic exception types.
 </ParamField>
@@ -110,6 +114,65 @@ AppInfo = new AppInfo { Name = "partner-app", Version = "3.1.0", Comment = "+htt
 
 <ParamField path="package-id" type="string" required={false} toc={true}>
 Sets the NuGet package identifier for the generated SDK. This is used when publishing the SDK to NuGet or other package repositories.
+</ParamField>
+
+<ParamField path="package-metadata" type="object" required={false} toc={true}>
+NuGet package metadata written into the generated project file, which determines how the package appears once it's [published to NuGet](/learn/sdks/generators/csharp/publishing). Unset keys are omitted from the project file, leaving NuGet's own defaults or the values Fern derives from the SDK's GitHub output location.
+
+```yaml title="generators.yml"
+config:
+  package-metadata:
+    description: A .NET SDK for the Plantstore API.
+    authors:
+      - Plantstore
+    tags:
+      - plants
+      - sdk
+    copyright: Copyright (c) Plantstore, Inc.
+    repository-url: https://github.com/plantstore/plantstore-dotnet
+    include-source-link: true
+    include-symbols: true
+```
+</ParamField>
+
+<ParamField path="package-metadata.description" type="string" required={false}>
+Sets `<Description>`, the package description shown on nuget.org.
+</ParamField>
+
+<ParamField path="package-metadata.authors" type="string | List<string>" required={false}>
+Sets `<Authors>`. A list is joined with commas.
+</ParamField>
+
+<ParamField path="package-metadata.tags" type="string | List<string>" required={false}>
+Sets `<PackageTags>`, the search tags on nuget.org. A list is joined with semicolons.
+</ParamField>
+
+<ParamField path="package-metadata.copyright" type="string" required={false}>
+Sets `<Copyright>`.
+</ParamField>
+
+<ParamField path="package-metadata.icon" type="string" required={false}>
+Sets `<PackageIcon>` and packs the image into the package. The path is relative to the root of the generated SDK, and the image file must exist there: add it to the SDK repository and list it in [`.fernignore`](/learn/sdks/generators/csharp/custom-code) so generation doesn't remove it.
+</ParamField>
+
+<ParamField path="package-metadata.project-url" type="string" required={false}>
+Sets `<PackageProjectUrl>`, overriding the URL derived from the SDK's GitHub output location.
+</ParamField>
+
+<ParamField path="package-metadata.repository-url" type="string" required={false}>
+Sets `<RepositoryUrl>`, overriding the URL derived from the SDK's GitHub output location.
+</ParamField>
+
+<ParamField path="package-metadata.repository-type" type="string" default="git" required={false}>
+Sets `<RepositoryType>`. Applies only when the package has a repository URL.
+</ParamField>
+
+<ParamField path="package-metadata.include-source-link" type="boolean" default="false" required={false}>
+When enabled, adds a `Microsoft.SourceLink.GitHub` package reference and builds the package deterministically with embedded source information, so debuggers can step into the SDK's sources.
+</ParamField>
+
+<ParamField path="package-metadata.include-symbols" type="boolean" default="false" required={false}>
+When enabled, the build produces a `.snupkg` symbol package alongside the `.nupkg`.
 </ParamField>
 
 <ParamField path="read-only-memory-types" type="List<string>" required={false} toc={true}>
