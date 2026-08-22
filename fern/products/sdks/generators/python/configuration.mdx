@@ -246,6 +246,19 @@ When enabled, the generated SDK resolves the version it reports in the `X-Fern-S
 When enabled, skips code formatting (like black) on the generated Python code.
 </ParamField>
 
+<ParamField path="stream_abstraction" type="bool" default="false" required={false} toc={true}>
+When enabled, streaming endpoints return a `Stream[T]` (`AsyncStream[T]` for async clients) instead of a generator. Iterating the stream yields the parsed payloads, while `with_metadata()` yields them wrapped in a `StreamEvent` that also exposes the [server-sent event metadata](/learn/sdks/deep-dives/sse-metadata): `id`, `event`, and `retry`.
+
+```python
+for event in client.plants.stream(query="fern").with_metadata():
+    print(event.id, event.data)
+```
+
+The request is still issued on first iteration, so errors surface when the stream is first consumed rather than at the call. The stream owns the underlying response and releases it when exhausted, when iteration raises, on `close()`, and on exiting a `with` block (`async with` for `AsyncStream`). `AsyncStream` is awaitable, so both `await client.plants.stream(...)` and a bare `async for` work.
+
+Enabling this changes the return type of streaming methods, which breaks existing callers, so it stays opt-in until the next major version of the generator.
+</ParamField>
+
 <ParamField path="timeout" type="number | 'infinity'" default="60" required={false} toc={true}>
   Sets the client timeout in seconds, or `infinity` to disable timeouts.
 </ParamField>
