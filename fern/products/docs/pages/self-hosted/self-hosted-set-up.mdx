@@ -76,7 +76,7 @@ RUN fern-generate
 ```
 
 <Info>
-`fern-generate` is a command available inside the Docker image that processes your documentation at build time, enabling faster container startup, air-gapped deployment, and a smaller attack surface. It's not a command you run on your host machine. You can alternatively [defer generation to runtime](#runtime-generation).
+`fern-generate` is a command available inside the Docker image that renders your documentation to static HTML at build time, enabling faster container startup, air-gapped deployment, and a smaller attack surface. It's not a command you run on your host machine. You can alternatively [defer generation to runtime](#runtime-generation).
 </Info>
 
 <Tip>
@@ -141,31 +141,8 @@ Configure the self-hosted container's behavior by setting environment variables 
 |---|---|---|
 | `CUSTOM_DOMAIN` | Override the `custom-domain` from `docs.yml` at runtime. Useful when the hostname where the docs are actually served differs from the domain in `docs.yml`. Accepts a bare hostname (e.g., `docs.plantstore.dev`); any `https://` or `http://` prefix is stripped automatically. | Value from `docs.yml` `custom-domain` |
 | `FERN_LOG_LEVEL` | Log level for the Fern CLI during docs generation. Options: `debug`, `info`, `warn`, `error`. | `debug` |
-| `NODE_MEMORY_LIMIT` | Node.js heap size in MB for the Next.js server. Increase for large documentation sites with many API versions. | `4096` |
 | `NEXT_PUBLIC_BASE_PATH` | Override the base path inferred from your `docs.yml` sub-path, or serve from a sub-path without configuring `docs.yml`. The value must start with `/` and have no trailing slash (e.g., `/docs`). See [Base path](#base-path) for details. | Inferred from `docs.yml` sub-path (else serves from `/`) |
 
-
-### Cache warmup
-
-The container can pre-fetch all pages on startup to ensure the first real user request is fast.
-
-| Variable | Description | Default |
-|---|---|---|
-| `WARMUP` | Set to `true` to enable cache warmup on startup. Runs in the background and doesn't block container readiness. | `false` |
-| `WARMUP_TIMEOUT` | Timeout in seconds for each page request during warmup. | `5` |
-
-### Cache proxy
-
-The container includes a caching proxy that sits in front of the Next.js server.
-
-| Variable | Description | Default |
-|---|---|---|
-| `CACHE_MAX_ENTRIES` | Maximum number of pages to cache. | `1000` |
-| `CACHE_MAX_ENTRY_SIZE` | Maximum size per cached entry in bytes. | `5242880` (5 MB) |
-| `CACHE_DEFAULT_TTL` | Default cache time to live (TTL) in seconds. | `2592000` (30 days) |
-| `CACHE_CDN_TTL` | Cache TTL in seconds for downstream CDN caches (e.g., CloudFront). | `3600` (1 hour) |
-| `CACHE_DISABLED` | Set to `true` or `1` to disable caching entirely. | `false` |
-| `CACHE_PROXY_DEBUG` | Set to `1` for verbose cache proxy logging. | `0` |
 
 ### Cross-origin resource sharing (CORS) proxy
 
@@ -249,7 +226,7 @@ Set `NEXT_PUBLIC_BASE_PATH` when you need a base path that differs from the `doc
 <Tabs>
 <Tab title="Build-time (recommended)">
 
-Set `NEXT_PUBLIC_BASE_PATH` in your Dockerfile before running `fern-generate`. This patches the base path into the bundle at build time, so the container can run with a read-only filesystem.
+Set `NEXT_PUBLIC_BASE_PATH` in your Dockerfile before running `fern-generate`. The site is rendered with that base path at build time, so the container can run with a read-only filesystem.
 
 ```dockerfile
 FROM fernenterprise/fern-self-hosted:latest
@@ -264,18 +241,18 @@ RUN fern-generate
 </Tab>
 <Tab title="Runtime">
 
-Pass `NEXT_PUBLIC_BASE_PATH` when starting the container. The base path is patched into the bundle at container startup.
+Pass `NEXT_PUBLIC_BASE_PATH` when starting the container.
 
 ```bash
 docker run -p 3000:3000 -e NEXT_PUBLIC_BASE_PATH=/docs self-hosted-docs
 ```
 
-Runtime patching modifies files inside the container on startup, so it's not compatible with `readOnlyRootFilesystem: true` in Kubernetes. Use build-time patching if your security context requires a read-only root filesystem.
+The base path is compiled into every URL of the static site, so a runtime base path that differs from the one the image was built with re-renders the site at startup. Re-rendering writes into the container filesystem, so it's not compatible with `readOnlyRootFilesystem: true` in Kubernetes, and it requires the image to retain the site builder: build with `FERN_KEEP_BUILD_TOOLS=1` or defer generation to runtime.
 
 </Tab>
 </Tabs>
 
-A single Docker image built without a base path can be patched at runtime to serve from any path, letting you reuse one image across environments that need different base paths.
+An image that retains the site builder can be re-rendered at startup for any base path, letting you reuse one image across environments that need different base paths.
 
 ### Runtime generation
 
