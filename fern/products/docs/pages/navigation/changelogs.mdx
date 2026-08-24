@@ -1,11 +1,11 @@
 ---
 title: Changelog pages
 subtitle: Keep a chronological record of project changes with tagging, search, and RSS
-description: Configure changelog pages in Fern, including entry files, the timeline and classic layouts, tag filtering, and the RSS feed.
+description: Configure changelog pages in Fern, including entry files, timeline, classic, and blog layouts, tag filtering, and the RSS feed.
 ---
 
 
-A changelog is a navigation entry that renders a dated timeline of entries. Point the `changelog` key at a folder and every Markdown file in it becomes an entry, grouped by date, with search and tag filtering built in. A changelog can go wherever a section can — as its own tab, or as an entry in your sidebar.
+A changelog is a navigation entry that renders dated entries. Point the `changelog` key at a folder and every Markdown file in it becomes an entry, grouped by date, with search and tag filtering built in. A changelog can go wherever a section can — as its own tab, or as an entry in your sidebar.
 
 <Frame
     caption="Keep your users updated as your project evolves"
@@ -47,6 +47,8 @@ Subdirectories within the `changelog` folder aren't supported. All changelog ent
 <Step title="Reference it in `docs.yml`">
 
 Reference the folder in your `docs.yml`. You can place the changelog as its own tab or as a section within your navigation.
+
+`blog:` is an alias for `changelog:` at both the top level and tab level. It has the same behavior, URLs, and feeds, but defaults the navigation title to `Blog` instead of `Changelog`.
 
 <Tabs>
 <Tab title="As a tab">
@@ -188,10 +190,11 @@ Add an `overview.mdx` file to your `changelog` folder to include a high-level ov
 
 ## Customize layout
 
-Changelogs support two layouts:
+Changelogs support three layouts:
 
 - `timeline` (default) — a searchable timeline of condensed entry cards with plain-text excerpts.
 - `classic` — stacked full entries rendered inline, preserving code formatting, copy buttons, and links.
+- `blog` — a blog-style listing of entry cards. This layout is available only as a per-changelog override; the site-wide `layout.changelog-layout` setting accepts only `timeline` and `classic`.
 
 ### Site-wide setting
 
@@ -219,6 +222,38 @@ Release history for the self-hosted Docker image.
 </CodeBlock>
 
 The per-changelog override takes priority over the site-wide `layout.changelog-layout` setting.
+
+## Blog layout
+
+The `blog` layout renders one card for each dated entry file. Unlike the `timeline` layout, which creates a card for each top-level `##` heading, the `blog` layout creates one card per file.
+
+Set `layout: blog` in the changelog folder's `overview.mdx` frontmatter. Use `blog-layout: grid` for the default card grid or `blog-layout: list` for full-width rows with the image beside the text. List rows stack on narrow viewports. Values other than `list` use the grid layout.
+
+```mdx title="changelog/overview.mdx"
+---
+layout: blog
+blog-layout: list
+authors:
+  garden-editor:
+    name: Garden editor
+    role: Horticulture
+---
+
+Updates from the Fern Garden team.
+```
+
+Configure blog metadata in the overview and entry frontmatter:
+
+- An optional `authors` map in the overview frontmatter registers authors by ID. Each author requires `name` and can include `role`, `avatar`, and `url`.
+- `title` sets the post title and falls back to the entry title.
+- `slug` overrides the date-derived URL.
+- `tags` adds tags to the post.
+- The excerpt uses `description`, then `subtitle`, then `excerpt`, and falls back to the first approximately 200 characters of the body.
+- `thumbnail` or `image` sets the card and hero image.
+- `author` or `authors` can name keys in the overview's `authors` registry or provide inline author objects with `name`, `role`, `avatar`, and `url`.
+- `draft: true` or `hidden: true` excludes the post from the listing.
+
+Entry files still require a leading date in the filename. Files named `overview`, `index`, or `summary` are treated as the overview page, and the date can't be overridden in frontmatter. Search, tag filtering, entry pages, and RSS, Atom, and JSON feeds work the same way as they do for a changelog. Everything else about a changelog is unchanged.
 
 ## Linking and sharing
 
