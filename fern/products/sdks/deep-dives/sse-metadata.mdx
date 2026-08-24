@@ -55,7 +55,11 @@ Each event exposes the parsed data alongside its protocol fields. Default iterat
   </CodeBlock>
 </CodeBlocks>
 
-The Python `Stream` is lazy: it issues the request on first iteration and releases the response when the stream is exhausted, when iteration raises, on `close()`, or on exiting a `with` block. `AsyncStream` supports `async with` and is awaitable.
+Each stream owns the underlying HTTP response, and releases it differently per language:
+
+*    **TypeScript**: the body is released when iteration ends and cancelled when you break out of the loop. An `abortSignal` in the request options stops the stream from outside.
+*    **Python**: the stream is lazy, issuing the request on first iteration, and releases the response when it's exhausted, when iteration raises, on `close()`, or on exiting a `with` block. `AsyncStream` supports `async with` and is awaitable.
+*    **Go**: the stream never closes the body on its own, so `defer stream.Close()` is required.
 
 <Note>
 `withMetadata()` requires TypeScript SDK generator version 3.73.0+, and `RecvEvent()` requires Go SDK generator version 1.32.0+. In Python, `with_metadata()` requires generator version 5.29.0+ with [`stream_abstraction`](/learn/sdks/generators/python/configuration#stream_abstraction) enabled.
