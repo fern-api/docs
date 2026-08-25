@@ -15,12 +15,12 @@ Cross-links are automatic. When a fully qualified identifier appears in a code b
 
 Add a `libraries` entry to your `docs.yml` file. Each library needs an `input` source, an `output.path` (where generated MDX files are written), and a `lang` (`python` or `cpp`).
 
-The input source can be a `git` URL, parsed remotely on Fern's servers, or a local `path`, parsed on your machine with the `--local` flag. Local parsing is useful for iterating on documentation without pushing to a remote repository, and doesn't require you to be logged in to Fern.
+The input source can be a `git` URL or a local `path`. A `git` input is parsed on Fern's servers by default, or on your machine with the `--local` flag. A `path` input requires `--local`.
 
-A `git` input reads the repository's default branch. Set `ref` to a branch or tag to generate from source that hasn't merged yet.
+A `git` input reads the repository's default branch. Set `ref` to a branch, tag, or commit SHA to generate from source that hasn't merged yet.
 
 <Tabs>
-<Tab title="git input (remote)">
+<Tab title="git input">
 ```yaml docs.yml
 libraries:
   plant-core:
@@ -35,15 +35,15 @@ libraries:
       doxyfile: ./Doxyfile # optional, C++ only
 ```
 </Tab>
-<Tab title="path input (local)">
+<Tab title="path input">
 ```yaml docs.yml
 libraries:
   plant-core:
     input:
-      path: ../plant-core-cpp # relative to fern/ directory
+      path: ../plant-core-cpp # local library source, relative to fern/ directory
     output:
-      path: ./static/plant-core-docs
-    lang: cpp
+      path: ./static/plant-core-docs # relative to fern/ directory
+    lang: cpp # python or cpp
     config:
       doxyfile: ./Doxyfile # optional, C++ only
 ```
@@ -76,26 +76,26 @@ navigation:
 Run the [`fern docs md generate`](/learn/cli-api-reference/cli-reference/docs-commands#fern-docs-md-generate) command to generate MDX files from your library source code:
 
 <Tabs>
-<Tab title="git input (remote)">
+<Tab title="Remote parsing">
 ```bash
 fern docs md generate
 ```
 
-The command sends the repository URL to Fern's servers for parsing.
+The command sends the repository URL to Fern's servers for parsing. Requires a `git` input.
 </Tab>
-<Tab title="path input (local)">
+<Tab title="Local parsing">
 ```bash
 fern docs md generate --local
 ```
 
-The `--local` flag parses the source on your machine instead of on Fern's servers.
+The `--local` flag parses the source on your machine instead of on Fern's servers, which is useful for iterating on documentation without pushing to a remote repository, and doesn't require you to be logged in to Fern. Both input types work: a `path` input is read in place, and a `git` input is checked out at its `ref` using your local git credential configuration.
 
 <Warning>
 Local parsing runs each parser inside a Docker container, so [Docker](https://docs.docker.com/get-docker/) must be running on your machine. Verify with `docker ps`.
 </Warning>
 
 <Note>
-For C++ libraries, the parser uses your `path` directory as the source root. If your Doxyfile sets its input directive to subdirectories, the effective scope is your `path` combined with those Doxyfile input entries. Ensure the Doxyfile's input paths are relative to the root of your `path` directory.
+For C++ libraries, the parser uses the source root — your `path` directory, or the repository root for a `git` input — as its scope. If your Doxyfile sets its input directive to subdirectories, the effective scope is the source root combined with those Doxyfile input entries. Ensure the Doxyfile's input paths are relative to the source root.
 </Note>
 </Tab>
 </Tabs>
@@ -183,7 +183,7 @@ You can also edit page content by modifying the MDX files directly — generated
 ## Configuration reference
 
 <ParamField path="input.git" type="string">
-  GitHub URL of the repository containing the library source code. Parsed remotely on Fern's servers. Mutually exclusive with `input.path`.
+  GitHub URL of the repository containing the library source code. Parsed on Fern's servers, or on your machine with `--local`. Mutually exclusive with `input.path`.
 </ParamField>
 
 <ParamField path="input.subpath" type="string">
@@ -191,7 +191,7 @@ You can also edit page content by modifying the MDX files directly — generated
 </ParamField>
 
 <ParamField path="input.ref" type="string">
-  Git ref to check out: a branch or tag. Only valid with `input.git`. Defaults to the repository's default branch.
+  Git ref to check out: a branch, tag, or commit SHA. Only valid with `input.git`. Defaults to the repository's default branch.
 </ParamField>
 
 <ParamField path="input.path" type="string">
@@ -207,5 +207,5 @@ You can also edit page content by modifying the MDX files directly — generated
 </ParamField>
 
 <ParamField path="config.doxyfile" type="string">
-  Path to a custom [Doxyfile](https://www.doxygen.nl/manual/config.html). C++ only. For local generation, the Doxyfile's input paths are resolved relative to the `input.path` directory.
+  Path to a custom [Doxyfile](https://www.doxygen.nl/manual/config.html). C++ only. For local generation, the Doxyfile's input paths are resolved relative to the source root: the `input.path` directory, or the repository root for a `git` input.
 </ParamField>
