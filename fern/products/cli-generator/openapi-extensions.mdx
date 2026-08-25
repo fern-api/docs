@@ -49,7 +49,7 @@ See [SDK method names](/learn/api-definitions/openapi/extensions/method-names) f
 
 ## Command group help
 
-A command group's help text is derived from the OpenAPI document. The short line in the parent command's table comes from the description of a root-level `tags[]` entry attributed to the group, so a documented spec produces meaningful help without further configuration.
+A command group's help text comes from the root-level `tags[]` entry attributed to it: the first sentence of the tag description becomes the short line in the parent command's table, and the full description becomes the group's `--help` body.
 
 ```yaml title="openapi.yml" {2-3}
 tags:
@@ -62,13 +62,13 @@ paths:
         - plants
 ```
 
-Produces `plants  Browse and water the plants in your greenhouse.` in the top-level command table, with the full description under `contoso plants --help`.
+Produces `plants  Browse and water the plants in your greenhouse.` in the top-level command table.
 
-A root tag's description is attributed to a group when the tag name matches the group name, or when the tag is exclusive to the group and covers at least half of its operations. Scoped tag names containing a colon (`access:all`) are never attributed, and an ambiguous tag is discarded rather than describing a group with another group's prose.
+A tag is attributed to a group when its name matches the group name, or when it's exclusive to the group and covers at least half of the group's operations. Colon-scoped tag names (`access:all`) and tags shared across groups are ignored, leaving the fallback `Operations on '<name>'`.
 
 ### `x-fern-groups`
 
-Overrides the derived help for a specific group. `summary` sets the short line and `description` sets the long help.
+Overrides the derived help for a group. `summary` sets the short line, which is capped at 80 characters; `description` sets the long help and also supplies the short line when `summary` is absent or only restates the command name (`Plants` for `plants`).
 
 ```yaml title="openapi.yml" {2-4}
 x-fern-groups:
@@ -76,17 +76,6 @@ x-fern-groups:
     summary: Manage your greenhouse
     description: Browse, water, and repot plants. Watering respects each plant's schedule.
 ```
-
-The short line resolves in this order:
-
-1. `summary`.
-2. The first sentence of `description`.
-3. The first sentence of an attributed root tag description.
-4. `Operations on '<name>'`.
-
-A `summary` that restates the group's command name (`Plants` for `plants`) carries no extra information, so a `description` or tag description takes precedence over it.
-
-Long help uses `description`, then the full tag description, and is omitted when it matches the short line. Short lines are capped at 80 characters, keeping the command table scannable.
 
 ## Filtering
 
