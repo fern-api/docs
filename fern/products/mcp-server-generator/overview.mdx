@@ -1,0 +1,57 @@
+---
+title: MCP server generator
+description: "Generate a Model Context Protocol server from your API definition, with one tool per endpoint."
+availability: beta
+---
+
+Fern's MCP server generator produces a [Model Context Protocol](https://modelcontextprotocol.io) server from the same API definition you already use for your Docs and SDKs. Every operation becomes a tool whose JSON Schema input is derived from its OpenAPI definition, so AI clients such as Claude Code, Cursor, and Windsurf can call your API without a hand-written integration layer.
+
+The generated server is a TypeScript package that speaks stdio and calls your API with `fetch`. It has two runtime dependencies, `@modelcontextprotocol/core` and `@modelcontextprotocol/server`, and no generated SDK underneath it.
+
+This is the server you ship to your users so their agents can drive your API. Two other Fern products also involve MCP: the [MCP server Fern hosts for your documentation site](/learn/docs/ai-features/mcp-server) answers your readers' questions from your published content, and [Fern's own MCP server](/learn/docs/ai-features/fern-mcp-servers) gives your coding agent access to your Fern data.
+
+## How it works
+
+The generator plugs into the same Fern workflow as your Docs and SDKs. Each API operation becomes one tool, and each tool gets its own handler module in the generated package. When your spec changes, regeneration updates the tool set, the input schemas, and the documentation resources together, so the server and the API stay in step.
+
+Generation reads the whole API definition, not only paths and schemas. Security schemes determine the [credential environment variables](/learn/mcp-server-generator/get-started/authentication) the server reads at startup, tags and services determine the [toolsets](/learn/mcp-server-generator/get-started/toolsets) a client can select, and descriptions, examples, and error responses become [documentation resources](/learn/mcp-server-generator/get-started/features#documentation-resources) the agent can read before composing a call.
+
+## What the generator produces
+
+<CardGroup cols={3}>
+  <Card title="Schema-derived tools" icon="fa-duotone fa-wrench">
+    One tool per operation, with a JSON Schema input built from the operation's parameters and request body.
+  </Card>
+  <Card title="Tool annotations" icon="fa-duotone fa-tags">
+    Read-only, destructive, and idempotent hints inferred from the HTTP method, operation name, and scopes.
+  </Card>
+  <Card title="Toolsets" icon="fa-duotone fa-layer-group">
+    Per-service and per-tag toolsets, selected at startup so a client loads only the tools it needs.
+  </Card>
+  <Card title="Documentation resources" icon="fa-duotone fa-book-open">
+    Tag guides, operation guides, examples, and an error taxonomy, served as MCP resources.
+  </Card>
+  <Card title="Editable handlers" icon="fa-duotone fa-pen-to-square">
+    One handler module per tool, plus request and response hooks you can extend.
+  </Card>
+  <Card title="Client setup" icon="fa-duotone fa-plug">
+    A README with the MCP client JSON configuration, the equivalent `claude mcp add` command, and the environment-variable reference.
+  </Card>
+</CardGroup>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="fa-duotone fa-rocket" href="/learn/mcp-server-generator/get-started/quickstart">
+    Generate a server from an OpenAPI spec and register it with an MCP client.
+  </Card>
+  <Card title="Features" icon="fa-duotone fa-list-check" href="/learn/mcp-server-generator/get-started/features">
+    Schema fidelity, tool annotations, result shaping, and documentation resources.
+  </Card>
+  <Card title="Toolsets and tool filtering" icon="fa-duotone fa-layer-group" href="/learn/mcp-server-generator/get-started/toolsets">
+    Group tools by service or tag and prune the ones an agent shouldn't see.
+  </Card>
+  <Card title="Configuration reference" icon="fa-duotone fa-gear" href="/learn/mcp-server-generator/get-started/configuration">
+    Every generator option, with the defaults each one falls back to.
+  </Card>
+</CardGroup>

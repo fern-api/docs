@@ -1,0 +1,106 @@
+---
+title: Project structure
+description: What each file in a generated MCP server package does, and which files are meant to be edited.
+availability: beta
+---
+
+A generated server is a standalone TypeScript package. It compiles with `tsc`, ships as an ES module, and depends on `@modelcontextprotocol/core` and `@modelcontextprotocol/server` at runtime. There is no generated SDK underneath it: the runtime builds requests and calls `fetch` directly.
+
+```text
+my-mcp-server/
+├── package.json
+├── tsconfig.json
+├── metadata.json
+├── README.md
+├── .gitignore
+└── src/
+    ├── index.ts
+    ├── info.ts
+    ├── manifest.ts
+    ├── tools.ts
+    ├── toolsets.ts
+    ├── runtime.ts
+    ├── hooks.ts
+    ├── resources.ts
+    ├── docs.ts
+    └── tools/
+        ├── create_queue.ts
+        ├── get_queue.ts
+        └── ...
+```
+
+## Source files
+
+| File | Contents |
+| --- | --- |
+| `src/index.ts` | The stdio entrypoint. Resolves `MCP_TOOLSET`, constructs the server with the tools and resources capabilities, and serves over stdio. |
+| `src/info.ts` | Server name, version, default base URL, the instructions sent on connect, and a summary of the spec's security schemes. |
+| `src/tools/<tool>.ts` | One module per tool: its `definition` — description, input schema, annotations, `_meta` — and a `handler` that hands a request spec to the runtime. |
+| `src/manifest.ts` | The `name → { definition, handler }` map every other module reads, plus the `ToolDefinition` and `ToolHandler` types. |
+| `src/tools.ts` | The `tools/list` and `tools/call` handlers. Validates arguments against the input schema before dispatching, and hides tools outside the selected toolset. |
+| `src/toolsets.ts` | The [toolset map](/learn/mcp-server-generator/get-started/toolsets), from toolset name to the tool names it contains. |
+| `src/runtime.ts` | Reads credentials and `BASE_URL` from the environment, builds the `Request`, applies authentication, calls `fetch`, and shapes the response into a tool result. |
+| `src/hooks.ts` | Request and response hooks, generated as no-ops for you to fill in. |
+| `src/resources.ts` | The `resources/list`, `resources/templates/list`, and `resources/read` handlers. |
+| `src/docs.ts` | The generated [documentation resources](/learn/mcp-server-generator/get-started/features#documentation-resources) and their content. Not intended for hand-editing. |
+
+`metadata.json` is a machine-readable summary of the server: its name and description, its environment variables, its services and tools, its toolsets, its authentication requirements, and any operations that were [skipped during generation](/learn/mcp-server-generator/get-started/features#unsupported-operations) along with the reason. Registries and catalogs can read it without building the package.
+
+## Scripts
+
+| Script | Runs |
+| --- | --- |
+| `npm run setup` | `npm install && npm run build`. The one command to run after generation. |
+| `npm run build` | `tsc`, compiling `src/` to `dist/`. |
+| `npm start` | `node dist/index.js`, starting the stdio server outside a client. |
+| `npm test` | `tsc --noEmit`, type-checking without emitting. |
+
+## Tool handlers
+
+Each tool module holds a declarative request spec and passes it to the shared runtime, so per-tool code stays small enough to read and change:
+
+```typescript title="src/tools/get_queue.ts"
+export const definition: ToolDefinition = { /* description, inputSchema, annotations, _meta */ };
+
+export async function handler(
+  args: ToolArgs,
+  ctx: RequestContext,
+): Promise<CallToolResult> {
+  return executeRequest(ctx, {
+    toolName: 'get_queue',
+    method: 'GET',
+    path: '/queues/{queue_name}',
+    pathParams: { queue_name: ['queue_name'] },
+    auth: [[{ schemeName: 'apiKey', type: 'apiKey', paramName: 'X-Api-Key', in: 'header' }]],
+  } satisfies RequestSpec, args);
+}
+```
+
+Editing a handler is how you change one tool without affecting the rest: tighten a schema, rewrite a description the model keeps misreading, or replace the `executeRequest` call outright with your own logic.
+
+## Hooks
+
+`src/hooks.ts` covers changes that apply to every tool. All four functions are generated as pass-throughs.
+
+| Hook | Called | Use for |
+| --- | --- | --- |
+| `beforeRequest(request)` | After the runtime builds the `Request`, before `fetch`. Returns the request to send. | Signing, adding headers, rewriting the URL. |
+| `afterResponse(request, response)` | After `fetch` returns, before the result is read. Returns the response to process. | Unwrapping an envelope, normalizing a status. |
+| `onError(request, error)` | On a transport failure or a non-2xx response. Returns nothing. | Logging and metrics. |
+| `transformResult(toolName, result)` | After the result is built, before it reaches the client. Returns the result to deliver. | Redacting fields, trimming payloads. |
+
+## Keeping your edits
+
+Handler modules and `src/hooks.ts` are generated as editable starting points, and regeneration rewrites them along with everything else. To take ownership of a file, list it under `ignoreFiles` so it's dropped from the generated output and your copy in the repository stands:
+
+{/* TODO(mcp-docs): `ignoreFiles` is a generation-request field. Confirm where it sits in
+    generators.yml (nested under `config` as written here, or top-level on the generator entry)
+    once the invocation surface is settled. */}
+
+```yaml title="generators.yml"
+config:
+  ignoreFiles:
+    - src/hooks.ts
+```
+
+A file you've claimed this way no longer picks up generator improvements, so claim the smallest set that covers what you need — `src/hooks.ts` rather than a directory of handlers, where a hook can do the job.

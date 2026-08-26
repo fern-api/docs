@@ -1,0 +1,86 @@
+---
+title: Features
+description: How the generator turns operations into tools, what the generated runtime does with results and errors, and what it serves as documentation resources.
+availability: beta
+---
+
+Generated servers speak stdio, target `@modelcontextprotocol/server` 2.0.0, and call your API with `fetch`. Everything on this page is derived from the API definition at generation time: tool names and descriptions, input schemas, annotations, documentation resources, and the server instructions the client keeps in context.
+
+## Tools from operations
+
+Each operation in the spec becomes one tool. Tool names are snake_case and come from the operation's `operationId`, with a `handle_` or `handler_` prefix and a redundant `_<path>_<method>` suffix removed. An operation without an `operationId` falls back to `<method>_<path>`, so `GET /queues/{id}` becomes `get_queues_id`.
+
+When two operations produce the same name, the generator prefixes the service name; if that still collides, it appends a counter. Names stay stable across regenerations as long as the operation's identity in the spec does.
+
+Tool descriptions start from the operation's description, fall back to its summary, and fall back again to `METHOD /path`. The generator then appends what an agent needs to decide whether to call the tool: up to three property names from the success response, and the arguments, authentication, and scopes the call requires. The whole description is capped at 512 characters, and deprecated operations are prefixed with `[Deprecated]`.
+
+```json title="Generated tool description"
+"Creates a new container group Returns autostart_policy, container, country_codes. Requires organization_name, project_name, body and authentication."
+```
+
+### Tool annotations
+
+Every tool carries MCP annotations so a client can decide what needs confirmation before it runs.
+
+| HTTP method | `readOnlyHint` | `idempotentHint` | `openWorldHint` |
+| --- | --- | --- | --- |
+| GET, HEAD | `true` | — | `true` |
+| PUT, DELETE | `false` | `true` | `true` |
+| POST, PATCH | `false` | `false` | `true` |
+
+`destructiveHint` is set on any DELETE, and on any other write whose operation ID, title, summary, or path contains a destructive verb: `delete`, `remove`, `terminate`, `purge`, `destroy`, `revoke`, `erase`, `cancel`, `wipe`, or `reset`. An operation whose declared OAuth scopes all read as read-only overrides the keyword match, so a `cancel` endpoint guarded only by a `read` scope isn't marked destructive.
+
+Each tool definition also carries a `_meta` block with the source `operationId`, the documented error statuses, and a flag for [64-bit integer handling](#64-bit-integers).
+
+## Input schemas
+
+Tool input schemas are built from the operation's parameters and request body, and they keep the constraints the spec declares. Primitives keep their validation rules, and arrays, dictionaries, enums, `oneOf`/`anyOf`/`allOf` composition, discriminators, nullable schemas, and recursive models all survive the translation. Objects are closed with `additionalProperties: false` so an agent can't invent fields.
+
+Some OpenAPI constructs have no faithful JSON Schema equivalent. Mixed types, `patternProperties`, and `if`/`then` conditionals are relaxed to accept a superset of what the API takes, and the relaxation is explained in the tool description so the model knows the schema is looser than the API.
+
+### 64-bit integers
+
+JavaScript numbers can't carry integers above 2<sup>53</sup> without losing precision, so schemas for 64-bit integer fields also accept decimal strings. The tool description says so, the tool's `_meta` carries a `fern/int64AsString` flag, and a validation failure on such a tool appends a reminder that 64-bit integers must be sent as strings.
+
+## Input validation
+
+Arguments are validated against the tool's input schema before the handler runs. A failure returns an `InvalidParams` protocol error naming the tool and the schema violation, so no request reaches your API. Calling a tool that isn't in the [selected toolset](/learn/mcp-server-generator/get-started/toolsets#selecting-a-toolset-at-runtime) fails the same way, with a tool-not-found message.
+
+## Results and errors
+
+A JSON response body is pretty-printed into the result's text content. A JSON object body is also attached as `structuredContent` when the raw body is 1 MiB or smaller — above that, the result keeps only the text copy rather than sending the payload twice. A non-JSON body passes through as raw text.
+
+A non-2xx response returns a tool result with `isError` set and a message of the form `[tool_name] HTTP 404 Not Found: <body>`, with the body truncated at 2048 characters so one failing call can't flood the client's context. An exception thrown inside a handler becomes an error result the same way, rather than a transport failure. Redirects surface as responses instead of being followed, so an agent sees the 3xx rather than landing somewhere else without notice.
+
+## Documentation resources
+
+Generated servers expose the prose and examples from your spec as MCP resources, so an agent can read the reference material before it composes a call. Resource URIs are prefixed with `openapi://<serverName>/`.
+
+| Resource | URI | Content |
+| --- | --- | --- |
+| Tag guide | `tags/<tag>` | The operations under one tag, with tool names, methods, paths, and authentication, plus an example. One per tag. |
+| Error taxonomy | `errors` | Every documented error status across the server's tools, with descriptions. |
+| Operation guide | `operations/{operationId}` | Parameters, responses, errors, authentication, and external documentation links for one operation. |
+| Operation examples | `operations/{operationId}/examples` | Request and response examples for one operation, as JSON. |
+
+Tag guides and the error taxonomy are listed as resources. Operation guides and examples are registered as resource templates, so a client reads them by operation ID rather than enumerating one entry per endpoint.
+
+## Server instructions
+
+The server sends instructions on connect, covering how to route a request to the right tool, how authentication works, which resources exist, and how to read the schemas and pass arguments. Clients keep instructions in context for the whole conversation, so the generator holds them to a budget: 1800 bytes in total, with the authentication section capped at 700 bytes.
+
+## Hooks
+
+Generated packages include a `src/hooks.ts` module with four no-op functions you can fill in: `beforeRequest`, `afterResponse`, `onError`, and `transformResult`. They cover the cases that don't belong in a spec, such as signing a request, retrying a specific status, or redacting a field out of a result before it reaches the model. The [project structure](/learn/mcp-server-generator/get-started/project-structure#hooks) page covers how each one is called.
+
+## Unsupported operations
+
+A few operations can't be represented as a tool. These are dropped from the generated server, with a warning naming the tool and the reason:
+
+- A request body with no `application/json` (or `+json`) content type.
+- A required query parameter whose serialization style isn't supported. Only `form`, and `deepObject` with `explode: true` on an object-typed schema, are supported.
+
+Other cases fail generation rather than producing a server that would build the wrong request:
+
+- A path or header parameter with a style other than `simple`, or a cookie parameter with a style other than `form`.
+- A spec whose security schemes are all OAuth client credentials. Generated servers read a pre-issued token and don't perform a token exchange.

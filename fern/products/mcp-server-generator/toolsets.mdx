@@ -1,0 +1,109 @@
+---
+title: Toolsets and tool filtering
+description: Group generated tools by service or tag, prune the ones an agent shouldn't see, and select a toolset at startup.
+availability: beta
+---
+
+A server that exposes every operation in a large API gives an agent more tools than it can choose between well. Toolsets solve the runtime half of that problem by letting a client load one named subset at startup. Tool filters solve the generation half by keeping operations out of the package entirely.
+
+Filtering happens once, before anything else is emitted. An operation removed by `tools` or `excludeAvailability` can't reappear through a named toolset, and its handler module isn't generated.
+
+## The default toolset
+
+`default` is the toolset a client gets when it doesn't ask for one. It holds every tool in the server unless `tools` or `excludeAvailability` narrows the set, in which case it holds what survives the filter. `default` is reserved: it can't be redefined under `toolsets`.
+
+## Derived toolsets
+
+The generator derives a toolset for each service and each tag in the spec, named after it in kebab-case. A derived name has to be a valid toolset name — lowercase letters, digits, and hyphens — and has to cover at least two tools, so a tag with a single operation doesn't become a toolset of one.
+
+```typescript title="src/toolsets.ts"
+export const toolsets: Record<string, readonly string[] | null> = {
+  "default": null,
+  "container-groups": [
+    "list_container_groups",
+    "create_container_group",
+    "get_container_group",
+    "delete_container_group"
+  ],
+  "queues": [
+    "list_queues",
+    "create_queue",
+    "get_queue",
+    "delete_queue"
+  ]
+};
+```
+
+## Named toolsets
+
+Define your own toolsets under `toolsets`, keyed by name. A named toolset draws from the same pool as everything else, so it can only narrow what's already available. Defining one whose name matches a derived toolset replaces the derived version.
+
+```yaml title="generators.yml"
+config:
+  mcpConfig:
+    toolsets:
+      read-only:
+        include: ["list_*", "get_*"]
+      queues:
+        include: ["tag:queues"]
+        exclude: ["delete_queue"]
+```
+
+Toolset names must match `[a-z0-9-]+` and can't be `default`. Anything else fails generation.
+
+## Filter syntax
+
+`tools`, and each entry under `toolsets`, take an `include` list, an `exclude` list, or both. `include` restricts the set to matching tools; `exclude` then removes matches from what's left. Omitting `include` starts from every available tool.
+
+Each entry in either list matches one of four ways:
+
+| Entry | Matches |
+| --- | --- |
+| `get_queue` | A tool by its generated name. |
+| `getQueueById` | A tool by the `operationId` it came from. |
+| `tag:queues` | Every tool carrying that tag in the spec. |
+| `list_*` | Every tool whose name matches the pattern, where `*` matches any run of characters. |
+
+An entry that matches no tool fails generation, with the available tool names listed in the error. A filter that matched nothing without complaint would ship a server missing tools you meant to keep.
+
+```yaml title="generators.yml"
+config:
+  mcpConfig:
+    tools:
+      exclude: ["delete_*", "tag:internal"]
+```
+
+## Excluding by availability
+
+`excludeAvailability` drops tools by lifecycle status, which is the cheapest way to keep operations you no longer want agents reaching for out of the server:
+
+```yaml title="generators.yml"
+config:
+  mcpConfig:
+    excludeAvailability: ["DEPRECATED"]
+```
+
+The accepted values are `IN_DEVELOPMENT`, `PRE_RELEASE`, `GENERAL_AVAILABILITY`, `DEPRECATED`, `ALPHA`, `BETA`, `PREVIEW`, and `LEGACY`. `DEPRECATED` is the status the generator reads from a spec, from `deprecated: true` on an operation. Tools that stay in the server keep their status in the tool description, so an operation marked deprecated is described as `[Deprecated]`.
+
+## Selecting a toolset at runtime
+
+A client selects a toolset with the `MCP_TOOLSET` environment variable when it launches the server. Leaving it unset loads `default`.
+
+```json title="MCP client configuration"
+{
+  "mcpServers": {
+    "my-api-queues": {
+      "command": "node",
+      "args": ["<absolute path to>/dist/index.js"],
+      "env": {
+        "API_KEY": "sk-123",
+        "MCP_TOOLSET": "queues"
+      }
+    }
+  }
+}
+```
+
+An unrecognized name fails at startup with the valid toolsets listed, rather than starting a server with no tools. The generated README lists the valid values for your server in its environment-variable reference.
+
+Registering the same server twice under different names, each with its own `MCP_TOOLSET`, gives an agent two small tool surfaces instead of one large one.

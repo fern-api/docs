@@ -1,0 +1,136 @@
+---
+title: Quickstart
+description: Generate an MCP server from an OpenAPI spec and register it with an MCP client.
+availability: beta
+---
+
+{/* TODO(mcp-docs): the invocation surface isn't settled. This page assumes generators.yml +
+    `fern generate`, matching the CLI generator. Confirm before publishing:
+    - generator name (`fern-mcp-server-generator` is a placeholder)
+    - version pin (inline `0.1.0` here; add fern/snippets/version-number-mcp-server-generator.mdx
+      and the corresponding docker hub step in .github/workflows/update-versions.yml once the
+      generator publishes, then swap every `version:` in this product for the snippet)
+    - whether `config` options are nested under `mcpConfig` or flattened
+    If generation is driven by the Postman-side generation request instead, this page and
+    configuration.mdx both need rewriting against that payload. */}
+
+This guide walks through generating an MCP server from an OpenAPI spec, building it, and registering it with an MCP client. By the end you will have a server that exposes [one tool per operation](/learn/mcp-server-generator/get-started/features#tools-from-operations), reads [credentials from the environment](/learn/mcp-server-generator/get-started/authentication), and serves [documentation resources](/learn/mcp-server-generator/get-started/features#documentation-resources) built from your spec.
+
+## Prerequisites
+
+- [Fern CLI](https://www.npmjs.com/package/fern-api) (`npm install -g fern-api`)
+- Node.js 20 or later
+- An OpenAPI 3.x spec with at least one endpoint
+- An MCP client that supports stdio servers, such as Claude Code, Cursor, or Windsurf
+
+## Setup
+
+<Steps>
+
+<Step title="Initialize a Fern project">
+
+```bash
+mkdir my-api-config && cd my-api-config
+fern init --organization my-org
+```
+
+This creates a `fern/` directory containing the default configuration files.
+</Step>
+
+<Step title="Add your OpenAPI spec">
+
+Place your spec at `fern/openapi.yml`, or at any path you reference in the next step. Any `securitySchemes` declared under `components` become the credential environment variables the server reads at startup, and any `tags` become [derived toolsets](/learn/mcp-server-generator/get-started/toolsets#derived-toolsets).
+</Step>
+
+<Step title="Configure the generator">
+
+Replace the contents of `fern/generators.yml`:
+
+```yaml title="fern/generators.yml"
+api:
+  specs:
+    - openapi: openapi.yml
+default-group: mcp
+groups:
+  mcp:
+    generators:
+      - name: fern-mcp-server-generator
+        version: 0.1.0
+        output:
+          location: local-file-system
+          path: ../my-mcp-server
+        config:
+          mcpConfig:
+            serverName: my-api
+```
+
+The `path` is relative to the `fern/` directory, so this writes the generated package to a sibling `my-mcp-server/` directory. `serverName` names the server in the MCP handshake and prefixes its [resource URIs](/learn/mcp-server-generator/get-started/features#documentation-resources); when omitted, the generator derives it from the SDK name.
+</Step>
+
+<Step title="Generate the server">
+
+```bash
+fern generate --group mcp
+```
+
+Fern reads the spec and writes a complete TypeScript package to the output path: a handler module per tool under `src/tools/`, a [tool manifest](/learn/mcp-server-generator/get-started/project-structure), a fetch-based runtime, and a README with the client configuration for this server.
+</Step>
+
+<Step title="Build the server">
+
+```bash
+cd ../my-mcp-server
+npm run setup
+```
+
+`npm run setup` installs dependencies and compiles to `dist/`. To confirm the server starts and lists its tools, run `npm start` and send it an MCP `initialize` request over stdin; a client normally does this for you.
+</Step>
+
+<Step title="Register the server with your client">
+
+Point your MCP client at the compiled entrypoint. The generated README contains this block with your server's own name and environment variables filled in:
+
+```json title="MCP client configuration"
+{
+  "mcpServers": {
+    "my-api": {
+      "command": "node",
+      "args": ["<absolute path to>/dist/index.js"],
+      "env": {
+        "API_KEY": "<API_KEY>",
+        "MCP_TOOLSET": "<MCP_TOOLSET>",
+        "BASE_URL": "<BASE_URL>"
+      }
+    }
+  }
+}
+```
+
+For Claude Code, the equivalent registration is one command:
+
+```bash
+claude mcp add my-api \
+  --env API_KEY=sk-123 \
+  -- node "<absolute path to>/dist/index.js"
+```
+
+Your client starts the server over stdio when it needs it.
+</Step>
+
+<Step title="Narrow the tool set">
+
+A server that exposes every operation gives an agent more tools than it can use well. Set `MCP_TOOLSET` in the client configuration to load a single [service or tag toolset](/learn/mcp-server-generator/get-started/toolsets), or drop operations from the server entirely with the [`tools` filter](/learn/mcp-server-generator/get-started/toolsets#filter-syntax) and [`excludeAvailability`](/learn/mcp-server-generator/get-started/toolsets#excluding-by-availability).
+</Step>
+
+</Steps>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Authentication" icon="regular key" href="/learn/mcp-server-generator/get-started/authentication">
+    How security schemes become environment variables and how the runtime applies them.
+  </Card>
+  <Card title="Project structure" icon="regular folder-tree" href="/learn/mcp-server-generator/get-started/project-structure">
+    What each generated file does, and which ones are meant to be edited.
+  </Card>
+</CardGroup>

@@ -1,0 +1,72 @@
+---
+title: Authentication
+description: How security schemes become credential environment variables, and how the generated runtime applies them to each request.
+availability: beta
+---
+
+Generated servers read credentials from the environment at startup and apply them per request according to the security schemes in your spec. MCP clients pass environment variables through when they launch a stdio server, so credentials live in the client configuration rather than in the generated package.
+
+## Credential environment variables
+
+Each security scheme gets its own environment variable, named after the scheme so multiple schemes stay independent. The scheme name is uppercased with word boundaries converted to underscores.
+
+| Scheme in the spec | Environment variable |
+| --- | --- |
+| `widgetKey` | `WIDGET_KEY` |
+| `ApiKeyAuth` | `API_KEY_AUTH` |
+| `basicAuth` (HTTP Basic) | `BASIC_AUTH_USERNAME` and `BASIC_AUTH_PASSWORD` |
+
+Every credential variable is optional, so the server starts without credentials and an agent can still list tools and read [documentation resources](/learn/mcp-server-generator/get-started/features#documentation-resources). The generated README documents each variable using the scheme's `description` from the spec, falling back to the scheme name and type.
+
+`BASE_URL` and `MCP_TOOLSET` belong to the runtime. A security scheme that maps onto either name fails generation, as does a scheme name that can't produce a valid variable name, and two schemes that map to the same one.
+
+## How credentials are applied
+
+The runtime applies each scheme the way OpenAPI defines it.
+
+| Scheme | Applied as |
+| --- | --- |
+| `apiKey` in `header` | The header named by `name` in the spec. |
+| `apiKey` in `query` | The query parameter named by `name`. |
+| `apiKey` in `cookie` | The cookie named by `name`. Cookie values ship verbatim, so base64 keys survive intact. |
+| `http` with `bearer` | `Authorization: Bearer <token>`. |
+| `http` with `basic` | `Authorization: Basic <base64(username:password)>`, encoded as UTF-8. |
+| `http` with another scheme | `Authorization: <scheme> <credential>`. |
+| `oauth2` or `openIdConnect` | `Authorization: Bearer <token>`. |
+
+## Multiple security requirements
+
+When an operation lists several security requirements, the runtime picks the first one whose credentials are all present in the environment. A requirement the API allows to be empty — an operation that permits anonymous access — is used only as a fallback, so configured credentials always win over an anonymous call.
+
+If no requirement can be satisfied and none is optional, the tool call fails before the request is built, naming the variables each option needs:
+
+```text
+Authentication required for get_queue: set API_KEY (scheme apiKey), or BASIC_AUTH_USERNAME+BASIC_AUTH_PASSWORD (scheme basicAuth).
+```
+
+## OAuth
+
+Generated servers accept a pre-issued OAuth token through the scheme's environment variable and send it as a bearer token. They don't perform a token exchange, so a spec whose security schemes are all OAuth client credentials fails generation.
+
+For flows a client can drive itself, the generator exposes the flow metadata from the spec — authorization URL, token URL, refresh URL, and scopes — on the server's info object, alongside the scheme type and parameter name.
+
+## Base URL
+
+The server calls the default server URL from your spec. Setting `BASE_URL` overrides it, which is how a client points the same server at a staging environment:
+
+```json title="MCP client configuration"
+{
+  "mcpServers": {
+    "my-api": {
+      "command": "node",
+      "args": ["<absolute path to>/dist/index.js"],
+      "env": {
+        "API_KEY": "sk-123",
+        "BASE_URL": "https://staging.example.com"
+      }
+    }
+  }
+}
+```
+
+To change credential handling beyond what the spec describes — signing a request, or exchanging a token on the way out — use the [`beforeRequest` hook](/learn/mcp-server-generator/get-started/project-structure#hooks).

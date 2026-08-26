@@ -1,0 +1,154 @@
+---
+title: Configuration reference
+description: Every option that affects a generated MCP server, with the default each one falls back to.
+availability: beta
+---
+
+{/* TODO(mcp-docs): invocation surface unconfirmed — see the TODO in quickstart.mdx. This page
+    documents the option names verified in the generator (`mcpConfig.*`, `typescriptVersion`,
+    `scripts`, `license`, `homepage`) and assumes they sit under `config` in generators.yml.
+    Confirm the nesting, the generator name, and the version pin before publishing. */}
+
+Configure the MCP server generator in `generators.yml`. Options under `config.mcpConfig` are specific to the MCP server generator. The rest (`output`, `github`, `audiences`, `smart-casing`, `metadata`, `api`) behave the same way as for [SDK generators](/learn/sdks/reference/generators-yml).
+
+```yaml title="generators.yml" {6-13}
+groups:
+  mcp:
+    generators:
+      - name: fern-mcp-server-generator
+        version: 0.1.0
+        config:
+          mcpConfig:
+            serverName: contoso
+            excludeAvailability: ["DEPRECATED"]
+            tools:
+              exclude: ["tag:internal"]
+            toolsets:
+              read-only:
+                include: ["list_*", "get_*"]
+        github:
+          repository: my-org/contoso-mcp
+          mode: pull-request
+```
+
+The MCP server generator shares its parameter shape with the TypeScript SDK generator, but only the options on this page change what it emits. TypeScript SDK options such as `zodVersion`, `bundle`, `namingStrategy`, and `compilerOptions` have no effect: generated servers use a fixed `tsconfig.json` and don't depend on Zod.
+
+## `mcpConfig` options
+
+<ParamField path="serverName" type="string" toc={true}>
+Name the server reports in the MCP handshake. It also prefixes the server's [documentation resource URIs](/learn/mcp-server-generator/get-started/features#documentation-resources) and is the key the generated README uses in its client configuration snippet.
+
+When omitted, the generator derives the name from the SDK name, substituting `mcp` for `sdk`.
+
+```yaml title="generators.yml"
+config:
+  mcpConfig:
+    serverName: contoso
+```
+
+A server named `contoso` serves resources at `openapi://contoso/tags/plants` and `openapi://contoso/errors`.
+</ParamField>
+
+<ParamField path="serverDescription" type="string" toc={true}>
+One-line description of the server, recorded in `metadata.json` for registries and catalogs to read. Newlines are collapsed to spaces.
+
+When omitted, the description comes from `info.description` in your API definition.
+
+```yaml title="generators.yml"
+config:
+  mcpConfig:
+    serverDescription: Tools for managing Contoso greenhouses, plants, and orders.
+```
+</ParamField>
+
+<ParamField path="tools" type="object" toc={true}>
+Filter the operations that become tools. Takes `include` and `exclude` arrays whose entries match a tool name, an `operationId`, a `tag:<name>` selector, or a `*` glob, as described in the [filter syntax](/learn/mcp-server-generator/get-started/toolsets#filter-syntax).
+
+Filtering here removes an operation from the whole package: it can't reappear through a named toolset, and no handler module is generated for it. An entry that matches no operation fails generation rather than passing unnoticed.
+
+```yaml title="generators.yml"
+config:
+  mcpConfig:
+    tools:
+      exclude: ["delete_*", "tag:internal"]
+```
+</ParamField>
+
+<ParamField path="toolsets" type="map<string, object>" toc={true}>
+Define [named toolsets](/learn/mcp-server-generator/get-started/toolsets#named-toolsets) a client can select with `MCP_TOOLSET`. Each entry takes the same `include` and `exclude` filter as `tools`, applied to the operations that survived `tools` and `excludeAvailability`.
+
+Names must match `[a-z0-9-]+` and can't be `default`. A name matching a service or tag replaces the toolset the generator would have derived for it.
+
+```yaml title="generators.yml"
+config:
+  mcpConfig:
+    toolsets:
+      read-only:
+        include: ["list_*", "get_*"]
+      plants:
+        include: ["tag:plants"]
+        exclude: ["delete_plant"]
+```
+</ParamField>
+
+<ParamField path="excludeAvailability" type="list<string>" toc={true}>
+Drop operations by lifecycle status. Accepts `IN_DEVELOPMENT`, `PRE_RELEASE`, `GENERAL_AVAILABILITY`, `DEPRECATED`, `ALPHA`, `BETA`, `PREVIEW`, and `LEGACY`. `DEPRECATED` is the status the generator reads from a spec, from `deprecated: true` on an operation.
+
+```yaml title="generators.yml"
+config:
+  mcpConfig:
+    excludeAvailability: ["DEPRECATED"]
+```
+
+Excluded operations are removed the same way `tools` removes them. Operations that stay carry their status into the tool description, so a deprecated tool is described as `[Deprecated]`.
+</ParamField>
+
+## Package options
+
+<ParamField path="typescriptVersion" type="string" toc={true}>
+TypeScript version constraint written to the generated package's `devDependencies`. Defaults to the version the generator pins.
+
+```yaml title="generators.yml"
+config:
+  typescriptVersion: ^5.6.0
+```
+</ParamField>
+
+<ParamField path="scripts" type="map<string, string>" toc={true}>
+Extra npm scripts to write into `package.json`, merged over the generated ones. Reusing a generated name (`build`, `start`, `test`, `setup`, `prepublishOnly`) replaces it.
+
+```yaml title="generators.yml"
+config:
+  scripts:
+    inspect: npx @modelcontextprotocol/inspector node dist/index.js
+```
+</ParamField>
+
+<ParamField path="license" type="object" toc={true}>
+License for the generated package. The name lands in `package.json` and in the README's license section.
+
+```yaml title="generators.yml"
+config:
+  license:
+    name: MIT
+```
+</ParamField>
+
+<ParamField path="homepage" type="string" toc={true}>
+Homepage URL written to `package.json`.
+
+```yaml title="generators.yml"
+config:
+  homepage: https://contoso.com
+```
+</ParamField>
+
+## Environment variables
+
+These are set by the MCP client that launches the server, not in `generators.yml`. The generated README lists the full set for your server.
+
+| Variable | Purpose |
+| --- | --- |
+| One per security scheme | [Credentials](/learn/mcp-server-generator/get-started/authentication#credential-environment-variables), named after the scheme. HTTP Basic schemes get a `_USERNAME` and `_PASSWORD` pair. |
+| `MCP_TOOLSET` | [Toolset to load at startup](/learn/mcp-server-generator/get-started/toolsets#selecting-a-toolset-at-runtime). Defaults to `default`. |
+| `BASE_URL` | Overrides the default server URL from your API definition. |
