@@ -106,7 +106,6 @@ jobs:
         run: |
           docker run -d \
             --name docs-container \
-            -e WARMUP=true \
             self-hosted-docs
 
       - name: Wait for container to be healthy
@@ -117,10 +116,8 @@ jobs:
           while [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; do
             ATTEMPT=$((ATTEMPT + 1))
             if docker exec docs-container sh -c \
-              'TOKEN=$(cat /tmp/.cache-admin-token 2>/dev/null); \
-               curl -f -s --max-time 5 \
-               -H "Authorization: Bearer $TOKEN" \
-               http://localhost:3000/__cache/stats' > /dev/null 2>&1; then
+              'curl -f -s --max-time 5 \
+               http://localhost:8081/readiness' > /dev/null 2>&1; then
               echo "Container is healthy."
               break
             fi

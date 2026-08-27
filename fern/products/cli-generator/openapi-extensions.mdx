@@ -47,6 +47,36 @@ If neither extension is present, the CLI falls back to the `operationId`.
 
 See [SDK method names](/learn/api-definitions/openapi/extensions/method-names) for more details.
 
+## Command group help
+
+A command group's help text comes from the root-level `tags[]` entry attributed to it: the first sentence of the tag description becomes the short line in the parent command's table, and the full description becomes the group's `--help` body.
+
+```yaml title="openapi.yml" {2-3}
+tags:
+  - name: plants
+    description: Browse and water the plants in your greenhouse. Water schedules are timezone-aware.
+paths:
+  /plants/{plantId}:
+    get:
+      tags:
+        - plants
+```
+
+Produces `plants  Browse and water the plants in your greenhouse.` in the top-level command table.
+
+A tag is attributed to a group when its name matches the group name, or when it's exclusive to the group and covers at least half of the group's operations. Colon-scoped tag names (`access:all`) and tags shared across groups are ignored, leaving the fallback `Operations on '<name>'`.
+
+### `x-fern-groups`
+
+Overrides the derived help for a group. `summary` sets the short line, which is capped at 80 characters; `description` sets the long help and also supplies the short line when `summary` is absent or only restates the command name (`Plants` for `plants`).
+
+```yaml title="openapi.yml" {2-4}
+x-fern-groups:
+  plants:
+    summary: Manage your greenhouse
+    description: Browse, water, and repot plants. Watering respects each plant's schedule.
+```
+
 ## Filtering
 
 ### `x-fern-ignore`
