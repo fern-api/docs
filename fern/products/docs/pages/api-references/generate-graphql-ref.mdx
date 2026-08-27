@@ -73,14 +73,42 @@ navigation:
     api-name: garden-graphql
 ```
 
+### Compile a schema split across multiple files
+
+A schema split across several SDL files, the typical shape for [Apollo Federation](https://www.apollographql.com/docs/federation/) subgraphs, compiles into a single schema. List each file as its own spec and give the specs the same `name`:
+
+```yaml generators.yml
+api:
+  specs:
+    - graphql: plants.graphql
+      name: Plants
+    - graphql: gardens.graphql
+      name: Plants
+```
+
+Specs that share a `name` are parsed together and merged, so a file can reference types defined in a sibling file and each file can `extend type Query` or `extend type Mutation`. Specs with different `name` values, and specs in different API workspaces, remain independent. Specs listed without a `name` share one namespace and merge.
+
+The merged schema matches the client-facing schema Apollo derives from a supergraph:
+
+- Federation directives such as `@link`, `@key`, `@external`, `@shareable`, and `@tag`, along with their definitions, are stripped. Runtime composition semantics such as `@requires` and `@provides` are not modeled, since merging serves documentation rather than execution.
+- `@inaccessible` types and members are omitted from the reference, as is anything that referenced them.
+- `extend type X` is folded into the type definition, members are merged by name, and schema root operation types are merged.
+- `@deprecated` operations, arguments, fields, and enum values are marked as deprecated, with the deprecation reason appended to the description.
+
+Conflicts do not fail the build. When two files declare the same member or directive definition with differing shapes, the first declaration wins and Fern logs a warning naming both files. Declaring an identical key field in two subgraphs is not a conflict.
+
+<Warning>
+  A workspace with several GraphQL specs in one namespace previously resolved colliding types and operations last-wins, without a warning. Those specs now merge first-wins. To keep the previous output, reorder the specs or give them distinct `name` values.
+</Warning>
+
 ### Configuration properties
 
 <ParamField path="api.specs[].graphql" required>
-  Path to your GraphQL schema file. You can include multiple GraphQL specs if your project exposes more than one GraphQL API.
+  Path to your GraphQL schema file. Include multiple GraphQL specs if your project exposes more than one GraphQL API, or if one schema is split across files.
 </ParamField>
 
 <ParamField path="api.specs[].name">
-  Name of the folder that operations from this spec appear under in the API Reference sidebar. Use this to group related GraphQL operations together.
+  Name of the folder that operations from this spec appear under in the API Reference sidebar. Use this to group related GraphQL operations together. Specs that share a `name` are compiled into one schema.
 </ParamField>
 
 <ParamField path="api.specs[].origin">
