@@ -1,6 +1,6 @@
 ---
 title: Ask AI chat panel
-description: Embed Fern's Ask AI chat panel in any React application, with a floating, inline, or custom trigger.
+description: Embed Fern's Ask AI chat panel in any React application, with a floating launcher, a bottom prompt, an inline button, or a custom trigger.
 ---
 
 `AskAiChat` renders a sidebar panel with AI chat (no keyword search). It's one of the two components in the [`@fern-api/search-widget` package](/learn/docs/ai-features/ask-fern/search-widget/overview), which covers the prerequisites and the Content Security Policy the widget needs.
@@ -51,7 +51,7 @@ description: Embed Fern's Ask AI chat panel in any React application, with a flo
     ```
   </Step>
   <Step title="Match the chat to your product">
-    `theme` controls light and dark mode, and `accentColor` sets the accent used for the sparkles, the send button, and links in answers, in both modes. `trigger` chooses between the corner launcher (`floating`), an unpainted button you place and style yourself (`inline`), and no button at all (`none`).
+    `theme` controls light and dark mode, and `accentColor` sets the accent used for the sparkles, the send button, and links in answers, in both modes. `trigger` chooses between the corner launcher (`floating`), a prompt input centered at the bottom of the viewport (`prompt`), an unpainted button you place and style yourself (`inline`), and no button at all (`none`).
 
     ```tsx
     <AskAiChat domain="https://docs.example.com" theme="inherit" accentColor="#6b4eff" />
@@ -94,6 +94,7 @@ description: Embed Fern's Ask AI chat panel in any React application, with a flo
     *  `AskAiChat.Root` holds the state and takes the configuration props: `domain`, `lang`, `searchLocale`, `placement`, `theme`, `accentColor`, `open`, `defaultOpen`, and `onOpenChange`. Its `children` is the subtree to wrap, the menu and the panel.
     *  `AskAiChat.Trigger` is a real `<button>`, so `asChild` works and the menu keeps its keyboard behavior. Styling props (`className`, `style`, `icon`, and any button attributes) go here. `variant="floating"` renders the corner launcher instead of an unpainted button.
     *  `AskAiChat.Panel` is the chat. Render exactly one per root, outside any menu.
+    *  `AskAiChat.Prompt` is the bottom prompt input, an alternative to a trigger. It takes `placeholder`, `icon`, `className`, and any form attributes.
 
     The same shape covers a popover, a command palette, or a nav bar dropdown, and a single root supports multiple triggers, at most one of them `variant="floating"`.
 
@@ -132,6 +133,16 @@ description: Embed Fern's Ask AI chat panel in any React application, with a flo
   </Accordion>
 </AccordionGroup>
 
+## Bottom prompt
+
+`trigger="prompt"` replaces the corner launcher with a single-line input pinned to the bottom center of the viewport, so visitors type their question into the page instead of opening a panel first. It grows on hover and focus, and sending a question opens the chat directly above it with that question already in flight.
+
+```tsx
+<AskAiChat domain="https://docs.example.com" trigger="prompt" />
+```
+
+Interacting with the page outside the chat closes it, and selecting the prompt again reopens the same conversation. Below 768px the chat is the same bottom drawer the corner launcher opens. `placement` doesn't apply in this mode, and the chat is wider than the corner card: override it with `--fern-ask-ai-prompt-card-width`.
+
 ## Properties
 
 All standard HTML button attributes are also supported and forwarded to the trigger button.
@@ -160,8 +171,8 @@ All standard HTML button attributes are also supported and forwarded to the trig
   Accent color for the sparkles, send button, and links in answers. Accepts any CSS color (for example, `#6b4eff`), and derives the light and dark variants from it. Defaults to a neutral gray.
 </ParamField>
 
-<ParamField path="trigger" type="'floating' | 'inline' | 'none'" default="floating">
-  `floating` renders a styled launcher pinned to a corner of the viewport. `inline` renders an unpainted button to place and style yourself, such as in a nav bar. Both carry the sparkle icon and an `Ask AI` label by default. `none` renders no trigger at all, for [driving the open state from your own UI](#custom-triggers).
+<ParamField path="trigger" type="'floating' | 'prompt' | 'inline' | 'none'" default="floating">
+  `floating` renders a styled launcher pinned to a corner of the viewport. `inline` renders an unpainted button to place and style yourself, such as in a nav bar. Both carry the sparkle icon and an `Ask AI` label by default. `prompt` renders the composer itself, centered at the bottom of the viewport, and the chat rises from it on send: see [Bottom prompt](#bottom-prompt). `none` renders no trigger at all, for [driving the open state from your own UI](#custom-triggers).
 </ParamField>
 
 <ParamField path="open" type="boolean">
