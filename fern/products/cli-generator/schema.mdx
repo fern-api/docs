@@ -94,7 +94,8 @@ contoso plants list --schema
         "description": "Maximum number of plants to return.",
         "format": "int32",
         "location": "query",
-        "maximum": 100.0
+        "maximum": 100.0,
+        "flag": "--limit"
       }
     },
     "required": []
@@ -119,6 +120,7 @@ Each property carries the metadata needed to produce a valid invocation:
 
 | Field | Meaning |
 | --- | --- |
+| `flag` | The exact flag to pass for the property. |
 | `type`, `format` | JSON Schema type and OpenAPI format (`date-time`, `uuid`, `int32`). |
 | `description` | Description from the spec. |
 | `location` | `query`, `path`, `header`, or `body`. |
@@ -130,6 +132,19 @@ Each property carries the metadata needed to produce a valid invocation:
 | `examples` | Examples from the spec. |
 | `availability` | Lowered [`x-fern-availability`](/learn/cli-generator/get-started/openapi-extensions#x-fern-availability), also present on the operation itself. |
 | `binding`, `variable`, `globalFlag`, `envVar` | Present when the value comes from a server URL variable instead of a per-operation flag. |
+
+Property keys are wire names, so `flag` is the field to read when constructing an invocation: it accounts for the kebab-casing of header names, the `-param` suffix the CLI adds when a spec name collides with a global flag such as `--query`, and any [`x-fern-parameter-name`](/learn/cli-generator/get-started/openapi-extensions#x-fern-parameter-name) rename. A query parameter named `query` reports the suffixed flag:
+
+```json
+"query": {
+  "type": "string",
+  "location": "query",
+  "description": "The search query text",
+  "flag": "--query-param"
+}
+```
+
+`multipart/form-data` fields are siblings of the other properties and carry a `flag` too, with `file: true` on the ones that take a filesystem path. A property has no `flag` when the CLI registers no flag for it, in which case pass the value through `--params` or `--json`.
 
 Body fields that don't flatten into individual flags — free-form objects and true unions — carry their nested schema inline, so an agent knows what to put in `--json`.
 
