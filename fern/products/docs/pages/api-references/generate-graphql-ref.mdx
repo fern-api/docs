@@ -86,3 +86,61 @@ navigation:
 <ParamField path="api.specs[].origin">
   URL of your GraphQL API endpoint. Fern performs [introspection](https://graphql.org/learn/introspection/) against this endpoint to fetch the schema. When set, [running `fern api update`](/learn/cli-api-reference/cli-reference/general-commands#fern-api-update) updates the local schema from this endpoint.
 </ParamField>
+
+## Types section
+
+Every GraphQL API Reference includes a **Types** section. Each named type in the schema gets its own page, grouped within the section by kind:
+
+- Objects
+- Inputs
+- Enums
+- Scalars
+- Interfaces
+- Unions
+
+A kind with no declarations in the schema produces no group. Type pages live at `<api>/types/<kind>/<type-name>`. All GraphQL specs in an API section contribute to a single shared Types section, which sits at the API root rather than under a subpackage.
+
+Operation-namespace types are not documented as standalone types. A grouping type such as `CheckoutMutations` in `Mutation.checkout: CheckoutMutations` exists only to namespace operations, and those operations are already documented individually.
+
+Interfaces are rendered with their own set of fields, and each implementing type lists the interfaces it implements.
+
+Custom scalars such as `DateTime`, `URL`, and `EmailAddress` are emitted as named alias types, and every reference to them in the documentation links to their type page.
+
+Field-level arguments on nested object types are documented, not only arguments on top-level query and mutation fields. Given the following schema, the `Image` type page documents all three arguments on `url`:
+
+```graphql
+type Image {
+  url(width: Int, height: Int, lossy: Boolean): String!
+}
+```
+
+## Multi-file and federated schemas
+
+GraphQL schemas whose SDL is split across multiple files are supported. Specs that share a namespace, including specs that declare no `name`, are compiled into a single schema. Federated subgraphs that reference types owned by sibling files and extend the same `Query` and `Mutation` types are therefore documented as one API:
+
+```yaml generators.yml
+api:
+  specs:
+    - graphql: ./graphql/products.graphql
+    - graphql: ./graphql/reviews.graphql
+    - graphql: ./graphql/users.graphql
+```
+
+### Federation directives
+
+Composition directives are ignored: `@key`, `@external`, `@link`, and federation v2.9 directives such as `@cost`, `@listSize`, `@context`, and `@fromContext`.
+
+Members marked `@inaccessible` are omitted, along with everything that references them, matching the client-facing API schema that composition produces.
+
+`@deprecated` is surfaced on operations, fields, arguments, and enum values:
+
+```graphql
+type Product {
+  sku: String!
+  upc: String! @deprecated(reason: "Use `sku` instead.")
+}
+```
+
+### Merge behavior
+
+When merging multiple files, the first declaration wins for types, members, directive definitions, root operation types, and operation examples. Fern reports every discarded declaration, naming the files involved.
