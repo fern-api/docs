@@ -43,6 +43,8 @@ navigation:
 
 For a full list of configuration options and layout customizations, see [Customize API Reference layout](/learn/docs/api-references/customize-api-reference-layout).
 
+Queries are grouped in the sidebar by their parent field, so related queries sit together under the field they hang off of. Mutations and subscriptions stay flat.
+
 </Step>
 </Steps>
 
@@ -73,6 +75,38 @@ navigation:
     api-name: garden-graphql
 ```
 
+### Provide custom examples
+
+Fern generates examples for your GraphQL operations. To display your own instead, add an `examples` file to the spec entry:
+
+```yaml generators.yml
+api:
+  specs:
+    - graphql: plants.schema.graphql
+      name: Plants
+      examples: plants.examples.yml
+```
+
+Each top-level key in the examples file names an example and supplies the `query` to display, the `variables` it takes, and the `response` it returns:
+
+```yaml plants.examples.yml
+Get a plant by ID:
+  query: |
+    query GetPlant($plantId: ID!) {
+      plant(id: $plantId) {
+        id
+        name
+      }
+    }
+  variables:
+    plantId: plant_123
+  response:
+    data:
+      plant:
+        id: plant_123
+        name: Monstera deliciosa
+```
+
 ### Configuration properties
 
 <ParamField path="api.specs[].graphql" required>
@@ -80,7 +114,11 @@ navigation:
 </ParamField>
 
 <ParamField path="api.specs[].name">
-  Name of the folder that operations from this spec appear under in the API Reference sidebar. Use this to group related GraphQL operations together.
+  Name of the folder that operations from this spec appear under in the API Reference sidebar. Use this to group related GraphQL operations together. Specs that share a `name` are compiled into a single schema, as described in [Multi-file and federated schemas](#multi-file-and-federated-schemas).
+</ParamField>
+
+<ParamField path="api.specs[].examples">
+  Path to a YAML file of custom examples for the operations in this spec. See [Provide custom examples](#provide-custom-examples).
 </ParamField>
 
 <ParamField path="api.specs[].origin">
@@ -102,9 +140,9 @@ A kind with no declarations in the schema produces no group. Type pages live at 
 
 Operation-namespace types are not documented as standalone types. A grouping type such as `CheckoutMutations` in `Mutation.checkout: CheckoutMutations` exists only to namespace operations, and those operations are already documented individually.
 
-Interfaces are rendered with their own set of fields, and each implementing type lists the interfaces it implements.
+Interfaces get their own page in the **Interfaces** group, rendered with their own set of fields and the list of types that implement them. Each implementing type lists the interfaces it implements. Before CLI 5.109.0, an interface with implementing types was rendered as an undiscriminated union shape instead of a first-class interface page.
 
-Custom scalars such as `DateTime`, `URL`, and `EmailAddress` are emitted as named alias types, and every reference to them in the documentation links to their type page.
+Custom scalars such as `DateTime`, `URL`, and `EmailAddress` are emitted as named alias types in the **Scalars** group, and every reference to them in the documentation links to their type page.
 
 Field-level arguments on nested object types are documented, not only arguments on top-level query and mutation fields. Given the following schema, the `Image` type page documents all three arguments on `url`:
 
@@ -116,14 +154,17 @@ type Image {
 
 ## Multi-file and federated schemas
 
-GraphQL schemas whose SDL is split across multiple files are supported. Specs that share a namespace, including specs that declare no `name`, are compiled into a single schema. Federated subgraphs that reference types owned by sibling files and extend the same `Query` and `Mutation` types are therefore documented as one API:
+GraphQL schemas whose SDL is split across multiple files are supported. Specs that share a `name`, or that all declare no `name`, are compiled into a single schema. Federated subgraphs that reference types owned by sibling files and extend the same `Query` and `Mutation` types are therefore documented as one API:
 
 ```yaml generators.yml
 api:
   specs:
     - graphql: ./graphql/products.graphql
+      name: Storefront
     - graphql: ./graphql/reviews.graphql
+      name: Storefront
     - graphql: ./graphql/users.graphql
+      name: Storefront
 ```
 
 ### Federation directives
