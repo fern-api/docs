@@ -1,0 +1,69 @@
+---
+title: Local development
+description: Build, inspect, and connect a generated MCP server to Claude, Cursor, or Codex.
+availability: beta
+---
+
+## Run the inspector
+
+```bash
+fern mcp dev --group mcp
+```
+
+`fern mcp dev` builds the group's server and attaches the [MCP inspector](https://modelcontextprotocol.io/legacy/tools/inspector), so you can call tools directly and check their input schemas and responses before wiring up a real client. If the toolset you're running needs a credential you haven't [set](/learn/mcp-generator/get-started/authentication), it prints the exact `export` command instead of starting a server where every call fails.
+
+## Build and run manually
+
+Every generated project also builds and runs as a standalone Node package, without the inspector:
+
+```bash
+cd path/to/generated/mcp
+npm run setup   # installs dependencies and builds
+npm start       # runs the server over stdio
+```
+
+Node 20 or later is required.
+
+## Connect a client
+
+```bash
+fern mcp install --local --group mcp
+```
+
+This wires the generated server into your local Claude, Cursor, or Codex configuration, pointing at the built `dist/index.js` and filling in the environment variables it needs.
+
+To wire it up by hand instead, every generated project's README includes the client config as JSON:
+
+```json
+{
+  "mcpServers": {
+    "acme-public-api": {
+      "command": "node",
+      "args": ["/absolute/path/to/dist/index.js"],
+      "env": {
+        "WIDGET_KEY": "",
+        "BASE_URL": ""
+      }
+    }
+  }
+}
+```
+
+and, for Claude Code specifically, a ready-to-run install command:
+
+```bash
+claude mcp add acme-public-api --env WIDGET_KEY=<WIDGET_KEY> --env BASE_URL=<BASE_URL> -- node "/absolute/path/to/dist/index.js"
+```
+
+The client starts the server itself over stdio the first time it needs it — there's no separate process to keep running or port to open.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Maintaining MCP servers" icon="fa-duotone fa-arrows-rotate" href="/learn/mcp-generator/get-started/maintaining">
+    Regenerate on spec changes and catch breaking tool changes before you publish.
+  </Card>
+  <Card title="Multiple servers" icon="fa-duotone fa-diagram-project" href="/learn/mcp-generator/get-started/multiple-servers">
+    Generate separate MCP servers for different audiences from one spec.
+  </Card>
+</CardGroup>
