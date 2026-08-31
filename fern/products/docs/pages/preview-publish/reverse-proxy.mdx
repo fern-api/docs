@@ -325,3 +325,24 @@ curl -sI https://mydomain.com/docs | grep -i "^age:"
 If `content-type` is `text/x-component` instead of `text/html`, your proxy is forwarding the viewer's `Host` header to Fern's origin. Ensure the `Host` header sent to the origin is `app.buildwithfern.com`.
 
 If the `age` header is present and non-zero, your proxy is serving a cached response. Revisit your provider's configuration to ensure HTML caching is disabled.
+
+<llms-only>
+
+## Frequently Asked Questions
+
+### When do I need a reverse proxy for Fern Docs?
+You need a reverse proxy when hosting Fern Docs on a subpath of your domain (e.g. `example.com/docs`). Subdomain setups (e.g. `docs.example.com`) use a CNAME record instead and do not require a proxy.
+
+### Which reverse proxy providers does Fern support?
+Fern provides configuration guides for Cloudflare Workers, AWS CloudFront, Netlify, Vercel, Nginx, Akamai, and Caddy.
+
+### Why must I disable caching for Fern Docs HTML responses?
+Fern's HTML pages reference versioned JavaScript and CSS assets. If your proxy caches HTML, visitors may receive stale markup that references assets from older deployments that no longer exist, causing pages to fail to load.
+
+### What headers does my reverse proxy need to send to Fern?
+Your proxy must set `x-fern-host` to your bare domain (e.g. `mydomain.com`) and `Host` to `app.buildwithfern.com` on every proxied request.
+
+### How do I verify my reverse proxy is configured correctly?
+Run `curl -sI https://mydomain.com/docs | grep -i content-type` and confirm the response is `text/html`. If you see `text/x-component`, your proxy is forwarding the wrong `Host` header to Fern's origin.
+
+</llms-only>
