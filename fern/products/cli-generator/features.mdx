@@ -48,7 +48,9 @@ Failed requests are retried automatically with exponential backoff on status cod
 | Backoff factor | 2x |
 | Jitter | 10% |
 
-Idempotent methods (GET, HEAD, OPTIONS, DELETE, PUT) retry by default; POST and PATCH retry only when the endpoint is marked idempotent in the spec. Pass `--no-retry` to disable retries for a single invocation.
+GET, HEAD, OPTIONS, DELETE, and PUT retry by default. POST and PATCH retry only when the operation declares server-side idempotency support with [`x-fern-idempotent: true`](/learn/api-definitions/openapi/extensions/idempotency), which also exposes an `--idempotency-key` flag on that command, or when the caller passes `--idempotency-key` explicitly. Pass `--no-retry` to disable retries for a single invocation.
+
+An `Idempotency-Key` header is generated automatically for POST, PUT, and PATCH requests unless the invocation carries its own `--idempotency-key` or the operation opts out with `x-fern-cli-idempotency: false`. The same generated key is sent on every attempt of a request, but the key alone doesn't make a request retry-eligible.
 
 ```bash
 # Disable retries for a single request
@@ -64,6 +66,9 @@ For endpoints annotated with [`x-fern-pagination`](/learn/api-definitions/openap
 | `--page-all` | Fetch every page and emit one JSON line per page (NDJSON). | Off |
 | `--page-limit <N>` | Maximum number of pages to fetch. | 10 |
 | `--page-delay <MS>` | Delay in milliseconds between page requests. | 100 |
+| `--no-pager` | Skip the pager when `--page-all` output goes to an interactive terminal. | Off |
+
+These flags are registered only on operations whose spec declares pagination. On a spec with no pagination metadata they don't exist, and passing one is an argument error.
 
 ```bash
 # Fetch all plants, one JSON line per page
@@ -97,11 +102,13 @@ contoso plants create \
   --json '{"name": "Monstera", "species": "Monstera deliciosa", "sunlight": "indirect"}'
 ```
 
+Headers declared API-wide, through the `headers:` block of a Fern definition or [`x-fern-global-headers`](/learn/api-definitions/openapi/extensions/global-headers) in OpenAPI, are sent on every request, preserving each header's `env` fallback, `client-default`, and optionality. An [`x-fern-global-parameters`](/learn/cli-generator/get-started/openapi-extensions#global-parameters) entry targeting the same header takes precedence.
+
 Run `contoso <command> --help` to list a command's flags, or `--schema` for a machine-readable JSON contract. When a flag name differs from the spec, `--help` shows the original name as `(api: <name>)`, which is the key to use in `--params`.
 
 ## Server URL variables
 
-For APIs with [templated server URLs](/learn/api-definitions/openapi/extensions/server-names-and-url-templating) (such as `https://api.example.com/stores/{store_hash}/v3`), the CLI automatically exposes each template variable as a CLI flag and environment variable.
+For APIs with [templated server URLs](/learn/api-definitions/openapi/extensions/server-names-and-url-templating) (such as `https://api.example.com/stores/{store_hash}/v3`), the CLI automatically exposes each template variable as a CLI flag and environment variable, carrying the variable's `default`, `description`, and `enum` from the spec. When an invocation pins no variable, the server's `x-fern-default-url` is used as the base URL. Servers declared on an individual operation resolve the same way as the root `servers` block.
 
 ```bash
 # Pass the variable as a flag

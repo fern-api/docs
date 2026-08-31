@@ -7,7 +7,7 @@ Redirects map old URLs to new ones so inbound links and search rankings survive 
 
 ## Set up redirects
 
-Configure redirects in `docs.yml`, pointing at either internal paths or external URLs. Use an exact path when a single URL moves, and a [pattern](#pattern-syntax) when a path's descendants move with it: an exact `source` matches that one URL and nothing beneath it, so `/old-folder` leaves `/old-folder/page` alone.
+Configure redirects to internal paths or external URLs in `docs.yml` or in [separate files](#keep-redirects-in-separate-files) that `docs.yml` references. Use an exact path when a single URL moves, and a [pattern](#pattern-syntax) when a path's descendants move with it: an exact `source` matches that one URL and nothing beneath it, so `/old-folder` leaves `/old-folder/page` alone.
 
 If your docs are hosted on a subpath (like `buildwithfern.com/learn`), include the subpath in both the source and destination paths.
 
@@ -54,6 +54,38 @@ A regular expression is the only way to match mid-segment, because `:slug`, `:sl
 Repeat the regular expression in `destination`. A parameter written as `:slug(.*)` in `source` stays `:slug(.*)` in `destination`, because a bare `:slug` can't hold a value containing `/`; omitting it resolves the redirect to the literal text `/new-folder/:slug`.
 
 The optional modifier (`?`) is unsupported. Fern strips each `source` at the first `?` to remove search parameters, so `/old-folder/:slug?` is matched as `/old-folder/:slug`.
+
+## Keep redirects in separate files
+
+Set `redirects` in `docs.yml` to one or multiple YAML file paths:
+
+<Tabs>
+<Tab title="One file">
+```yaml title="docs.yml"
+redirects: ./redirects.yml
+```
+</Tab>
+
+<Tab title="Multiple files">
+```yaml title="docs.yml"
+redirects:
+  - ./redirects/api.yml
+  - ./redirects/guides.yml
+```
+</Tab>
+</Tabs>
+
+Each file must contain a top-level `redirects` list:
+
+```yaml title="redirects.yml"
+redirects:
+  - source: "/old-path"
+    destination: "/new-path"
+  - source: "/old-folder/:slug*"
+    destination: "/new-folder/:slug*"
+```
+
+File paths are relative to `docs.yml`. Fern evaluates the files in the order listed. Use file paths or inline redirect entries, but not both.
 
 ## Evaluation order
 
@@ -152,6 +184,20 @@ redirects:
     destination: /new-path  # must differ from `source`
 ```
 
+### Failed to load redirects: /path/to/redirects.yml does not exist
+
+`redirects` in `docs.yml` points at a file that isn't on disk. Filepaths resolve relative to `docs.yml`, so `redirects: ./redirects.yml` refers to a file that sits next to it.
+
+### Failed to parse /path/to/redirects.yml: the file must nest the list under a top-level `redirects` key
+
+A redirects file holds a `redirects` key, not a bare list:
+
+```yaml title="redirects.yml"
+redirects:
+  - source: /old
+    destination: /new
+```
+
 ### Circular redirect chain detected: /a → /b → /a
 
 Two or more [redirects](/learn/docs/configuration/site-level-settings#redirects-configuration) form a cycle: `/a` redirects to `/b`, and `/b` redirects back to `/a` (directly or through more hops). The browser would bounce between them indefinitely. Point every `source` in the chain at the final destination directly, so no `destination` is itself another `source`.
@@ -164,4 +210,3 @@ redirects:
     destination: /c
 ```
 </llms-only>
-
