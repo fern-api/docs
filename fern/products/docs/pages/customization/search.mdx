@@ -73,30 +73,57 @@ Each entry points to a `sitemap.xml` or a sitemap index; nested indexes are expa
 
 ### Custom search metadata
 
-Fern reads the `search-metadata` key from a page's frontmatter and merges those key-value pairs into the page's Algolia record. Use it to attach your own taxonomy (product line, audience, category) to pages and build a faceted search experience around it:
+The `search-metadata` frontmatter key attaches your own taxonomy to a page: product line, audience, content type, or any other dimension your readers browse by. Fern copies the block onto every Algolia record generated from that page, under the `search_metadata` attribute, and declares it for faceting, so no per-site Algolia configuration is required.
 
-```mdx
+```mdx deploy-nim-on-kubernetes.mdx
 ---
-title: CUDA Programming Guide
+title: Deploy NIM on Kubernetes with Helm
 search-metadata:
-  product: CUDA
-  audience: developer
-  category: programming-guide
+  category: ai_and_machine_learning
+  audience: [developer, devops_engineer]
+  discovery:
+    technology_tags: [Kubernetes, Helm]
 ---
 ```
 
-The value must be a YAML mapping of string keys to string or array-of-string values. Array values cover multi-value facets, such as a page that belongs to two product lines:
+Each of that page's records then carries:
 
-```mdx
----
-title: cuDNN Developer Guide
-search-metadata:
-  product: [cuDNN, CUDA]
-  audience: developer
----
+```json
+"search_metadata": {
+  "category": "ai_and_machine_learning",
+  "audience": ["developer", "devops_engineer"],
+  "discovery": { "technology_tags": ["Kubernetes", "Helm"] }
+}
 ```
 
-Custom metadata fields are stored on the Algolia record, but Fern's built-in search filters don't use them. Surfacing them as filters requires configuring the fields as facets in Algolia and building or extending a search UI with your [Algolia credentials](#integrating-with-algolia). Pages without a `search-metadata` key are unaffected.
+Query the fields by their full path, using the [Algolia credentials](#integrating-with-algolia) for your index:
+
+```js
+index.search("", {
+  facets: ["search_metadata.category", "search_metadata.discovery.technology_tags"],
+  facetFilters: [["search_metadata.audience:developer"]],
+  distinct: true
+});
+```
+
+Facet counts are computed after deduplication, so each page counts once rather than once per heading section. Facets are searchable, which supports high-cardinality dimensions like technology tags.
+
+Fern doesn't interpret the values. They don't affect ranking, and they don't appear in Fern's built-in filter dropdowns, which cover a fixed set of attributes. Surfacing custom metadata as filters requires building or extending a search UI on top of the index. Pages without a `search-metadata` key are unaffected.
+
+<Accordion title="Value types and limits">
+`search-metadata` accepts a YAML mapping. Values can be strings, numbers, booleans, arrays, or nested mappings; dates are indexed as ISO 8601 strings. Fern normalizes the block before indexing:
+
+| Rule | Behavior |
+| --- | --- |
+| Keys containing `:` or `.` | Dropped, since both are delimiters in Algolia's filter syntax |
+| Empty strings and empty arrays | Dropped |
+| Nesting deeper than 5 levels | Subtrees below that depth are dropped |
+| Blocks over 4 KB serialized | The entire block is dropped for that page, and a warning is logged during indexing |
+
+The block is duplicated onto every record of a page, so keep it to the dimensions you actually facet on.
+</Accordion>
+
+Custom metadata is indexed for Markdown pages only. API reference and changelog records don't carry it.
 
 ## How results are ranked
 
