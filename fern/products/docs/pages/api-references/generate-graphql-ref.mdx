@@ -86,19 +86,12 @@ api:
       name: Plants
 ```
 
-Specs that share a `name` are parsed together and merged, so a file can reference types defined in a sibling file and each file can `extend type Query` or `extend type Mutation`. Specs with different `name` values, and specs in different API workspaces, remain independent. Specs listed without a `name` share one namespace and merge.
+Specs that share a `name`, or that omit `name`, are parsed together, so a file can reference types defined in a sibling file and each file can `extend type Query` or `extend type Mutation`. Specs with different `name` values, and specs in different API workspaces, remain independent.
 
-The merged schema matches the client-facing schema Apollo derives from a supergraph:
-
-- Federation directives such as `@link`, `@key`, `@external`, `@shareable`, and `@tag`, along with their definitions, are stripped. Runtime composition semantics such as `@requires` and `@provides` are not modeled, since merging serves documentation rather than execution.
-- `@inaccessible` types and members are omitted from the reference, as is anything that referenced them.
-- `extend type X` is folded into the type definition, members are merged by name, and schema root operation types are merged.
-- `@deprecated` operations, arguments, fields, and enum values are marked as deprecated, with the deprecation reason appended to the description.
-
-Conflicts do not fail the build. When two files declare the same member or directive definition with differing shapes, the first declaration wins and Fern logs a warning naming both files. Declaring an identical key field in two subgraphs is not a conflict.
+The merged schema matches the client-facing schema Apollo derives from a supergraph: federation directives such as `@link`, `@key`, and `@external` are stripped, `@inaccessible` types and members are omitted, `extend type X` is folded into its type definition, and `@deprecated` members are marked as deprecated with the reason appended to the description. When two files declare the same member with differing shapes, the first declaration wins and Fern logs a warning naming both files.
 
 <Warning>
-  A workspace with several GraphQL specs in one namespace previously resolved colliding types and operations last-wins, without a warning. Those specs now merge first-wins. To keep the previous output, reorder the specs or give them distinct `name` values.
+  Specs sharing a namespace previously resolved collisions last-wins, without a warning. To keep the previous output, reorder the specs or give them distinct `name` values.
 </Warning>
 
 ### Configuration properties
