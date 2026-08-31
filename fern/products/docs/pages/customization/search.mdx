@@ -71,6 +71,33 @@ experimental:
 
 Each entry points to a `sitemap.xml` or a sitemap index; nested indexes are expanded automatically. Fern fetches every listed sitemap, indexes its URLs into the same Algolia index as your documentation, and tags them to your docs domain. External results are flagged as third-party, which demotes them below all first-party pages in the ranking, and they open in a new tab when selected.
 
+### Custom search metadata
+
+Fern reads the `search-metadata` key from a page's frontmatter and merges those key-value pairs into the page's Algolia record. Use it to attach your own taxonomy (product line, audience, category) to pages and build a faceted search experience around it:
+
+```mdx
+---
+title: CUDA Programming Guide
+search-metadata:
+  product: CUDA
+  audience: developer
+  category: programming-guide
+---
+```
+
+The value must be a YAML mapping of string keys to string or array-of-string values. Array values cover multi-value facets, such as a page that belongs to two product lines:
+
+```mdx
+---
+title: cuDNN Developer Guide
+search-metadata:
+  product: [cuDNN, CUDA]
+  audience: developer
+---
+```
+
+Custom metadata fields are stored on the Algolia record, but Fern's built-in search filters don't use them. Surfacing them as filters requires configuring the fields as facets in Algolia and building or extending a search UI with your [Algolia credentials](#integrating-with-algolia). Pages without a `search-metadata` key are unaffected.
+
 ## How results are ranked
 
 Fern configures Algolia's ranking to prioritize matches in high-signal attributes like titles and keywords over body text, then applies tiebreakers for recency, version, and page position.
