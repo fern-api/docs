@@ -1,0 +1,191 @@
+---
+title: Machine-readable schema
+description: Use the --schema flag to emit a generated CLI's command surface as JSON that AI agents can read to drive the CLI correctly.
+availability: beta
+---
+
+<Note title="Early access">
+The CLI generator is in early access. [Reach out](https://buildwithfern.com/book-demo?type=cli) to get started.
+</Note>
+
+Every generated CLI exposes a global `--schema` flag that prints its command surface as JSON. It's the agent-facing counterpart to `--help`: wherever a human types `--help` for prose, an agent types `--schema` for the same scope as structured data. The output is deterministic — it comes from your spec and the CLI's own flag surface, with no model in the loop.
+
+The flag is scoped by where you append it:
+
+| Command | Output |
+| --- | --- |
+| `contoso --schema` | Every operation in the CLI, plus global flags. |
+| `contoso plants --schema` | The operations in one command group. |
+| `contoso plants list --schema` | The full input and output contract for one operation. |
+
+`--schema` is handled before arguments are parsed, so an operation's schema prints even when its required flags are missing.
+
+## Listing operations
+
+At the root, `--schema` returns `globalFlags` (the flags available on every command) and `operations` (every operation with its name and description).
+
+```bash
+contoso --schema
+```
+
+```json
+{
+  "globalFlags": [
+    {
+      "flag": "--schema",
+      "description": "Emit the machine-readable command surface as JSON (agent-facing counterpart to --help)"
+    },
+    {
+      "flag": "--dry-run",
+      "description": "Validate the request locally without sending it to the API"
+    }
+  ],
+  "operations": [
+    {
+      "operation": "plants.create",
+      "description": "Create a plant"
+    },
+    {
+      "operation": "plants.list",
+      "description": "List all plants"
+    }
+  ]
+}
+```
+
+Scoping to a command group returns the same operation entries as a bare array:
+
+```bash
+contoso plants --schema
+```
+
+```json
+[
+  {
+    "operation": "plants.create",
+    "description": "Create a plant"
+  },
+  {
+    "operation": "plants.list",
+    "description": "List all plants"
+  }
+]
+```
+
+When your spec declares [server URL variables](/learn/cli-generator/get-started/features#server-url-variables), the root output also carries an `sdkVariables` array naming each variable's global flag and environment variable.
+
+## Reading one operation
+
+Scoping to an operation returns its full contract: `input` describes everything the caller supplies, `output` is the JSON Schema of the operation's success response with `$ref`s inlined.
+
+```bash
+contoso plants list --schema
+```
+
+```json
+{
+  "operation": "plants.list",
+  "description": "List all plants",
+  "input": {
+    "type": "object",
+    "properties": {
+      "limit": {
+        "type": "integer",
+        "description": "Maximum number of plants to return.",
+        "format": "int32",
+        "location": "query",
+        "maximum": 100.0,
+        "flag": "--limit"
+      }
+    },
+    "required": []
+  },
+  "output": {
+    "type": "array",
+    "items": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier for the plant." },
+        "name": { "type": "string", "description": "Name of the plant." }
+      },
+      "required": ["id", "name"]
+    }
+  }
+}
+```
+
+`input.properties` mirrors the CLI's flag surface rather than the HTTP request shape. Query, path, header, and request-body fields are siblings in one property bag, each tagged with a `location` of `query`, `path`, `header`, or `body`, so an agent reads one object to learn which [`--<flag>`s](/learn/cli-generator/get-started/features#passing-parameters) exist.
+
+Each property carries the metadata needed to produce a valid invocation:
+
+| Field | Meaning |
+| --- | --- |
+| `flag` | The exact flag to pass for the property. |
+| `type`, `format` | JSON Schema type and OpenAPI format (`date-time`, `uuid`, `int32`). |
+| `description` | Description from the spec. |
+| `location` | `query`, `path`, `header`, or `body`. |
+| `enum`, `x-fern-enum` | Allowed values, plus display names and descriptions when overridden. |
+| `default` | Value the CLI substitutes when the flag is omitted (from `x-fern-default`). |
+| `serverDefault` | Value the API applies on omission (from OpenAPI's `default`). |
+| `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum` | Numeric bounds. |
+| `nullable`, `deprecated` | Whether `null` is accepted, and whether the field is deprecated. |
+| `examples` | Examples from the spec. |
+| `availability` | Lowered [`x-fern-availability`](/learn/cli-generator/get-started/openapi-extensions#x-fern-availability), also present on the operation itself. |
+| `binding`, `variable`, `globalFlag`, `envVar` | Present when the value comes from a server URL variable instead of a per-operation flag. |
+
+Property keys are wire names, so `flag` is the field to read when constructing an invocation: it accounts for the kebab-casing of header names, the `-param` suffix the CLI adds when a spec name collides with a global flag such as `--query`, and any [`x-fern-parameter-name`](/learn/cli-generator/get-started/openapi-extensions#x-fern-parameter-name) rename. A query parameter named `query` reports the suffixed flag:
+
+```json
+"query": {
+  "type": "string",
+  "location": "query",
+  "description": "The search query text",
+  "flag": "--query-param"
+}
+```
+
+`multipart/form-data` fields are siblings of the other properties and carry a `flag` too, with `file: true` on the ones that take a filesystem path. A property has no `flag` when the CLI registers no flag for it, in which case pass the value through `--params` or `--json`.
+
+Body fields that don't flatten into individual flags — free-form objects and true unions — carry their nested schema inline, so an agent knows what to put in `--json`.
+
+## Capability hints
+
+Some CLI behavior isn't described anywhere in your spec. Per-operation hints make it discoverable instead of something an agent has to find by trial and error. Each hint appears only when it applies.
+
+| Hint | Meaning |
+| --- | --- |
+| `paginable` | The operation supports [`--page-all`](/learn/cli-generator/get-started/features#pagination). Names the pagination `kind` (`cursor`, `offset`, `uri`, `path`, or `custom`) and the parameters and response paths the CLI walks. |
+| `binaryResponse` | The response is a binary body, so `--output <PATH>` writes it to a file. |
+| `streaming` | The response streams. `format` is `sse`, `json`, or `text`, with an optional `terminator` sentinel. |
+
+A cursor-paginated operation, for example, reports the query parameter it advances and where the next cursor and results live in the response:
+
+```json
+{
+  "operation": "reports.list-paged",
+  "description": "Cursor-paginated reports",
+  "paginable": {
+    "kind": "cursor",
+    "cursorParam": "cursor",
+    "nextCursorPath": "next",
+    "resultsPath": "data"
+  }
+}
+```
+
+## Scripting against the schema
+
+Because the output is plain JSON, `jq` filters give you an inventory of the CLI without running any requests:
+
+```bash
+# Count operations
+contoso --schema | jq '.operations | length'
+
+# List every operation name
+contoso --schema | jq -r '.operations[].operation'
+
+# Show the required flags for one operation
+contoso plants create --schema | jq '.input.required'
+```
+
+CLIs generated from a GraphQL schema expose `--schema` too. GraphQL operations report `defaultSelection` — the fragment the CLI requests by default — in place of `output`. For a CLI built from both an OpenAPI spec and a GraphQL schema, root `--schema` aggregates operations from both, and a scoped path resolves against whichever surface owns it.
