@@ -257,50 +257,45 @@ An image that retains the site builder can be re-rendered at startup for any bas
 
 ### Per-deployment values
 
-One image can serve several environments. A value that differs per deployment, such as an app server hostname, stays in the generated site as a `FERN_SELF_HOSTED_ENV_<NAME>` placeholder and is resolved on each request, so a new environment costs no rebuild.
+A value that differs per deployment, such as an API hostname, can stay in the generated site as a `FERN_SELF_HOSTED_ENV_<NAME>` placeholder that the container resolves on each request, so one image serves every environment.
 
-Write the placeholder in `docs.yml` or in page content. Generation leaves it untouched:
+Write the placeholder in `docs.yml` or page content, allowlist its name with `FERN_RUNTIME_ENV_VARS`, and set the value when running the container:
 
 ```mdx
-App server: FERN_SELF_HOSTED_ENV_APP_SERVER
+API host: FERN_SELF_HOSTED_ENV_PLANT_API
 
-<a href="https://FERN_SELF_HOSTED_ENV_APP_SERVER/login">Open the app</a>
+<a href="https://FERN_SELF_HOSTED_ENV_PLANT_API/plants">Browse plants</a>
 ```
 
-A placeholder in a link target holds a host rather than a full URL and needs a scheme in front of it, since a target that doesn't look absolute resolves against the docs site. When the deployment's value carries its own scheme (`APP_SERVER=https://app.plantstore.dev`), the container drops the one in the placeholder.
-
-Allowlist the names the container may resolve with `FERN_RUNTIME_ENV_VARS`, and supply the values at deploy time:
-
 ```dockerfile
-ENV FERN_RUNTIME_ENV_VARS=APP_SERVER
+ENV FERN_RUNTIME_ENV_VARS=PLANT_API
 ```
 
 ```bash
-docker run -p 3000:3000 -e APP_SERVER=app.plantstore.dev self-hosted-docs
+docker run -p 3000:3000 -e PLANT_API=api.plantstore.dev self-hosted-docs
 ```
 
-Substitution covers every text artifact the container serves: page text and attributes such as `href` and `src`, the [Markdown](/learn/docs/ai-features/markdown) and [`llms.txt`](/learn/docs/ai-features/llms-txt) versions of each page, the sitemap, manifests, and search results. Binary assets are served byte for byte, and the `etag` covers the substituted bytes, so changing a value invalidates caches.
+A placeholder in a link target holds a host, so it needs a scheme in front of it; when the value carries its own scheme, the container drops the one in the placeholder. A name outside the allowlist, or an allowlisted name with no value, is served as the literal placeholder, so page content can't read arbitrary container environment variables.
 
-The allowlist is a security boundary. A name outside it stays in the page as the literal placeholder, so page content can't read arbitrary container environment variables. An allowlisted name with no value in the container is also left as-is, making a missing value visible rather than an empty string.
+Substitution covers every text artifact the container serves: page text and attributes such as `href` and `src`, the [Markdown](/learn/docs/ai-features/markdown) and [`llms.txt`](/learn/docs/ai-features/llms-txt) versions of each page, the sitemap, manifests, and search results. Binary assets are served byte for byte, and the `etag` covers the substituted bytes.
 
 #### Keeping `${VAR}` in your sources
 
-A docs repo that already writes these values as `${VAR}` with [`settings.substitute-env-vars`](/learn/docs/configuration/site-level-settings#settingssubstitute-env-vars) needs no edit. Generation reads the same `FERN_RUNTIME_ENV_VARS` list and rewrites a listed name to its placeholder instead of resolving it, prefixing `https://` where the value stands in a link target. Names outside the list keep resolving at build time, which is what the site's own identity requires: the instance `url` and `custom-domain` are baked into every absolute URL.
+Sources that already use `${VAR}` with [`settings.substitute-env-vars`](/learn/docs/configuration/site-level-settings#settingssubstitute-env-vars) need no edit: generation rewrites a name listed in `FERN_RUNTIME_ENV_VARS` to its placeholder instead of resolving it. Names outside the list keep resolving at build time, which the site's own identity requires, since the instance `url` and `custom-domain` are baked into every absolute URL.
 
 ```yaml docs.yml
 settings:
   substitute-env-vars: true
 
 instances:
-  # Resolved at build time.
+  # Build time.
   - url: ${INSTANCE_NAME}.docs.buildwithfern.com
-    custom-domain: ${CUSTOM_DOMAIN}
 
 navbar-links:
-  # Resolved on each request, given FERN_RUNTIME_ENV_VARS=APP_SERVER.
+  # Each request, given FERN_RUNTIME_ENV_VARS=PLANT_API.
   - type: filled
-    text: Open the app
-    url: ${APP_SERVER}/login
+    text: Browse plants
+    url: ${PLANT_API}/plants
 ```
 
 ### Air-gapped deployments with gRPC
