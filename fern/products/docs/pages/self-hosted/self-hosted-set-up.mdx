@@ -284,9 +284,9 @@ RUN fern-generate
 docker run -p 3000:3000 -e PLANT_API=api.plantstore.dev self-hosted-docs
 ```
 
-Site identity resolves at build time whether it's listed or not: the instance `url` and `custom-domain` are baked into every absolute URL. A `${VAR}` in a link target is rewritten with an `https://` prefix so the link stays absolute, and if the runtime value carries its own scheme, the container drops the one in the placeholder.
+The instance `url` and `custom-domain` always resolve at build time, since they're baked into every absolute URL. Every other text artifact the container serves is substituted, including the [Markdown](/learn/docs/ai-features/markdown) and [`llms.txt`](/learn/docs/ai-features/llms-txt) versions of each page and search results. The runtime value can be a bare hostname or carry its own scheme.
 
-Substitution covers every text artifact the container serves: page text and attributes such as `href` and `src`, the [Markdown](/learn/docs/ai-features/markdown) and [`llms.txt`](/learn/docs/ai-features/llms-txt) versions of each page, the sitemap, manifests, and search results. Binary assets are served byte for byte, and the `etag` covers the substituted bytes. A name outside `FERN_RUNTIME_ENV_VARS`, or a listed name with no value in the container, is served as the literal placeholder, so page content can't read arbitrary container environment variables.
+A name missing from `FERN_RUNTIME_ENV_VARS`, or listed with no value in the container, renders as the literal placeholder instead of an empty string.
 
 Page content can also spell out `FERN_SELF_HOSTED_ENV_<NAME>` directly, for sources that don't use `${VAR}` substitution.
 
