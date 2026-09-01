@@ -128,6 +128,35 @@ Contact the Fern team to get your specific application ID and index name. Creden
     **Note:** Keep your Algolia credentials secure and avoid exposing them in client-side code. Consider implementing a backend proxy to make the Algolia requests.
 </Note>
 
+### Facet on custom page metadata
+
+Keys nested under the `search-metadata` frontmatter object are copied onto every Algolia record for that page and declared for faceting, so a custom integration can group and filter results by your own taxonomy:
+
+<CodeBlock title="plant-care.mdx">
+```mdx
+---
+title: Watering your monstera
+search-metadata:
+  category: plant_care
+  audience: [gardener, botanist]
+  discovery:
+    technology_tags: [humidity, drainage]
+---
+```
+</CodeBlock>
+
+Fern stores the block under the record's `search_metadata` attribute and facets each key by its full path:
+
+```js
+index.search("", {
+  facets: ["search_metadata.category", "search_metadata.discovery.technology_tags"],
+  facetFilters: [["search_metadata.audience:gardener"]],
+  distinct: true,
+});
+```
+
+Values can be strings, numbers, booleans, dates, arrays, or nested objects. Keys containing `:` or `.` are dropped, because those characters delimit Algolia's filter syntax. Fern also drops subtrees nested more than five levels deep, and drops a page's block entirely if it serializes to more than 4KB (the block is duplicated onto every section record of a page). Only markdown pages carry these attributes; API Reference and changelog records don't. Custom attributes are queryable through the Algolia API only, and don't appear in Fern's built-in search filters.
+
 ## Using an alternative search 
 
 You can override Fern's search with your own solution using [custom JavaScript](/learn/docs/building-and-customizing-your-docs/custom-css-global-js#custom-javascript) and your Algolia credentials.
