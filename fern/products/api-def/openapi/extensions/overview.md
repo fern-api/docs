@@ -36,6 +36,7 @@ The table below shows all available extensions and links to detailed documentati
 | [`x-fern-sdk-method-name`](./method-names) | Customize SDK method names |
 | [`x-fern-sdk-group-name`](./method-names) | Organize methods into SDK groups |
 | [`x-fern-sdk-variables`](./sdk-variables) | Set common path parameters across all requests |
+| `x-fern-sdk-namespace` | Namespace schemas to prevent name collisions when combining multiple API specs |
 | [`x-fern-parameter-name`](./parameter-names) | Customize parameter variable names |
 | [`x-fern-property-name`](./property-names) | Customize object property variable names |
 | [`x-fern-retries`](./retry-behavior) | Configure retry behavior for endpoints |
