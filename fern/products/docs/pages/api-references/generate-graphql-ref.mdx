@@ -95,6 +95,54 @@ The reference shows the client-facing schema: federation directives are stripped
   Specs sharing a namespace previously resolved collisions last-wins, without a warning. To keep the previous output, reorder the specs or give them distinct `name` values.
 </Warning>
 
+### Add request and response examples
+
+Operations render with an example only when you provide one. Add a YAML file listing examples per operation and reference it with the `examples` property of the spec:
+
+```yaml generators.yml
+api:
+  specs:
+    - graphql: plants.schema.graphql
+      name: Plants
+      examples: plants.examples.yml
+```
+
+```yaml plants.examples.yml
+- operation: plant
+  operationType: query
+  examples:
+    - name: Fetch a plant by ID
+      query: |
+        query GetPlant($id: ID!) {
+          plant(id: $id) {
+            id
+            name
+          }
+        }
+      variables:
+        id: "plant_123"
+      response:
+        data:
+          plant:
+            id: "plant_123"
+            name: "Monstera"
+- operation: addPlant
+  operationType: mutation
+  examples:
+    - name: Add a plant
+      query: |
+        mutation AddPlant($input: AddPlantInput!) {
+          addPlant(input: $input) {
+            id
+          }
+        }
+      variables:
+        input:
+          name: "Fiddle-leaf fig"
+```
+
+Each entry names an `operation` (the field name on `Query`, `Mutation`, or `Subscription`) and lists one or more `examples`. `operationType` is optional and disambiguates operations that share a name across operation types, such as `Query.plant` and `Mutation.plant`. Each example takes a required `query` plus optional `name`, `description`, `variables`, and `response`. When several specs compiled into one schema provide examples for the same operation, the first spec's examples are used and Fern logs a warning.
+
 ### Configuration properties
 
 <ParamField path="api.specs[].graphql" required>
@@ -103,6 +151,10 @@ The reference shows the client-facing schema: federation directives are stripped
 
 <ParamField path="api.specs[].name">
   Name of the folder that operations from this spec appear under in the API Reference sidebar. Use this to group related GraphQL operations together. Specs that share a `name` are compiled into one schema.
+</ParamField>
+
+<ParamField path="api.specs[].examples">
+  Path to a YAML file of request and response examples, keyed by operation name. Examples appear on the operation's page in the API Reference.
 </ParamField>
 
 <ParamField path="api.specs[].origin">
@@ -114,3 +166,14 @@ The reference shows the client-facing schema: federation directives are stripped
 Fern generates a page for every named type in your schema, under a `Types` section at the root of the API Reference. Pages are grouped by kind: Objects, Inputs, Enums, Scalars, Interfaces, and Unions. Kinds your schema doesn't declare produce no group, and all GraphQL schemas in the API section share one `Types` section.
 
 Type pages live at `<api-reference>/types/<kind>/<type-name>`, such as `/api-reference/types/objects/plant`. Interface pages also list the types that implement the interface. Types that only group operations, such as a `Mutation.plants: PlantMutations` namespace type, don't get a page.
+
+## Deprecations
+
+Operations, arguments, fields, and enum values marked `@deprecated` in the schema are labeled `Deprecated` in the reference. A custom reason is appended to the member's description:
+
+```graphql
+type Query {
+  plant(id: ID!): Plant
+  plantByName(name: String!): Plant @deprecated(reason: "Use `plant` instead.")
+}
+```
