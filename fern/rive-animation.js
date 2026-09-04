@@ -236,27 +236,6 @@
             return;
         }
         
-        // SDK Animation with native Rive interactions
-        createRiveAnimation({
-            canvasSelector: '#sdk-rive-canvas',
-            riveUrl: 'https://cdn.prod.website-files.com/67880ff570cdb1a85eee946f/68802bc752aef23fab76e6fc_12235f640f9ad3339b42e8d026c6345a_sdk-rive.riv',
-            aspectRatio: 369/93,
-            stateMachine: "State Machine 1",
-            fallbackImages: [
-                {
-                    src: './images/sdks-preview-light.svg',
-                    className: 'sdks-preview-img dark:hidden',
-                    alt: 'SDK Generation Preview'
-                },
-                {
-                    src: './images/sdks-preview-dark.svg',
-                    className: 'sdks-preview-img hidden dark:block',
-                    alt: 'SDK Generation Preview'
-                }
-            ]
-            // No eventHandlers - this animation only uses native interactions
-        });
-
         // Docs Animation
         createRiveAnimation({
             canvasSelector: '#docs-rive-canvas',
