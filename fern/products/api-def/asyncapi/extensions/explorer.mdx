@@ -1,0 +1,53 @@
+---
+title: API Explorer control
+headline: API Explorer control (AsyncAPI)
+description: Enable or disable the API Explorer for WebSocket channels using `x-fern-explorer`
+---
+
+
+The [API Explorer](/learn/docs/api-references/api-explorer) is enabled by default for every WebSocket channel. Use `x-fern-explorer` to disable it for all channels at the document root, and override it per channel. Control is per channel because docs render one Playground per channel. A channel uses its own `x-fern-explorer` value if it declares one, otherwise the document-level value; when the Explorer is disabled, the Playground button is hidden for that channel. Non-boolean values are reported as errors when importing the specification.
+
+<Tabs>
+  <Tab title="AsyncAPI 3.0">
+    ```yaml title="asyncapi.yml" {5,9}
+    asyncapi: 3.0.0
+    info:
+      title: Plant Store API
+      version: 1.0.0
+    x-fern-explorer: false  # Disable the Explorer for all channels
+    channels:
+      plantMonitor:
+        address: /plants/monitor
+        x-fern-explorer: true  # Enable the Explorer for this channel
+        messages:
+          moistureReading:
+            $ref: "#/components/messages/MoistureReading"
+      plantUpdates:
+        address: /plants/updates  # Remains disabled (document-level value applies)
+        messages:
+          statusUpdate:
+            $ref: "#/components/messages/StatusUpdate"
+    ```
+  </Tab>
+  <Tab title="AsyncAPI 2.x">
+    ```yaml title="asyncapi.yml" {5,8}
+    asyncapi: 2.6.0
+    info:
+      title: Plant Store API
+      version: 1.0.0
+    x-fern-explorer: false  # Disable the Explorer for all channels
+    channels:
+      /plants/monitor:
+        x-fern-explorer: true  # Enable the Explorer for this channel
+        subscribe:
+          operationId: monitorPlants
+          message:
+            $ref: "#/components/messages/MoistureReading"
+      /plants/updates:  # Remains disabled (document-level value applies)
+        subscribe:
+          operationId: plantUpdates
+          message:
+            $ref: "#/components/messages/StatusUpdate"
+    ```
+  </Tab>
+</Tabs>
