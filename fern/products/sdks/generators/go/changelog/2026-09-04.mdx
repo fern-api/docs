@@ -1,3 +1,17 @@
+## 1.57.12
+**`(fix):`** The retrier no longer waits out a `Retry-After`/backoff delay after its final
+attempt. Previously the sleep happened before the attempt budget was checked,
+so a client with retries disabled (or `MaxAttempts: 1`) still blocked for the
+full `Retry-After` on a 429/5xx, and the default two-attempt retrier paid two
+delays for one retry. Retrier exhaustion now returns immediately.
+
+
+**`(fix):`** Fixed a `crypto/rand: argument to Int is <= 0` panic when a retry delay was
+too small to jitter (e.g. an `X-RateLimit-Reset` timestamp only a few
+nanoseconds in the future). Such delays are now clamped to the minimum retry
+delay without jitter.
+
+
 ## 1.57.11
 **`(fix):`** Fix `HandleExplicitFields` silently corrupting the JSON body of types that have
 date/date-time fields. When any `SetXxx` setter was called on such a type, the
