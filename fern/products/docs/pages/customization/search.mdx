@@ -71,6 +71,70 @@ experimental:
 
 Each entry points to a `sitemap.xml` or a sitemap index; nested indexes are expanded automatically. Fern fetches every listed sitemap, indexes its URLs into the same Algolia index as your documentation, and tags them to your docs domain. External results are flagged as third-party, which demotes them below all first-party pages in the ranking, and they open in a new tab when selected.
 
+## Custom search metadata
+
+You can attach arbitrary key-value metadata to any page by adding a `search-metadata` block to its frontmatter. Fern reads these values and writes them as extra attributes on the page's Algolia record, making them available as facets for filtering and as attributes for custom ranking in your Algolia index.
+
+This is useful when you need to filter or segment search results by dimensions that Fern doesn't model natively, such as product line, audience, feature flag, or any taxonomy specific to your documentation.
+
+### Adding search metadata to a page
+
+Add a `search-metadata` key to the frontmatter of any `.md` or `.mdx` file. Its value is a map of string keys to string (or list-of-string) values:
+
+```mdx
+---
+title: GPU Acceleration Guide
+search-metadata:
+  product: "NIM"
+  audience: "developer"
+  platform: "linux"
+---
+```
+
+Multiple values for the same key can be expressed as a YAML list:
+
+```mdx
+---
+title: Deployment Overview
+search-metadata:
+  product:
+    - "NIM"
+    - "NeMo"
+  audience: "operator"
+---
+```
+
+All keys and values are forwarded to Algolia as-is. Key names must be valid YAML keys; values must be strings or lists of strings.
+
+### Using search metadata as Algolia facets
+
+Once the metadata is indexed, you can use it in Algolia's faceting and filtering APIs. To enable a `search-metadata` key as a facet in your Algolia index, contact the Fern team to add the attribute to the index's `attributesForFaceting` configuration.
+
+After that, you can filter search results by the attribute in your own Algolia integration:
+
+```ts
+const results = await algoliaIndex.search("deployment", {
+  filters: 'search-metadata.product:"NIM"',
+});
+```
+
+Or use it as a facet filter in the Algolia InstantSearch UI:
+
+```ts
+const search = instantsearch({
+  indexName: "your-index",
+  searchClient,
+});
+
+search.addWidgets([
+  refinementList({ attribute: "search-metadata.product" }),
+]);
+```
+
+<Note>
+`search-metadata` values are indexed in Algolia but are **not** displayed in Fern's built-in search UI. They are intended for use in custom Algolia integrations. To surface them as visible filters in your own search experience, use Algolia's InstantSearch widgets or API directly. See [Integrating with Algolia](#integrating-with-algolia) for how to obtain your credentials.
+</Note>
+
 ## How results are ranked
 
 Fern configures Algolia's ranking to prioritize matches in high-signal attributes like titles and keywords over body text, then applies tiebreakers for recency, version, and page position.
