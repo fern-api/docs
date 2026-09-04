@@ -1,0 +1,76 @@
+---
+title: How Fern uses AI
+slug: ai
+description: Every AI capability across Fern's products, what it does for your team, the data it processes, and the controls available to you.
+---
+
+Fern uses AI in three places: your documentation site, the Fern Dashboard, and the Fern CLI. This page lists every capability, the business problem it solves, what Fern stores, and how to turn each one off. Setup instructions live on the individual feature pages linked throughout.
+
+Ask Fern and its Slack app require enablement. Fern's deterministic features are always on. Dashboard and CLI capabilities run only when a user invokes them.
+
+## Your documentation site
+
+| Capability | What it does | Business use case |
+| --- | --- | --- |
+| [Ask Fern](/learn/docs/ai-features/ask-fern/overview) | Answers end-user questions from your indexed documentation, with citations. Available as an in-docs chat widget, [standalone React widgets](/learn/docs/ai-features/ask-fern/search-widget), and an [API](/learn/docs/ai-features/ask-fern/api-reference/overview). | Deflects support tickets and shortens onboarding by answering product questions at the point of confusion. |
+| [Ask Fern Slack app](/learn/docs/ai-features/ask-fern/slack-app) | Answers questions in community and customer Slack channels, and turns human answers into indexed FAQ pairs. | Extends documentation coverage to the channel where customers already ask, and captures tribal knowledge as reusable content. |
+| [MCP server](/learn/docs/ai-features/mcp-server) | Exposes a `searchDocs` tool so AI clients like Claude Code, Cursor, and Windsurf can query your documentation from a developer's environment. | Puts your documentation inside the coding agents developers build with, without them leaving the IDE. |
+| Search suggestions | Generates follow-up question suggestions in the search modal from indexed search results. Requires Ask Fern. | Surfaces the questions users don't know to ask, which increases search engagement. |
+| [AI-generated examples](/learn/docs/ai-features/ai-examples) | Replaces placeholder values in API Reference examples with realistic data derived from your OpenAPI spec. | Makes endpoints copy-paste runnable without an author hand-writing an example per endpoint. Hand-written examples always take precedence. |
+| [Fern Writer](/learn/docs/ai-features/fern-writer) | Opens pull requests with targeted documentation edits when tagged in Slack. | Converts a support answer or bug report into a documentation fix without an author picking up a ticket. |
+| [Ask Fern analytics](/learn/docs/ai-features/ask-fern/overview) | Reports conversation volume, per-conversation drill-down, CSV export, and a resolution rate: the share of conversations where Ask Fern returned a cited answer. | Shows which gaps in your documentation cost you support volume. |
+
+### Features that use no model
+
+Fern generates the following from your content deterministically. No model call and no data leaving Fern is involved:
+
+<CardGroup cols={2}>
+  <Card title="`llms.txt`" icon="file-text" href="/learn/docs/ai-features/llms-txt" />
+  <Card title="Markdown access" icon="file-code" href="/learn/docs/ai-features/markdown" />
+  <Card title="Agent directives" icon="compass" href="/learn/docs/ai-features/agent-directives" />
+  <Card title="API catalog discovery" icon="radar" href="/learn/docs/ai-features/api-catalog" />
+  <Card title="`fern-docs` skill" icon="graduation-cap" href="/learn/docs/ai-features/agent-skills" />
+  <Card title="Custom skills" icon="toolbox" href="/learn/docs/ai-features/host-skills" />
+</CardGroup>
+
+These features make your published content cheaper for third-party AI tools to consume. Whether those tools can crawl or train on it depends on your [`robots.txt`](/learn/docs/seo/robots-txt), which Fern also generates.
+
+## Fern Dashboard
+
+| Capability | What it does | Business use case |
+| --- | --- | --- |
+| Site import | Classifies the pages of an existing documentation site into a proposed Fern navigation structure during onboarding. | Removes the manual restructuring work in a migration from another documentation platform. |
+| Brand extraction | Reads a public URL and proposes colors, typography, and logos for your docs site. | Produces an on-brand site in one step instead of a theming pass. |
+| Pull request summaries | Generates a title and description for documentation pull requests from the diff. | Gives reviewers a readable change summary for edits made in [Fern Editor](/learn/docs/writing-content/fern-editor). |
+| Fern agent | Answers questions about your docs site and its configuration, queries your documentation analytics, and makes documentation edits that land as a [Fern Editor](/learn/docs/writing-content/fern-editor) draft or a pull request. Also available in Slack. Beta, enabled for selected organizations. | Gives any team member a single place to ask what the docs say, how they're performing, and to get a change made without learning the repository layout. |
+
+## Fern CLI and SDKs
+
+SDK and documentation generation is deterministic: the generators transform your API definition without calling a model, so the same input always produces the same output. Two CLI capabilities are explicitly AI-backed and run only when invoked:
+
+- `fern sdk-diff` and auto-versioning analyze the diff between two generated SDKs to propose a semantic version bump, commit message, and changelog entry. This replaces a manual release review per SDK per language.
+- `fern mcp install` registers Fern's authoring MCP server with Claude Code, Cursor, or Codex, so a coding agent can work against your Fern configuration.
+
+## Data Fern sends and stores
+
+What reaches a model depends on the capability:
+
+- **Ask Fern** sends the conversation, the documentation passages retrieved for the question, the site domain, and any system prompt you configure. Retrieval is filtered by the viewer's [roles](/learn/docs/authentication/features/rbac), so a viewer's answer is drawn only from content that viewer can read.
+- **AI-generated examples** send endpoint metadata, the relevant part of your OpenAPI spec, and existing examples.
+- **Dashboard capabilities** send the page content, public URL, or diff relevant to the request, plus your organization and docs site context.
+- **`fern sdk-diff`** sends the SDK diff and prior version and changelog context.
+
+Fern stores end-user queries and answers to power [Ask Fern analytics](/learn/docs/ai-features/ask-fern/overview), including questions asked in Slack. Queries are retained indefinitely unless you enable query log purging in the dashboard and set a retention window between 1 and 3650 days, after which older queries are purged and drop out of analytics. Product telemetry records token counts and latency rather than prompt text.
+
+Fern doesn't use your documentation content, your code, or your end users' queries to train AI models, and configures its Devin integration for Fern Writer to opt out of data collection for model training.
+
+## Turning features off
+
+| Feature | Control |
+| --- | --- |
+| Ask Fern, including the Slack app and MCP server | Select **Disable** on the Ask AI card in **Settings** in the [dashboard](https://dashboard.buildwithfern.com/). |
+| MCP server only | Set [`page-actions.options.mcp`](/learn/docs/configuration/site-level-settings#page-actionsoptionsmcp) to `false` in `docs.yml`. |
+| AI-generated examples | Disable generation, or override individual examples, from the [AI-generated examples](/learn/docs/ai-features/ai-examples) page. |
+| Query retention | Set a retention window in **Settings** > **Query log retention** in the [dashboard](https://dashboard.buildwithfern.com/). |
+| Third-party AI crawling and training of your published site | Configure [`robots.txt`](/learn/docs/seo/robots-txt). |
+| AI usage overall | Ask Fern, AI-generated examples, and Fern Writer consume [credits](/learn/docs/ai-features/overview#ai-credits) against your plan's monthly allowance. |
