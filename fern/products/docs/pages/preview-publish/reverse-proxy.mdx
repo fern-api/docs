@@ -325,3 +325,27 @@ curl -sI https://mydomain.com/docs | grep -i "^age:"
 If `content-type` is `text/x-component` instead of `text/html`, your proxy is forwarding the viewer's `Host` header to Fern's origin. Ensure the `Host` header sent to the origin is `app.buildwithfern.com`.
 
 If the `age` header is present and non-zero, your proxy is serving a cached response. Revisit your provider's configuration to ensure HTML caching is disabled.
+
+<llms-only>
+
+## Frequently Asked Questions
+
+### When do I need a reverse proxy for Fern Docs?
+You need a reverse proxy when you host Fern Docs on a subpath of your domain (e.g. `mydomain.com/docs`). Subdomain setups (e.g. `docs.mydomain.com`) use a CNAME record instead and do not require a reverse proxy.
+
+### Which reverse proxy providers does Fern support?
+Fern provides configuration guides for Cloudflare Workers, AWS CloudFront, Netlify, Vercel, Nginx, Akamai, and Caddy.
+
+### What headers does my reverse proxy need to send to Fern?
+Every proxied request must include two headers: `x-fern-host` set to your bare domain (e.g. `mydomain.com`) and `Host` set to `app.buildwithfern.com`. The `x-fern-host` header tells Fern which docs site to serve.
+
+### Should I cache HTML responses from Fern in my reverse proxy?
+No. You must not cache HTML responses. Fern sets `Cache-Control: public, max-age=0, must-revalidate` on HTML pages. Caching HTML causes pages to reference JavaScript and CSS from older deployments that no longer exist, breaking the site.
+
+### How do I verify my reverse proxy is configured correctly?
+Run `curl -sI https://mydomain.com/docs | grep -i content-type` and confirm the response is `text/html`. If you see `text/x-component`, your proxy is forwarding the wrong `Host` header. Also check that the `age` header is absent or zero to confirm HTML is not being cached.
+
+### Why does my Fern docs subpath return raw component data instead of HTML?
+This happens when your reverse proxy forwards the viewer's `Host` header to Fern's origin instead of setting it to `app.buildwithfern.com`. Fern's origin uses the `Host` header for routing and returns raw React Server Component payloads when it receives an unrecognized host.
+
+</llms-only>
