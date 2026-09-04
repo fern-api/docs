@@ -37,6 +37,22 @@ claude mcp add --transport http \
   fern_mcp_docs.example.com https://docs.example.com/_mcp/server
 ```
 
+## What the MCP server exposes
+
+The server exposes a single tool, `searchDocs`, which takes one `query` string. Clients call it with a natural-language question and get back a written answer with the source URLs of the pages it drew from as citations, not a ranked list of results.
+
+There is no separate tool for listing pages or fetching a page's full text. Agents that need the complete page follow a citation URL and fetch the [Markdown version of that page](/learn/docs/ai-features/markdown).
+
+### How search works
+
+`searchDocs` runs the query through Ask Fern's retrieval pipeline: your documentation pages and Fern-generated SDK code are split into chunks and stored as vector embeddings, the query is vectorized, and the closest chunks become the context for the answer. Retrieval is semantic rather than literal, so a question phrased in the reader's own words matches pages that don't share its wording, falling back to the [keyword search](/learn/docs/customization/search) that powers your searchbar when the retrieved context isn't sufficient. On authenticated sites, retrieval is scoped to what the request's `FERN_TOKEN` grants access to.
+
+### AI credits
+
+Requests to the MCP server are Ask Fern queries, so they draw on the same [AI credit](/learn/docs/ai-features/overview#ai-credits) allowance as Ask Fern chat in your docs and in Slack. There is no separate allowance for MCP traffic; turning the server off is what stops it from consuming credits.
+
+{/* TODO(fern): confirm the exact per-call credit cost of a `searchDocs` call (Ask Fern chat is billed at 2 credits per message) and whether MCP calls are metered identically, then state the number here. */}
+
 ## Authenticated sites
 
 On sites with [authentication](/learn/docs/authentication/overview) enabled, MCP clients must include a `FERN_TOKEN` header containing a valid JWT. Without it, the server only returns publicly visible content (if any).
