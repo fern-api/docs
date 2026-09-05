@@ -69,3 +69,29 @@ api:
 ```
 
 `x-fern-sdk-group-name` and `x-fern-sdk-method-name` still take precedence, so you can group individual endpoints while ignoring tags elsewhere. Enabling `ignore-tags` avoids editing the spec or maintaining overlays when tags would otherwise produce awkward sub-clients, such as a `ConversationsV2Configuration` tag becoming a `conversations_v2_configuration` sub-client.
+
+### Namespacing schemas with `x-fern-sdk-namespace`
+
+`x-fern-sdk-namespace` namespaces the type IDs of every schema in a spec. When two specs both define a `Team` type, giving one spec `x-fern-sdk-namespace: entity_manager` makes Fern reference its `Team` as `entity_manager:Team` internally, so the two types no longer collide.
+
+`x-fern-sdk-group-name` and `x-fern-sdk-namespace` solve different problems. `x-fern-sdk-group-name` organizes endpoints into client sub-resources (`client.users.create()`). `x-fern-sdk-namespace` prevents schema name collisions when multiple API specs define types with the same name.
+
+The extension applies to a whole spec, not to individual endpoints. Set it at the root of the OpenAPI file:
+
+```yaml title="entity-manager.yaml" {2}
+openapi: 3.1.0
+x-fern-sdk-namespace: entity_manager
+info:
+  title: Entity Manager
+```
+
+Equivalently, set [`namespace`](/learn/sdks/reference/generators-yml#namespace) on the spec entry in `generators.yml`. This value takes precedence over the extension when both are present:
+
+```yaml title="generators.yml" {4, 6}
+api:
+  specs:
+    - openapi: ./openapi/entity-manager.yaml
+      namespace: entity_manager
+    - openapi: ./openapi/task-manager.yaml
+      namespace: task_manager
+```

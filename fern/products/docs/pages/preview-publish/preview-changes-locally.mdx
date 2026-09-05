@@ -122,6 +122,12 @@ If your docs use [role-based access control](/learn/docs/authentication/features
 
 Preview links persist indefinitely — Fern doesn't auto-expire them. Any organization member can use [`fern docs preview list`](/learn/cli-api-reference/cli-reference/docs-commands#fern-docs-preview-list) to see active previews and [`fern docs preview delete`](/learn/cli-api-reference/cli-reference/docs-commands#fern-docs-preview-delete) to remove them when they're no longer needed. To clean up previews automatically when PRs merge, set up a [GitHub Actions workflow](#clean-up-preview-links-when-prs-merge).
 
+Previews created without `--id` have no identifier to pass to `--id`. To delete one, pass its full preview URL instead:
+
+```bash
+fern docs preview delete https://fern-preview-c973a36e-337b-44f5-ab83-aab.docs.buildwithfern.com
+```
+
 ### Automate with GitHub Actions
 
 You can use a GitHub Actions workflow to automatically generate a preview URL when a pull request is opened. By passing `--id` with the branch name, every push to the same PR updates the same preview URL instead of creating a new one. The workflow posts a comment on the PR with the preview link and direct links to every page changed in the PR, so reviewers can jump straight to affected pages.
@@ -351,3 +357,9 @@ jobs:
           fern docs preview delete --id "${{ github.head_ref }}" || echo "Preview deletion returned non-zero — it may already be gone"
 ```
 </CodeBlock>
+
+## Deleting published production docs
+
+There is no single command to delete a production site. Published docs stay live as long as the site is configured in `docs.yml`. To take a site offline entirely, contact [support@buildwithfern.com](mailto:support@buildwithfern.com).
+
+To remove specific pages, delete them from the navigation in `docs.yml` (or mark them [`hidden: true`](/learn/docs/configuration/navigation#hiding-content) to keep them reachable by direct URL only) and republish with `fern generate --docs`. Pages removed from navigation are no longer reachable, so add a [redirect](/learn/docs/seo/redirects) from the old path to avoid broken links.
