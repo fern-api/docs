@@ -1,0 +1,38 @@
+---
+title: MCP generator
+description: "Generate an MCP server from your API definition that exposes your endpoints as tools for AI agents."
+availability: beta
+---
+
+<Note title="Early access">
+The MCP generator is in early access. [Reach out](https://buildwithfern.com/book-demo?type=mcp) to get started.
+</Note>
+
+Fern's MCP generator turns your API definition into a [Model Context Protocol](https://modelcontextprotocol.io) server: a project where every endpoint becomes a typed tool that Claude, Cursor, and other MCP clients can call directly. It shares the same spec, `generators.yml`, and generation pipeline as your SDKs and CLI — an MCP server is just another generator output, configured as a [group](/learn/mcp-generator/get-started/quickstart) like any other.
+
+## How it works
+
+The generator walks your OpenAPI operations and emits one tool per endpoint, with a name, description, and JSON Schema input derived from the operation's parameters and request body. Security schemes become environment variables the server [reads at startup](/learn/mcp-generator/get-started/authentication), and each tool carries MCP annotations (`readOnlyHint`, `destructiveHint`, and similar) derived from its HTTP method, so an agent can reason about which calls are safe without inspecting the implementation. The output runs over stdio: an MCP client launches it as a subprocess and talks to it on stdin/stdout, so there's nothing to host or expose a port for.
+
+Not every operation becomes a tool. Endpoints with a non-JSON request body, or a required query parameter with a serialization style tools can't express, are skipped and recorded — with the reason — in the generated project's `metadata.json`, so you can see what got left out without reading the diff.
+
+## Curating the toolset
+
+Unlike an SDK, where exposing every endpoint is normal, an MCP server that hands an agent 300 tools is worse than one with 30 — agents spend context distinguishing similar-sounding tools, take more turns to find the right one, and are more likely to invoke something destructive by accident. [Tool selection](/learn/mcp-generator/get-started/tool-selection) is a first-class part of setting up an MCP server: `fern mcp init` diagnoses your spec's cost up front and helps you narrow it by tag, method, path, or description before you generate anything.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="fa-duotone fa-rocket" href="/learn/mcp-generator/get-started/quickstart">
+    Generate an MCP server from an OpenAPI spec and connect it to an agent.
+  </Card>
+  <Card title="Tool selection" icon="fa-duotone fa-filter-list" href="/learn/mcp-generator/get-started/tool-selection">
+    Curate which endpoints become tools and stay within a token budget.
+  </Card>
+  <Card title="Configuration reference" icon="fa-duotone fa-gear" href="/learn/mcp-generator/get-started/configuration">
+    Every field available under a group's MCP generator entry.
+  </Card>
+  <Card title="Authentication" icon="fa-duotone fa-key" href="/learn/mcp-generator/get-started/authentication">
+    How security schemes become environment variables.
+  </Card>
+</CardGroup>
