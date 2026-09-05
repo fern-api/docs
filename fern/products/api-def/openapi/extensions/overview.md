@@ -35,6 +35,7 @@ The table below shows all available extensions and links to detailed documentati
 | [`x-fern-pagination`](./pagination) | Configure auto-pagination for list endpoints |
 | [`x-fern-sdk-method-name`](./method-names) | Customize SDK method names |
 | [`x-fern-sdk-group-name`](./method-names) | Organize methods into SDK groups |
+| [`x-fern-sdk-namespace`](/learn/api-definitions/overview/project-structure#combined-sdks-from-multiple-apis) | Assign a namespace to an API spec when combining multiple APIs into a single SDK |
 | [`x-fern-sdk-variables`](./sdk-variables) | Set common path parameters across all requests |
 | [`x-fern-parameter-name`](./parameter-names) | Customize parameter variable names |
 | [`x-fern-property-name`](./property-names) | Customize object property variable names |
