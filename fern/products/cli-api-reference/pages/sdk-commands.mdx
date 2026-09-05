@@ -12,6 +12,7 @@ These commands generate SDKs from your API definition, keep generators up to dat
 | [`fern generate`](#fern-generate) | Build & publish SDK updates |
 | [`fern write-overrides`](#fern-write-overrides) | Create OpenAPI customizations |
 | [`fern generator upgrade`](#fern-generator-upgrade) | Update SDK generators to latest versions |
+| [`fern sdk migrate`](#fern-sdk-migrate) | Create an SDK Config v1 file from existing generator groups |
 | [`fern replay resolve`](#fern-replay-resolve) | Resolve patch conflicts left by [Fern Replay](/learn/sdks/overview/custom-code#replay) |
 | [`fern replay forget`](#fern-replay-forget) | Remove tracked customization patches from `.fern/replay.lock` |
 
@@ -309,6 +310,63 @@ These commands generate SDKs from your API definition, keep generators up to dat
 
      Use `--include-major` to include major version upgrades. Major versions are skipped by default to prevent breaking changes.
   
+  </Accordion>
+
+  <Accordion title="fern sdk migrate">
+    Use `fern sdk migrate` to write an SDK Config v1 file (Postman's SDK configuration format) from the generator groups in your `generators.yml`. The command reads `generators.yml` and `fern.config.json` and doesn't modify them or change how `fern generate` works.
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern sdk migrate --output <path> [--group <group> ...] [--api <api>] [--force] [--strict]
+    ```
+    </CodeBlock>
+
+    The output is deterministic, pretty-printed JSON validated against the `sdk-config/v1` schema. It preserves generator versions, audiences, output settings, package metadata, README settings, and supported-language configuration, and includes OpenAPI, AsyncAPI, and GraphQL source paths, overlays, overrides, namespaces, import settings, and supported Fern authentication. Fields that can't be mapped, including credentials, are reported as diagnostics on stderr with a severity, code, path, reason, and suggested action. Protobuf sources aren't supported yet and are reported as diagnostics.
+
+    ```bash
+    fern sdk migrate --group typescript --group python --output sdk-config.json
+    ```
+
+    ### group
+
+    Use `--group <group>` to choose which generator group to migrate. Repeat the flag to consolidate groups that share the same API schema and source configuration into one multi-language configuration. Defaults to the project's default group.
+
+    ```bash
+    fern sdk migrate --group plants-typescript --group plants-python --output sdk-config.json
+    ```
+
+    ### api
+
+    Use `--api <api>` to choose the API when your project contains multiple API definitions. The API name should match the directory name in your `fern/apis/` folder.
+
+    ```bash
+    fern sdk migrate --api plants-api --output sdk-config.json
+    ```
+
+    ### output
+
+    Use `--output <path>` (or `-o`) to set where the SDK Config file is written. Required. Pass `-` to write the JSON to stdout.
+
+    ```bash
+    fern sdk migrate --output -
+    ```
+
+    ### force
+
+    Use `--force` to replace an existing output file. Without it, the command refuses to overwrite an existing file.
+
+    ```bash
+    fern sdk migrate --output sdk-config.json --force
+    ```
+
+    ### strict
+
+    Use `--strict` to treat mapping diagnostics as errors. The command exits non-zero if any field couldn't be mapped.
+
+    ```bash
+    fern sdk migrate --output sdk-config.json --strict
+    ```
+
   </Accordion>
 
   <Accordion title="fern replay resolve">
