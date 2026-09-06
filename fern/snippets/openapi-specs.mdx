@@ -219,3 +219,28 @@ api:
   When enabled, groups servers by host into unified environments, enabling APIs with multiple protocols (REST, WebSocket, etc.) to share environment configuration. Environment URL IDs use the server name, with path or protocol suffixes added only when needed to resolve collisions.
 
 </ParamField>
+
+<ParamField path="settings.namespaced-errors" type="boolean" default="false" toc={true}>
+  Scopes shared error responses by namespace instead of API-wide. By default, Fern compares shared errors across the whole API by status code, so two specs that return different bodies for the same status code (for example, two different `429` bodies) collapse the shared error's body to `unknown`.
+
+  When enabled, an error response whose response object in `components.responses` carries `x-fern-sdk-namespace: <name>` is declared in that namespace and only checked for conflicts against other errors in the same namespace. Generated SDKs get typed per-namespace error classes (for example, `plants.TooManyRequestsError`) while the spec's endpoints and other types stay at the root. Responses without `x-fern-sdk-namespace` keep the default behavior, and the extension is only read from the response object, not from the referenced body schema. The setting applies only to the spec that sets it.
+
+  ```yaml title="generators.yml"
+  api:
+    specs:
+      - openapi: plants.yml
+        settings:
+          namespaced-errors: true
+  ```
+
+  ```yaml title="plants.yml"
+  components:
+    responses:
+      TooManyRequests:
+        x-fern-sdk-namespace: plants
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlantsRateLimitError"
+  ```
+</ParamField>
