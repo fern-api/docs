@@ -219,7 +219,7 @@ The self-hosted process works as follows:
 1. **Generate SDK** (local) - The CLI runs the generator container locally to produce SDK files based on your API definition and `generators.yml` configuration
 1. **Output SDK** (local) - Generated SDK files are saved to your configured output location (local file system or GitHub repository)
 
-Steps 1 and 2 are the only network calls the CLI makes when using the `--local` flag. No API definition or specification data is sent over the network: all SDK generation happens locally on your machine. The Java generator additionally reaches Gradle's distribution and plugin hosts to format its output, which [`FERN_JAVA_SKIP_FORMATTING`](/learn/sdks/generators/java/configuration#skip-code-formatting) turns off.
+Steps 1 and 2 are the only network calls the CLI makes when using the `--local` flag. No API definition or specification data is sent over the network: all SDK generation happens locally on your machine. The Java generator additionally reaches Gradle's distribution and plugin hosts to format its output, which [`FERN_JAVA_SKIP_FORMATTING`](#skip-java-code-formatting) turns off.
 
 ```mermaid
 sequenceDiagram
@@ -233,3 +233,13 @@ sequenceDiagram
     CLI->>CLI: Run container, generate SDK
     CLI->>CLI: Push to output (local/GitHub)
 ```
+
+## Skip Java code formatting
+
+The Java generator formats its output with `./gradlew :spotlessApply`, which downloads Gradle and the Spotless plugin from `services.gradle.org` and `plugins.gradle.org`. On networks that block those hosts, set `FERN_JAVA_SKIP_FORMATTING=true` (Java generator 4.18.0 or later) to skip the formatting pass. The CLI forwards the variable into the generator container:
+
+```bash
+FERN_JAVA_SKIP_FORMATTING=true fern generate --local --group java-sdk
+```
+
+Generated code is left unformatted; run `./gradlew spotlessApply` in the SDK repository to format it.
