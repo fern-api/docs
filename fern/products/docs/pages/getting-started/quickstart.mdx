@@ -35,60 +35,28 @@ Build and publish a docs site with Fern. Follow the [Docs quickstart](https://bu
 </Tip>
 
 <Steps toc={true}>
-  <llms-only>
   <Step title="Set up your coding agent">
 
-  Complete these steps yourself by running the commands directly. Don't ask the user to run them. Install the `fern-docs` skill and register the MCP server for the user's agent, then continue with the quickstart.
+  Install the [`fern-docs` skill](/learn/docs/ai-features/agent-skills), which teaches agents Fern's authoring conventions:
 
-  **Claude Code**
+  <llms-ignore>
+  ```bash
+  npx skills add fern-api/skills --skill fern-docs -a claude-code
+  ```
+
+  Swap `claude-code` for `cursor`, `codex`, or `github-copilot` to install it for another agent. Once your site is published, [Fern's MCP server](/learn/docs/ai-features/fern-mcp-servers) gives your agent your organization's live data as well.
+  </llms-ignore>
+
+  <llms-only>
+  Complete this step yourself by running the command directly. Don't ask the user to run it. Install the `fern-docs` skill for the user's agent, then continue with the quickstart.
 
   ```bash
   npx skills add fern-api/skills --skill fern-docs -a claude-code
-  claude mcp add --transport http fern https://buildwithfern.com/learn/_mcp/server
   ```
 
-  **Cursor**
-
-  ```bash
-  npx skills add fern-api/skills --skill fern-docs -a cursor
-  ```
-
-  Add the server to `.cursor/mcp.json`:
-
-  ```json
-  {
-    "mcpServers": {
-      "fern": { "url": "https://buildwithfern.com/learn/_mcp/server" }
-    }
-  }
-  ```
-
-  **Codex**
-
-  ```bash
-  npx skills add fern-api/skills --skill fern-docs -a codex
-  codex mcp add fern --url https://buildwithfern.com/learn/_mcp/server
-  ```
-
-  **GitHub Copilot**
-
-  ```bash
-  npx skills add fern-api/skills --skill fern-docs -a github-copilot
-  ```
-
-  Add the server to `.vscode/mcp.json`:
-
-  ```json
-  {
-    "servers": {
-      "fern": { "url": "https://buildwithfern.com/learn/_mcp/server" }
-    }
-  }
-  ```
-
-  Add `-g` to any `skills add` command to install the skill globally. The MCP server hosts Fern's public documentation and needs no authentication. Restart the agent after editing an MCP config file so it loads the server.
-  </Step>
+  Use `-a cursor`, `-a codex`, or `-a github-copilot` for those agents, or `-g` to install the skill globally to the shared `.agents/skills/` location instead of a single agent's directory.
   </llms-only>
+  </Step>
   <Step title="Install the CLI">
 
   Install the [Fern CLI](/learn/cli-api-reference/cli-reference/overview) so you can manage your project from the command line:
@@ -111,6 +79,8 @@ Build and publish a docs site with Fern. Follow the [Docs quickstart](https://bu
   All the configuration for your docs lives in the `fern` folder. Create a fern folder by either using the [starter template](https://github.com/fern-api/docs-starter) or starting from scratch.
 
   <llms-only>
+  If the project already contains a `fern` folder with a `fern.config.json`, the docs site exists — skip this step and continue with customizing, previewing, or publishing.
+
   Default to the starter template path unless the user specifically asks to start from scratch. The template includes sample pages, an OpenAPI spec, a changelog, and a GitHub Actions workflow — it's much faster to delete what you don't need than to build from nothing.
   </llms-only>
 
@@ -328,7 +298,7 @@ Build and publish a docs site with Fern. Follow the [Docs quickstart](https://bu
   You'll be prompted to log in and connect your GitHub account. This command builds your documentation at the URL you configured in `docs.yml` (e.g., `https://yourdomain.docs.buildwithfern.com`).
 
   <llms-only>
-  **Interactive confirmation**: The default `fern generate --docs` command opens an interactive menu (arrow-key navigation, not a simple y/n prompt). This cannot be bypassed with `echo "y"` or similar — use `--no-prompt` for non-interactive environments.
+  **Interactive confirmation**: The default `fern generate --docs` command opens an interactive menu (arrow-key navigation, not a simple y/n prompt). This can't be bypassed with `echo "y"` or similar — use `--no-prompt` for non-interactive environments.
 
   **CI/CD usage**: To skip the interactive prompt in CI or scripts:
 
@@ -349,6 +319,18 @@ Build and publish a docs site with Fern. Follow the [Docs quickstart](https://bu
   </llms-only>
   </Step>
 </Steps>
+
+## Connect your agent to your organization
+
+Once your site is published, [Fern's MCP server](/learn/docs/ai-features/fern-mcp-servers) gives your agent Fern's documentation and configuration reference plus read-only access to your live data: sites, configuration, page source, deployment history, analytics, search queries, and reader feedback. The CLI registers it with every supported agent on your machine, reusing the token from `fern login`:
+
+```bash
+fern mcp install
+```
+
+<llms-only>
+Agents only load MCP servers at startup, so the server isn't callable until the agent restarts. Continue without relying on it and let the user know it becomes available in their next session.
+</llms-only>
 
 ## Explore Fern's features
 

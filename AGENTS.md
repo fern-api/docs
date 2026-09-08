@@ -199,9 +199,21 @@ After documenting any new functionality, before declaring the work done:
 5. If the functionality has dashboard settings, verify `fern/products/dashboard/pages/` covers them — usually folded into the most relevant existing page, not a new page.
 6. Verify every link you wrote — see *Link checking* above for URL construction.
 
+## Generated files
+
+Automation owns some paths in this repo. Never write to them by hand, and never delete or reformat what automation put there: the next sync reverts the edit, and a hand-written change collides with the automated pull request that maintains the file.
+
+| Path | Owner |
+|------|-------|
+| `fern/products/cli-api-reference/cli-changelog/` | CLI release notes, pushed from `fern-api/fern` as "Update changelogs from fern repo" pull requests |
+| `fern/snippets/version-number-*.mdx` | Generator and CLI versions, refreshed hourly by `.github/workflows/update-versions.yml` |
+| `fern/translations/` | Translations of English pages, refreshed nightly by `.github/workflows/sync-translations.yml` |
+
+Documenting a fern CLI release therefore takes no CLI changelog entry. Edit the English page and let the translation follow. If a task appears to require an edit inside one of these paths, say so and leave the path alone.
+
 ## Changelog entries
 
-Changelog entries live in `fern/products/docs/pages/changelog/` and `fern/products/dashboard/pages/changelog/`. Filename format: `YYYY-MM-DD.mdx`.
+Changelog entries live in `fern/products/docs/pages/changelog/` and `fern/products/dashboard/pages/changelog/`. Filename format: `YYYY-MM-DD.mdx`. These two directories are the only changelogs a human or an agent writes — see *Generated files* for the CLI changelog.
 
 ### Rules
 

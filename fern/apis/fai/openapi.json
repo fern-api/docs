@@ -1432,6 +1432,81 @@
             "bearerAuth": []
           }
         ]
+      },
+      "delete": {
+        "tags": [
+          "Document"
+        ],
+        "summary": "Delete Document",
+        "operationId": "delete_document",
+        "parameters": [
+          {
+            "name": "domain",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Domain"
+            }
+          },
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Document Id"
+            }
+          },
+          {
+            "name": "x-fern-basepath",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The basepath of the docs site that the document belongs to, e.g. `/plants` for a site served at `docs.example.com/plants`. Omit this for sites served at the root of the domain. Documents are only retrieved by Ask Fern on the site matching the domain and basepath they were created with.",
+              "title": "X-Fern-Basepath"
+            },
+            "description": "The basepath of the docs site that the document belongs to, e.g. `/plants` for a site served at `docs.example.com/plants`. Omit this for sites served at the root of the domain. Documents are only retrieved by Ask Fern on the site matching the domain and basepath they were created with."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteDocumentResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-fern-audiences": [
+          "customers"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
       }
     },
     "/document/{domain}/delete": {
@@ -1676,6 +1751,145 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-fern-audiences": [
+          "customers"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Document"
+        ],
+        "summary": "Delete Documents",
+        "description": "Delete the documents of a domain, narrowed by the provided filters. Filters are combined with AND, so a document is\nonly deleted when it matches all of them. At least one filter is required, or pass `all=true` to delete every\ndocument. The `x-fern-basepath` header narrows the deletion to a single basepath.",
+        "operationId": "delete_documents",
+        "parameters": [
+          {
+            "name": "domain",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Domain"
+            }
+          },
+          {
+            "name": "product",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only delete documents whose product matches this value exactly.",
+              "title": "Product"
+            },
+            "description": "Only delete documents whose product matches this value exactly."
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only delete documents whose version matches this value exactly.",
+              "title": "Version"
+            },
+            "description": "Only delete documents whose version matches this value exactly."
+          },
+          {
+            "name": "url_prefix",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only delete documents whose url starts with this value.",
+              "title": "Url Prefix"
+            },
+            "description": "Only delete documents whose url starts with this value."
+          },
+          {
+            "name": "all",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Delete every document in the domain and basepath. Cannot be combined with the product, version or url_prefix filters.",
+              "default": false,
+              "title": "All"
+            },
+            "description": "Delete every document in the domain and basepath. Cannot be combined with the product, version or url_prefix filters."
+          },
+          {
+            "name": "x-fern-basepath",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The basepath of the docs site that the document belongs to, e.g. `/plants` for a site served at `docs.example.com/plants`. Omit this for sites served at the root of the domain. Documents are only retrieved by Ask Fern on the site matching the domain and basepath they were created with.",
+              "title": "X-Fern-Basepath"
+            },
+            "description": "The basepath of the docs site that the document belongs to, e.g. `/plants` for a site served at `docs.example.com/plants`. Omit this for sites served at the root of the domain. Documents are only retrieved by Ask Fern on the site matching the domain and basepath they were created with."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteDocumentsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "No filter was provided and all was not set, or all was combined with a filter. Nothing is deleted."
           },
           "422": {
             "description": "Validation Error",
@@ -5211,6 +5425,26 @@
           "success"
         ],
         "title": "DeleteDocumentResponse"
+      },
+      "DeleteDocumentsResponse": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success",
+            "description": "Whether any documents were deleted"
+          },
+          "documents_deleted": {
+            "type": "integer",
+            "title": "Documents Deleted",
+            "description": "The number of documents that were deleted"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "documents_deleted"
+        ],
+        "title": "DeleteDocumentsResponse"
       },
       "DeleteGuidanceResponse": {
         "properties": {

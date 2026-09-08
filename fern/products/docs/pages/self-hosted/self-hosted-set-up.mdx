@@ -76,7 +76,7 @@ RUN fern-generate
 ```
 
 <Info>
-`fern-generate` is a command available inside the Docker image that renders your documentation to static HTML at build time, enabling faster container startup, air-gapped deployment, and a smaller attack surface. It's not a command you run on your host machine. You can alternatively [defer generation to runtime](#runtime-generation).
+`fern-generate` is a command available inside the Docker image that renders your documentation to static HTML at build time, enabling faster container startup, air-gapped deployment, and a smaller attack surface. It's not a command you run on your host machine.
 </Info>
 
 <Tip>
@@ -140,6 +140,7 @@ Configure the self-hosted container's behavior by setting environment variables 
 | Variable | Description | Default |
 |---|---|---|
 | `CUSTOM_DOMAIN` | Override the `custom-domain` from `docs.yml` at runtime. Useful when the hostname where the docs are actually served differs from the domain in `docs.yml`. Accepts a bare hostname (e.g., `docs.plantstore.dev`); any `https://` or `http://` prefix is stripped automatically. | Value from `docs.yml` `custom-domain` |
+| `FERN_RUNTIME_ENV_VARS` | Comma-separated list of variable names the container resolves in served content on each request. See [Per-deployment values](#per-deployment-values). | none |
 | `FERN_LOG_LEVEL` | Log level for the Fern CLI during docs generation. Options: `debug`, `info`, `warn`, `error`. | `debug` |
 | `NEXT_PUBLIC_BASE_PATH` | Override the base path inferred from your `docs.yml` sub-path, or serve from a sub-path without configuring `docs.yml`. The value must start with `/` and have no trailing slash (e.g., `/docs`). See [Base path](#base-path) for details. | Inferred from `docs.yml` sub-path (else serves from `/`) |
 
@@ -247,35 +248,47 @@ Pass `NEXT_PUBLIC_BASE_PATH` when starting the container.
 docker run -p 3000:3000 -e NEXT_PUBLIC_BASE_PATH=/docs self-hosted-docs
 ```
 
-The base path is compiled into every URL of the static site, so a runtime base path that differs from the one the image was built with re-renders the site at startup. Re-rendering writes into the container filesystem, so it's not compatible with `readOnlyRootFilesystem: true` in Kubernetes, and it requires the image to retain the site builder: build with `FERN_KEEP_BUILD_TOOLS=1` or defer generation to runtime.
+The base path is compiled into every URL of the static site, so a runtime base path that differs from the one the image was built with re-renders the site at startup. Re-rendering writes into the container filesystem, so it's not compatible with `readOnlyRootFilesystem: true` in Kubernetes, and it requires the image to retain the site builder: build with `FERN_KEEP_BUILD_TOOLS=1`.
 
 </Tab>
 </Tabs>
 
 An image that retains the site builder can be re-rendered at startup for any base path, letting you reuse one image across environments that need different base paths.
 
-### Runtime generation
+### Per-deployment values
 
-By default, `fern-generate` runs at Docker build time. Defer generation to runtime if you need to:
-- Pass configuration (environment variables, secrets) at runtime
-- Speed up Docker builds during development
-- Share a single image across multiple documentation configurations
+A value that differs per deployment, such as an API hostname, can be resolved on each request instead of at build time, so one image serves every environment.
 
-Use the `--only-deps` flag to defer generation to runtime:
+Write the value as `${VAR}` with [`settings.substitute-env-vars`](/learn/docs/configuration/site-level-settings#settingssubstitute-env-vars), and list its name in `FERN_RUNTIME_ENV_VARS` at build time. Generation rewrites a listed name to a `FERN_SELF_HOSTED_ENV_<NAME>` placeholder instead of resolving it, and the container substitutes the placeholder from its own environment on every request:
 
-```dockerfile
-FROM fernenterprise/fern-self-hosted:latest
+```yaml docs.yml
+settings:
+  substitute-env-vars: true
 
-COPY fern/ /fern/
+instances:
+  # Not listed, so resolved at build time.
+  - url: ${INSTANCE_NAME}.docs.buildwithfern.com
 
-RUN fern-generate --only-deps
+navbar-links:
+  - type: filled
+    text: Browse plants
+    url: ${PLANT_API}/plants
 ```
 
-This starts required services (PostgreSQL, MinIO, FDR) at build time but skips documentation generation. When the container starts, it automatically runs `fern generate --docs`.
+```dockerfile
+ENV FERN_RUNTIME_ENV_VARS=PLANT_API
+RUN fern-generate
+```
 
-<Warning>
-Runtime generation requires network access at container startup. For air-gapped deployments, use the default build-time generation.
-</Warning>
+```bash
+docker run -p 3000:3000 -e PLANT_API=api.plantstore.dev self-hosted-docs
+```
+
+The instance `url` and `custom-domain` always resolve at build time, since they're baked into every absolute URL. Every other text artifact the container serves is substituted, including the [Markdown](/learn/docs/ai-features/markdown) and [`llms.txt`](/learn/docs/ai-features/llms-txt) versions of each page and search results. The runtime value can include a scheme (`https://api.plantstore.dev`) or omit it (`api.plantstore.dev`).
+
+A name missing from `FERN_RUNTIME_ENV_VARS`, or listed with no value in the container, renders as the literal placeholder instead of an empty string.
+
+Page content can also spell out `FERN_SELF_HOSTED_ENV_<NAME>` directly, for sources that don't use `${VAR}` substitution.
 
 ### Air-gapped deployments with gRPC
 
@@ -326,46 +339,7 @@ RUN fern-generate
 
 This downloads BSR dependencies during the Docker build and bakes them into the image. No network access required at runtime.
 </Accordion>
-<Accordion title="Option 2: Vendor dependencies for runtime generation">
-
-Use this option when you don't have all the information at build time and need the docs to generate differently at runtime, such as injecting environment variables at runtime.
-
-To generate at runtime in an air-gapped environment, vendor buf dependencies locally:
-
-```dockerfile
-FROM fernenterprise/fern-self-hosted:latest
-
-# Install buf CLI for dependency caching
-RUN npm install -g @bufbuild/buf
-
-# Copy fern configuration
-COPY fern/ fern/
-COPY protos/ protos/
-
-# Pre-fetch buf dependencies at build time (caches googleapis, protovalidate)
-RUN cd protos && buf dep update
-
-# Build fern dependencies
-RUN fern-generate --only-deps
-```
-
-Update `buf.yaml` to reference vendored dependencies:
-
-```yaml
-# Before
-deps:
-  - buf.build/googleapis/googleapis
-
-# After
-deps:
-  - ./vendor/googleapis
-```
-
-<Info>
-See the [Buf documentation on dependency management](https://buf.build/docs/bsr/module/dependency-management) for more details.
-</Info>
-</Accordion>
-<Accordion title="Option 3: Specify dependencies in generators.yml">
+<Accordion title="Option 2: Specify dependencies in generators.yml">
 
 If you don't have a `buf.yaml` file, you can specify proto dependencies directly in your `generators.yml`. The self-hosted container automatically creates a temporary `buf.yaml` from these dependencies during the build process.
 
@@ -379,18 +353,12 @@ api:
           - buf.build/bufbuild/protovalidate
 ```
 
-This approach works with both build-time and runtime generation:
-
 ```dockerfile
 FROM fernenterprise/fern-self-hosted:latest
 
 COPY fern/ /fern/
 
-# For build-time generation (recommended for air-gapped deployments)
 RUN fern-generate
-
-# Or for runtime generation (requires network at startup)
-# RUN fern-generate --only-deps
 ```
 
 The container parses all `generators.yml` files in your fern directory, finds proto specs with dependencies but no `buf.yaml`, and creates the necessary configuration automatically.
