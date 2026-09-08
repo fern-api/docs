@@ -250,3 +250,29 @@ Control whether search engines index this page or follow its links. These are di
 Use `noindex` for pages you want visible in the sidebar but excluded from search results — for example, early-access documentation. To hide a page from both the sidebar and search results, use `hidden: true` in `docs.yml` instead, which handles both automatically — see [Hiding content](/learn/docs/customization/hiding-content) for details. Use `nofollow` sparingly — it's rarely needed for documentation.
 
 <Markdown src="/products/docs/snippets/seo-fields-indexing.mdx" />
+
+### Structured data (JSON-LD)
+
+Every indexable page includes a `<script type="application/ld+json">` tag with [schema.org](https://schema.org) structured data: a `BreadcrumbList` built from the page's position in your navigation and a `TechArticle` carrying the page title, description, canonical URL, language, and site name. Pages marked `noindex` emit no structured data. Verify the output with the [Schema Markup Validator](https://validator.schema.org).
+
+To replace the generated breadcrumb trail, set `jsonld:breadcrumb` in the page frontmatter to a complete `BreadcrumbList` object:
+
+```yaml page.mdx
+---
+title: Authentication
+jsonld:breadcrumb:
+  "@context": https://schema.org
+  "@type": BreadcrumbList
+  itemListElement:
+    - "@type": ListItem
+      position: 1
+      name: Guides
+      item: https://docs.example.com/guides
+    - "@type": ListItem
+      position: 2
+      name: Authentication
+      item: https://docs.example.com/guides/authentication
+---
+```
+
+The `TechArticle` node is derived from the page's `title`, `headline`, `description`, and `canonical-url` fields and has no separate override.
