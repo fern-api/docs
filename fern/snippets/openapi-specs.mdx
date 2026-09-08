@@ -122,6 +122,10 @@ api:
   Controls whether optional schemas are coerced to nullable types during code generation. When false, optional and nullable are treated as distinct concepts.
 </ParamField>
 
+<ParamField path="settings.any-of-sibling-properties-as-object" type="boolean" default="false" toc={true}>
+  Converts a schema whose `anyOf` branches only mark sibling `properties` as `required` (an "at least one of" constraint) into a single object with optional fields instead of an undiscriminated union, so a request body that sets several of those properties keeps all of them instead of dropping all but one. Off by default because it changes generated types. Since every property is generated as optional, the SDK doesn't enforce that at least one is set; the API rejects a request that omits all of them.
+</ParamField>
+
 <ParamField path="settings.respect-readonly-schemas" type="boolean" toc={true}>
   Enables exploring readonly schemas in OpenAPI specifications.
 </ParamField>
@@ -211,6 +215,15 @@ api:
         - OrganizationId
   ```
 </ParamField>
+
+<ParamField path="settings.respect-per-spec-base-path" type="boolean" default="false" toc={true}>
+  When merging multiple OpenAPI specs, applies each document's [`x-fern-base-path`](/learn/api-definitions/openapi/extensions/base-path) to its own endpoints only. When `false`, one document's base path is prepended to every endpoint across all specs. Parameterized base paths such as `/{tenant}/v1` stay at the API root, and differing parameterized base paths across documents raise a conflict.
+
+  <Warning>
+    If you worked around the dropped prefix by adding it to your [server URL](/learn/api-definitions/openapi/extensions/server-names) (for example, `https://api.example.com/api/v3`), remove it when enabling this setting. Otherwise the prefix is applied twice.
+  </Warning>
+</ParamField>
+
 <ParamField path="settings.group-environments-by-host" type="boolean" default="false" toc={true}>
   When enabled, groups servers by host into unified environments, enabling APIs with multiple protocols (REST, WebSocket, etc.) to share environment configuration. Environment URL IDs use the server name, with path or protocol suffixes added only when needed to resolve collisions.
 

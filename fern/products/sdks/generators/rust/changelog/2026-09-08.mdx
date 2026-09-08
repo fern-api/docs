@@ -1,0 +1,27 @@
+## 0.47.1
+**`(fix):`** An offset-paginated endpoint now sends its page-size parameter on every page request
+instead of only the first. The `step` parameter of `x-fern-pagination` was being
+stripped from the query along with the offset, but only the offset changes between
+pages - the page size is the same on all of them and has to be sent each time.
+
+
+**`(fix):`** Advance an offset by the number of items the page returned rather than by a step read
+out of the response body, which was never present and so left every offset advancing
+by one. Add `offsetSemantics`, matching the TypeScript and Python generators: the
+default `"item-index"` advances by the page's item count, and `"page-index"` advances
+by one.
+
+
+## 0.47.0
+**`(feat):`** Paginated endpoints once again generate an auto-paging method. It is now emitted
+ALONGSIDE the single-page method as `<endpoint>_paginated` rather than replacing it,
+so the endpoint keeps its typed response and callers who want one page do not have
+to go through a paginator.
+
+
+**`(fix):`** Fix the borrow that made the paginated method fail to compile. The page loader
+outlives the method call, so path and body parameters are now captured as owned
+values, and the rewrite that points the loader at those captures no longer fails to
+match every name.
+
+
