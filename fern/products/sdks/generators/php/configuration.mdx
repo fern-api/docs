@@ -62,7 +62,7 @@ When enabled, the generated SDK omits the `X-Fern-Language`, `X-Fern-SDK-Name`, 
 </ParamField>
 
 <ParamField path="includePlatformHeaders" type="boolean" default="false" required={false} toc={true}>
-When enabled, the generated SDK sends a single structured `User-Agent` header of the form `{sdkName}/{version} ({os}; {arch}) {runtime}/{runtimeVersion}` (for example, `my-sdk/0.0.1 (linux; x86_64) PHP/8.2.0`), carrying SDK, operating system, architecture, and runtime information in place of the default `User-Agent` and discrete platform headers. If `omitFernHeaders` is enabled, no `User-Agent` or platform headers are sent and this option has no effect.
+When enabled, the generated SDK sends a single structured `User-Agent` header of the form `{sdkName}/{version} ({os}; {arch}) {runtime}/{runtimeVersion}` (for example, `my-sdk/0.0.1 (linux; x86_64) PHP/8.2.0`), carrying SDK, operating system, architecture, and runtime information in place of the default `User-Agent` and discrete platform headers. A configured [`user-agent`](#user-agent) template supplies the leading product token. If `omitFernHeaders` is enabled, no `User-Agent` or platform headers are sent and this option has no effect.
 </ParamField>
 
 <ParamField path="allowUserAgentAppInfo" type="boolean" default="false" required={false} toc={true}>
@@ -86,6 +86,15 @@ Specifies the directory path where the generated SDK source files should be plac
 Controls the access level of generated class properties. When set to 'public', properties are public and getter/setter methods are omitted. When set to 'private', properties are private and getter/setter methods are generated for encapsulation.
 </ParamField>
 
+<ParamField path="user-agent" type="string" default="{packageName}/{version}" required={false} toc={true}>
+Sets a custom `User-Agent` header template for requests sent by the generated SDK. The template is resolved at generation time and supports the `{packageName}`, `{version}`, `{language}`, `{generatorVersion}`, `{organization}`, and `{apiName}` placeholders.
+
+```yaml title="generators.yml"
+config:
+  user-agent: "plantstore-php-sdk/{version}"
+```
+
+This sends `User-Agent: plantstore-php-sdk/0.1.0`. With [`includePlatformHeaders`](#includeplatformheaders) enabled, the resolved value leads the structured header: `User-Agent: plantstore-php-sdk/0.1.0 (linux; x86_64) PHP/8.2.0`. A value that doesn't end in a version, such as `plantstore/sdk-php`, is used as-is. The [`allowUserAgentAppInfo`](#allowuseragentappinfo) token is appended after either form.
 <ParamField path="respectOptionalRequestBody" type="boolean" default="false" required={false} toc={true}>
 Lets callers omit the request body argument on endpoints with an optional request body. A call that omits it sends no body and no `Content-Type` header, instead of an empty JSON object (`{}`). Enable this when your API treats a missing body differently from an empty one.
 

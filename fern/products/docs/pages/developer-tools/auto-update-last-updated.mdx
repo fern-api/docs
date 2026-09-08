@@ -8,99 +8,123 @@ You can use a GitHub Action to automatically update the [`last-updated` frontmat
 
 ## Set up the workflow
 
-Add this GitHub Action workflow to your documentation repository.
+When a pull request is opened or updated, the workflow detects which MDX files changed, updates or adds a `last-updated` field in their frontmatter with the current date, and commits the changes back to the PR branch. That stamp commit is itself a `synchronize` event, so the workflow runs a second time on its own commit; the second run stamps the same date, finds no diff, and exits without committing.
 
-When a pull request is opened or updated, the workflow detects which MDX files changed, updates or adds a `last-updated` field in their frontmatter with the current date, and commits the changes back to the PR branch.
+<Steps>
+  <Step title="Create a token">
+    Give the workflow a personal access token to push its stamp commit with. A push authenticated this way triggers the PR's other workflows the same way a human push does, so `fern check` and preview deploys run automatically.
 
-<Note>
-The date format is "Month Day, Year" (e.g., "December 11, 2025"). You can customize this by modifying the `date` command in the workflow.
-</Note>
+    1. Under **Settings > Developer settings > Personal access tokens**, create a fine-grained token scoped to your docs repository with **Contents: Read and write**. Classic tokens with the `repo` scope also work.
 
-```yml title=".github/workflows/update-last-updated.yml" maxLines=14
-name: Update last updated date
+    1. Add it under **Settings > Secrets and variables > Actions** as `DOCS_BOT_TOKEN`. A token your repository already uses for release or sync automation works too, as does a [GitHub App installation token](https://github.com/actions/create-github-app-token), which avoids per-user expiry on team-maintained repositories.
 
-# Trigger this workflow when PRs are opened or updated
-on:
-  pull_request:
-    types: [opened, synchronize]
-    branches:
-      - main  # Adjust to match your main branch name
+    <Note>
+      If your repository runs no other checks on docs PRs, you can skip adding the secret and use the built-in `GITHUB_TOKEN` instead. GitHub holds every `pull_request` run the stamp push triggers behind an **Approve workflows to run** banner until someone with write access approves it, and no repository or organization setting turns this off.
+    </Note>
+  </Step>
+  <Step title="Add the workflow">
+    Add this workflow to your documentation repository, with `token` set to the secret you created. It stamps dates in "Month Day, Year" format (e.g., "December 11, 2025"); change the `date` command to use a different format.
 
+    ```yml title=".github/workflows/update-last-updated.yml" maxLines=14
+    name: Update last updated date
+
+    # Trigger this workflow when PRs are opened or updated
+    on:
+      pull_request:
+        types: [opened, synchronize]
+        branches:
+          - main  # Adjust to match your main branch name
+
+    jobs:
+      update-last-updated:
+        runs-on: ubuntu-latest
+        # No token can push to a contributor's fork, so the push would fail.
+        # Skip fork PRs instead.
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        permissions:
+          contents: write         # Required to commit changes
+          pull-requests: write    # Required to update the PR
+        steps:
+          # Step 1: Check out the PR branch
+          - name: Checkout repository
+            uses: actions/checkout@v4
+            with:
+              ref: ${{ github.head_ref }}  # Check out the PR's source branch
+              fetch-depth: 0
+              token: ${{ secrets.DOCS_BOT_TOKEN }}  # A PAT, not GITHUB_TOKEN
+
+          # Step 2: Identify which MDX files changed in this PR
+          - name: Get changed MDX files
+            id: changed-files
+            uses: tj-actions/changed-files@v45
+            with:
+              files: |
+                **/*.mdx  # Only track changes to .mdx files
+
+          # Step 3: Update the last-updated field in each changed MDX file
+          - name: Update last-updated frontmatter
+            if: steps.changed-files.outputs.any_changed == 'true'
+            run: |
+              # Generate current date in "Month Day, Year" format (e.g., "December 11, 2025")
+              # Modify the date format here if you prefer a different style
+              CURRENT_DATE=$(date +"%B %-d, %Y")
+              echo "Current date: $CURRENT_DATE"
+
+              # Process each changed MDX file
+              for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
+                echo "Processing: $file"
+
+                # Skip if file was deleted or doesn't exist
+                if [ ! -f "$file" ]; then
+                  echo "File not found, skipping: $file"
+                  continue
+                fi
+
+                # Check if file has frontmatter (must start with ---)
+                if ! head -1 "$file" | grep -q "^---"; then
+                  echo "No frontmatter found, skipping: $file"
+                  continue
+                # If file already has a last-updated field, update it
+                elif grep -q "^last-updated:" "$file"; then
+                  echo "Updating existing last-updated field"
+                  sed -i "s/^last-updated:.*$/last-updated: $CURRENT_DATE/" "$file"
+                # If file has frontmatter but no last-updated field, add it
+                else
+                  echo "Adding last-updated field to existing frontmatter"
+                  # This awk command inserts the last-updated field just before the closing ---
+                  awk -v date="$CURRENT_DATE" '
+                    BEGIN { in_frontmatter=0; added=0 }
+                    NR==1 && /^---$/ { in_frontmatter=1; print; next }
+                    in_frontmatter && /^---$/ && !added { print "last-updated: " date; added=1; print; in_frontmatter=0; next }
+                    { print }
+                  ' "$file" > "${file}.tmp" && mv "${file}.tmp" "$file"
+                fi
+              done
+
+          # Step 4: Commit and push the updated files back to the PR
+          - name: Commit changes
+            if: steps.changed-files.outputs.any_changed == 'true'
+            run: |
+              git config --local user.email "github-actions[bot]@users.noreply.github.com"
+              git config --local user.name "github-actions[bot]"
+              git add -A
+              # Only commit if there are actual changes
+              if git diff --staged --quiet; then
+                echo "No changes to commit"
+              else
+                git commit -m "chore: update last-updated date in MDX files"
+                git push
+              fi
+    ```
+  </Step>
+</Steps>
+
+## Skip specific pull requests
+
+Stamping every touched page is wrong for a bulk change: a backfill or a sync PR that touches hundreds of pages would rewrite every date to the merge date. Gate the job on a label to opt those PRs out:
+
+```yml
 jobs:
   update-last-updated:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write         # Required to commit changes
-      pull-requests: write    # Required to update the PR
-    steps:
-      # Step 1: Check out the PR branch
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}  # Check out the PR's source branch
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      # Step 2: Identify which MDX files changed in this PR
-      - name: Get changed MDX files
-        id: changed-files
-        uses: tj-actions/changed-files@v45
-        with:
-          files: |
-            **/*.mdx  # Only track changes to .mdx files
-
-      # Step 3: Update the last-updated field in each changed MDX file
-      - name: Update last-updated frontmatter
-        if: steps.changed-files.outputs.any_changed == 'true'
-        run: |
-          # Generate current date in "Month Day, Year" format (e.g., "December 11, 2025")
-          # Modify the date format here if you prefer a different style
-          CURRENT_DATE=$(date +"%B %-d, %Y")
-          echo "Current date: $CURRENT_DATE"
-
-          # Process each changed MDX file
-          for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
-            echo "Processing: $file"
-
-            # Skip if file was deleted or doesn't exist
-            if [ ! -f "$file" ]; then
-              echo "File not found, skipping: $file"
-              continue
-            fi
-
-            # Check if file has frontmatter (must start with ---)
-            if ! head -1 "$file" | grep -q "^---"; then
-              echo "No frontmatter found, skipping: $file"
-              continue
-            # If file already has a last-updated field, update it
-            elif grep -q "^last-updated:" "$file"; then
-              echo "Updating existing last-updated field"
-              sed -i "s/^last-updated:.*$/last-updated: $CURRENT_DATE/" "$file"
-            # If file has frontmatter but no last-updated field, add it
-            else
-              echo "Adding last-updated field to existing frontmatter"
-              # This awk command inserts the last-updated field just before the closing ---
-              awk -v date="$CURRENT_DATE" '
-                BEGIN { in_frontmatter=0; added=0 }
-                NR==1 && /^---$/ { in_frontmatter=1; print; next }
-                in_frontmatter && /^---$/ && !added { print "last-updated: " date; added=1; print; in_frontmatter=0; next }
-                { print }
-              ' "$file" > "${file}.tmp" && mv "${file}.tmp" "$file"
-            fi
-          done
-
-      # Step 4: Commit and push the updated files back to the PR
-      - name: Commit changes
-        if: steps.changed-files.outputs.any_changed == 'true'
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git add -A
-          # Only commit if there are actual changes
-          if git diff --staged --quiet; then
-            echo "No changes to commit"
-          else
-            git commit -m "chore: update last-updated date in MDX files"
-            git push
-          fi
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-last-updated') && github.event.pull_request.head.repo.full_name == github.repository }}
 ```

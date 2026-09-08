@@ -1,0 +1,381 @@
+---
+title: 'SDK commands'
+description: 'Complete reference for all Fern CLI commands for generating SDKs.'
+subtitle: 'Learn about the Fern CLI SDK commands.'
+hideOnThisPage: true
+---
+
+These commands generate SDKs from your API definition, keep generators up to date, and manage the custom code [Fern Replay](/learn/sdks/overview/custom-code#replay) carries across regenerations. Creating a project with `fern init` and validating the API definition with `fern check` are [general commands](/learn/cli-api-reference/cli-reference/general-commands), and [docs commands](/learn/cli-api-reference/cli-reference/docs-commands) publish the API reference that documents the SDKs you generate. Each SDK command accepts the [global options](/learn/cli-api-reference/cli-reference/options).
+
+| Command | Description |
+|---------|-------------|
+| [`fern generate`](#fern-generate) | Build & publish SDK updates |
+| [`fern write-overrides`](#fern-write-overrides) | Create OpenAPI customizations |
+| [`fern generator upgrade`](#fern-generator-upgrade) | Update SDK generators to latest versions |
+| [`fern replay resolve`](#fern-replay-resolve) | Resolve patch conflicts left by [Fern Replay](/learn/sdks/overview/custom-code#replay) |
+| [`fern replay forget`](#fern-replay-forget) | Remove tracked customization patches from `.fern/replay.lock` |
+
+## Detailed command documentation
+
+<AccordionGroup>
+  <Accordion title="fern generate">
+    Use `fern generate` to run the Fern compiler and create SDKs for your API.
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern generate [--group <group>] [--api <api>] [--version <version>] [--preview] [--fernignore <path>] [--local] [--force] [--no-replay] [--package] [--package-mode <mode>] [--package-only]
+    ```
+    </CodeBlock>
+
+    <Note>
+      Remote generation (the default) requires authentication — the CLI prompts you to log in if needed, or you can set `FERN_TOKEN`. Self-hosted generation (`--local`) does not require login.
+    </Note>
+
+    ### group
+
+    Use `--group <group>` to specify which generator group to run. You can use either a group name or an alias name. Aliases are [defined in your `generators.yml`](/learn/sdks/reference/generators-yml#aliases) and map to multiple groups, allowing you to run several groups in parallel with a single command.
+
+    ```bash
+    # Run a specific group
+    fern generate --group python-sdk
+
+    # Run all groups defined in the "all" alias
+    fern generate --group all
+
+    # Run all groups defined in the "frontend" alias
+    fern generate --group frontend
+
+    # Run a specific group locally (self-hosted)
+    fern generate --group python-sdk --local
+    ```
+
+    You can also set an alias as your `default-group` in `generators.yml`, so running `fern generate` without any arguments will run all groups in that alias.
+
+    The `--group` flag can be combined with other flags like `--local` for [self-hosted SDK generation](/learn/sdks/deep-dives/self-hosted), `--preview` for local testing, or `--version` to specify the SDK version.
+
+    ### preview
+
+    Use `--preview` to test SDK changes locally before publishing. This is especially useful during development:
+    - Generates SDK into a local `.preview/` folder
+    - No changes are published to package managers or GitHub
+
+    ```bash
+    # Preview all SDKs
+    fern generate --preview
+
+    # Preview specific SDK group
+    fern generate --group python-sdk --preview
+    ```
+
+    ### api
+
+    Use `--api <api>` to specify the API for SDK generation. This is useful when your project contains multiple API definitions. The API name should match the directory name in your `fern/apis/` folder.
+
+    ```bash
+    fern generate --api public-api
+    ```
+
+    ### version
+
+    Use `--version` to specify the SDK version number, typically following semantic versioning (semver) format (`MAJOR.MINOR.PATCH`). This is particularly useful in CI/CD pipelines when publishing SDK releases.
+
+    ```bash
+    # Generate all SDKs with version 2.11.0
+    fern generate --version 2.11.0
+
+    # Generate Python SDK for the payments API with version 1.2.3
+    fern generate --api payments-api --group python-sdk --version 1.2.3
+    ```
+
+    ### fernignore
+
+    Use `--fernignore` to specify a custom `.fernignore` file path for SDK generation. This allows you to temporarily test different ignore configurations without modifying the committed `.fernignore` in your repository.
+
+    Fern will use the specified file instead of the one on the main branch and commit the new `.fernignore` to your repository as part of the generation process.
+
+    ```bash
+    fern generate --fernignore ./custom-fernignore
+    ```
+
+    ### local
+
+    Use `--local` to run SDK generation on your own machine instead of using Fern's cloud infrastructure. This is useful for organizations with strict security or compliance requirements. See [self-hosted SDKs](/learn/sdks/deep-dives/self-hosted) for setup instructions.
+
+    ```bash
+    # Generate all SDKs locally
+    fern generate --local
+
+    # Generate specific SDK group locally
+    fern generate --group python-sdk --local
+    ```
+
+    <Note>
+    A Docker daemon must be running on your machine, as SDK generation runs inside a Docker container.
+    </Note>
+
+    By default, the CLI pulls generator images from Docker Hub. To pull from a custom container registry, use the [`image` field](/learn/sdks/reference/generators-yml#image) in your `generators.yml` instead of `name`. See [custom container registry](/learn/sdks/deep-dives/self-hosted#optional-configure-a-custom-container-registry) for details.
+
+    ### force
+
+    Use `--force` to skip confirmation prompts during generation. This is useful in CI/CD environments where interactive prompts would block the pipeline.
+
+    ```bash
+    # Generate without confirmation prompts
+    fern generate --group python-sdk --force
+    ```
+
+    ### no-replay
+
+    Use `--no-replay` to skip [Fern Replay](/learn/sdks/overview/custom-code#replay)'s patch detection and application phase for a single generation. The generation still produces the new SDK code, but tracked customization patches aren't applied on top. Useful for a clean regeneration — for example, to debug whether a conflict is caused by a specific patch.
+
+    ```bash
+    fern generate --no-replay --local
+    ```
+
+    <Note>
+    `--no-replay` works only for local generation (`--local`).
+    </Note>
+
+    ### package
+
+    Use `--package` to build a distributable package artifact for every generator in the run whose [output location](/learn/sdks/reference/generators-yml#output) is `local-file-system`. Artifacts are written to a `fern-dist/` folder inside that generator's output directory, so a generated SDK can be handed to internal consumers without publishing it to a public registry. `--package` works with both cloud and local (`--local`) generation.
+
+    ```bash
+    # Package every local-file-system output
+    fern generate --package
+
+    # Package one group generated locally
+    fern generate --group plantstore-python-sdk --local --package
+    ```
+
+    | Language | Artifact |
+    |----------|----------|
+    | TypeScript | npm tarball (`.tgz`) |
+    | Python | wheel (`.whl`) |
+    | Java | JAR |
+    | C# | NuGet package (`.nupkg`) |
+    | Ruby | gem (`.gem`) |
+    | PHP | Composer archive (`.zip`) |
+    | Rust | crate (`.crate`) |
+    | Go | module source zip (`<output-dir>-source.zip`) |
+
+    <Note>
+    Not available for Swift.
+    </Note>
+
+    ### package-mode
+
+    Use `--package-mode <mode>` to choose where `--package` runs the packaging toolchains. `host` (the default) uses the toolchains installed on the machine. `docker` runs each toolchain inside its official image with the output directory mounted, so no language toolchains are required locally, and uses `docker` as the container runtime unless you pass `--runner podman`.
+
+    | Language | Host toolchain | Docker image |
+    |----------|----------------|--------------|
+    | TypeScript | `npm` | `node` |
+    | Python | `pip` | `python` |
+    | Java | `gradle` | `gradle` |
+    | C# | `dotnet` | `dotnet/sdk` |
+    | Ruby | `gem` | `ruby` |
+    | PHP | `composer` | `composer` |
+    | Rust | `cargo` | `rust` |
+
+    ```bash
+    fern generate --group plantstore-python-sdk --package --package-mode docker
+    ```
+
+    `--package-mode` requires `--package` or `--package-only`.
+
+    ### package-only
+
+    Use `--package-only` to keep only the artifact: after packaging, everything in the output directory except `fern-dist/` is deleted, so the generated SDK source isn't left behind. `--package-only` implies `--package`.
+
+    Deletion happens per generator, so a generator that produced no artifact keeps its source. `.git`, `.fernignore`, and any top-level path a `.fernignore` entry covers are always preserved.
+
+    ```bash
+    fern generate --group plantstore-node-sdk --version 0.0.1 --package-only --package-mode docker
+    # SDKs/plantstore-node-sdk/ contains only fern-dist/plantstore-0.0.1.tgz
+    ```
+
+  </Accordion>
+
+  <Accordion title="fern write-overrides">
+
+    Use `fern write-overrides` to generate a basic OpenAPI overrides file. An overrides file allows for 
+    reversible revisions to the API specification, including adding request and response examples for 
+    code snippets in Fern Docs.
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern write-overrides [--api <api>] [--exclude-models]
+    ```
+    </CodeBlock>
+
+    When run, this command creates a new file within `fern/openapi/` called `openapi-overrides.yml`. 
+
+    <Files>
+      <Folder name="fern" defaultOpen>
+        <File name="fern.config.json" />
+        <File name="generators.yml" />
+        <Folder name="openapi" defaultOpen>
+          <File name="openapi-overrides.yaml" comment="your overrides file" highlighted />
+          <File name="openapi.json" />
+        </Folder>
+      </Folder>
+    </Files>
+
+    ### api
+
+    Use `--api` to specify the API to run the command on if multiple are defined.  
+
+    ```bash
+    fern write-overrides --api public-api
+    ```
+
+    ### exclude-models
+
+    Use `--exclude-models` to stub the models while generating the initial overrides (in addition to the endpoints).
+
+    ```bash
+    fern write-overrides --exclude-models
+    ```
+
+  </Accordion>
+
+  <Accordion title="fern generator upgrade">
+    Use `fern generator upgrade` to update all generators in your `generators.yml` to their latest versions.
+
+    <Note>
+    This is different from `fern upgrade` which updates the Fern CLI version. Use both commands to keep your entire Fern toolchain up to date.
+    </Note>
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern generator upgrade [--list] [--generator <generator-name>] [--group <group>] [--include-major]
+    ```
+    </CodeBlock>
+
+    This command will:
+    - Check for updates to all generators specified in your `generators.yml`
+    - Update the generator versions to their latest compatible releases
+    - Maintain compatibility with your current Fern compiler version
+
+    Here's what you might see when updates are available:
+
+    ```plaintext
+    ┌───────────────────────────────────────────────────────────────────────────────────┐
+    │                                                                                   │
+    │                                Upgrades available                                 │
+    │                                                                                   │
+    │                                                                                   │
+    │             C# SDK (API: openapi, Group: csharp-sdk) 1.9.11 → 1.9.15              │
+    │              Java SDK (API: openapi, Group: java-sdk) 2.2.0 → 2.11.3              │
+    │           Python SDK (API: openapi, Group: python-sdk) 4.3.10 → 4.3.11            │
+    │                                                                                   │
+    │              Run fern generator upgrade to upgrade your generators.               │
+    │   Run fern generator upgrade --list to see the full list of generator upgrades    │
+    │                                    available.                                     │
+    │                                                                                   │
+    └───────────────────────────────────────────────────────────────────────────────────┘
+    ```
+
+    ### list
+
+    Use `--list` to see the full list of generator upgrades available.
+
+    ```bash
+    fern generator upgrade --list
+    ```
+
+    ### generator
+
+    Use `--generator` to specify a particular generator type to upgrade.
+
+    ```bash
+    fern generator upgrade --generator fern-typescript-sdk
+    fern generator upgrade --generator fern-python-sdk
+    ```
+
+    ### group
+
+    Use `--group` to upgrade generators within a specific group in your `generators.yml`. If not specified, all generators of the specified type will be upgraded.
+
+    ```bash
+    fern generator upgrade --group public
+    ```
+
+    ### include-major
+
+    ```bash
+    fern generator upgrade --include-major
+    ```
+
+     Use `--include-major` to include major version upgrades. Major versions are skipped by default to prevent breaking changes.
+  
+  </Accordion>
+
+  <Accordion title="fern replay resolve">
+
+    Use `fern replay resolve` to work through patch conflicts that [Fern Replay](/learn/sdks/overview/custom-code#replay) couldn't merge cleanly during `fern generate`. The command runs in two phases: the first run applies unresolved patches to your working tree with standard merge markers (`<<<<<<<` / `=======` / `>>>>>>>`) for you to edit; the second run verifies no markers remain and commits the resolved patches.
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern replay resolve [directory] [--no-check-markers]
+    ```
+    </CodeBlock>
+
+    ### directory
+
+    Path to the SDK directory containing `.fern/replay.lock`. Defaults to the current directory.
+
+    ### no-check-markers
+
+    Skip the conflict-marker check before committing. Use with caution — committing files that still contain merge markers will break the next regeneration.
+
+  </Accordion>
+
+  <Accordion title="fern replay forget">
+
+    Use `fern replay forget` to remove tracked customization patches from `.fern/replay.lock`. Useful when the generator now supports a customization natively, or when you want to stop replaying a specific edit on future regenerations.
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern replay forget <patch-id-or-pattern>... [--all] [--dry-run] [--yes]
+    ```
+    </CodeBlock>
+
+    The command accepts three modes:
+
+    - **By patch ID.** Pass one or more patch IDs to remove specific patches.
+
+      ```bash
+      fern replay forget patch-abc123 patch-def456
+      ```
+
+    - **By search pattern.** Pass a pattern to find matching patches. The command shows the matches with diff stats and prompts for confirmation before removing.
+
+      ```bash
+      fern replay forget "src/utils"
+      ```
+
+    - **All patches.** Pass `--all` to remove every tracked patch.
+
+      ```bash
+      fern replay forget --all
+      ```
+
+    ### dry-run
+
+    Show what would be removed without actually removing.
+
+    ```bash
+    fern replay forget "src/utils" --dry-run
+    ```
+
+    ### yes
+
+    Skip confirmation prompts. Required in non-interactive or CI environments.
+
+    ```bash
+    fern replay forget "src/utils" --yes
+    ```
+
+  </Accordion>
+</AccordionGroup>

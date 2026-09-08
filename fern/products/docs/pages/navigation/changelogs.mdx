@@ -1,11 +1,11 @@
 ---
 title: Changelog pages
 subtitle: Keep a chronological record of project changes with tagging, search, and RSS
-description: Configure changelog pages in Fern, including entry files, the timeline and classic layouts, tag filtering, and the RSS feed.
+description: Configure changelog pages in Fern, including entry files, timeline, classic, and blog layouts, tag filtering, and the RSS feed.
 ---
 
 
-A changelog is a navigation entry that renders a dated timeline of entries. Point the `changelog` key at a folder and every Markdown file in it becomes an entry, grouped by date, with search and tag filtering built in. A changelog can go wherever a section can — as its own tab, or as an entry in your sidebar.
+A changelog is a navigation entry that renders dated entries. Point the `changelog` key at a folder and every Markdown file in it becomes an entry, grouped by date, with search and tag filtering built in. A changelog can go wherever a section can — as its own tab, or as an entry in your sidebar.
 
 <Frame
     caption="Keep your users updated as your project evolves"
@@ -47,6 +47,8 @@ Subdirectories within the `changelog` folder aren't supported. All changelog ent
 <Step title="Reference it in `docs.yml`">
 
 Reference the folder in your `docs.yml`. You can place the changelog as its own tab or as a section within your navigation.
+
+`blog:` is an alias for `changelog:` at both the top level and tab level. It has the same behavior, URLs, and feeds, but defaults the navigation title to `Blog` instead of `Changelog`.
 
 <Tabs>
 <Tab title="As a tab">
@@ -188,10 +190,11 @@ Add an `overview.mdx` file to your `changelog` folder to include a high-level ov
 
 ## Customize layout
 
-Changelogs support two layouts:
+Changelogs support three layouts:
 
-- `timeline` (default) — a searchable timeline of condensed entry cards with plain-text excerpts.
+- `timeline` (default) — a searchable timeline of condensed entry cards with plain-text excerpts, one card per top-level `##` heading.
 - `classic` — stacked full entries rendered inline, preserving code formatting, copy buttons, and links.
+- `blog` — a blog-style listing with one card per entry file, available only as a per-changelog override.
 
 ### Site-wide setting
 
@@ -220,6 +223,72 @@ Release history for the self-hosted Docker image.
 
 The per-changelog override takes priority over the site-wide `layout.changelog-layout` setting.
 
+## Blog layout
+
+The `blog` layout renders one card for each dated entry file.
+
+<Frame caption="Cards, tag filters, and search on a blog, with author bylines on the post page. Try the [live example site](https://blog.docs.buildwithfern.com/blog)." background="subtle">
+  <video
+    src="assets/blog.mp4"
+    autoPlay
+    loop
+    playsInline
+    muted
+>
+</video>
+</Frame>
+
+Set `layout: blog` in the changelog folder's `overview.mdx` frontmatter. Use `blog-layout: grid` for the default card grid or `blog-layout: list` for full-width rows with the image beside the text.
+
+<CodeBlock title="changelog/overview.mdx">
+```mdx
+---
+layout: blog
+blog-layout: list
+authors:
+  garden-editor:
+    name: Garden editor
+    role: Horticulture
+---
+
+Updates from the Fern Garden team.
+```
+</CodeBlock>
+
+An optional `authors` map in the overview frontmatter registers authors by ID. Each author requires `name` and can include `role`, `avatar`, and `url`.
+
+Each entry file sets its own post metadata in frontmatter:
+
+<Accordion title="Post properties">
+<ParamField path="title" type="string" required={false} default="Entry title">
+  Sets the post title.
+</ParamField>
+
+<ParamField path="slug" type="string" required={false} default="Date-derived URL">
+  Overrides the post URL. The value is a full slug relative to the site base (or the product or version base, when one applies), so a post under a blog at `/blog` needs `slug: blog/my-post`. Omitting the `blog/` prefix publishes the post at `/my-post` instead of under the blog.
+</ParamField>
+
+<ParamField path="tags" type="list of strings" required={false}>
+  Adds tags to the post.
+</ParamField>
+
+<ParamField path="description" type="string" required={false} default="First ~200 characters of the body">
+  Sets the card excerpt. `subtitle` and `excerpt` are also accepted, in that order of precedence.
+</ParamField>
+
+<ParamField path="thumbnail" type="string" required={false}>
+  Path to the card and hero image. `image` is also accepted.
+</ParamField>
+
+<ParamField path="author" type="string | object" required={false}>
+  Names a key in the overview's `authors` registry, or an inline author object with `name`, `role`, `avatar`, and `url`. `authors` accepts a list of either form.
+</ParamField>
+
+<ParamField path="draft" type="boolean" required={false} default="false">
+  Excludes the post from the listing. `hidden: true` does the same.
+</ParamField>
+</Accordion>
+
 ## Linking and sharing
 
 Each changelog entry has a unique URL you can direct users to. For example, `https://elevenlabs.io/docs/changelog/2025/3/31`
@@ -228,4 +297,6 @@ Search queries sync to the `?q=` URL parameter, so a search result is shareable 
 
 ## RSS feed
 
-Changelogs automatically come with an RSS feed so users can subscribe to updates. Navigate to the RSS feed by appending `.rss` to the changelog path. For example, `https://elevenlabs.io/docs/changelog.rss`
+Changelogs automatically come with an RSS feed so users can subscribe to updates. Navigate to the RSS feed by appending `.rss` to the changelog path. For example, `https://elevenlabs.io/docs/changelog.rss`. Atom and JSON feeds are available at `.atom` and `.json`.
+
+Feeds require a recognized segment in the changelog's URL path: `blog`, `blogs`, `posts`, `changelog`, `changelogs`, `release-notes`, `releasenotes`, `whats-new`, or `whatsnew`. `fern check` reports an error for a changelog that resolves elsewhere.

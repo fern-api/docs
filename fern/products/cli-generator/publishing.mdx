@@ -281,7 +281,7 @@ groups:
 
 On the next generation, Fern adds a `publish-homebrew-formula` job, a `publish-scoop` job, or both to the release workflow, along with the matching install commands in the generated README. Prereleases are skipped: a tap and a bucket have no prerelease channel, so an RC never becomes the version users install.
 
-Each channel needs a repository and a token before that first release:
+Each channel needs a repository and credentials before that first release:
 
 <Steps>
 
@@ -291,16 +291,51 @@ Create a public GitHub repository for each channel you enable — conventionally
 
 </Step>
 
-<Step title="Add a token with write access to them">
+<Step title="Add credentials with write access to them">
 
-The workflow's built-in `GITHUB_TOKEN` is scoped to the CLI repository and can't push to another one, so each channel reads a personal access token (or GitHub App token) from a repository secret with write access to the tap or bucket:
+The workflow's built-in `GITHUB_TOKEN` is scoped to the CLI repository and can't push to another one, so each channel authenticates with credentials you store as Actions secrets in the CLI repository, under **Settings** > **Secrets and variables** > **Actions**. A personal access token is the quickest to set up; a GitHub App keeps release access off any individual's account.
+
+<Tabs>
+
+<Tab title="Personal access token">
+
+One token per channel, each with write access to that channel's repository:
 
 | Secret | Channel | Overridden by |
 | --- | --- | --- |
 | `HOMEBREW_TAP_TOKEN` | Homebrew | `distribution.homebrew.tokenEnvironmentVariable` |
 | `SCOOP_BUCKET_TOKEN` | Scoop | `distribution.scoop.tokenEnvironmentVariable` |
 
-Add them under **Settings** > **Secrets and variables** > **Actions** in the CLI repository.
+A token belongs to a person and doesn't expire, so releases break once that person's access ends.
+
+</Tab>
+
+<Tab title="GitHub App">
+
+One App serves both channels: each publish job mints an installation token at release time, scoped to a single repository and valid for an hour, and revoking access becomes uninstalling the App.
+
+1. In the account that owns the tap or bucket, go to **Settings** > **Developer settings** > **GitHub Apps** > **New GitHub App**. Grant the **Contents: Read and write** repository permission and clear **Webhook** > **Active**. Record the App ID, then generate a private key and download the `.pem` file.
+2. From the App's page, select **Install App** and limit the installation to the tap and bucket repositories. A tap and a bucket under different accounts each need the App installed on their own account: every job requests a token for the owner of the repository it pushes to.
+3. Add two Actions secrets to the CLI repository, one holding the App ID and one holding the entire contents of the `.pem` file. An Actions *variable* isn't readable as a secret, and a private key pasted as a single line still carries its `BEGIN` header while failing to sign, which surfaces as `secretOrPrivateKey must be an asymmetric key`, so keep the key's line breaks intact.
+4. Reference both secret names from [`distribution.githubApp`](/learn/cli-generator/get-started/configuration#config-options):
+
+```yaml title="generators.yml" {3-5}
+config:
+  distribution:
+    githubApp:
+      appIdSecret: PUBLISH_APP_ID
+      privateKeySecret: PUBLISH_APP_PRIVATE_KEY
+    homebrew:
+      tap: garden/homebrew-tap
+    scoop:
+      bucket: garden/scoop-bucket
+```
+
+The next generation also adds a `preflight-distribution` job that fails within seconds of the release starting if either secret is missing or malformed.
+
+</Tab>
+
+</Tabs>
 
 </Step>
 

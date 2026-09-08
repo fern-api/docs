@@ -1,0 +1,495 @@
+---
+title: 'General commands'
+description: 'Complete reference for general Fern CLI commands.'
+subtitle: 'Commands that apply across SDKs and docs.'
+hideOnThisPage: true
+---
+
+These commands apply to every Fern project, whether it publishes [docs](/learn/cli-api-reference/cli-reference/docs-commands), [SDKs](/learn/cli-api-reference/cli-reference/sdk-commands), or both. They create and validate a project, authenticate the CLI, update your API definition, and set the CLI version your organization runs. Each one accepts the [global options](/learn/cli-api-reference/cli-reference/options).
+
+| Command | Description |
+|---------|-------------|
+| [`fern init`](#fern-init) | Create new Fern project from OpenAPI spec or scratch |
+| [`fern check`](#fern-check) | Validate API definition & configuration |
+| [`fern upgrade`](#fern-upgrade) | Update Fern CLI & generators to latest versions |
+| [`fern downgrade`](#fern-downgrade) | Move the Fern CLI version in `fern.config.json` back to an older version |
+| [`fern login`](#fern-login) | Login to Fern CLI via GitHub, Google, Postman, or enterprise SSO |
+| [`fern logout`](#fern-logout) | Log out of the Fern CLI |
+| [`fern token`](#fern-token) | Generate an organization-scoped API key for CI/CD |
+| [`fern export`](#fern-export) | Export an OpenAPI spec for your API |
+| [`fern api update`](#fern-api-update) | Manually update your OpenAPI spec |
+| [`fern api enrich`](#fern-api-enrich) | Merge `x-fern-examples` from an overrides file into native OpenAPI examples |
+| [`fern org get`](#fern-org-get) | View your organization's CLI version policy |
+| [`fern org set cli-version`](#fern-org-set-cli-version) | Set a minimum, maximum, or exact CLI version for your organization |
+| [`fern org unset cli-version`](#fern-org-unset-cli-version) | Clear your organization's CLI version policy |
+
+## Detailed command documentation
+
+<AccordionGroup>
+  <Accordion title="fern init">
+
+    Use `fern init` to initialize a new Fern workspace in the current folder. By default, you'll see the IMDb API example.
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern init [--docs] [--openapi <path/url>]
+    ```
+    </CodeBlock>
+
+    When initializing with OpenAPI, your project structure will look like this:
+
+    <Files>
+      <Folder name="fern" defaultOpen>
+        <File name="fern.config.json" />
+        <File name="generators.yml" comment="generators you're using" />
+        <Folder name="openapi" defaultOpen>
+          <File name="openapi.json" comment="your OpenAPI specification" />
+        </Folder>
+      </Folder>
+    </Files>
+
+    ### openapi
+
+    Use `--openapi` to initialize a project from an OpenAPI specification:
+
+    ```bash
+    # Initialize from local file
+    fern init --openapi ./path/to/openapi.yml
+
+    # Initialize from URL
+    fern init --openapi https://petstore3.swagger.io/api/v3/openapi.json
+    ```
+
+    ### docs
+
+    By adding `--docs`, you'll also get a sample documentation website for your API with an API Reference section.
+
+    ```bash
+    fern init --docs
+    ```
+
+    The file added will contain:
+
+    ```yaml docs.yaml
+    instances:
+      - url: https://your-organization.docs.buildwithfern.com
+    title: Your Organization | Documentation
+    navigation:
+      - api: API Reference
+    colors:
+    accent-primary: '#ffffff'
+    background: '#000000'
+    ```
+
+    To publish the API docs, run [`fern generate --docs`](/learn/cli-api-reference/cli-reference/docs-commands#fern-generate---docs).
+
+    ### mintlify
+
+    By adding `--mintlify PATH_TO_MINT_CONFIG`, the CLI will automatically convert your Mintlify docs folder into a Fern docs site, based on the `mint.json` file.
+
+    ```bash
+    fern init --mintlify PATH_TO_MINT_CONFIG
+    ```
+
+    The CLI will create a `fern/` folder with the following structure:
+
+    <Files>
+      <Folder name="fern" defaultOpen>
+        <File name="fern.config.json" comment="root-level configuration" />
+        <File name="docs.yml" comment="docs configuration" />
+        <File name="..." comment="any other files / pages needed in your docs" />
+      </Folder>
+    </Files>
+
+    ### readme
+
+    The `fern init` command supports importing Readme generated docs sites. This requires having a local chromium browser instance installed.
+    You can ensure this is installed by installing the `fern` cli from source, following the instructions [here](https://github.com/fern-api/fern/blob/main/CONTRIBUTING.md).
+
+    By adding `--readme URL_TO_README_DOCS_SITE`, the CLI will automatically convert the Readme generated docs site into a Fern docs site.
+
+    ```bash
+    fern init --readme URL_TO_README_DOCS_SITE
+    ```
+
+    The CLI will create a `fern/` folder with the following structure:
+
+    <Files>
+      <Folder name="fern" defaultOpen>
+        <File name="fern.config.json" comment="root-level configuration" />
+        <File name="docs.yml" comment="docs configuration" />
+        <File name="..." comment="any other files / pages needed in your docs" />
+      </Folder>
+    </Files>
+
+    <Tip>
+    For more information on getting started, check out our [Quickstart Guide](/learn/docs/getting-started/quickstart)
+    </Tip>
+  </Accordion>
+
+  <Accordion title="fern export">
+
+    Use `fern export` to generate an OpenAPI spec for your API. This is useful when you've defined your API in a format other than OpenAPI (such as the [Fern Definition](/learn/api-definitions/ferndef/overview)) and need to export it for integration with other tools or services.
+
+    The path argument is the **output file** to write. Use a `.yml` or `.json` extension to choose the format of the generated spec.
+
+    <CodeBlock title="terminal">
+    ```bash
+    # Write the exported spec as YAML
+    fern export [--api <api>] path/to/openapi.yml
+
+    # ...or as JSON
+    fern export [--api <api>] path/to/openapi.json
+    ```
+    </CodeBlock>
+
+    ### api
+
+    Use `--api` to specify which API to export when you have multiple APIs defined in your `fern/apis/` folder.
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern export --api public-api path/to/openapi.yml
+    ```
+    </CodeBlock>
+
+    ### indent
+
+    Use `--indent` to set the indentation size, in spaces, of the generated spec.
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern export --indent 4 path/to/openapi.yml
+    ```
+    </CodeBlock>
+
+  </Accordion>
+
+  <Accordion title="fern check">
+
+    <Warning>
+    The `--broken-links` and `--strict-broken-links` flags are deprecated. Use the [`broken-links` validation rule](/learn/docs/configuration/site-level-settings#check-configuration) in `docs.yml` instead.
+    </Warning>
+
+    Use `fern check` to validate your API definition and Fern configuration, including [`fern.config.json`](/learn/sdks/overview/project-structure#fernconfigjson), `generators.yml`, and `docs.yml`. It checks for broken links, invalid API examples, configuration errors, and more. When all checks pass, the command produces no output.
+
+     Most `fern check` rules — including [`broken-links`](/learn/docs/configuration/site-level-settings#check-configuration) — validate against the navigation tree built from your **local** config and do not crawl your live deployed site or follow external URLs. The exception is the [`missing-redirects` rule](/learn/docs/seo/redirects#catching-missing-redirects), which compares your local navigation against the previously published state and therefore requires `fern login` or `FERN_TOKEN`.
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern check [--api <api>] [--warnings]
+    ```
+    </CodeBlock>
+
+    You can configure the severity of the validation rules run by `fern check` in your `docs.yml` file [using the `check.rules` property](/learn/docs/configuration/site-level-settings#check-configuration).
+
+    ```yaml docs.yml
+    check:
+      rules:
+        broken-links: error
+        example-validation: warn
+        missing-redirects: error
+    ```
+
+    <Info>
+      To check links on a published site, use [`fern docs link check`](/learn/cli-api-reference/cli-reference/docs-commands#fern-docs-link-check) or the link checker in the [Fern Dashboard](https://dashboard.buildwithfern.com/) instead.
+    </Info>
+
+    ### api
+
+    Use `--api <api>` to specify which API you'd like to check. 
+
+    ```bash
+    fern check --api public-api
+    ```
+
+    ### warnings
+
+    Use `--warnings` to log warnings in addition to errors. 
+
+    ```bash
+    fern check --warnings
+    ```
+
+    ## Usage in a GitHub Action
+
+    <CodeBlock title = ".github/workflows/fern-check.yml" >
+    ```yml maxLines=14 
+    name: Fern Validation Check
+
+    on:
+      pull_request:
+      push:
+        branches:
+          - main
+
+    jobs:
+      validate-fern-api:
+        name: Validate using Fern's linter
+        runs-on: ubuntu-latest
+        steps:
+          - name: Checkout repository
+            uses: actions/checkout@v4
+
+          - name: Install Fern CLI
+            run: npm install -g fern-api
+
+          - name: Validate API with Fern
+            run: fern check
+
+    ```
+    </CodeBlock>
+
+  </Accordion>
+
+  <Accordion title="fern upgrade">
+
+    Use `fern upgrade` to upgrade your compiler version in [`fern.config.json`](/learn/sdks/overview/project-structure#fernconfigjson) to the
+    latest version. It will also upgrade generators in `generators.yml` to their minimum-compatible versions.
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern upgrade [--version <version>] [--from <version>] [--yes]
+    ```
+    </CodeBlock>
+
+    When your organization sets a [CLI version policy](/learn/cli-api-reference/cli-reference/version-policy#interaction-with-fern-upgrade), `fern upgrade` writes the highest version the policy allows rather than the latest published version. A `--version` below the organization's minimum is raised to the minimum.
+
+    ### version
+
+    Use `--version` to upgrade to a specific published version of the [`fern-api` package](https://www.npmjs.com/package/fern-api?activeTab=versions) instead of the latest release. The version must be ahead of the version in `fern.config.json`; use [`fern downgrade`](#fern-downgrade) to move to an older version.
+
+    ```bash
+    fern upgrade --version 5.45.0
+    ```
+
+    ### from
+
+    Use `--from` to set the version that migrations run from. Fern infers this from `fern.config.json` and git history; pass it when that inference is wrong, such as after `fern.config.json` was edited by hand.
+
+    ```bash
+    fern upgrade --from 4.20.0
+    ```
+
+    ### yes
+
+    Use `--yes` (`-y`) to answer yes to every migration prompt, for non-interactive environments like CI.
+
+    ```bash
+    fern upgrade --yes
+    ```
+
+  </Accordion>
+
+  <Accordion title="fern downgrade">
+
+    Use `fern downgrade` to set the CLI version in [`fern.config.json`](/learn/sdks/overview/project-structure#fernconfigjson) to an older version. It rewrites the `version` field only: generator versions in `generators.yml` are left alone, and no migrations are reversed.
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern downgrade <version>
+    ```
+    </CodeBlock>
+
+    ```bash
+    fern downgrade 5.40.0
+    ```
+
+    A [CLI version policy](/learn/cli-api-reference/cli-reference/version-policy) doesn't block the downgrade, but it does override it: the new version is written to `fern.config.json`, and subsequent commands still run the minimum required by your organization.
+
+  </Accordion>
+
+  <Accordion title="fern login">
+
+    Use `fern login` to login to the Fern CLI via GitHub or Google. Logging in allows you 
+    join GitHub organizations, gain permissions, and contribute to projects.
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern login
+    fern login --device-code
+    fern login --email <email>
+    ```
+    </CodeBlock>
+
+    By default, `fern login` opens a browser for GitHub, Google, or Postman authentication. Two alternative flows are available:
+
+    ### device-code
+
+    Use `--device-code` to login via device code authorization in environments where a browser cannot open automatically (e.g., SSH sessions or containers).
+
+    ```bash
+    fern login --device-code
+    ```
+
+    ### email
+
+    Use `--email` to login via enterprise SSO. Pass the email address associated with your organization's SSO provider.
+
+    ```bash
+    fern login --email user@example.com
+    ```
+
+    <Note>
+    To enable CI/CD, use [`fern token`](#fern-token).
+    </Note>
+
+  </Accordion>
+
+  <Accordion title="fern logout">
+
+    Use `fern logout` to log out of the Fern CLI. This will clear your authentication 
+    credentials and revoke access to your GitHub organizations and permissions.
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern logout
+    ```
+    </CodeBlock>
+
+    After logging out, you'll need to run [`fern login`](#fern-login) again to access protected features.
+
+  </Accordion>
+
+  <Accordion title="fern token">
+
+    <Markdown src="/snippets/fern-token.mdx" />
+
+    See [Publishing your docs](/learn/docs/preview-publish/publishing-your-docs#usage-in-github-actions) for instructions on using this API key in automated publishing workflows. 
+
+  </Accordion>
+
+  <Accordion title="fern api update">
+  Pulls the latest OpenAPI spec from the specified `origin` in `generators.yml` and
+  updates the local spec. Alternatively, you can [automate this process by setting up a GitHub Action](/learn/api-definitions/openapi/sync-your-open-api-specification).
+
+  <CodeBlock title="terminal">
+    ```bash
+    fern api update [--api <api>]
+    ```
+  </CodeBlock>
+
+  ### api
+
+  Use `--api` to specify the API to update if there are multiple specs with a defined `origin` in `generators.yml`. If you don't specify an API, all OpenAPI specs with an `origin` will be updated. 
+
+  <CodeBlock title="terminal">
+    ```bash
+    fern api update --api public-api
+    ```
+  </CodeBlock>
+  </Accordion>
+
+  <Accordion title="fern api enrich">
+
+    Use `fern api enrich` to convert [AI-generated examples](/learn/docs/ai-features/ai-examples) or manually authored [`x-fern-examples`](/learn/api-definitions/openapi/extensions/request-response-examples) into portable OpenAPI examples that any OpenAPI-compatible tool can consume.
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern api enrich <openapi> -f <overrides-file> -o <output-file>
+    ```
+    </CodeBlock>
+
+    The command merges examples from an overrides file into native OpenAPI `example` fields and strips the `x-fern-examples` keys from the output. When an endpoint has multiple examples, each is stored as a named entry under the plural `examples` field.
+
+    The command requires two flags:
+
+    - `-f` (or `--file`) — the overrides file containing `x-fern-examples` (e.g., `ai_examples_override.yml`).
+    - `-o` (or `--output`) — the path for the enriched output file. Supports `.yml` and `.json` extensions.
+
+    ```bash
+    # Output as YAML
+    fern api enrich openapi.yml -f overrides.yml -o enriched-openapi.yml
+
+    # Output as JSON
+    fern api enrich openapi.yml -f overrides.yml -o enriched-openapi.json
+    ```
+
+    Each `x-fern-examples` field is mapped to its standard OpenAPI location:
+
+    - `path-parameters` → `parameters[].example` (where `in: path`)
+    - `query-parameters` → `parameters[].example` (where `in: query`)
+    - `headers` → `parameters[].example` (where `in: header`)
+    - `request` → `requestBody.content.*.example`
+    - `response.body` → `responses.<status>.content.*.example`
+
+  </Accordion>
+
+  <Accordion title="fern org get">
+
+    Use `fern org get` to view your organization's [CLI version policy](/learn/cli-api-reference/cli-reference/version-policy).
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern org get [--json] [--org <org>]
+    ```
+    </CodeBlock>
+
+    ### json
+
+    Use `--json` to output the raw `cliVersionMin` and `cliVersionMax` fields instead of a one-line description.
+
+    ```bash
+    fern org get --json
+    ```
+
+    ### org
+
+    Use `--org` to override the organization ID from `fern.config.json`.
+
+    ```bash
+    fern org get --org my-org
+    ```
+
+  </Accordion>
+
+  <Accordion title="fern org set cli-version">
+
+    Use `fern org set cli-version` to [constrain the Fern CLI version](/learn/cli-api-reference/cli-reference/version-policy)  used by every project in your organization. Requires an organization admin.
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern org set cli-version [version] [--min <version>] [--max <version>] [--org <org>]
+    ```
+    </CodeBlock>
+
+    ```bash
+    # Pin an exact version
+    fern org set cli-version 5.45.0
+
+    # Set a minimum, a maximum, or both
+    fern org set cli-version --min 5.40.0
+    fern org set cli-version --max 5.50.0
+    fern org set cli-version --min 5.40.0 --max 5.50.0
+    ```
+
+    Each bound is an exact published version of the [`fern-api` package](https://www.npmjs.com/package/fern-api?activeTab=versions).
+
+    ### org
+
+    Use `--org` to override the organization ID from `fern.config.json`.
+
+    ```bash
+    fern org set cli-version 5.45.0 --org my-org
+    ```
+
+  </Accordion>
+
+  <Accordion title="fern org unset cli-version">
+
+    Use `fern org unset cli-version` to remove your organization's [CLI version policy](/learn/cli-api-reference/cli-reference/version-policy). Requires an organization admin.
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern org unset cli-version [--min] [--max] [--org <org>]
+    ```
+    </CodeBlock>
+
+    Both bounds are removed by default. Pass `--min` or `--max` to clear one end and keep the other.
+
+    ```bash
+    fern org unset cli-version --max
+    ```
+
+  </Accordion>
+</AccordionGroup>

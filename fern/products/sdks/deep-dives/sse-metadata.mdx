@@ -3,7 +3,7 @@ title: SSE metadata access
 description: Access server-sent event metadata (event ID, event type, retry interval) in Fern-generated SDKs for stream resumption and protocol-level control.
 ---
 
-When your API uses [server-sent events](/learn/api-definitions/openapi/endpoints/sse#server-sent-events), iterating the generated SDK's streaming response yields parsed data objects. To also read the SSE protocol fields — event ID, event type, and retry interval — TypeScript and Go SDKs expose metadata-aware iteration, typically used to [resume a stream](#stream-resumption) by event ID.
+When your API uses [server-sent events](/learn/api-definitions/openapi/endpoints/sse#server-sent-events), iterating the generated SDK's streaming response yields parsed data objects. To also read the SSE protocol fields — event ID, event type, and retry interval — TypeScript, Python, and Go SDKs expose metadata-aware iteration, typically used to [resume a stream](#stream-resumption) by event ID.
 
 ## Metadata-aware iteration
 
@@ -20,6 +20,17 @@ Each event exposes the parsed data alongside its protocol fields. Default iterat
       event.event  // SSE event type (string | undefined)
       event.retry  // SSE retry interval in ms (number | undefined)
     }
+    ```
+  </CodeBlock>
+  <CodeBlock title="Python">
+    ```python
+    stream = client.plants.stream(query="fern")
+
+    for event in stream.with_metadata():
+      event.data   # parsed response object (same type as default iteration)
+      event.id     # SSE event ID (str | None)
+      event.event  # SSE event type (str | None)
+      event.retry  # SSE retry interval in ms (int | None)
     ```
   </CodeBlock>
   <CodeBlock title="Go">
@@ -44,8 +55,14 @@ Each event exposes the parsed data alongside its protocol fields. Default iterat
   </CodeBlock>
 </CodeBlocks>
 
+Each stream owns the underlying HTTP response, and releases it differently per language:
+
+*    **TypeScript**: the body is released when iteration ends and cancelled when you break out of the loop. An `abortSignal` in the request options stops the stream from outside.
+*    **Python**: the stream is lazy, issuing the request on first iteration, and releases the response when it's exhausted, when iteration raises, on `close()`, or on exiting a `with` block. `AsyncStream` supports `async with` and is awaitable.
+*    **Go**: the stream never closes the body on its own, so `defer stream.Close()` is required.
+
 <Note>
-`withMetadata()` requires TypeScript SDK generator version 3.73.0+, and `RecvEvent()` requires Go SDK generator version 1.32.0+.
+`withMetadata()` requires TypeScript SDK generator version 3.73.0+, and `RecvEvent()` requires Go SDK generator version 1.32.0+. In Python, `with_metadata()` requires generator version 5.29.0+ with [`stream_abstraction`](/learn/sdks/generators/python/configuration#stream_abstraction) enabled.
 </Note>
 
 ## Stream resumption
