@@ -1,0 +1,52 @@
+---
+title: SDK namespaces
+headline: SDK namespaces (OpenAPI)
+description: Use `x-fern-sdk-namespace` to place individual schemas or shared error responses in a namespace
+---
+
+The `x-fern-sdk-namespace` extension assigns a single schema or shared error response to a namespace. Use it when you need finer control than the spec-level [`namespace`](/learn/sdks/reference/generators-yml#namespace) setting in `generators.yml`, which places an entire spec in one namespace.
+
+## Schemas
+
+Add `x-fern-sdk-namespace` to a schema in `components.schemas` to generate that type in the given namespace. This overrides the spec's `namespace` for that schema only, and avoids name collisions when multiple specs define a schema with the same name.
+
+```yaml title="openapi.yml" {4}
+components:
+  schemas:
+    Plant:
+      x-fern-sdk-namespace: garden
+      type: object
+      properties:
+        id:
+          type: string
+        species:
+          type: string
+```
+
+The generated SDK exposes the type as `garden.Plant` while other schemas in the spec stay in their default namespace.
+
+## Shared error responses
+
+Add `x-fern-sdk-namespace` to a response object in `components.responses` to declare a shared error in a namespace. Fern only reads the extension on error responses when the spec enables [`settings.namespaced-errors`](/learn/sdks/reference/generators-yml#settingsnamespaced-errors) in `generators.yml`. Without that setting, error responses are compared across the whole API by status code.
+
+```yaml title="generators.yml" {5}
+api:
+  specs:
+    - openapi: plants.yml
+      settings:
+        namespaced-errors: true
+```
+
+```yaml title="plants.yml" {4}
+components:
+  responses:
+    TooManyRequests:
+      x-fern-sdk-namespace: plants
+      description: Rate limit exceeded
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/PlantsRateLimitError"
+```
+
+The generated SDK exposes the error as `plants.TooManyRequestsError`. The extension is read from the response object only, not from the referenced body schema.
