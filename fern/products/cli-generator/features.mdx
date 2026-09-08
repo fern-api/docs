@@ -104,7 +104,60 @@ contoso plants create \
 
 Headers declared API-wide, through the `headers:` block of a Fern definition or [`x-fern-global-headers`](/learn/api-definitions/openapi/extensions/global-headers) in OpenAPI, are sent on every request, preserving each header's `env` fallback, `client-default`, and optionality. An [`x-fern-global-parameters`](/learn/cli-generator/get-started/openapi-extensions#global-parameters) entry targeting the same header takes precedence.
 
-Run `contoso <command> --help` to list a command's flags, or [`--schema`](/learn/cli-generator/get-started/schema) for the same surface as a machine-readable JSON contract. When a flag name differs from the spec, `--help` shows the original name as `(api: <name>)`, which is the key to use in `--params`. `--schema` reports both directions: it keys each property by that spec name and gives the flag in the property's `flag` field.
+Run `contoso <command> --help` to list a command's flags, or [`--schema`](#machine-readable-schema) for the same surface as a machine-readable JSON contract. When a flag name differs from the spec, `--help` shows the original name as `(api: <name>)`, which is the key to use in `--params`.
+
+## Machine-readable schema
+
+Every generated CLI exposes a global `--schema` flag that prints its command surface as JSON. It's the agent-facing counterpart to `--help`: the output is deterministic, derived from your spec and the CLI's own flag surface, and is handled before arguments are parsed, so an operation's schema prints even when its required flags are missing.
+
+| Command | Output |
+| --- | --- |
+| `contoso --schema` | `globalFlags` plus every operation's name and description. |
+| `contoso plants --schema` | The operations in one command group. |
+| `contoso plants list --schema` | The full input and output contract for one operation. |
+
+```bash
+contoso plants list --schema
+```
+
+```json
+{
+  "operation": "plants.list",
+  "description": "List all plants",
+  "input": {
+    "type": "object",
+    "properties": {
+      "limit": {
+        "type": "integer",
+        "description": "Maximum number of plants to return.",
+        "location": "query",
+        "maximum": 100,
+        "flag": "--limit"
+      }
+    },
+    "required": []
+  },
+  "output": {
+    "type": "array",
+    "items": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" }
+      },
+      "required": ["id", "name"]
+    }
+  }
+}
+```
+
+`input.properties` mirrors the CLI's flag surface: query, path, header, and body fields are siblings, each tagged with a `location`. Keys are the spec's names, so read `flag` to get the exact flag to pass; it accounts for kebab-casing, `x-fern-parameter-name` renames, and the `-param` suffix added when a name collides with a global flag. A property without `flag` is passed through `--params` or `--json`. Properties also carry JSON Schema constraints (`enum`, `default`, `minimum`, `nullable`, `deprecated`) from the spec.
+
+Operations report CLI behavior the spec doesn't describe, each present only when it applies:
+
+- `paginable`: supports [`--page-all`](#pagination), with the pagination `kind` and the parameters and response paths the CLI walks.
+- `binaryResponse`: the response is a binary body, so `--output <PATH>` writes it to a file.
+- `streaming`: the response streams, with `format` of `sse`, `json`, or `text`.
 
 ## Server URL variables
 
