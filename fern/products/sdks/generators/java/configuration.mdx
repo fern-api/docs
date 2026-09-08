@@ -217,14 +217,10 @@ Sets the reference URL (typically the API documentation or project website) that
 
 ## Skip code formatting
 
-After writing the SDK files, the Java generator runs `./gradlew :spotlessApply` to format them. That command downloads the Gradle distribution from `services.gradle.org` and resolves the Spotless formatting plugin from `plugins.gradle.org` and Maven Central, which fails on networks that block those hosts.
-
-Set the `FERN_JAVA_SKIP_FORMATTING` environment variable to a truthy value (`1`, `true`, `yes`, or `on`, in any casing) to skip the formatting pass. Generation then makes no Gradle invocation at all, which also shortens generation time:
+The Java generator formats its output with `./gradlew :spotlessApply`, which downloads Gradle and the Spotless plugin from `services.gradle.org` and `plugins.gradle.org`. On networks that block those hosts, set `FERN_JAVA_SKIP_FORMATTING=true` (generator 4.18.0 or later) to skip the formatting pass:
 
 ```bash
 FERN_JAVA_SKIP_FORMATTING=true fern generate --group java-sdk
 ```
 
-The Fern CLI forwards the variable from your shell into the generator container, so it covers local generation as well; passing `docker run -e FERN_JAVA_SKIP_FORMATTING=true` works when invoking the generator image directly. The variable requires Java SDK generator 4.18.0 or later and is unset by default.
-
-Skipping the pass emits the generated code unformatted. The Spotless plugin stays wired into the generated `build.gradle`, so running `./gradlew spotlessApply` in the SDK repository formats the code later.
+The CLI forwards the variable into the generator container. Generated code is left unformatted; run `./gradlew spotlessApply` in the SDK repository to format it.
