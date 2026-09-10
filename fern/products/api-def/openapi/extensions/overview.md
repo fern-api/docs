@@ -37,6 +37,7 @@ The table below shows all available extensions and links to detailed documentati
 | [`x-fern-sdk-group-name`](./method-names) | Organize methods into SDK groups |
 | [`x-fern-sdk-namespace`](./sdk-namespaces) | Place a schema or shared error response in a namespace |
 | [`x-fern-sdk-variables`](./sdk-variables) | Set common path parameters across all requests |
+| [`x-fern-playground-description`](/learn/api-definitions/openapi/authentication#playground-only-descriptions) | Add auth instructions that appear only in the API Explorer |
 | [`x-fern-parameter-name`](./parameter-names) | Customize parameter variable names |
 | [`x-fern-property-name`](./property-names) | Customize object property variable names |
 | [`x-fern-retries`](./retry-behavior) | Configure retry behavior for endpoints |
