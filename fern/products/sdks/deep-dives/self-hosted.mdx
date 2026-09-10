@@ -204,6 +204,22 @@ fern generate --local
 </Step>
 </Steps>
 
+## Trust a corporate CA bundle
+
+Some generators make network calls from inside the container (`pnpm install` for TypeScript, `go mod tidy` for Go, NuGet restore during `dotnet format` for C#, and the `git clone` of an existing SDK repository when merging its README). On networks with TLS interception, these calls fail because the container doesn't trust the corporate CA. Set `FERN_CA_BUNDLE` (Fern CLI 5.116.0 or later) to a PEM CA bundle on the host that runs the CLI:
+
+```bash
+export FERN_CA_BUNDLE=/etc/ssl/certs/corporate-bundle.pem
+fern generate --local
+```
+
+The CLI mounts the file read-only at `/fern/ca-bundle.crt` in the generator container and points `NODE_EXTRA_CA_CERTS`, `SSL_CERT_FILE`, and `GIT_SSL_CAINFO` at it. TLS verification stays on. The CLI exits with an error if the path is unreadable or contains no PEM certificates.
+
+- `SSL_CERT_FILE` and `GIT_SSL_CAINFO` replace the container's trust store, so the file must be a full bundle (the public roots plus your corporate CA), not only the corporate root or intermediate. The CLI warns when the file holds fewer than 50 certificates.
+- Java ignores these variables, so Gradle and Spotless downloads in `fern-java-*` generators still fail behind interception. Set [`FERN_JAVA_SKIP_FORMATTING=true`](#skip-java-code-formatting) for those generators.
+- The bind mount must be visible to the Docker daemon, so `FERN_CA_BUNDLE` requires a local daemon. Remote `DOCKER_HOST` and Docker-in-Docker sidecars aren't supported.
+- `FERN_CA_BUNDLE` only affects `fern generate --local`.
+
 ## How it works
 
 When you run `fern generate --local`, the Fern CLI executes SDK generation on your local machine instead of using [Fern's cloud infrastructure](/learn/sdks/overview/how-it-works).
@@ -236,7 +252,7 @@ sequenceDiagram
 
 ## Skip Java code formatting
 
-The Java generator formats its output with `./gradlew :spotlessApply`, which downloads Gradle and the Spotless plugin from `services.gradle.org` and `plugins.gradle.org`. On networks that block those hosts, set `FERN_JAVA_SKIP_FORMATTING=true` (Java generator 4.18.0 or later) to skip the formatting pass. The CLI forwards the variable into the generator container:
+The Java generator formats its output with `./gradlew :spotlessApply`, which downloads Gradle and the Spotless plugin from `services.gradle.org` and `plugins.gradle.org`. On networks that block those hosts or intercept TLS (Java ignores [`FERN_CA_BUNDLE`](#trust-a-corporate-ca-bundle)), set `FERN_JAVA_SKIP_FORMATTING=true` (Java generator 4.18.0 or later) to skip the formatting pass. The CLI forwards the variable into the generator container:
 
 ```bash
 FERN_JAVA_SKIP_FORMATTING=true fern generate --local --group java-sdk
