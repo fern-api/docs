@@ -1,6 +1,6 @@
 ---
 title: Quickstart
-description: Provision an MCP server from the Fern dashboard and configure its core files.
+description: Provision an MCP server from the Fern dashboard and configure it in generators.yml.
 availability: beta
 ---
 
@@ -8,9 +8,11 @@ availability: beta
 This page is a preview of a feature in development. Names, commands, and configuration shown here may change before release.
 </Note>
 
-This guide provisions a new MCP server from the dashboard and configures the files that govern how Fern generates it. Once the server is generated, the [manage guide](/learn/mcp-generator/get-started/preview-manage) covers the lifecycle controls, tool refinement, and analytics the dashboard provides.
+This guide provisions a new MCP server from the dashboard and configures how Fern generates and hosts it. The generator maps one tool to one API operation, and `generators.yml` controls which operations are served and how they're named. Once the server is generated, the [manage guide](/learn/mcp-generator/get-started/preview-manage) covers the lifecycle controls, tool refinement, and analytics the dashboard provides.
 
 ## Provision a server
+
+During the beta period, ask your point of contact at Fern to enable dashboard access for your organization.
 
 In the [Fern dashboard](https://dashboard.buildwithfern.com/), under **MCP Servers**, select **New MCP Server**. Fern offers two onboarding paths.
 
@@ -49,20 +51,91 @@ In the [Fern dashboard](https://dashboard.buildwithfern.com/), under **MCP Serve
   </Tab>
 </Tabs>
 
-## Configure core files
+## Choose an output location
 
-### Define `generators.yml`
+Add an `mcp` group to `generators.yml` with the `fernapi/fern-mcp-server` generator. The generator supports two output locations.
 
-The behavior, versioning, and endpoint rules of your MCP server are governed by this file:
+<Tabs>
+  <Tab title="Fern-hosted">
+    Fern hosts the MCP server and proxies requests to your origin: the first server listed in your spec, or the `baseUrl` config field if set.
+
+    ```yaml title="fern/generators.yml"
+    groups:
+      mcp:
+        generators:
+          - name: fernapi/fern-mcp-server
+            version: 0.1.0
+            output:
+              location: fern-hosted
+              slug: my-mcp # optional, default "mcp"
+    ```
+
+    The MCP endpoint is available at `<yourorg>.fernmcp.dev/my-mcp`. Custom domains are planned; contact Fern if you need one sooner.
+  </Tab>
+
+  <Tab title="Local bundle">
+    Generate a local bundle that runs over stdio, as a Node.js HTTP server, or as a self-hosted Cloudflare worker.
+
+    ```yaml title="fern/generators.yml"
+    groups:
+      mcp:
+        generators:
+          - name: fernapi/fern-mcp-server
+            version: 0.1.0
+            output:
+              location: local-file-system
+              path: mcp-output
+    ```
+
+    Running `fern generate --group mcp` writes the package to the `mcp-output` directory.
+  </Tab>
+</Tabs>
+
+## Configure the server
+
+Options under `config` control the server identity and which operations become tools:
 
 ```yaml title="fern/generators.yml"
-- name: fern-mcp
-  version: 0.0.1
-  config:
-    spec: ./openapi.yml
+groups:
+  mcp:
+    generators:
+      - name: fernapi/fern-mcp-server
+        version: 0.1.0                 # exact semver; >= 0.1.0 routes to the new generator
+        output:
+          location: fern-hosted        # or local-file-system + path
+          slug: my-mcp                 # optional, default "mcp"
+        config:
+          serverName: my-server
+          serverDescription: this is an overridden description
+          baseUrl: https://api.xyz/v1  # only needed when the spec has no servers[0].url
+          tools:
+            exclude: ["tag:forum", "tag:communitycontent"]
+          toolsets:
+            players:
+              include: [searchbyglobalnamepost, getprofile, getcharacter]
+            groups:
+              include: ["groupsearch", "getgroup*"]
+          excludeAvailability: [DEPRECATED]
 ```
 
-### Set environment variables
+Each toolset creates its own MCP endpoint at `<yourorg>.fernmcp.dev/<slug>/<toolset>`.
+
+### Select tools with include and exclude
+
+| Selector | Matches |
+|----------|---------|
+| `tag:<tag>` | Operations with the OpenAPI tag |
+| `<name>` | Exact match on the tool name or `operationId` (may change to `op:<opId>`) |
+| `<*glob*>` | Case-sensitive glob on the tool name (prefix or suffix wildcards only) |
+
+### Override tool names and descriptions in the spec
+
+| Extension | Effect |
+|-----------|--------|
+| `x-fern-mcp-name` | Sets the tool name |
+| `x-fern-mcp-description` | Overrides the generated description |
+
+## Set environment variables
 
 The following environment variable is required during the MCP server beta testing period:
 
@@ -70,9 +143,9 @@ The following environment variable is required during the MCP server beta testin
 export FERN_REMOTE_GENERATION_URL=https://fake-endpoint.october.internal
 ```
 
-### Run CLI tooling
+## Generate the server
 
-All structural checks, schema compilation, and generation loops run under one command group:
+Run the `mcp` group to generate the server to its configured output location:
 
 ```bash
 fern generate --group mcp
