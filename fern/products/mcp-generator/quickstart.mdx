@@ -1,0 +1,119 @@
+---
+title: Quickstart
+description: Generate an MCP server from an OpenAPI spec and connect it to an agent in a few minutes.
+availability: beta
+---
+
+<Note title="Early access">
+The MCP generator is in early access. [Reach out](https://buildwithfern.com/book-demo?type=mcp) to get started.
+</Note>
+
+This guide generates an MCP server from an OpenAPI spec, curates its toolset, and runs it locally against an inspector.
+
+<Prompt
+  title="Generate an MCP server"
+  actions={["cursor", "claude", "chatgpt"]}
+>
+Generate an MCP server from an OpenAPI specification with Fern. Follow the [MCP generator quickstart](https://buildwithfern.com/learn/mcp-generator/get-started/quickstart.md) step by step.
+</Prompt>
+
+## Prerequisites
+
+- The Fern CLI (`npm install -g fern-api`)
+- An OpenAPI 3.x spec with at least one endpoint
+- Node.js 20 or later to build and run the generated server locally
+
+<Steps>
+
+<Markdown src="/products/sdks/snippets/init-fern-folder.mdx"/>
+
+<Step title="Run the MCP wizard">
+
+Any `securitySchemes` declared under your spec's `components` become the environment variables the generated server [reads at startup](/learn/mcp-generator/get-started/authentication) — the wizard doesn't ask about them.
+
+```bash
+fern mcp init
+```
+
+The wizard resolves every preset against your spec up front, so each option shows its tool count and estimated token cost before you pick one:
+
+```txt
+┌ Create an MCP server
+│
+◆ Server name
+│  swagger-petstore-openapi-3-0-mcp
+│
+◆ Which tools should this server expose?
+│  ● Read-only — lookups and searches, nothing that writes
+│       8 tools · 2k tokens — ✓ within budget
+│  ○ Main resources — pet, user, store (detected from your spec)
+│       19 tools · 4k tokens — ✓ within budget
+│  ○ AI-curated — Fern Agent picks tools from your description (requires fern login)
+│  ○ Everything — all 19 endpoints
+│       19 tools · 4k tokens — ✓ within budget
+│
+└ Wrote group "mcp" to fern/generators.yml
+```
+
+A preset that comes back over budget routes into a [Refine loop](/learn/mcp-generator/get-started/tool-selection#refining-an-over-budget-toolset) to narrow it before anything is written. Non-interactively, `fern mcp init -y` accepts the read-only preset and writes the group without prompting; `--name`, `--preset`, `--group`, and `--dry-run` control it from a script or CI.
+</Step>
+
+<Step title="Review the generated config">
+
+```yaml title="fern/generators.yml"
+groups:
+  mcp:
+    generators:
+      - name: fernapi/fern-mcp-server
+        version: 0.1.0
+        output:
+          location: local-file-system
+          path: ../generated/mcp
+        config:
+          server-name: swagger-petstore-openapi-3-0-mcp
+          tools:
+            include:
+              - tag: pet
+              - tag: user
+              - tag: store
+```
+
+`tools.include` and `tools.exclude` accept tags, methods, path prefixes, operation ID globs, and literal endpoints — the [configuration reference](/learn/mcp-generator/get-started/configuration) covers every field a group can set, and [tool selection](/learn/mcp-generator/get-started/tool-selection) covers how each preset maps to these selectors.
+</Step>
+
+<Step title="Generate the server">
+
+```bash
+fern generate --group mcp
+```
+
+Fern reads the OpenAPI spec, runs the MCP generator, and writes a TypeScript project to the output path: one file per tool, a manifest that ties tool names to their handlers, a README with client setup instructions, and a `metadata.json` summary of what was generated — and what was skipped, and why.
+</Step>
+
+<Step title="Try it locally">
+
+```bash
+fern mcp dev --group mcp
+```
+
+This builds the server and attaches an MCP inspector so you can call tools directly before wiring up a real client. If a required credential is missing, `fern mcp dev` prints the exact `export` command instead of starting a server where every call fails.
+</Step>
+
+</Steps>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Tool selection" icon="fa-duotone fa-filter-list" href="/learn/mcp-generator/get-started/tool-selection">
+    Curate the toolset by tag, method, path, or description.
+  </Card>
+  <Card title="Local development" icon="fa-duotone fa-laptop" href="/learn/mcp-generator/get-started/local-development">
+    Run the inspector and connect the server to Claude, Cursor, or Codex.
+  </Card>
+  <Card title="Multiple servers" icon="fa-duotone fa-diagram-project" href="/learn/mcp-generator/get-started/multiple-servers">
+    Generate separate MCP servers for different audiences from one spec.
+  </Card>
+  <Card title="Configuration reference" icon="fa-duotone fa-gear" href="/learn/mcp-generator/get-started/configuration">
+    Every field available under a group's MCP generator entry.
+  </Card>
+</CardGroup>
