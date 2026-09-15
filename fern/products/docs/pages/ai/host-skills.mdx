@@ -26,6 +26,7 @@ Place your skills in your `fern/` folder under `.well-known/agent-skills/` (the 
             <File name="api.md" comment="supporting files (optional)" />
           </Folder>
         </Folder>
+        <File name="garden-planner.tgz" comment="archive of a multi-file skill" />
       </Folder>
     </Folder>
   </Folder>
@@ -50,7 +51,10 @@ When diagnosing a plant issue, check for...
   </Step>
   <Step title="Add the discovery manifest">
 
-The `index.json` at the root of the skills directory is required. It enumerates every skill so clients can discover them in a single request, referencing each by `url` and `digest`:
+The `index.json` at the root of the skills directory is required. It enumerates every skill so clients can discover them in a single request. Each entry points at a single artifact by `url` and `digest`, and its `type` decides what the skills CLI downloads:
+
+- `skill-md`: the `url` is a `SKILL.md`. Only that file is installed, so use this type for single-file skills.
+- `archive`: the `url` is a `.tgz` or `.zip` of the whole skill directory. The CLI verifies the digest and extracts every file, so use this type for skills with scripts, references, or other supporting files. Place the archive inside the skills directory next to the skill folder and Fern serves it with the rest of the bundle.
 
 ```json title="fern/.well-known/agent-skills/index.json"
 {
@@ -62,12 +66,31 @@ The `index.json` at the root of the skills directory is required. It enumerates 
       "description": "Guide for diagnosing and treating common plant diseases.",
       "url": "/.well-known/agent-skills/plant-care/SKILL.md",
       "digest": "sha256:c4d5e6f7..."
+    },
+    {
+      "name": "garden-planner",
+      "type": "archive",
+      "description": "Plan garden layouts and planting schedules.",
+      "url": "/.well-known/agent-skills/garden-planner.tgz",
+      "digest": "sha256:a1b2c3d4..."
     }
   ]
 }
 ```
 
-The legacy v0.1.0 manifest lists a `files` array per skill instead of `url` and `digest`.
+The legacy v0.1.0 manifest lists a `files` array per skill instead of `type`, `url`, and `digest`. The CLI fetches `SKILL.md` plus every listed file individually, so a multi-file skill needs no archive but must enumerate each file:
+
+```json title="fern/.well-known/skills/index.json"
+{
+  "skills": [
+    {
+      "name": "garden-planner",
+      "description": "Plan garden layouts and planting schedules.",
+      "files": ["SKILL.md", "references/api.md"]
+    }
+  ]
+}
+```
 
   </Step>
   <Step title="Publish">
@@ -82,6 +105,7 @@ Once published, skills are served at:
 
 - `https://your-docs-domain.com/.well-known/agent-skills/index.json` (discovery manifest)
 - `https://your-docs-domain.com/.well-known/agent-skills/<skill-name>/SKILL.md` (individual skill)
+- `https://your-docs-domain.com/.well-known/agent-skills/<skill-name>/<path>` (any supporting file in the skill directory, or an archive placed in the skills directory)
 - `https://your-docs-domain.com/.well-known/skills/index.json` (legacy v0.1.0 manifest)
 
 For sites with a basepath like `/docs`, the endpoints live under that basepath (e.g., `https://example.com/docs/.well-known/agent-skills/index.json`).
