@@ -1,0 +1,149 @@
+---
+title: Configuration reference
+description: Configure MCP server generation in generators.yml — server identity, tool selection, and per-tool overrides.
+availability: beta
+---
+
+Configure the MCP generator in `generators.yml`. Options nested under `config` are specific to the MCP generator. The rest (`output`, `github`, `audiences`, `smart-casing`, `metadata`, `api`) behave the same way as for [SDK generators](/learn/sdks/reference/generators-yml).
+
+```yaml title="generators.yml" {6-21}
+groups:
+  mcp:
+    generators:
+      - name: fernapi/fern-mcp-server
+        version: 0.1.0
+        config:
+          server-name: acme-public-api
+          instructions: >-
+            Refunds must stay under $100.
+          tools:
+            intent: >-
+              Support agents look up customers/payments, refunds under $100, no admin.
+            mode: static
+            budget: { max-tools: 40, max-tokens: 60000 }
+            include:
+              - { tag: payments, method: GET }
+              - { tag: customers, method: GET }
+              - { path-prefix: /v1/refunds }
+            exclude:
+              - { tag: internal }
+            overrides:
+              POST /v1/payments:
+                name: create_payment
+                description: "Create a payment. Amounts are in minor units."
+                response-fields: [id, status, amount]
+        output:
+          location: npm
+          package-name: "@acme/mcp"
+        github:
+          repository: acme/acme-mcp
+          mode: pull-request
+```
+
+## `config` options
+
+<ParamField path="server-name" type="string" required={false} toc={true}>
+Name shown in an MCP client's server list, and the basis for the generated package name. Defaults to the API definition's display name (kebab-cased) with `-mcp` appended.
+</ParamField>
+
+<ParamField path="instructions" type="string" required={false} toc={true}>
+Server-level instructions passed to MCP clients on connect — the same role a system prompt plays for a model, scoped to this server. Anything the [AI-curated preset](/learn/mcp-generator/get-started/tool-selection#ai-curated-rulesets) can't express as a tool selector, like a spending limit or an escalation rule, is written here.
+
+```yaml
+config:
+  instructions: "Refunds must stay under $100; escalate anything larger."
+```
+</ParamField>
+
+## `tools` options
+
+These options live under `config.tools` in `generators.yml`.
+
+<ParamField path="intent" type="string" required={false} toc={true}>
+Free-text description of what the MCP should let an agent do, stored verbatim. Set by the [AI-curated preset](/learn/mcp-generator/get-started/tool-selection#ai-curated-rulesets); a later `fern mcp tools --refine --ai` re-runs against this stored intent to propose rule updates once the spec changes, instead of asking you to restate what the server is for.
+</ParamField>
+
+<ParamField path="mode" type="string" default="static" toc={true}>
+`static` generates one tool per matched endpoint. `dynamic` collapses the toolset into three meta-tools — list, describe, invoke — covered under [dynamic mode](/learn/mcp-generator/get-started/tool-selection#presets). Set by hand or via the Refine loop; it isn't offered as a top-level preset.
+</ParamField>
+
+<ParamField path="budget" type="object" required={false} toc={true}>
+Overrides the default [budget verdict](/learn/mcp-generator/get-started/tool-selection#the-budget-verdict) thresholds for this group.
+</ParamField>
+<Indent>
+<ParamField path="budget.max-tools" type="number" default="40">
+Tool count above which `fern mcp init` and `fern mcp tools` score the toolset amber. More than 3 times this value scores red.
+</ParamField>
+<ParamField path="budget.max-tokens" type="number" default="60000">
+Estimated token cost above which the toolset scores amber. More than 3 times this value scores red.
+</ParamField>
+</Indent>
+
+<ParamField path="include" type="array of objects" required={false} toc={true}>
+Endpoints to expose as tools. Entries are OR'd together; fields within a single entry are AND'd. Omit `include` to start from every endpoint the spec exposes.
+
+```yaml
+config:
+  tools:
+    include:
+      - { tag: payments, method: GET }   # read-only payments
+      - { path-prefix: /v1/refunds }      # coarse cut — the primary unit for untagged specs
+      - { operation-id: "payments_*" }    # glob
+      - { endpoint: POST /v1/refunds }    # a literal endpoint — the escape hatch
+```
+
+Each entry supports `tag`, `method`, `path-prefix`, `operation-id` (glob), and `endpoint` (a literal `METHOD /path`). Prefer the others over `endpoint` so a selection keeps matching as the spec evolves instead of freezing a list of paths.
+</ParamField>
+
+<ParamField path="exclude" type="array of objects" required={false} toc={true}>
+Endpoints to drop from the resolved toolset, using the same selector shape as `include`. `exclude` always wins over `include`.
+
+```yaml
+config:
+  tools:
+    exclude:
+      - { tag: internal }
+      - { method: DELETE }
+```
+</ParamField>
+
+<ParamField path="overrides" type="object" required={false} toc={true}>
+Per-tool polish, keyed by `METHOD /path`.
+</ParamField>
+<Indent>
+<ParamField path="overrides.<endpoint>.name" type="string" required={false}>
+Overrides the generated tool name.
+</ParamField>
+<ParamField path="overrides.<endpoint>.description" type="string" required={false}>
+Overrides the generated tool description.
+</ParamField>
+<ParamField path="overrides.<endpoint>.read-only" type="boolean" required={false}>
+Overrides the generated `readOnlyHint` MCP annotation.
+</ParamField>
+<ParamField path="overrides.<endpoint>.destructive" type="boolean" required={false}>
+Overrides the generated `destructiveHint` MCP annotation.
+</ParamField>
+<ParamField path="overrides.<endpoint>.response-fields" type="array of strings" required={false}>
+Restricts the tool's response to the named fields, dropping the rest before it reaches the agent. The [Refine loop](/learn/mcp-generator/get-started/tool-selection#refining-an-over-budget-toolset) writes this automatically when you project down an oversized response.
+</ParamField>
+<ParamField path="overrides.<endpoint>.deprecated" type="boolean" required={false}>
+Marks the tool deprecated in its description instead of removing it — the migration path for a [published server](/learn/mcp-generator/get-started/maintaining#breaking-change-handling) when removing the tool outright would break existing agent integrations.
+</ParamField>
+</Indent>
+
+<ParamField path="presets" type="object" required={false} toc={true}>
+Named subsets of the group's resolved toolset, using the same selector schema as `include`/`exclude`. A client can connect to one preset instead of the whole server, and each preset gets its own verdict in `fern mcp tools`.
+
+```yaml
+config:
+  tools:
+    presets:
+      read-only:
+        include: [{ method: GET }]
+      support:
+        intent: "support agents: lookups + refunds, no admin"
+        include: [{ tag: customers }, { tag: payments, method: GET }]
+```
+
+A preset defined here is the same object the dashboard's preset picker edits — changing one updates the other.
+</ParamField>
