@@ -68,7 +68,18 @@ option.WithUserAgentAppInfo("partner-app", "3.1.0", "+https://partner.example")
 </ParamField>
 
 <ParamField path="enableRequestBodyPagination" type="boolean" default="false" required={false} toc={true}>
-Generates [auto-pagination](/learn/sdks/deep-dives/auto-pagination) for endpoints whose cursor or offset page property is a top-level request body property (for example, `cursor: $request.cursor`). The generated pager advances the page by setting the field on the request object instead of on the query string. This defaults to `false` because enabling it changes the affected methods' return types from a response to a pager. Nested body page properties (for example, `cursor: $request.pagination.cursor`) are unsupported and still generate a plain, non-paginated method.
+Generates [auto-pagination](/learn/sdks/deep-dives/auto-pagination) for endpoints whose cursor or offset page property is a top-level request body property (for example, `cursor: $request.cursor`). The generated pager advances the page by setting the field on the request object instead of on the query string. This defaults to `false` because enabling it changes the affected methods' return types from a response to a pager. Nested body page properties (for example, `cursor: $request.pagination.cursor`) still generate a plain, non-paginated method unless [`enableNestedRequestBodyPagination`](#enablenestedrequestbodypagination) is also enabled.
+</ParamField>
+
+<ParamField path="enableNestedRequestBodyPagination" type="boolean" default="false" required={false} toc={true}>
+Extends [`enableRequestBodyPagination`](#enablerequestbodypagination) to endpoints whose page property lives inside a nested request body object (for example, `offset: $request.options.offset` or `cursor: $request.options.pagination.cursor`). The generated pager copies the request and each optional intermediate object when advancing, so it works whether the caller sets the nested object or leaves it `nil`. Requires `enableRequestBodyPagination: true`, and defaults to `false` because enabling it changes the affected methods' return types from a response to a pager.
+
+```yaml
+- name: fernapi/fern-go-sdk
+  config:
+    enableRequestBodyPagination: true
+    enableNestedRequestBodyPagination: true
+```
 </ParamField>
 
 <ParamField path="enableWireTests" type="boolean" default="true" required={false} toc={true}>
