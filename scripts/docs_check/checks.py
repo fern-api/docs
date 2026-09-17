@@ -38,7 +38,7 @@ class Finding:
     line: int | None = None
 
     def key(self) -> str:
-        return f"{self.check} {self.path.as_posix()}"
+        return f"{self.check} {self.path.as_posix()} {self.message}"
 
 
 def strip_code(text: str) -> str:

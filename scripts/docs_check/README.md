@@ -35,10 +35,15 @@ Generated paths (`fern/translations/`, the CLI changelog, `version-number-*` sni
 
 ## Baseline
 
-`baseline.txt` lists known findings as `<check> <path>` so the checks pass today and only new problems fail a PR. Fix an issue and delete its line, or regenerate the file after a deliberate review:
+`baseline.txt` lists known findings as `<check> <path> <message>` so the checks pass today and only new problems fail a PR. Because the message is part of the key, a second broken link in an already-listed page is still reported. Fix an issue and delete its line, or regenerate the file after a deliberate review:
 
 ```bash
 python3 -m scripts.docs_check --write-baseline
 ```
 
 The run prints a note for every baseline line that no longer matches a finding.
+
+## Limitations
+
+- Display-name slugs are derived with a local approximation of Fern's rules (`v3 (Deprecated)` -> `v-3-deprecated`, `GitLab` -> `git-lab`). Every URL in the current navigation was verified against the live site, but an unusual new name could be mis-derived and produce a false `broken-internal-link`. Set an explicit `slug:` on the entry to remove the ambiguity.
+- Only `/learn/...` paths and relative links are checked. Links to external hosts and query strings are not validated; live-link failures are covered by the scheduled `check-links.yml` workflow.

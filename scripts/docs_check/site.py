@@ -192,9 +192,8 @@ def _add_page(site: Site, nav_file: Path, item: dict, scope: Scope, hidden: bool
         site.problems.append((nav_file, f"page path does not exist: {item['path']}"))
         return
     frontmatter = parse_frontmatter(page_path.read_text(encoding="utf-8", errors="replace"))
-    if url is None:
-        if frontmatter.get("slug"):
-            url = _join(scope.product_url, str(frontmatter["slug"]).strip("/"))
-        else:
-            url = _join(scope.prefix, str(item.get("slug") or slugify(str(item["page"]))))
+    if frontmatter.get("slug"):
+        url = _join(scope.product_url, str(frontmatter["slug"]).strip("/"))
+    elif url is None:
+        url = _join(scope.prefix, str(item.get("slug") or slugify(str(item["page"]))))
     site.pages.append(Page(path=page_path, url=url, product=scope.product, hidden=hidden, frontmatter=frontmatter))

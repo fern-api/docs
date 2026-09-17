@@ -64,6 +64,7 @@ navigation:
             path: ./pages/guide/hidden.mdx
             hidden: true
       - section: Customization
+        path: ./pages/guide/customization.mdx
         contents:
           - page: React
             path: ./pages/guide/react.mdx
@@ -112,6 +113,7 @@ def make_site(root: Path) -> Path:
     write(fern, "products/docs/pages/guide/gitlab.mdx", "---\ntitle: GitLab\ndescription: d\n---\n" + "word " * 50)
     write(fern, "products/docs/pages/guide/custom.mdx", "---\ntitle: Custom\nslug: custom-slug\n---\nshort")
     write(fern, "products/docs/pages/guide/hidden.mdx", "---\ntitle: Hidden\ndescription: d\n---\n" + "word " * 50)
+    write(fern, "products/docs/pages/guide/customization.mdx", "---\ntitle: Customization\nslug: custom-home\ndescription: d\n---\n" + "word " * 50)
     write(fern, "products/docs/pages/guide/react.mdx", "---\ntitle: React\nslug: customization/custom-react-components\ndescription: d\n---\n" + "word " * 50)
     write(fern, "products/docs/pages/guide/orphan.mdx", "---\ntitle: Orphan\n---\n")
     write(fern, "products/docs/pages/assets/ok.png", "png")
@@ -147,6 +149,7 @@ class SiteTest(unittest.TestCase):
         self.assertEqual(urls["gitlab.mdx"], "/learn/docs/guide/git-lab")
         self.assertEqual(urls["custom.mdx"], "/learn/docs/custom-slug")
         self.assertEqual(urls["react.mdx"], "/learn/docs/customization/custom-react-components")
+        self.assertEqual(urls["customization.mdx"], "/learn/docs/custom-home")
         self.assertIn("/learn/docs/api/api-reference", self.site.generated_prefixes)
         self.assertIn("/learn/docs/changelog", self.site.generated_prefixes)
         self.assertEqual(self.site.languages, ["zh"])
@@ -203,7 +206,7 @@ class ChecksTest(unittest.TestCase):
 
     def test_coverage(self):
         docs = next(row for row in self.coverage if row["product"] == "Docs")
-        self.assertEqual(docs["pages"], 5)
+        self.assertEqual(docs["pages"], 6)
         self.assertEqual(docs["hidden"], 1)
         self.assertEqual(docs["missing_description"], 1)
         self.assertEqual(docs["broken_links"], 1)

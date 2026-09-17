@@ -74,7 +74,7 @@ def markdown_summary(findings: list[Finding], baselined: int, coverage: list[dic
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="docs_check", description="Static checks for the Fern docs source tree.")
     parser.add_argument("--fern-dir", type=Path, default=DEFAULT_FERN_DIR)
-    parser.add_argument("--baseline", type=Path, default=DEFAULT_BASELINE, help="file of known findings to suppress (one '<check> <path>' per line)")
+    parser.add_argument("--baseline", type=Path, default=DEFAULT_BASELINE, help="file of known findings to suppress (one '<check> <path> <message>' per line)")
     parser.add_argument("--write-baseline", action="store_true", help="rewrite the baseline file with all current findings")
     parser.add_argument("--format", choices=("text", "github"), default="github" if os.environ.get("GITHUB_ACTIONS") else "text")
     parser.add_argument("--json", type=Path, help="write the full report as JSON to this path")
@@ -82,6 +82,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--strict", action="store_true", help="exit non-zero on warnings as well as errors")
     parser.add_argument("--only", nargs="*", help="only report these checks")
     args = parser.parse_args(argv)
+    if args.write_baseline and args.only:
+        parser.error("--write-baseline would drop every check not listed in --only")
 
     findings, coverage = run_checks(args.fern_dir.resolve())
     if args.only:
@@ -89,7 +91,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.write_baseline:
         args.baseline.write_text(
-            "# Known findings suppressed by docs_check. One '<check> <path>' per line.\n"
+            "# Known findings suppressed by docs_check. One '<check> <path> <message>' per line.\n"
             "# Remove a line once the issue is fixed; regenerate with --write-baseline.\n"
             + "".join(sorted({f.key() + "\n" for f in findings})),
             encoding="utf-8",
