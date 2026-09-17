@@ -5,10 +5,11 @@ from __future__ import annotations
 import tempfile
 import textwrap
 import unittest
+import unittest.mock
 from collections import Counter
 from pathlib import Path
 
-from scripts.docs_check import checks
+from scripts.docs_check import checks, smoke
 from scripts.docs_check.__main__ import CHANGELOG_DIRS, apply_baseline, run_checks
 from scripts.docs_check.site import load_site, slugify
 
@@ -117,7 +118,34 @@ def make_site(root: Path) -> Path:
         ```
         """ + "word " * 50,
     )
-    write(fern, "products/docs/pages/guide/gitlab.mdx", "---\ntitle: GitLab\ndescription: d\n---\n" + "word " * 50)
+    write(
+        fern,
+        "products/docs/pages/guide/gitlab.mdx",
+        """
+        ---
+        title: GitLab
+        description: d
+        ---
+        ## Your site is live!
+        ## Options [#opts]
+        <Steps>
+          <Step title="Install">
+            ### api
+            ```bash
+            # not a heading
+            ```
+          </Step>
+        </Steps>
+        <ParamField path="settings.filter" type="string" toc={true}>x</ParamField>
+        <ParamField path="api" type="string" toc={true}>x</ParamField>
+        <Anchor id="explicit" />
+        [same](#opts) [same-bad](#nope)
+        [a](/learn/docs/guide/overview#shared-heading) [b](/learn/docs/guide/overview#missing-heading)
+        [c](/learn/docs/guide/git-lab#your-site-is-live) [d](/learn/docs/guide/git-lab#install) [e](/learn/docs/guide/git-lab#api-1)
+        [f](/learn/docs/guide/git-lab#settingsfilter) [g](/learn/docs/guide/git-lab#explicit) [h](/learn/docs/guide/git-lab#not-a-heading)
+        [i](/learn/docs/legacy/x#x) [j](/learn/docs/api/api-reference/endpoints/get#x) [k](https://example.com/page#x)
+        """ + "word " * 50,
+    )
     write(fern, "products/docs/pages/guide/custom.mdx", "---\ntitle: Custom\nslug: custom-slug\n---\nshort")
     write(fern, "products/docs/pages/guide/hidden.mdx", "---\ntitle: Hidden\ndescription: d\n---\n" + "word " * 50)
     write(fern, "products/docs/pages/guide/customization.mdx", "---\ntitle: Customization\nslug: custom-home\ndescription: d\n---\n" + "word " * 50)
@@ -126,7 +154,7 @@ def make_site(root: Path) -> Path:
     write(fern, "products/docs/pages/guide/orphan.mdx", "---\ntitle: Orphan\n---\n")
     write(fern, "products/docs/pages/assets/ok.png", "png")
     write(fern, "products/docs/snippets/local.mdx", "local <Markdown src=\"/snippets/missing.mdx\" />")
-    write(fern, "snippets/shared.mdx", "![snippet-asset](./assets/nope.png) ![per-includer](../assets/ok.png)")
+    write(fern, "snippets/shared.mdx", "## Shared heading\n[self](#shared-heading) [self-bad](#gone)\n![snippet-asset](./assets/nope.png) ![per-includer](../assets/ok.png)")
     write(fern, "snippets/unused.mdx", "unused")
     write(fern, "products/docs/pages/changelog/2025-01-01.mdx", "## Feature\n\n<ChangelogTags>docs.yml</ChangelogTags>\n\nText\n\n## Other\n\nno tags\n\n## Late\n\nProse first\n\n<ChangelogTags>x</ChangelogTags>\n")
     write(fern, "products/docs/pages/changelog/bad-name.mdx", "# Title\n\n<ChangelogTags>x</ChangelogTags>\n")
@@ -138,6 +166,7 @@ class SlugifyTest(unittest.TestCase):
         self.assertEqual(slugify("Getting started"), "getting-started")
         self.assertEqual(slugify("GitLab"), "git-lab")
         self.assertEqual(slugify("v3 (Deprecated)"), "v-3-deprecated")
+        self.assertEqual(slugify("Depending on other APIs"), "depending-on-other-ap-is")
 
 
 class SiteTest(unittest.TestCase):
@@ -172,6 +201,47 @@ class SiteTest(unittest.TestCase):
         self.assertEqual(hidden, {"hidden.mdx"})
 
 
+class SmokeTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.fern = make_site(Path(self.tmp.name))
+        self.site = load_site(self.fern)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_changed_files_map_to_pages(self):
+        with unittest.mock.patch.object(smoke, "REPO_ROOT", Path(self.tmp.name)):
+            urls = smoke.urls_for_changed_files(
+                self.site,
+                [Path("fern/products/docs/pages/guide/gitlab.mdx"), Path("fern/snippets/shared.mdx"), Path("README.md")],
+            )
+            everything = smoke.urls_for_changed_files(self.site, [Path("fern/products/docs/docs.yml")])
+        self.assertEqual(urls, {"/learn/docs/guide/git-lab", "/learn/docs/guide/overview", "/learn/docs/api/api-reference/api-overview"})
+        self.assertEqual(everything, set(self.site.page_urls))
+
+    def test_check_page(self):
+        pages = {
+            "https://x.test/learn/ok": (200, '<img src="/logo.png"><main><img src="./a.png"><img src="data:image/png;base64,AA"></main>'),
+            "https://x.test/learn/a.png": (200, ""),
+            "https://x.test/learn/broken-img": (200, '<main><img src="https://cdn.test/missing.png"></main>'),
+            "https://cdn.test/missing.png": (404, ""),
+            "https://x.test/learn/error": (200, "<main>Something went wrong</main>"),
+            "https://x.test/learn/gone": (404, ""),
+        }
+        with unittest.mock.patch.object(smoke, "fetch", lambda url, timeout: pages.get(url, (0, "boom"))):
+            failures = smoke.run("https://x.test", ["/learn/ok", "/learn/broken-img", "/learn/error", "/learn/gone", "/learn/down"], 1, 0, 2)
+        self.assertEqual(
+            [(f.url, f.message) for f in failures],
+            [
+                ("/learn/broken-img", "image returns HTTP 404: https://cdn.test/missing.png"),
+                ("/learn/down", "request failed: boom"),
+                ("/learn/error", "page renders an error: 'Something went wrong'"),
+                ("/learn/gone", "HTTP 404"),
+            ],
+        )
+
+
 class ChecksTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -189,8 +259,22 @@ class ChecksTest(unittest.TestCase):
             self.by_check("broken-internal-link"),
             ["fern/products/docs/pages/guide/overview.mdx: no page publishes this URL: /learn/docs/guide/nope"],
         )
-        self.assertEqual(len(self.by_check("redirected-link")), 2)
+        self.assertEqual(len(self.by_check("redirected-link")), 3)
         self.assertEqual(len(self.by_check("relative-page-link")), 1)
+
+    def test_anchors(self):
+        self.assertEqual(checks.heading_slug("Your site is live!"), "your-site-is-live")
+        self.assertEqual(checks.heading_slug("`auth-schemes`"), "auth-schemes")
+        self.assertEqual(checks.heading_slug("settings.filter"), "settingsfilter")
+        self.assertEqual(
+            self.by_check("broken-anchor"),
+            [
+                "fern/products/docs/pages/guide/gitlab.mdx: no heading or anchor with this id on the target page: #nope",
+                "fern/products/docs/pages/guide/gitlab.mdx: no heading or anchor with this id on the target page: /learn/docs/guide/git-lab#not-a-heading",
+                "fern/products/docs/pages/guide/gitlab.mdx: no heading or anchor with this id on the target page: /learn/docs/guide/overview#missing-heading",
+                "fern/snippets/shared.mdx: no heading or anchor with this id on the target page: #gone",
+            ],
+        )
 
     def test_snippets_and_assets(self):
         self.assertEqual(

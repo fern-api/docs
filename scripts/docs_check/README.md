@@ -11,7 +11,17 @@ python3 -m scripts.docs_check --json report.json --summary summary.md
 python3 -m unittest discover -s scripts/docs_check/tests -t .
 ```
 
-Inside GitHub Actions the output switches to workflow annotations and the coverage table is appended to the job summary. `.github/workflows/docs-checks.yml` runs the checks on pull requests and nightly, and opens a tracking issue when the nightly run fails.
+Inside GitHub Actions the output switches to workflow annotations and the coverage table is appended to the job summary.
+
+## Where each layer runs
+
+| Stage | Workflow | What runs |
+|---|---|---|
+| Pull request, source | `docs-checks.yml` | Unit tests, the static checks, `fern check` |
+| Pull request, external links | `docs-checks.yml` | lychee over the http(s) links in changed files, with the shared `.github/lychee.toml` |
+| Pull request, rendered preview | `preview-docs.yml` | `smoke.py` against the preview for every page the PR touches |
+| Push to `main` | `publish-docs.yml` | `smoke.py` against buildwithfern.com for every derived URL after `fern generate` |
+| Weekday schedule | `docs-checks.yml`, `check-links.yml` | Full static run, full production smoke run, full external link sweep; failures open a tracking issue |
 
 ## Checks
 
@@ -23,6 +33,7 @@ Inside GitHub Actions the output switches to workflow annotations and the covera
 | `missing-asset` | error | Relative image or media file that does not exist |
 | `changelog-filename` | error | Changelog file not named `YYYY-MM-DD.mdx` |
 | `changelog-missing-tags` | error | `##` heading not directly followed by `<ChangelogTags>` |
+| `broken-anchor` | error | `#fragment` (same page or on a `/learn/...` link) that matches no heading, `<Anchor id>`, `<Step>`/`<Tab>`/`<Accordion>` title, or `<ParamField path>` on the target page |
 | `redirected-link` | warning | Internal link that only resolves through a redirect |
 | `relative-page-link` | warning | Link to a page written as a relative path instead of a published URL |
 | `orphan-page` | warning | Page file that no navigation entry or snippet include references |
@@ -43,8 +54,21 @@ python3 -m scripts.docs_check --write-baseline
 
 The run prints a note for every baseline line that no longer matches a finding.
 
+## Live smoke check
+
+`smoke.py` fetches published pages from a deployed site and fails on a non-200 response, an error page (`Page not found`, `Something went wrong`), or an image under `<main>` that does not load. It reuses the site model, so a page that the navigation YAML publishes but the site does not serve is caught without a sitemap.
+
+```bash
+python3 -m scripts.docs_check.smoke                                   # every page on buildwithfern.com
+python3 -m scripts.docs_check.smoke --base https://<preview-host>/learn --changed fern/products/docs/pages/x.mdx fern/snippets/y.mdx
+python3 -m scripts.docs_check.smoke --changed-from changed-files.txt --json smoke.json
+```
+
+`--changed` maps each edited page to its URL and each edited snippet to every page that includes it; an edited navigation YAML widens the run to the whole site. 404 and 5xx responses are retried with backoff so a deploy that is still propagating does not fail the run.
+
 ## Limitations
 
-- Display-name slugs are derived with a local approximation of Fern's rules (`v3 (Deprecated)` -> `v-3-deprecated`, `GitLab` -> `git-lab`). Every URL in the current navigation was verified against the live site, but an unusual new name could be mis-derived and produce a false `broken-internal-link`. Set an explicit `slug:` on the entry to remove the ambiguity.
+- Display-name slugs are derived with a local approximation of Fern's rules (`v3 (Deprecated)` -> `v-3-deprecated`, `GitLab` -> `git-lab`, `APIs` -> `ap-is`). Every URL in the current navigation was verified against the live site, but an unusual new name could be mis-derived and produce a false `broken-internal-link`. Set an explicit `slug:` on the entry to remove the ambiguity.
 - `folder:` navigation entries and `ref:`-backed versions are not expanded into pages; links under their URL prefix are accepted without validation, like API references.
-- Only `/learn/...` paths and relative links are checked. Links to external hosts and query strings are not validated; live-link failures are covered by the scheduled `check-links.yml` workflow.
+- Only `/learn/...` paths and relative links are checked. Links to external hosts and query strings are not validated; the lychee job in `docs-checks.yml` covers external links in changed files and `check-links.yml` sweeps the whole site.
+- Anchor ids are derived from the source. Fern applies its own id transformations to some generated components, so a fragment that targets one of those can pass the check while the rendered page uses a different id. Every `broken-anchor` reported today was confirmed against the live site; links into API reference and changelog pages are accepted without anchor validation.

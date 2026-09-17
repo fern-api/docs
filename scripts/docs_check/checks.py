@@ -22,6 +22,16 @@ HREF_RE = re.compile(r"\bhref=[\"']([^\"']+)[\"']")
 SRC_RE = re.compile(r"\bsrc=[\"']([^\"']+)[\"']")
 SNIPPET_RE = re.compile(r"<Markdown\s+[^>]*src=[\"']([^\"']+)[\"']")
 HEADING_RE = re.compile(r"^##\s+\S.*$", re.MULTILINE)
+# Everything the platform gives an id, in document order: headings (optionally
+# with an explicit ``[#id]``), ``Step``/``Tab``/``Accordion`` titles and
+# ``ParamField`` paths share one duplicate counter (``api``, ``api-1``, ...).
+ANCHOR_SOURCE_RE = re.compile(
+    r"^[ \t]*#{1,6}[ \t]+(?P<heading>\S.*?)(?:[ \t]*\[#(?P<explicit>[^\]]+)\])?[ \t]*$"
+    r"|<(?:Step|Tab|Accordion)\b[^>]*\btitle=[\"'](?P<title>[^\"']+)[\"']"
+    r"|<ParamField\b[^>]*\bpath=[\"'](?P<param>[^\"']+)[\"']"
+    r"|<Anchor\b[^>]*\bid=[\"'](?P<anchor>[^\"']+)[\"']",
+    re.MULTILINE,
+)
 CHANGELOG_TAGS_RE = re.compile(r"<ChangelogTags")
 CHANGELOG_FILENAME_RE = re.compile(r"^\d{4}-\d{2}-\d{2}\.mdx$")
 WORD_RE = re.compile(r"[A-Za-z0-9']+")
@@ -103,7 +113,7 @@ def snippet_sources(text: str) -> list[str]:
     return SNIPPET_RE.findall(INLINE_CODE_RE.sub("", text))
 
 
-def _snippet_includers(site: Site) -> dict[Path, set[Path]]:
+def snippet_includers(site: Site) -> dict[Path, set[Path]]:
     """snippet file -> pages that include it."""
     includers: dict[Path, set[Path]] = {}
     for path in iter_source_files(site):
@@ -113,7 +123,7 @@ def _snippet_includers(site: Site) -> dict[Path, set[Path]]:
 
 
 def _snippet_targets(site: Site) -> set[Path]:
-    return set(_snippet_includers(site))
+    return set(snippet_includers(site))
 
 
 def _is_snippet(site: Site, path: Path) -> bool:
@@ -178,6 +188,72 @@ def check_internal_links(site: Site) -> Iterator[Finding]:
             yield Finding("broken-internal-link", ERROR, _relative(site, path), f"no page publishes this URL: {raw}", line)
 
 
+def heading_slug(text: str) -> str:
+    """github-slugger: lowercase, drop punctuation, spaces to hyphens (``Your site is live!`` -> ``your-site-is-live``)."""
+    text = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", text)
+    text = re.sub(r"<[^>]+>", "", text).replace("`", "")
+    text = re.sub(r"[^\w\s-]", "", text.lower(), flags=re.UNICODE)
+    return re.sub(r"\s", "-", text.strip())
+
+
+def page_anchors(text: str) -> set[str]:
+    """Ids the platform renders for a page body: headings, ``Step``/``Tab``/``Accordion`` titles, ``ParamField`` paths and ``<Anchor id>``."""
+    anchors: set[str] = set()
+    seen: Counter[str] = Counter()
+    for match in ANCHOR_SOURCE_RE.finditer(CODE_BLOCK_RE.sub("", text)):
+        if match.group("anchor") or match.group("explicit"):
+            anchors.add(match.group("anchor") or match.group("explicit"))
+            continue
+        slug = heading_slug(match.group("heading") or match.group("title") or match.group("param"))
+        anchors.add(slug if seen[slug] == 0 else f"{slug}-{seen[slug]}")
+        seen[slug] += 1
+    return anchors
+
+
+def _anchors_with_snippets(site: Site, path: Path, seen: set[Path] | None = None) -> set[str]:
+    seen = set() if seen is None else seen
+    if path in seen or not path.exists():
+        return set()
+    seen.add(path)
+    text = path.read_text(encoding="utf-8", errors="replace")
+    anchors = page_anchors(text)
+    for src in snippet_sources(text):
+        anchors |= _anchors_with_snippets(site, _resolve_snippet(site, path, src), seen)
+    return anchors
+
+
+def check_anchors(site: Site) -> Iterator[Finding]:
+    """``#fragment`` on internal and same-page links must match an id the target page renders."""
+    by_url = {page.url: page.path for page in site.pages}
+    includers = snippet_includers(site)
+    cache: dict[Path, set[str]] = {}
+
+    def anchors(path: Path) -> set[str]:
+        if path not in cache:
+            cache[path] = _anchors_with_snippets(site, path)
+        return cache[path]
+
+    for path in iter_source_files(site):
+        text = path.read_text(encoding="utf-8", errors="replace")
+        body = strip_code(text)
+        candidates = [raw for raw in MARKDOWN_LINK_RE.findall(body) + HREF_RE.findall(body) if "#" in raw]
+        for raw, line in _occurrences(body, candidates):
+            fragment = urlsplit(raw).fragment
+            if not fragment:
+                continue
+            if raw.startswith("#"):
+                targets = sorted(includers.get(path) or {path})
+            elif _is_internal(raw, site):
+                target = by_url.get(_normalize(raw, site))
+                if target is None:
+                    continue  # generated section, redirect or broken link; reported elsewhere
+                targets = [target]
+            else:
+                continue
+            if not any(fragment in anchors(target) for target in targets):
+                yield Finding("broken-anchor", ERROR, _relative(site, path), f"no heading or anchor with this id on the target page: {raw}", line)
+
+
 def _looks_like_relative_page_link(raw: str) -> bool:
     if not (raw.startswith("./") or raw.startswith("../")):
         return False
@@ -186,7 +262,7 @@ def _looks_like_relative_page_link(raw: str) -> bool:
 
 def check_assets(site: Site) -> Iterator[Finding]:
     """Relative image/media references must exist on disk (snippets resolve relative to the including page)."""
-    includers = _snippet_includers(site)
+    includers = snippet_includers(site)
     for path in iter_source_files(site):
         if _is_snippet(site, path) and path not in includers:
             continue  # never rendered; reported by check_unused_snippets

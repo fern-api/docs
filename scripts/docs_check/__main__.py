@@ -25,6 +25,7 @@ def run_checks(fern_dir: Path) -> tuple[list[Finding], list[dict]]:
     findings += checks.check_snippets(site)
     findings += checks.check_unused_snippets(site)
     findings += checks.check_internal_links(site)
+    findings += checks.check_anchors(site)
     findings += checks.check_assets(site)
     findings += checks.check_changelogs(site, [fern_dir / d for d in CHANGELOG_DIRS if (fern_dir / d).is_dir()])
     findings += checks.check_frontmatter(site)

@@ -24,8 +24,9 @@ FRONTMATTER_RE = re.compile(r"\A---\s*\n(.*?)\n---\s*\n", re.DOTALL)
 
 
 def slugify(name: str) -> str:
-    """Approximate Fern's display-name to slug conversion (``v3 (Deprecated)`` -> ``v-3-deprecated``, ``GitLab`` -> ``git-lab``)."""
-    text = re.sub(r"([a-z])([A-Z])", r"\1-\2", name)
+    """Approximate Fern's display-name to slug conversion (``v3 (Deprecated)`` -> ``v-3-deprecated``, ``GitLab`` -> ``git-lab``, ``APIs`` -> ``ap-is``)."""
+    text = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1-\2", name)
+    text = re.sub(r"([a-z])([A-Z])", r"\1-\2", text)
     text = re.sub(r"([a-zA-Z])(\d)", r"\1-\2", text)
     text = re.sub(r"(\d)([a-zA-Z])", r"\1-\2", text)
     text = re.sub(r"[^a-zA-Z0-9]+", "-", text)
