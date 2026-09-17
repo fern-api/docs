@@ -85,6 +85,10 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           git diff --name-only --diff-filter=AM "$BASE_SHA"...HEAD -- 'fern/**/*.mdx' 'fern/**/*.yml' > changed-files.txt
+          # A config change still has to be parsed and applied by lychee: run it on a representative page.
+          if ! git diff --quiet "$BASE_SHA"...HEAD -- .github/lychee.toml; then
+            echo fern/products/docs/pages/getting-started/technical-evaluation.mdx >> changed-files.txt
+          fi
           echo "count=$(wc -l < changed-files.txt | tr -d ' ')" >> "$GITHUB_OUTPUT"
           cat changed-files.txt
 
