@@ -128,7 +128,7 @@ def make_site(root: Path) -> Path:
     write(fern, "products/docs/snippets/local.mdx", "local <Markdown src=\"/snippets/missing.mdx\" />")
     write(fern, "snippets/shared.mdx", "![snippet-asset](./assets/nope.png) ![per-includer](../assets/ok.png)")
     write(fern, "snippets/unused.mdx", "unused")
-    write(fern, "products/docs/pages/changelog/2025-01-01.mdx", "## Feature\n\n<ChangelogTags>docs.yml</ChangelogTags>\n\nText\n\n## Other\n\nno tags\n")
+    write(fern, "products/docs/pages/changelog/2025-01-01.mdx", "## Feature\n\n<ChangelogTags>docs.yml</ChangelogTags>\n\nText\n\n## Other\n\nno tags\n\n## Late\n\nProse first\n\n<ChangelogTags>x</ChangelogTags>\n")
     write(fern, "products/docs/pages/changelog/bad-name.mdx", "# Title\n\n<ChangelogTags>x</ChangelogTags>\n")
     return fern
 
@@ -228,7 +228,7 @@ class ChecksTest(unittest.TestCase):
         self.assertEqual(CHANGELOG_DIRS[0], "products/docs/pages/changelog")
         self.assertEqual(self.by_check("changelog-filename"), ["fern/products/docs/pages/changelog/bad-name.mdx: changelog filename must be YYYY-MM-DD.mdx"])
         self.assertEqual(len(self.by_check("changelog-h1")), 1)
-        self.assertEqual(len(self.by_check("changelog-missing-tags")), 1)
+        self.assertEqual(len(self.by_check("changelog-missing-tags")), 2)
 
     def test_frontmatter(self):
         self.assertEqual(self.by_check("missing-description"), ["fern/products/docs/pages/guide/custom.mdx: frontmatter has no description (search and SEO snippet)"])

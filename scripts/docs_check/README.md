@@ -22,7 +22,7 @@ Inside GitHub Actions the output switches to workflow annotations and the covera
 | `missing-snippet` | error | `<Markdown src>` target that does not exist |
 | `missing-asset` | error | Relative image or media file that does not exist |
 | `changelog-filename` | error | Changelog file not named `YYYY-MM-DD.mdx` |
-| `changelog-missing-tags` | error | `##` heading without `<ChangelogTags>` |
+| `changelog-missing-tags` | error | `##` heading not directly followed by `<ChangelogTags>` |
 | `redirected-link` | warning | Internal link that only resolves through a redirect |
 | `relative-page-link` | warning | Link to a page written as a relative path instead of a published URL |
 | `orphan-page` | warning | Page file that no navigation entry or snippet include references |

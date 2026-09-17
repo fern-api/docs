@@ -228,8 +228,9 @@ def check_changelogs(site: Site, changelog_dirs: Iterable[Path]) -> Iterator[Fin
                 continue
             sections = HEADING_RE.split(text)[1:]
             for heading, body in zip(headings, sections):
-                if not CHANGELOG_TAGS_RE.search(body):
-                    yield Finding("changelog-missing-tags", ERROR, rel, f"heading lacks <ChangelogTags>: {heading.strip()}", _line_of(text, heading))
+                first = body.strip().split("\n", 1)[0]
+                if not CHANGELOG_TAGS_RE.match(first):
+                    yield Finding("changelog-missing-tags", ERROR, rel, f"<ChangelogTags> must directly follow the heading: {heading.strip()}", _line_of(text, heading))
 
 
 def check_frontmatter(site: Site) -> Iterator[Finding]:
