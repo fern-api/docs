@@ -4,6 +4,7 @@ import argparse
 import json
 import os
 import sys
+from collections import Counter
 from pathlib import Path
 
 from . import checks
@@ -31,10 +32,24 @@ def run_checks(fern_dir: Path) -> tuple[list[Finding], list[dict]]:
     return findings, checks.coverage(site, findings)
 
 
-def load_baseline(path: Path) -> set[str]:
+def load_baseline(path: Path) -> Counter[str]:
+    """Known finding keys with how many occurrences each suppresses (a repeated line suppresses one more)."""
     if not path.exists():
-        return set()
-    return {line.strip() for line in path.read_text(encoding="utf-8").splitlines() if line.strip() and not line.startswith("#")}
+        return Counter()
+    return Counter(line.strip() for line in path.read_text(encoding="utf-8").splitlines() if line.strip() and not line.startswith("#"))
+
+
+def apply_baseline(findings: list[Finding], baseline: Counter[str]) -> tuple[list[Finding], list[str]]:
+    """Suppress at most the baselined number of occurrences per key; return the active findings and stale keys."""
+    remaining = Counter(baseline)
+    active = []
+    for finding in findings:
+        if remaining[finding.key()] > 0:
+            remaining[finding.key()] -= 1
+        else:
+            active.append(finding)
+    stale = sorted(key for key, count in remaining.items() if count > 0)
+    return active, stale
 
 
 def github_annotation(finding: Finding) -> str:
@@ -91,18 +106,16 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.write_baseline:
         args.baseline.write_text(
-            "# Known findings suppressed by docs_check. One '<check> <path> <message>' per line.\n"
+            "# Known findings suppressed by docs_check. One '<check> <path> <message>' per occurrence.\n"
             "# Remove a line once the issue is fixed; regenerate with --write-baseline.\n"
-            + "".join(sorted({f.key() + "\n" for f in findings})),
+            + "".join(sorted(f.key() + "\n" for f in findings)),
             encoding="utf-8",
         )
         print(f"wrote {args.baseline}")
         return 0
 
-    baseline = load_baseline(args.baseline)
-    active = [f for f in findings if f.key() not in baseline]
+    active, stale = apply_baseline(findings, load_baseline(args.baseline))
     suppressed = len(findings) - len(active)
-    stale = sorted(baseline - {f.key() for f in findings})
     for key in stale:
         print(f"note: baseline entry no longer reported, remove it: {key}")
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Iterator
@@ -50,6 +51,14 @@ def strip_code(text: str) -> str:
 def _line_of(text: str, needle: str) -> int | None:
     index = text.find(needle)
     return text.count("\n", 0, index) + 1 if index >= 0 else None
+
+
+def _occurrences(body: str, matches: list[str]) -> Iterator[tuple[str, int | None]]:
+    """Every match with its own line, so a URL repeated in one file yields one finding per occurrence."""
+    for raw, count in Counter(matches).items():
+        lines = [body.count("\n", 0, m.start()) + 1 for m in re.finditer(re.escape(raw), body)]
+        for i in range(count):
+            yield raw, lines[i] if i < len(lines) else None
 
 
 def _relative(site: Site, path: Path) -> Path:
@@ -154,19 +163,19 @@ def check_internal_links(site: Site) -> Iterator[Finding]:
         text = path.read_text(encoding="utf-8", errors="replace")
         body = strip_code(text)
         candidates = MARKDOWN_LINK_RE.findall(body) + HREF_RE.findall(body)
-        for raw in dict.fromkeys(candidates):
+        for raw, line in _occurrences(body, candidates):
             if not _is_internal(raw, site):
                 if _looks_like_relative_page_link(raw):
-                    yield Finding("relative-page-link", WARNING, _relative(site, path), f"link uses a relative path instead of a published URL: {raw}", _line_of(text, raw))
+                    yield Finding("relative-page-link", WARNING, _relative(site, path), f"link uses a relative path instead of a published URL: {raw}", line)
                 continue
             url = _normalize(raw, site)
             if url in urls or url == site.basepath or any(url == p or url.startswith(p + "/") for p in site.generated_prefixes):
                 continue
             destination = site.redirect_for(url)
             if destination:
-                yield Finding("redirected-link", WARNING, _relative(site, path), f"link hits a redirect, point it at {destination} instead: {raw}", _line_of(text, raw))
+                yield Finding("redirected-link", WARNING, _relative(site, path), f"link hits a redirect, point it at {destination} instead: {raw}", line)
                 continue
-            yield Finding("broken-internal-link", ERROR, _relative(site, path), f"no page publishes this URL: {raw}", _line_of(text, raw))
+            yield Finding("broken-internal-link", ERROR, _relative(site, path), f"no page publishes this URL: {raw}", line)
 
 
 def _looks_like_relative_page_link(raw: str) -> bool:
@@ -185,7 +194,7 @@ def check_assets(site: Site) -> Iterator[Finding]:
         text = path.read_text(encoding="utf-8", errors="replace")
         body = strip_code(text)
         refs = IMAGE_LINK_RE.findall(body) + HREF_RE.findall(body) + SRC_RE.findall(body)
-        for raw in dict.fromkeys(refs):
+        for raw, line in _occurrences(body, refs):
             target = urlsplit(raw).path
             if not target or "://" in raw or Path(target).suffix.lower() not in ASSET_SUFFIXES:
                 continue
@@ -194,12 +203,12 @@ def check_assets(site: Site) -> Iterator[Finding]:
                 if not resolved.exists() and not _is_internal(target, site):
                     continue  # absolute asset URLs served by the platform; not checkable
                 if not resolved.exists():
-                    yield Finding("missing-asset", ERROR, _relative(site, path), f"asset not found: {raw}", _line_of(text, raw))
+                    yield Finding("missing-asset", ERROR, _relative(site, path), f"asset not found: {raw}", line)
             else:
                 for base in sorted(bases):
                     if not (base.parent / target).resolve().exists():
                         where = "" if base == path else f" (included from {_relative(site, base)})"
-                        yield Finding("missing-asset", ERROR, _relative(site, path), f"asset not found: {raw}{where}", _line_of(text, raw))
+                        yield Finding("missing-asset", ERROR, _relative(site, path), f"asset not found: {raw}{where}", line)
 
 
 def check_changelogs(site: Site, changelog_dirs: Iterable[Path]) -> Iterator[Finding]:

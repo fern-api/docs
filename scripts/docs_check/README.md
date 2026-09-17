@@ -35,7 +35,7 @@ Generated paths (`fern/translations/`, the CLI changelog, `version-number-*` sni
 
 ## Baseline
 
-`baseline.txt` lists known findings as `<check> <path> <message>` so the checks pass today and only new problems fail a PR. Because the message is part of the key, a second broken link in an already-listed page is still reported. Fix an issue and delete its line, or regenerate the file after a deliberate review:
+`baseline.txt` lists known findings as `<check> <path> <message>` so the checks pass today and only new problems fail a PR. Because the message is part of the key, a second broken link in an already-listed page is still reported, and each line suppresses one occurrence, so repeating a listed URL in the same file is also reported. Fix an issue and delete its line, or regenerate the file after a deliberate review:
 
 ```bash
 python3 -m scripts.docs_check --write-baseline

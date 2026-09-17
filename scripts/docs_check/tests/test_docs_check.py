@@ -5,10 +5,11 @@ from __future__ import annotations
 import tempfile
 import textwrap
 import unittest
+from collections import Counter
 from pathlib import Path
 
 from scripts.docs_check import checks
-from scripts.docs_check.__main__ import CHANGELOG_DIRS, run_checks
+from scripts.docs_check.__main__ import CHANGELOG_DIRS, apply_baseline, run_checks
 from scripts.docs_check.site import load_site, slugify
 
 DOCS_YML = """
@@ -209,6 +210,16 @@ class ChecksTest(unittest.TestCase):
                 "fern/snippets/shared.mdx: asset not found: ./assets/nope.png (included from fern/products/docs/pages/guide/overview.mdx)",
             ],
         )
+
+    def test_baseline_counts_occurrences(self):
+        broken = [f for f in self.findings if f.check == "broken-internal-link"]
+        self.assertEqual(len(broken), 1)
+        doubled = broken + [checks.Finding(broken[0].check, broken[0].severity, broken[0].path, broken[0].message, line=99)]
+        active, stale = apply_baseline(doubled, Counter([broken[0].key()]))
+        self.assertEqual([f.line for f in active], [99])
+        self.assertEqual(stale, [])
+        active, stale = apply_baseline([], Counter([broken[0].key()]))
+        self.assertEqual(stale, [broken[0].key()])
 
     def test_orphans(self):
         self.assertEqual(self.by_check("orphan-page"), ["fern/products/docs/pages/guide/orphan.mdx: page is not referenced by any navigation file or snippet include"])
