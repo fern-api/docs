@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from functools import lru_cache
 from pathlib import Path
 
 import yaml
@@ -76,6 +77,13 @@ class Site:
     languages: list[str] = field(default_factory=list)
     problems: list[tuple[Path, str]] = field(default_factory=list)
 
+    def redirect_for(self, url: str) -> str | None:
+        """Destination of the redirect whose ``source`` matches ``url`` (``:param`` and ``:param*`` patterns included)."""
+        for source, destination in self.redirects.items():
+            if source == url or (":" in source and _redirect_pattern(source).fullmatch(url)):
+                return destination
+        return None
+
     @property
     def page_urls(self) -> set[str]:
         return {page.url for page in self.pages}
@@ -83,6 +91,20 @@ class Site:
     @property
     def nav_paths(self) -> set[Path]:
         return {page.path.resolve() for page in self.pages}
+
+
+@lru_cache(maxsize=None)
+def _redirect_pattern(source: str) -> re.Pattern[str]:
+    """``/a/:slug`` matches one segment; ``/a/:slug*`` matches ``/a`` and anything below it."""
+    pattern = ""
+    for literal, param in re.findall(r"([^:]*)(:[A-Za-z0-9_]+\*?)?", source):
+        if param and param.endswith("*"):
+            pattern += re.escape(literal.rstrip("/")) + "(?:/.*)?"
+        elif param:
+            pattern += re.escape(literal) + "[^/]+"
+        else:
+            pattern += re.escape(literal)
+    return re.compile(pattern)
 
 
 def _load_yaml(path: Path):
@@ -136,8 +158,8 @@ def load_site(fern_dir: Path) -> Site:
             name = str(product.get("display-name", product_file.stem))
             _load_navigation_file(site, product_file, Scope(name, product_url, product_url))
     else:
-        # Single-product site: navigation lives directly in docs.yml.
-        _walk_navigation(site, fern_dir / "docs.yml", docs_config.get("navigation") or [], Scope("docs", site.basepath, site.basepath), hidden=False)
+        # Single-product site: navigation (or versions) lives directly in docs.yml.
+        _load_navigation(site, fern_dir / "docs.yml", docs_config, Scope("docs", site.basepath, site.basepath))
     return site
 
 
@@ -145,7 +167,10 @@ def _load_navigation_file(site: Site, nav_file: Path, scope: Scope) -> None:
     if not nav_file.exists():
         site.problems.append((nav_file, "navigation file referenced from docs.yml does not exist"))
         return
-    config = _load_yaml(nav_file)
+    _load_navigation(site, nav_file, _load_yaml(nav_file), scope)
+
+
+def _load_navigation(site: Site, nav_file: Path, config: dict, scope: Scope) -> None:
     if "tabs" in config:
         tabs = config.get("tabs") or {}
         for entry in config.get("navigation") or []:
@@ -155,8 +180,11 @@ def _load_navigation_file(site: Site, nav_file: Path, scope: Scope) -> None:
             _walk_navigation(site, nav_file, entry.get("layout") or [], tab_scope, hidden=bool(entry.get("hidden")))
     elif "versions" in config:
         for version in config.get("versions") or []:
-            version_file = (nav_file.parent / version["path"]).resolve()
             version_url = _join(scope.prefix, _segment(version, "display-name"))
+            if not version.get("path"):
+                site.generated_prefixes.append(version_url)  # ``ref``-backed versions live in another git tree
+                continue
+            version_file = (nav_file.parent / version["path"]).resolve()
             _load_navigation_file(site, version_file, Scope(scope.product, version_url, version_url))
     else:
         _walk_navigation(site, nav_file, config.get("navigation") or [], scope, hidden=False)
@@ -175,7 +203,16 @@ def _walk_navigation(site: Site, nav_file: Path, items: list, scope: Scope, hidd
                 _add_page(site, nav_file, {**item, "page": item["section"], "slug": None}, scope, item_hidden, url=section_scope.prefix)
             _walk_navigation(site, nav_file, item.get("contents") or [], section_scope, item_hidden)
         elif "api" in item:
-            site.generated_prefixes.append(_join(scope.prefix, _segment(item, "api")))
+            api_scope = scope.within(_segment(item, "api"))
+            site.generated_prefixes.append(api_scope.prefix)
+            _walk_navigation(site, nav_file, item.get("layout") or [], api_scope, item_hidden)
+        elif "folder" in item:
+            # Folder pages are derived from filenames; accept links under the folder rather than modelling them.
+            folder_dir = (nav_file.parent / str(item["folder"])).resolve()
+            if folder_dir.is_dir():
+                site.generated_prefixes.append(scope.within(item.get("slug") or folder_dir.name).prefix)
+            else:
+                site.problems.append((nav_file, f"folder does not exist: {item['folder']}"))
         elif "changelog" in item:
             site.generated_prefixes.append(_join(scope.prefix, item.get("slug") or "changelog"))
             changelog_dir = (nav_file.parent / item["changelog"]).resolve()

@@ -21,6 +21,8 @@ translations:
 redirects:
   - source: /learn/docs/old
     destination: /learn/docs/guide/overview
+  - source: /learn/docs/legacy/:slug*
+    destination: /learn/docs/guide/:slug*
 products:
   - display-name: Home
     path: ./products/home/home.yml
@@ -73,6 +75,9 @@ navigation:
     layout:
       - api: API Reference
         api-name: api
+        layout:
+          - page: API overview
+            path: ./pages/api-overview.mdx
 """
 
 
@@ -103,10 +108,11 @@ def make_site(root: Path) -> Path:
         [ok](/learn/docs/guide/git-lab) [home](/learn) [feedback](/learn/user-feedback)
         [react](/learn/docs/customization/custom-react-components) [zh](/learn/zh/docs/guide/overview)
         [api](/learn/docs/api/api-reference/endpoints/get) [changelog](/learn/docs/changelog/2025-01-01)
-        [redirect](/learn/docs/old) [broken](/learn/docs/guide/nope) [rel](../guide/overview.mdx)
+        [redirect](/learn/docs/old) [wild](/learn/docs/legacy/anything/deep) [broken](/learn/docs/guide/nope) [rel](../guide/overview.mdx)
+        [api-page](/learn/docs/api/api-reference/api-overview)
         ![img](./missing.png) ![ok](../assets/ok.png)
         ```md
-        [in code](/learn/docs/ignored) <Markdown src="/snippets/ignored.mdx" />
+        [in code](/learn/docs/ignored) <Markdown src="/snippets/fenced-missing.mdx" />
         ```
         """ + "word " * 50,
     )
@@ -115,10 +121,11 @@ def make_site(root: Path) -> Path:
     write(fern, "products/docs/pages/guide/hidden.mdx", "---\ntitle: Hidden\ndescription: d\n---\n" + "word " * 50)
     write(fern, "products/docs/pages/guide/customization.mdx", "---\ntitle: Customization\nslug: custom-home\ndescription: d\n---\n" + "word " * 50)
     write(fern, "products/docs/pages/guide/react.mdx", "---\ntitle: React\nslug: customization/custom-react-components\ndescription: d\n---\n" + "word " * 50)
+    write(fern, "products/docs/pages/api-overview.mdx", "---\ntitle: API overview\ndescription: d\n---\n<Markdown src=\"/snippets/shared.mdx\" />\n" + "word " * 50)
     write(fern, "products/docs/pages/guide/orphan.mdx", "---\ntitle: Orphan\n---\n")
     write(fern, "products/docs/pages/assets/ok.png", "png")
     write(fern, "products/docs/snippets/local.mdx", "local <Markdown src=\"/snippets/missing.mdx\" />")
-    write(fern, "snippets/shared.mdx", "![snippet-asset](./assets/nope.png)")
+    write(fern, "snippets/shared.mdx", "![snippet-asset](./assets/nope.png) ![per-includer](../assets/ok.png)")
     write(fern, "snippets/unused.mdx", "unused")
     write(fern, "products/docs/pages/changelog/2025-01-01.mdx", "## Feature\n\n<ChangelogTags>docs.yml</ChangelogTags>\n\nText\n\n## Other\n\nno tags\n")
     write(fern, "products/docs/pages/changelog/bad-name.mdx", "# Title\n\n<ChangelogTags>x</ChangelogTags>\n")
@@ -150,6 +157,10 @@ class SiteTest(unittest.TestCase):
         self.assertEqual(urls["custom.mdx"], "/learn/docs/custom-slug")
         self.assertEqual(urls["react.mdx"], "/learn/docs/customization/custom-react-components")
         self.assertEqual(urls["customization.mdx"], "/learn/docs/custom-home")
+        self.assertEqual(urls["api-overview.mdx"], "/learn/docs/api/api-reference/api-overview")
+        self.assertEqual(self.site.redirect_for("/learn/docs/legacy"), "/learn/docs/guide/:slug*")
+        self.assertEqual(self.site.redirect_for("/learn/docs/legacy/a/b"), "/learn/docs/guide/:slug*")
+        self.assertIsNone(self.site.redirect_for("/learn/docs/legacy-other"))
         self.assertIn("/learn/docs/api/api-reference", self.site.generated_prefixes)
         self.assertIn("/learn/docs/changelog", self.site.generated_prefixes)
         self.assertEqual(self.site.languages, ["zh"])
@@ -177,17 +188,25 @@ class ChecksTest(unittest.TestCase):
             self.by_check("broken-internal-link"),
             ["fern/products/docs/pages/guide/overview.mdx: no page publishes this URL: /learn/docs/guide/nope"],
         )
-        self.assertEqual(len(self.by_check("redirected-link")), 1)
+        self.assertEqual(len(self.by_check("redirected-link")), 2)
         self.assertEqual(len(self.by_check("relative-page-link")), 1)
 
     def test_snippets_and_assets(self):
-        self.assertEqual(self.by_check("missing-snippet"), ["fern/products/docs/snippets/local.mdx: snippet not found: /snippets/missing.mdx"])
+        self.assertEqual(
+            self.by_check("missing-snippet"),
+            [
+                "fern/products/docs/pages/guide/overview.mdx: snippet not found: /snippets/fenced-missing.mdx",
+                "fern/products/docs/snippets/local.mdx: snippet not found: /snippets/missing.mdx",
+            ],
+        )
         self.assertEqual(self.by_check("unused-snippet"), ["fern/snippets/unused.mdx: snippet is not included by any page"])
         self.assertEqual(
             self.by_check("missing-asset"),
             [
                 "fern/products/docs/pages/guide/overview.mdx: asset not found: ./missing.png",
-                "fern/snippets/shared.mdx: asset not found: ./assets/nope.png",
+                "fern/snippets/shared.mdx: asset not found: ../assets/ok.png (included from fern/products/docs/pages/api-overview.mdx)",
+                "fern/snippets/shared.mdx: asset not found: ./assets/nope.png (included from fern/products/docs/pages/api-overview.mdx)",
+                "fern/snippets/shared.mdx: asset not found: ./assets/nope.png (included from fern/products/docs/pages/guide/overview.mdx)",
             ],
         )
 
@@ -206,7 +225,7 @@ class ChecksTest(unittest.TestCase):
 
     def test_coverage(self):
         docs = next(row for row in self.coverage if row["product"] == "Docs")
-        self.assertEqual(docs["pages"], 6)
+        self.assertEqual(docs["pages"], 7)
         self.assertEqual(docs["hidden"], 1)
         self.assertEqual(docs["missing_description"], 1)
         self.assertEqual(docs["broken_links"], 1)

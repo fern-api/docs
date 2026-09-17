@@ -89,11 +89,16 @@ def _is_page_candidate(site: Site, path: Path) -> bool:
     return "snippets" not in rel and "assets" not in rel
 
 
+def snippet_sources(text: str) -> list[str]:
+    """``<Markdown src>`` targets. Fenced code keeps its includes (version numbers are injected into config samples); inline code is prose."""
+    return SNIPPET_RE.findall(INLINE_CODE_RE.sub("", text))
+
+
 def _snippet_includers(site: Site) -> dict[Path, set[Path]]:
     """snippet file -> pages that include it."""
     includers: dict[Path, set[Path]] = {}
     for path in iter_source_files(site):
-        for src in SNIPPET_RE.findall(path.read_text(encoding="utf-8", errors="replace")):
+        for src in snippet_sources(path.read_text(encoding="utf-8", errors="replace")):
             includers.setdefault(_resolve_snippet(site, path, src), set()).add(path)
     return includers
 
@@ -123,7 +128,7 @@ def _resolve_snippet(site: Site, source: Path, src: str) -> Path:
 def check_snippets(site: Site) -> Iterator[Finding]:
     for path in iter_source_files(site):
         text = path.read_text(encoding="utf-8", errors="replace")
-        for src in SNIPPET_RE.findall(strip_code(text)):
+        for src in snippet_sources(text):
             if not _resolve_snippet(site, path, src).exists():
                 yield Finding("missing-snippet", ERROR, _relative(site, path), f"snippet not found: {src}", _line_of(text, src))
 
@@ -157,8 +162,9 @@ def check_internal_links(site: Site) -> Iterator[Finding]:
             url = _normalize(raw, site)
             if url in urls or url == site.basepath or any(url == p or url.startswith(p + "/") for p in site.generated_prefixes):
                 continue
-            if url in site.redirects:
-                yield Finding("redirected-link", WARNING, _relative(site, path), f"link hits a redirect, point it at {site.redirects[url]} instead: {raw}", _line_of(text, raw))
+            destination = site.redirect_for(url)
+            if destination:
+                yield Finding("redirected-link", WARNING, _relative(site, path), f"link hits a redirect, point it at {destination} instead: {raw}", _line_of(text, raw))
                 continue
             yield Finding("broken-internal-link", ERROR, _relative(site, path), f"no page publishes this URL: {raw}", _line_of(text, raw))
 
@@ -189,8 +195,11 @@ def check_assets(site: Site) -> Iterator[Finding]:
                     continue  # absolute asset URLs served by the platform; not checkable
                 if not resolved.exists():
                     yield Finding("missing-asset", ERROR, _relative(site, path), f"asset not found: {raw}", _line_of(text, raw))
-            elif not any((base.parent / target).resolve().exists() for base in bases):
-                yield Finding("missing-asset", ERROR, _relative(site, path), f"asset not found: {raw}", _line_of(text, raw))
+            else:
+                for base in sorted(bases):
+                    if not (base.parent / target).resolve().exists():
+                        where = "" if base == path else f" (included from {_relative(site, base)})"
+                        yield Finding("missing-asset", ERROR, _relative(site, path), f"asset not found: {raw}{where}", _line_of(text, raw))
 
 
 def check_changelogs(site: Site, changelog_dirs: Iterable[Path]) -> Iterator[Finding]:

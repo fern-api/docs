@@ -46,4 +46,5 @@ The run prints a note for every baseline line that no longer matches a finding.
 ## Limitations
 
 - Display-name slugs are derived with a local approximation of Fern's rules (`v3 (Deprecated)` -> `v-3-deprecated`, `GitLab` -> `git-lab`). Every URL in the current navigation was verified against the live site, but an unusual new name could be mis-derived and produce a false `broken-internal-link`. Set an explicit `slug:` on the entry to remove the ambiguity.
+- `folder:` navigation entries and `ref:`-backed versions are not expanded into pages; links under their URL prefix are accepted without validation, like API references.
 - Only `/learn/...` paths and relative links are checked. Links to external hosts and query strings are not validated; live-link failures are covered by the scheduled `check-links.yml` workflow.
