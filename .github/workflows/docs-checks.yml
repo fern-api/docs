@@ -1,0 +1,118 @@
+name: Docs Checks
+
+# Static quality checks for the docs source tree (scripts/docs_check) plus
+# `fern check`. Runs on every PR that touches docs content and nightly on main;
+# the nightly run opens or updates a tracking issue when it fails.
+
+on:
+  pull_request:
+    paths:
+      - 'fern/**'
+      - 'scripts/docs_check/**'
+      - '.github/workflows/docs-checks.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'fern/**'
+      - 'scripts/docs_check/**'
+      - '.github/workflows/docs-checks.yml'
+  schedule:
+    - cron: '0 9 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      strict:
+        description: Fail on warnings as well as errors
+        type: boolean
+        default: false
+
+permissions: {}
+
+jobs:
+  static-checks:
+    name: Static docs checks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install pyyaml
+
+      - name: Unit tests
+        run: python3 -m unittest discover -s scripts/docs_check/tests -t .
+
+      - name: Run docs checks
+        env:
+          STRICT: ${{ inputs.strict && '--strict' || '' }}
+        run: python3 -m scripts.docs_check --json docs-check-report.json $STRICT
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: docs-check-report
+          path: docs-check-report.json
+          if-no-files-found: ignore
+
+  fern-check:
+    name: fern check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Fern CLI
+        uses: fern-api/setup-fern-cli@d07601425e9c9ede8745d71ca75c4c462d98755d # v1
+
+      - name: Validate docs configuration
+        working-directory: fern
+        run: |
+          set -o pipefail
+          fern check --warnings 2>&1 | tee fern-check.log
+          {
+            echo "## fern check"
+            echo
+            echo '```'
+            tail -n 40 fern-check.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  report-failure:
+    name: Open tracking issue
+    needs: [static-checks, fern-check]
+    if: always() && github.event_name == 'schedule' && contains(needs.*.result, 'failure')
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Create or update issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          STATIC_RESULT: ${{ needs.static-checks.result }}
+          FERN_RESULT: ${{ needs.fern-check.result }}
+        run: |
+          set -euo pipefail
+          title="Nightly docs checks failing"
+          body=$(printf 'The scheduled docs checks failed.\n\n- Static docs checks: **%s**\n- fern check: **%s**\n\nRun: %s\n\nThe job summary on the run lists every finding. Known issues are suppressed by `scripts/docs_check/baseline.txt`.' \
+            "$STATIC_RESULT" "$FERN_RESULT" "$RUN_URL")
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "in:title \"$title\"" --json number --jq '.[0].number')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body "$body"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --label docs-checks --body "$body" \
+              || gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "$body"
+          fi
