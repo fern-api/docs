@@ -12,6 +12,8 @@ on:
       - 'fern/**'
       - 'scripts/docs_check/**'
       - '.github/workflows/docs-checks.yml'
+      - '.github/lychee.toml'
+      - 'README.md'
   push:
     branches: [main]
     paths:
@@ -87,9 +89,11 @@ jobs:
           echo "count=$(wc -l < changed-files.txt | tr -d ' ')" >> "$GITHUB_OUTPUT"
           cat changed-files.txt
 
-      # Same config as the scheduled sweep in check-links.yml. Only http(s) links are
-      # checked here: internal /learn paths are covered by the static checks, and
-      # github.com links stay with the scheduled job, which rate-limits them properly.
+      # Same config as the scheduled sweep in check-links.yml. Only external http(s)
+      # links are checked here: root-relative /learn and /snippets paths resolve
+      # against the production origin and are then excluded (the static checks own
+      # them), and github.com links stay with the scheduled job, which rate-limits
+      # them properly.
       - name: Check external links
         if: steps.changed.outputs.count != '0'
         uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2
@@ -99,6 +103,8 @@ jobs:
             --no-progress
             --scheme https
             --scheme http
+            --base-url https://buildwithfern.com
+            --exclude '^https://buildwithfern\.com/(learn|snippets)(/|#|$)'
             --timeout 30
             --max-retries 3
             --retry-wait-time 5
