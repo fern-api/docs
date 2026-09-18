@@ -87,8 +87,19 @@ jobs:
             echo "page_links=" >> $GITHUB_OUTPUT
           fi
 
+      # Fetch every page the PR touches (or the whole site when navigation YAML changed)
+      # from the preview and fail on 404s, "Something went wrong" renders and broken images.
+      - name: Smoke test changed pages on the preview
+        if: steps.check-token.outputs.has_token == 'true' && steps.generate-docs.outputs.preview_url != ''
+        env:
+          PREVIEW_URL: ${{ steps.generate-docs.outputs.preview_url }}
+        run: |
+          pip install --quiet pyyaml
+          git diff --name-only --diff-filter=AM origin/main...HEAD -- 'fern/**' > changed-files.txt
+          python3 -m scripts.docs_check.smoke --base "$PREVIEW_URL" --changed-from changed-files.txt --workers 16
+
       - name: Create comment content
-        if: steps.check-token.outputs.has_token == 'true'
+        if: ${{ !cancelled() && steps.check-token.outputs.has_token == 'true' }}
         run: |
           echo ":herb: **Preview your docs:** <${STEPS_GENERATE_DOCS_OUTPUTS_PREVIEW_URL}>" > comment.md
           
@@ -102,7 +113,7 @@ jobs:
           STEPS_PAGE_LINKS_OUTPUTS_PAGE_LINKS: ${{ steps.page-links.outputs.page_links }}
 
       - name: Post PR comment
-        if: steps.check-token.outputs.has_token == 'true'
+        if: ${{ !cancelled() && steps.check-token.outputs.has_token == 'true' }}
         uses: thollander/actions-comment-pull-request@24bffb9b452ba05a4f3f77933840a6a841d1b32b # v3.0.1
         with:
           file-path: comment.md

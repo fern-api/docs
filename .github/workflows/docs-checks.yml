@@ -1,0 +1,202 @@
+name: Docs Checks
+
+# Quality checks for the docs, failing at the earliest stage that can catch a problem:
+# - static checks on the source tree (scripts/docs_check) plus `fern check`, on every PR and on main
+# - external links in the files a PR changes (lychee), on every PR
+# - a live smoke check of every published page on buildwithfern.com, on the weekday schedule
+# The scheduled run opens or updates a tracking issue when any job fails.
+
+on:
+  pull_request:
+    paths:
+      - 'fern/**'
+      - 'scripts/docs_check/**'
+      - '.github/workflows/docs-checks.yml'
+      - '.github/lychee.toml'
+  push:
+    branches: [main]
+    paths:
+      - 'fern/**'
+      - 'scripts/docs_check/**'
+      - '.github/workflows/docs-checks.yml'
+  schedule:
+    - cron: '0 9 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      strict:
+        description: Fail on warnings as well as errors
+        type: boolean
+        default: false
+
+permissions: {}
+
+jobs:
+  static-checks:
+    name: Static docs checks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install pyyaml
+
+      - name: Unit tests
+        run: python3 -m unittest discover -s scripts/docs_check/tests -t .
+
+      - name: Run docs checks
+        env:
+          STRICT: ${{ inputs.strict && '--strict' || '' }}
+        run: python3 -m scripts.docs_check --json docs-check-report.json $STRICT
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: docs-check-report
+          path: docs-check-report.json
+          if-no-files-found: ignore
+
+  external-links:
+    name: External links in changed files
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: List changed docs files
+        id: changed
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git diff --name-only --diff-filter=AM "$BASE_SHA"...HEAD -- 'fern/**/*.mdx' 'fern/**/*.yml' > changed-files.txt
+          # A config change still has to be parsed and applied by lychee: run it on a representative page.
+          if ! git diff --quiet "$BASE_SHA"...HEAD -- .github/lychee.toml; then
+            echo fern/products/docs/pages/getting-started/technical-evaluation.mdx >> changed-files.txt
+          fi
+          echo "count=$(wc -l < changed-files.txt | tr -d ' ')" >> "$GITHUB_OUTPUT"
+          cat changed-files.txt
+
+      # Same config as the scheduled sweep in check-links.yml. Only external http(s)
+      # links are checked here: root-relative /learn and /snippets paths resolve
+      # against the production origin and are then excluded (the static checks own
+      # them), and github.com links stay with the scheduled job, which rate-limits
+      # them properly.
+      - name: Check external links
+        if: steps.changed.outputs.count != '0'
+        uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2
+        with:
+          args: >-
+            --config .github/lychee.toml
+            --no-progress
+            --scheme https
+            --scheme http
+            --base-url https://buildwithfern.com
+            --exclude '^https://buildwithfern\.com/(learn|snippets)(/|#|$)'
+            --timeout 30
+            --max-retries 3
+            --retry-wait-time 5
+            --max-concurrency 16
+            --files-from changed-files.txt
+          fail: true
+
+  live-smoke:
+    name: Live smoke check (production)
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install pyyaml
+
+      - name: Fetch every published page
+        run: python3 -m scripts.docs_check.smoke --base https://buildwithfern.com --workers 16 --json smoke-report.json
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: smoke-report
+          path: smoke-report.json
+          if-no-files-found: ignore
+
+  fern-check:
+    name: fern check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Fern CLI
+        uses: fern-api/setup-fern-cli@d07601425e9c9ede8745d71ca75c4c462d98755d # v1
+
+      - name: Validate docs configuration
+        working-directory: fern
+        run: |
+          set -o pipefail
+          fern check --warnings 2>&1 | tee fern-check.log
+          {
+            echo "## fern check"
+            echo
+            echo '```'
+            tail -n 40 fern-check.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  report-failure:
+    name: Open tracking issue
+    needs: [static-checks, fern-check, live-smoke]
+    if: always() && github.event_name == 'schedule' && contains(needs.*.result, 'failure')
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Create or update issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          STATIC_RESULT: ${{ needs.static-checks.result }}
+          FERN_RESULT: ${{ needs.fern-check.result }}
+          SMOKE_RESULT: ${{ needs.live-smoke.result }}
+        run: |
+          set -euo pipefail
+          title="Nightly docs checks failing"
+          body=$(printf 'The scheduled docs checks failed.\n\n- Static docs checks: **%s**\n- fern check: **%s**\n- Live smoke check: **%s**\n\nRun: %s\n\nThe job summary on the run lists every finding. Known issues are suppressed by `scripts/docs_check/baseline.txt`.' \
+            "$STATIC_RESULT" "$FERN_RESULT" "$SMOKE_RESULT" "$RUN_URL")
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "in:title \"$title\"" --json number --jq '.[0].number')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body "$body"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --label docs-checks --body "$body" \
+              || gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "$body"
+          fi
