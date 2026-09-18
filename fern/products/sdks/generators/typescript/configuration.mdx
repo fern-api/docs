@@ -214,7 +214,7 @@ Subpackage exports are also documented in the generated `README.md` when this op
 </ParamField>
 
 <ParamField path="guardProcessEnvAccess" type="boolean" default="false" toc={true}>
-Wraps credential environment variable reads in the generated auth providers (API key, bearer, basic, and OAuth) in a `typeof process !== "undefined"` check. Enable this when the SDK runs in browsers, Cloudflare Workers, Deno, or other runtimes without a Node `process` global; otherwise `process.env` reads throw a `ReferenceError` when a credential isn't passed to the client. Node.js behavior is unchanged.
+Wraps environment variable reads for credentials in the generated auth providers (API key, bearer, basic, and OAuth) and for the [base URL](/learn/api-definitions/ferndef/api-yml/environments#base-url-from-an-environment-variable) (`base-url-env`) in a `typeof process !== "undefined"` check. Enable this when the SDK runs in browsers, Cloudflare Workers, Deno, or other runtimes without a Node `process` global; otherwise `process.env` reads throw a `ReferenceError` when a credential isn't passed to the client. Node.js behavior is unchanged.
 
 ```yml title="generators.yml"
 groups:
@@ -546,6 +546,8 @@ const client = new AcmeClient({ baseUrl: "https://api.acme.com" });
 ```
 
 Enable this for APIs with no named environments, or when callers point the SDK at an arbitrary host. The option is ignored for APIs with [multiple base URLs](/learn/sdks/deep-dives/server-url-templating), whose clients resolve each URL from `environment`.
+
+When `baseUrl` is optional, the client (and any sub-client constructed standalone) resolves the base URL in this order: `baseUrl`, `environment`, the environment variable named by [`base-url-env`](/learn/api-definitions/ferndef/api-yml/environments#base-url-from-an-environment-variable) in your API definition, then the default environment.
 </ParamField>
 
 <ParamField path="respectOptionalRequestBody" type="boolean" default="false" toc={true}>
