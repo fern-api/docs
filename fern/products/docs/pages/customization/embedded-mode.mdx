@@ -29,6 +29,22 @@ Add the `embedded=true` query parameter to the URL:
 
 Embedded mode persists across navigation within a session, so internal links keep it active without the query string on every URL.
 
+## Allow third-party origins to frame your docs
+
+By default, Fern sets a `Content-Security-Policy: frame-ancestors 'self' https://*.buildwithfern.com` header on every page, which prevents third-party sites from embedding your docs in an iframe. The `?embedded=true` mode omits `frame-ancestors` entirely, allowing any origin to frame the page.
+
+To allow specific third-party origins to frame your docs without using `?embedded=true`, add them to `settings.iframe.allowed-parent-origins` in `docs.yml`:
+
+```yaml docs.yml
+settings:
+  iframe:
+    allowed-parent-origins:
+      - https://app.trumpet.app
+      - https://*.example.com
+```
+
+Each entry must be a valid CSP host source (`scheme://host[:port]`). Wildcards on the host label (`https://*.example.com`) are supported; bare `*`, keyword sources, and scheme-only values are rejected. The configured origins are appended to the default `frame-ancestors`, so `'self'` and `https://*.buildwithfern.com` remain in place.
+
 ## Embed external pages
 
 [Embedding external pages in your docs](/learn/docs/writing-content/markdown-media#embed-external-sites) uses the same `<iframe>` syntax, without `?embedded=true`.
