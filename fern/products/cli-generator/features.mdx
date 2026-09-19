@@ -48,7 +48,7 @@ Failed requests are retried automatically with exponential backoff on status cod
 | Backoff factor | 2x |
 | Jitter | 10% |
 
-GET, HEAD, OPTIONS, DELETE, and PUT retry by default. POST and PATCH retry only when the operation declares server-side idempotency support with [`x-fern-idempotent: true`](/learn/api-definitions/openapi/extensions/idempotency), which also exposes an `--idempotency-key` flag on that command, or when the caller passes `--idempotency-key` explicitly. Pass `--no-retry` to disable retries for a single invocation.
+GET, HEAD, OPTIONS, DELETE, and PUT retry by default. POST and PATCH retry only when the operation declares server-side idempotency support with [`x-fern-idempotent: true`](/learn/api-definitions/openapi/extensions/idempotency), which also exposes an `--idempotency-key` flag on that command, or when the caller passes `--idempotency-key` explicitly. Pass `--no-retry` to disable retries for a single invocation, or `--retries <N>` to set the number of retries after the first attempt (`--retries 0` equals `--no-retry`). The limit resolves as `--retries` → `<PREFIX>_RETRIES` → [profile](/learn/cli-generator/get-started/authentication#named-profiles) → `x-fern-retries`.
 
 An `Idempotency-Key` header is generated automatically for POST, PUT, and PATCH requests unless the invocation carries its own `--idempotency-key` or the operation opts out with `x-fern-cli-idempotency: false`. The same generated key is sent on every attempt of a request, but the key alone doesn't make a request retry-eligible.
 
@@ -151,7 +151,7 @@ contoso plants list --schema
 }
 ```
 
-`input.properties` is keyed by the spec's parameter names, and each property's `flag` gives the exact flag to pass. Properties without a `flag` are passed through `--params` or `--json`. Operations that support [`--page-all`](#pagination), return binary bodies, or stream also report `paginable`, `binaryResponse`, or `streaming`.
+`input.properties` is keyed by the spec's parameter names, and each property's `flag` gives the exact flag to pass. Properties without a `flag` are passed through `--params` or `--json`. Operations that support [`--page-all`](#pagination), return binary bodies, or stream also report `paginable`, `binaryResponse`, or `streaming`. The root schema lists the CLI's built-in command groups (`auth`, `completion`, `man`, and `profiles` when [enabled](/learn/cli-generator/get-started/authentication#named-profiles)) under `builtinCommands`, separate from the spec-derived operations.
 
 ## Server URL variables
 
@@ -165,6 +165,8 @@ bigcommerce --store-hash abc123 v3 customers list
 export BIGCOMMERCE_STORE_HASH=abc123
 bigcommerce v3 customers list
 ```
+
+The environment variable is `<PREFIX>_<VARIABLE>`, where `<PREFIX>` is the binary name uppercased with `-` replaced by `_`. Variables declared with `x-fern-sdk-variables` use their bare name instead (`gardenId` reads `GARDEN_ID`). A [named profile](/learn/cli-generator/get-started/authentication#named-profiles) can also store the variable; the flag wins over the environment variable, which wins over the profile.
 
 ## File uploads and downloads
 

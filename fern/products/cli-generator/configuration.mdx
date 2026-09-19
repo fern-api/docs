@@ -97,6 +97,32 @@ config:
 ```
 </ParamField>
 
+<ParamField path="profiles" type="object" toc={true} required={false}>
+Adds [named profiles](/learn/cli-generator/get-started/authentication#named-profiles) to the generated CLI: a top-level `profiles` subcommand group, a global `--profile` / `-p` flag, and a `<binaryName>_PROFILE` environment variable. A profile stores a tenant's credential, parameter defaults, server URL variables, base URL, retry limit, and default output format once, so users of multi-tenant APIs don't pass an account identifier on every command.
+
+Off by default. A CLI generated without this block is byte-identical to one generated before the option existed, and a `profiles` block with `enabled` unset or `false` is a no-op.
+
+```yaml title="generators.yml"
+config:
+  binaryName: acme
+  profiles:
+    enabled: true
+```
+</ParamField>
+<Indent>
+<ParamField path="profiles.enabled" type="boolean" default="false" required={false}>
+Emits the profiles surface. Enabling it adds a top-level subcommand group and a global flag to an existing CLI, which is a surface change for its users.
+</ParamField>
+
+<ParamField path="profiles.commandName" type="string" default="profiles" required={false}>
+Name of the top-level subcommand group. Must start with a lowercase letter and contain only `[a-z0-9-]`, and can't be one of the built-in groups (`auth`, `completion`, `man`, `errors`, `generate-skills`, `help`). Rename it (for example, to `tenants` or `accounts`) when that reads better for your API. If your spec already declares a `profiles` resource, the built-in subcommands are folded into that group rather than colliding with it, so renaming is optional.
+</ParamField>
+
+<ParamField path="profiles.revokeOperation" type="string" required={false}>
+Dotted command path of an operation that revokes a profile's remote credential, such as `iam.keys.remove`. When set, `profiles remove` gains a `--revoke` flag that calls the operation before deleting the profile locally. The operation is invoked with the profile's stored parameters as its arguments, so any parameter it requires must be set on the profile. When omitted, the flag isn't registered.
+</ParamField>
+</Indent>
+
 <ParamField path="packageIdentity" type="object" toc={true} required={false}>
 Sets the Cargo `[package]` metadata of the generated crate. Use `packageIdentity` to publish the crate under your own name, license, repository, and authors instead of Fern's.
 

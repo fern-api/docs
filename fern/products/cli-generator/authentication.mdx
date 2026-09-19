@@ -198,6 +198,60 @@ export MY_TOKEN=tok-456
 my-cli users list
 ```
 
+## Named profiles
+
+For APIs where every call carries a tenant identifier (an account SID, an org slug, a workspace), a profile stores it once instead of it being typed on every command. A profile is a named bundle of request context resolved once per invocation: a credential, parameter defaults, [server URL variables](/learn/cli-generator/get-started/features#server-url-variables), an optional base URL, a [retry limit](/learn/cli-generator/get-started/features#retries-with-backoff), and a default output format. Nothing else is accepted; an unknown key is rejected at write time rather than stored and ignored.
+
+Profiles are off by default. Enable them with the [`profiles` config option](/learn/cli-generator/get-started/configuration#config-options) in `generators.yml`, which adds a `profiles` command group and a global `--profile` / `-p` flag to the generated CLI. A CLI generated without the option is unchanged.
+
+```yaml title="generators.yml"
+config:
+  binaryName: acme
+  profiles:
+    enabled: true
+```
+
+### Manage profiles
+
+```bash
+acme profiles create prod --set AccountSid=AC11… --with-token   # token read from stdin, stored in the OS keychain
+acme profiles create sub --parent prod --set AccountSid=AC99…   # subaccount that shares prod's credential
+acme profiles set prod ACME_REGION=us1 ACME_RETRIES=3           # add or change values by env var name
+acme profiles use sub                                           # make it the active profile
+
+acme messages list             # no --account-sid needed
+acme messages list -p prod     # one command against another tenant; the active profile is unchanged
+
+acme profiles list             # every profile, with the active one marked
+acme profiles current          # the profile in effect and how it was selected
+acme profiles show staging     # one profile's resolved config without selecting it
+acme profiles remove sub       # also deletes that profile's stored credential
+```
+
+`profiles create` accepts `--set <name>=<value>` for API parameters (validated against the spec, so a typo is rejected), `--server-var <name>=<value>` or `--<name> <value>` for server URL variables, `--base-url`, `--retries <N>`, `--default-format`, `--parent <name>`, and `--with-token` to read a credential from stdin. When several auth schemes are declared, `--scheme` names the one the credential belongs to.
+
+`profiles set <name> KEY=VALUE ...` takes any environment variable the CLI reads (a credential such as `ACME_AUTH_TOKEN`, or a setting such as `ACME_RETRIES`, `ACME_BASE_URL`, `ACME_OUTPUT`, or `ACME_<SERVER_VAR>`) or an API parameter by its spec name, and creates the profile if it doesn't exist. Keys are validated before anything is written, and an unrecognized key fails with a suggestion. `auth login --from-env` captures the credential from the CLI's own environment variables into the active profile.
+
+### Select a profile
+
+A profile is selected by, in order, `--profile` / `-p`, the `<PREFIX>_PROFILE` environment variable, then the profile marked active by `profiles use`, where `<PREFIX>` is the binary name uppercased with `-` replaced by `_`. With no profile selected, the CLI behaves as if the feature were absent. A named profile that doesn't exist is an error rather than a fallthrough to environment credentials, so a command never silently runs against the wrong tenant. The `profiles` group itself always runs unprofiled, so a stale active pointer can be repaired.
+
+Scripts and agents should pass `-p` per invocation: it mutates no global state, so parallel invocations can't race.
+
+```bash
+for tenant in prod sub; do acme messages list -p "$tenant" --format json; done
+```
+
+### Precedence
+
+Each value resolves as `explicit flag → environment variable → profile → spec default`. Environment variables sit above the active profile, so a CI pipeline that exports `ACME_API_KEY` or `ACME_BASE_URL` is never overridden by a profile a developer stored on the same machine. A profile named explicitly with `-p` is itself an explicit choice for that invocation, so its values outrank the environment. Retries resolve as `--retries` → `<PREFIX>_RETRIES` → profile → `x-fern-retries`, and `--retries 0` is equivalent to `--no-retry`. `profiles current` reports when an environment variable is overriding a stored credential.
+
+### Storage and inheritance
+
+Non-secret settings live in `~/.config/<bin>/profiles.toml`. Secrets are never written to that file: credentials go to the OS keychain under a profile-scoped account, the same store `auth login` uses.
+
+`--parent <name>` sets single-level inheritance. A child inherits its parent's credential, base URL, server variables, parameter defaults (child wins per key), and retries. It doesn't inherit the default output format, since output shape belongs to the invocation rather than the tenant. Because the parent is resolved at read time, editing it propagates to its children.
+
 ## Help output
 
 Every generated CLI includes a dynamically rendered `Authentication:` section in its `--help` output listing every scheme, the expected env var or flag, and whether a credential is detected.
