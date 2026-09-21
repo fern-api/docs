@@ -254,6 +254,8 @@ class SmokeTest(unittest.TestCase):
             "https://x.test/learn/code-title": (200, "<h1>Using <code>&lt;Button&gt;</code></h1>"),
             "https://x.test/learn/badge-title": (200, '<h1><p>Library docs <span class="badge">Beta</span></p></h1>'),
             "https://x.test/learn/escaped-title": (200, "<h1>Using &lt;Callout&gt;</h1>"),
+            "https://x.test/learn/moved": (200, "<h1>Home</h1>", "https://x.test/learn/moved/home"),
+            "https://x.test/learn/slashed": (200, "<h1>Home</h1>", "https://x.test/learn/slashed/"),
         }
         titles = {
             "/learn/titled": "The `llms.txt` & friends",
@@ -262,16 +264,28 @@ class SmokeTest(unittest.TestCase):
             "/learn/badge-title": 'Library docs <Badge type="note">Beta</Badge>',
             "/learn/escaped-title": r"Using \<Callout\>",
         }
-        with unittest.mock.patch.object(smoke, "fetch", lambda url, timeout: pages.get(url, (0, "boom"))):
-            failures = smoke.run("https://x.test", ["/learn/ok", "/learn/broken-img", "/learn/error", "/learn/gone", "/learn/down", "/learn/titled", "/learn/wrong-page", "/learn/code-title", "/learn/badge-title", "/learn/escaped-title"], 1, 0, 2, titles)
+        def fake_fetch(url, timeout):
+            status, body, *final = pages.get(url, (0, "boom"))
+            return status, body, final[0] if final else url
+
+        with unittest.mock.patch.object(smoke, "fetch", fake_fetch):
+            failures = smoke.run(
+                "https://x.test",
+                ["/learn/ok", "/learn/broken-img", "/learn/error", "/learn/gone", "/learn/down", "/learn/titled", "/learn/wrong-page", "/learn/code-title", "/learn/badge-title", "/learn/escaped-title", "/learn/moved", "/learn/slashed"],
+                1,
+                0,
+                2,
+                titles,
+            )
         self.assertEqual(
-            [(f.url, f.message) for f in failures],
+            [(f.url, f.message, f.warning) for f in failures],
             [
-                ("/learn/broken-img", "image returns HTTP 404: https://cdn.test/missing.png"),
-                ("/learn/down", "request failed: boom"),
-                ("/learn/error", "page renders an error: 'Something went wrong'"),
-                ("/learn/gone", "HTTP 404"),
-                ("/learn/wrong-page", "heading 'welcome' does not match title 'Configuration'"),
+                ("/learn/broken-img", "image returns HTTP 404: https://cdn.test/missing.png", False),
+                ("/learn/down", "request failed: boom", False),
+                ("/learn/error", "page renders an error: 'Something went wrong'", False),
+                ("/learn/gone", "HTTP 404", False),
+                ("/learn/wrong-page", "heading 'welcome' does not match title 'Configuration'", False),
+                ("/learn/moved", "navigation URL redirects to /learn/moved/home; the site model and the live site disagree", True),
             ],
         )
 

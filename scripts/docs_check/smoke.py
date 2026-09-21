@@ -44,30 +44,37 @@ NAVIGATION_SUFFIXES = (".yml", ".yaml")
 class Failure:
     url: str
     message: str
+    warning: bool = False
 
 
-def fetch(url: str, timeout: float) -> tuple[int, str]:
-    """Follow redirects; return final status and body (``0`` on a network error)."""
+def fetch(url: str, timeout: float) -> tuple[int, str, str]:
+    """Follow redirects; return final status, body (``0`` and the error on a network error) and final URL."""
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
-            return response.status, response.read().decode("utf-8", errors="replace")
+            return response.status, response.read().decode("utf-8", errors="replace"), response.geturl()
     except urllib.error.HTTPError as exc:
-        return exc.code, ""
+        return exc.code, "", exc.geturl() or url
     except (urllib.error.URLError, TimeoutError, OSError) as exc:
-        return 0, str(exc)
+        return 0, str(exc), url
 
 
-def fetch_with_retry(url: str, timeout: float, retries: int) -> tuple[int, str]:
+def fetch_with_retry(url: str, timeout: float, retries: int) -> tuple[int, str, str]:
     """Retry 404, 5xx and network errors; a fresh deploy can take a moment to propagate."""
-    status, body = 0, ""
+    status, body, final = 0, "", url
     for attempt in range(retries + 1):
-        status, body = fetch(url, timeout)
+        status, body, final = fetch(url, timeout)
         if status and status < 500 and status != 404:
-            return status, body
+            return status, body, final
         if attempt < retries:
             time.sleep(2**attempt)
-    return status, body
+    return status, body, final
+
+
+def redirected(requested: str, final: str) -> bool:
+    """True when the server sent the request somewhere else (ignoring scheme, host case and a trailing slash)."""
+    normalize = lambda u: urlsplit(u).path.rstrip("/") or "/"
+    return normalize(requested) != normalize(final)
 
 
 def page_images(base: str, page_url: str, html: str) -> set[str]:
@@ -95,10 +102,12 @@ def rendered_title(html: str) -> str | None:
 
 
 def check_page(base: str, page_url: str, timeout: float, retries: int, image_cache: dict[str, int], title: str | None = None) -> list[Failure]:
-    status, html = fetch_with_retry(base + page_url, timeout, retries)
+    status, html, final = fetch_with_retry(base + page_url, timeout, retries)
     if status != 200:
         return [Failure(page_url, f"HTTP {status}" if status else f"request failed: {html}")]
     failures = [Failure(page_url, f"page renders an error: {marker!r}") for marker in ERROR_MARKERS if marker in html]
+    if redirected(base + page_url, final):
+        failures.append(Failure(page_url, f"navigation URL redirects to {urlsplit(final).path}; the site model and the live site disagree", warning=True))
     if title is not None:
         heading = rendered_title(html)
         if heading != source_title(title):
@@ -140,7 +149,7 @@ def run(base: str, urls: list[str], timeout: float, retries: int, workers: int, 
     titles = titles or {}
     with ThreadPoolExecutor(max_workers=workers) as pool:
         results = pool.map(lambda url: check_page(base, url, timeout, retries, image_cache, titles.get(url)), urls)
-    return sorted({failure for batch in results for failure in batch}, key=lambda f: (f.url, f.message))
+    return sorted({failure for batch in results for failure in batch}, key=lambda f: (f.warning, f.url, f.message))
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -173,18 +182,24 @@ def main(argv: list[str] | None = None) -> int:
     print(f"checking {len(urls)} pages on {base}")
     failures = run(base, urls, args.timeout, args.retries, args.workers, page_titles(site))
 
+    warnings = [f for f in failures if f.warning]
+    failures = [f for f in failures if not f.warning]
+
     github = os.environ.get("GITHUB_ACTIONS")
     for failure in failures:
         print(f"::error title=smoke::{failure.url}: {failure.message}" if github else f"FAIL {failure.url}: {failure.message}")
-    print(f"\n{len(failures)} failures across {len(urls)} pages")
+    for warning in warnings:
+        print(f"::warning title=smoke::{warning.url}: {warning.message}" if github else f"WARN {warning.url}: {warning.message}")
+    print(f"\n{len(failures)} failures, {len(warnings)} warnings across {len(urls)} pages")
 
     summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary_path:
         with open(summary_path, "a", encoding="utf-8") as handle:
-            handle.write(f"## Live smoke check ({base})\n\n**{len(failures)} failures** across {len(urls)} pages.\n\n")
-            handle.writelines(f"- `{f.url}` — {f.message}\n" for f in failures[:200])
+            handle.write(f"## Live smoke check ({base})\n\n**{len(failures)} failures**, {len(warnings)} warnings across {len(urls)} pages.\n\n")
+            handle.writelines(f"- `{f.url}` — {f.message}\n" for f in (failures + warnings)[:200])
     if args.json:
-        args.json.write_text(json.dumps({"base": base, "pages": len(urls), "failures": [f.__dict__ for f in failures]}, indent=2), encoding="utf-8")
+        report = {"base": base, "pages": len(urls), "failures": [f.__dict__ for f in failures], "warnings": [f.__dict__ for f in warnings]}
+        args.json.write_text(json.dumps(report, indent=2), encoding="utf-8")
     return 1 if failures else 0
 
 
