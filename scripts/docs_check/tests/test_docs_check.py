@@ -417,6 +417,14 @@ class ExamplesTest(unittest.TestCase):
         self.assertEqual(self.validate("bogus: 1\nother: 2"), ["(top level): no docs.yml object declares the key(s) bogus, other"])
         self.assertEqual(self.validate("groups:\n\tbad: 1")[0][:15], "not valid YAML:")
 
+    def test_baseline_consumes_one_occurrence_per_line(self):
+        known = examples.Finding("fern/p.mdx", 10, "docs.yml", "navigation/0: bad")
+        repeat = examples.Finding("fern/p.mdx", 40, "docs.yml", "navigation/0: bad")
+        baseline = Counter([examples.baseline_key(known), "fern/gone.mdx [docs.yml] fixed"])
+        active, stale = examples.apply_baseline([known, repeat], baseline)
+        self.assertEqual(active, [repeat])
+        self.assertEqual(stale, ["fern/gone.mdx [docs.yml] fixed"])
+
 
 class ChecksTest(unittest.TestCase):
     def setUp(self):

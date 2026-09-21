@@ -24,6 +24,7 @@ import os
 import re
 import sys
 import urllib.request
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -172,10 +173,24 @@ def validate_example(example: Example, schema: dict) -> list[str]:
     return messages
 
 
-def load_baseline(path: Path) -> set[str]:
+def load_baseline(path: Path) -> Counter[str]:
+    """One line per known finding; a repeated line suppresses that many occurrences."""
     if not path.is_file():
-        return set()
-    return {line.strip() for line in path.read_text(encoding="utf-8").splitlines() if line.strip() and not line.startswith("#")}
+        return Counter()
+    return Counter(line.strip() for line in path.read_text(encoding="utf-8").splitlines() if line.strip() and not line.startswith("#"))
+
+
+def apply_baseline(findings: list[Finding], baseline: Counter[str]) -> tuple[list[Finding], list[str]]:
+    """Each baseline line consumes one matching finding, so a new copy of a known error still fails; returns (active, stale keys)."""
+    remaining = Counter(baseline)
+    active: list[Finding] = []
+    for finding in findings:
+        key = baseline_key(finding)
+        if remaining[key] > 0:
+            remaining[key] -= 1
+        else:
+            active.append(finding)
+    return active, sorted(remaining.elements())
 
 
 def baseline_key(finding: Finding) -> str:
@@ -210,12 +225,11 @@ def main(argv: list[str] | None = None) -> int:
     if args.write_baseline:
         args.baseline.write_text(
             "# Known invalid docs.yml/generators.yml examples suppressed by docs_check.examples. One '<path> [<kind>] <message>' per line.\n"
-            "# Remove a line once the example is fixed; regenerate with --write-baseline.\n" + "".join(f"{key}\n" for key in dict.fromkeys(baseline_key(f) for f in all_findings)),
+            "# Remove a line once the example is fixed; regenerate with --write-baseline.\n" + "".join(f"{baseline_key(f)}\n" for f in all_findings),
             encoding="utf-8",
         )
     baseline = load_baseline(args.baseline)
-    findings = [f for f in all_findings if baseline_key(f) not in baseline]
-    stale = sorted(baseline - {baseline_key(f) for f in all_findings})
+    findings, stale = apply_baseline(all_findings, baseline)
     for key in stale:
         print(f"note: baseline entry no longer reported, remove it: {key}")
 
