@@ -98,6 +98,18 @@ jobs:
           git diff --name-only --diff-filter=AM origin/main...HEAD -- 'fern/**' > changed-files.txt
           python3 -m scripts.docs_check.smoke --base "$PREVIEW_URL" --changed-from changed-files.txt --workers 16
 
+      # Open the same pages in headless Chromium and fail on uncaught JS errors,
+      # console.error output and failed same-origin requests: client-side component
+      # crashes that server-rendered HTML hides.
+      - name: Check browser console on changed pages
+        if: steps.check-token.outputs.has_token == 'true' && steps.generate-docs.outputs.preview_url != ''
+        env:
+          PREVIEW_URL: ${{ steps.generate-docs.outputs.preview_url }}
+        run: |
+          pip install --quiet playwright
+          python3 -m playwright install --with-deps chromium
+          python3 -m scripts.docs_check.console_smoke --base "$PREVIEW_URL" --changed-from changed-files.txt
+
       - name: Create comment content
         if: ${{ !cancelled() && steps.check-token.outputs.has_token == 'true' }}
         run: |

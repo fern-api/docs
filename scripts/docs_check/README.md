@@ -19,7 +19,7 @@ Inside GitHub Actions the output switches to workflow annotations and the covera
 |---|---|---|
 | Pull request, source | `docs-checks.yml` | Unit tests, the static checks, `fern check` |
 | Pull request, external links | `docs-checks.yml` | lychee over the http(s) links in changed files, with the shared `.github/lychee.toml` |
-| Pull request, rendered preview | `preview-docs.yml` | `smoke.py` against the preview for every page the PR touches |
+| Pull request, rendered preview | `preview-docs.yml` | `smoke.py` and `console_smoke.py` against the preview for every page the PR touches |
 | Push to `main` | `publish-docs.yml` | `smoke.py` against buildwithfern.com for every derived URL after `fern generate` |
 | Weekday schedule | `docs-checks.yml`, `check-links.yml` | Full static run, full production smoke run, search smoke run, full external link sweep; failures open a tracking issue |
 
@@ -69,6 +69,15 @@ python3 -m scripts.docs_check.smoke --changed-from changed-files.txt --json smok
 ```
 
 `--changed` maps each edited page to its URL and each edited snippet to every page that includes it; an edited navigation YAML widens the run to the whole site. 404 and 5xx responses are retried with backoff so a deploy that is still propagating does not fail the run.
+
+## Browser console check
+
+`console_smoke.py` opens pages in headless Chromium (Playwright) and fails on uncaught JavaScript errors, `console.error` output, and failed or 4xx/5xx same-origin requests. It catches components that render on the server but crash on the client, which `smoke.py` cannot see. Third-party analytics and blocked-tracker noise is ignored. `preview-docs.yml` runs it on the changed pages of every PR (capped at 40 pages).
+
+```bash
+pip install playwright && python3 -m playwright install chromium
+python3 -m scripts.docs_check.console_smoke --base https://<preview-host> --changed-from changed-files.txt
+```
 
 ## Search smoke check
 

@@ -276,6 +276,42 @@ class SmokeTest(unittest.TestCase):
         )
 
 
+class ConsoleSmokeTest(unittest.TestCase):
+    def test_check_page_collects_errors(self):
+        try:
+            from playwright.sync_api import sync_playwright
+        except ImportError:  # optional dependency, installed in the preview workflow only
+            self.skipTest("playwright not installed")
+        from scripts.docs_check import console_smoke
+
+        html = "<html><body><script>console.error('boom'); fetch('/learn/missing.js'); throw new Error('kaboom')</script></body></html>"
+        try:
+            with sync_playwright() as playwright:
+                browser = playwright.chromium.launch()
+        except Exception as exc:  # browser binaries not installed
+            self.skipTest(f"chromium unavailable: {exc}")
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            context = browser.new_context()
+            page = context.new_page()
+            context.route("https://docs.test/learn/ok", lambda route: route.fulfill(status=200, content_type="text/html", body="<html><body>fine</body></html>"))
+            context.route("https://docs.test/learn/bad", lambda route: route.fulfill(status=200, content_type="text/html", body=html))
+            context.route("https://docs.test/learn/missing.js", lambda route: route.fulfill(status=404, body=""))
+            self.assertEqual(console_smoke.check_page(page, "https://docs.test", "/learn/ok", 10000), [])
+            messages = [f.message for f in console_smoke.check_page(context.new_page(), "https://docs.test", "/learn/bad", 10000)]
+            browser.close()
+        self.assertIn("console.error: boom", messages)
+        self.assertIn("uncaught error: kaboom", messages)
+        self.assertIn("HTTP 404: https://docs.test/learn/missing.js", messages)
+
+    def test_ignores_third_party_noise(self):
+        from scripts.docs_check import console_smoke
+
+        self.assertTrue(console_smoke._ignored("Failed to load resource: net::ERR_BLOCKED_BY_CLIENT"))
+        self.assertTrue(console_smoke._ignored("", "https://cdn.segment.com/analytics.js"))
+        self.assertFalse(console_smoke._ignored("TypeError: x is undefined", "https://docs.test/learn/page"))
+
+
 class SearchSmokeTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
