@@ -9,7 +9,7 @@ import unittest.mock
 from collections import Counter
 from pathlib import Path
 
-from scripts.docs_check import checks, smoke
+from scripts.docs_check import checks, search_smoke, smoke
 from scripts.docs_check.__main__ import CHANGELOG_DIRS, apply_baseline, run_checks
 from scripts.docs_check.site import load_site, slugify
 
@@ -274,6 +274,47 @@ class SmokeTest(unittest.TestCase):
                 ("/learn/wrong-page", "heading 'welcome' does not match title 'Configuration'"),
             ],
         )
+
+
+class SearchSmokeTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        fern = make_site(Path(self.tmp.name))
+        write(fern, "products/docs/pages/guide/secret.mdx", "---\ntitle: Secret\nnoindex: true\ndescription: d\n---\n" + "word " * 50)
+        write(fern, "products/docs/pages/guide/react2.mdx", "---\ntitle: React\nslug: react-two\ndescription: d\n---\n" + "word " * 50)
+        (fern / "products/docs/docs.yml").write_text(
+            (fern / "products/docs/docs.yml").read_text() + "          - page: Secret\n            path: ./pages/guide/secret.mdx\n          - page: React two\n            path: ./pages/guide/react2.mdx\n"
+        )
+        self.site = load_site(fern)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_sample_skips_noindex_hidden_and_ambiguous_titles(self):
+        titles = {title for title, _ in search_smoke.sample_pages(self.site, 100)}
+        self.assertNotIn("secret", titles)  # noindex
+        self.assertNotIn("hidden", titles)
+        self.assertNotIn("react", titles)  # two pages share the title
+        self.assertIn("gitlab", titles)
+        self.assertEqual(search_smoke.sample_pages(self.site, 3), search_smoke.sample_pages(self.site, 3))
+        self.assertNotEqual(search_smoke.sample_pages(self.site, 3), search_smoke.sample_pages(self.site, 3, salt="x"))
+
+    def test_run_reports_missing_pages(self):
+        index = {"generators.yml": ["/learn/sdks/reference/generators-yml"], "gitlab": ["/learn/docs/a", "/learn/docs/guide/git-lab"]}
+
+        def fake_search(key, query, top, timeout):
+            return [{"pathname": p, "title": ""} for p in index.get(query, [])][:top]
+
+        with unittest.mock.patch.object(search_smoke, "fetch_key", lambda *a: {"appId": "x", "apiKey": "y", "indexName": "z"}), unittest.mock.patch.object(
+            search_smoke, "search", fake_search
+        ), unittest.mock.patch.object(search_smoke, "GOLDEN", {"generators.yml": "/learn/sdks/reference/generators-yml", "docs.yml": "/learn/docs/x"}):
+            failures, total = search_smoke.run("https://example.com", self.site, top=5, sample=100, timeout=1)
+        by_query = {f.query: f.message for f in failures}
+        self.assertNotIn("generators.yml", by_query)
+        self.assertNotIn("gitlab", by_query)
+        self.assertIn("expected /learn/docs/x in top 5, got: no hits", by_query["docs.yml"])
+        self.assertIn("overview", by_query)  # sampled page absent from the fake index
+        self.assertGreater(total, 2)
 
 
 class ChecksTest(unittest.TestCase):

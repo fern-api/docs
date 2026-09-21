@@ -21,7 +21,7 @@ Inside GitHub Actions the output switches to workflow annotations and the covera
 | Pull request, external links | `docs-checks.yml` | lychee over the http(s) links in changed files, with the shared `.github/lychee.toml` |
 | Pull request, rendered preview | `preview-docs.yml` | `smoke.py` against the preview for every page the PR touches |
 | Push to `main` | `publish-docs.yml` | `smoke.py` against buildwithfern.com for every derived URL after `fern generate` |
-| Weekday schedule | `docs-checks.yml`, `check-links.yml` | Full static run, full production smoke run, full external link sweep; failures open a tracking issue |
+| Weekday schedule | `docs-checks.yml`, `check-links.yml` | Full static run, full production smoke run, search smoke run, full external link sweep; failures open a tracking issue |
 
 ## Checks
 
@@ -69,6 +69,15 @@ python3 -m scripts.docs_check.smoke --changed-from changed-files.txt --json smok
 ```
 
 `--changed` maps each edited page to its URL and each edited snippet to every page that includes it; an edited navigation YAML widens the run to the whole site. 404 and 5xx responses are retried with backoff so a deploy that is still propagating does not fail the run.
+
+## Search smoke check
+
+`search_smoke.py` queries the production search index the way the browser does (scoped public key from `/learn/api/fern-docs/search/v2/key`, then Algolia) and fails when an expected page is not discoverable. Two kinds of query run: fixed golden queries (`generators.yml`, `docs.yml`, `openapi`, ...) whose page must rank in the top 5, and a salted sample of published pages that must rank in the top 10 for their own title. Hidden pages, `noindex` pages and titles shared by several pages are excluded from the sample. The weekday job salts the sample with the run id so the whole site is covered over time.
+
+```bash
+python3 -m scripts.docs_check.search_smoke                # 10 golden + 25 sampled pages on buildwithfern.com
+python3 -m scripts.docs_check.search_smoke --sample 80 --salt today
+```
 
 ## Limitations
 

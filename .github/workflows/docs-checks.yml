@@ -147,6 +147,21 @@ jobs:
           path: smoke-report.json
           if-no-files-found: ignore
 
+      # Search uses the same public, scoped key the browser fetches; the day salt
+      # rotates the sampled pages so the whole site is covered over a few weeks.
+      - name: Check search returns expected pages
+        env:
+          SEARCH_SMOKE_SALT: ${{ github.run_id }}
+        run: python3 -m scripts.docs_check.search_smoke --base https://buildwithfern.com --json search-report.json
+
+      - name: Upload search report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: search-report
+          path: search-report.json
+          if-no-files-found: ignore
+
   fern-check:
     name: fern check
     runs-on: ubuntu-latest

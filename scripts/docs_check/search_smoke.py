@@ -15,6 +15,7 @@ Run with ``python3 -m scripts.docs_check.search_smoke``.
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 import hashlib
 import json
 import os
@@ -26,7 +27,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 from .site import Site, load_site
-from .smoke import DEFAULT_BASE, DEFAULT_FERN_DIR, USER_AGENT, normalize_title, source_title
+from .smoke import DEFAULT_BASE, DEFAULT_FERN_DIR, USER_AGENT, source_title
 
 KEY_PATH = "/api/fern-docs/search/v2/key"
 
@@ -34,7 +35,7 @@ KEY_PATH = "/api/fern-docs/search/v2/key"
 GOLDEN: dict[str, str] = {
     "generators.yml": "/learn/sdks/reference/generators-yml",
     "docs.yml": "/learn/docs/configuration/site-level-settings",
-    "navigation": "/learn/docs/configuration/navigation",
+    "navigation": "/learn/docs/configuration/navigation-overview",
     "custom css": "/learn/docs/customization/custom-css-js",
     "openapi": "/learn/api-definitions/openapi/overview",
     "typescript sdk": "/learn/sdks/generators/typescript/quickstart",
@@ -98,19 +99,29 @@ def check_query(key: dict, query: str, expected: str, top: int, timeout: float) 
 
 
 def sample_pages(site: Site, count: int, salt: str = "") -> list[tuple[str, str]]:
-    """``count`` (title, url) pairs chosen by hashing the URL: stable across runs, spread across products."""
-    titled = [(str(page.frontmatter["title"]), page.url) for page in site.pages if page.frontmatter.get("title") and not page.hidden]
+    """``count`` (title, url) pairs chosen by hashing the URL: stable across runs, spread across products.
+
+    Skips hidden and ``noindex`` pages (not indexed) and titles shared by several pages (``Overview``,
+    ``Authentication``): a title query cannot single those out, so they would only produce noise.
+    """
+    candidates = [
+        (source_title(str(page.frontmatter["title"])), page.url)
+        for page in site.pages
+        if page.frontmatter.get("title") and not page.hidden and not page.frontmatter.get("noindex")
+    ]
+    title_counts = Counter(title for title, _ in candidates)
+    titled = [(title, url) for title, url in candidates if title_counts[title] == 1]
     ranked = sorted(titled, key=lambda item: hashlib.sha256((salt + item[1]).encode()).hexdigest())
     return ranked[:count]
 
 
-def run(base: str, site: Site, top: int, sample: int, timeout: float, salt: str = "") -> tuple[list[Failure], int]:
+def run(base: str, site: Site, top: int, sample: int, timeout: float, salt: str = "", sample_top: int = 10) -> tuple[list[Failure], int]:
     key = fetch_key(base, site.basepath, timeout)
-    queries = dict(GOLDEN)
+    queries: dict[str, tuple[str, int]] = {query: (url, top) for query, url in GOLDEN.items()}
     for title, url in sample_pages(site, sample, salt):
-        # Search by the visible title; the platform strips MDX from titles the same way.
-        queries.setdefault(source_title(title), url)
-    failures = [f for query, expected in queries.items() if (f := check_query(key, query, expected, top, timeout))]
+        # Near-duplicate titles ("Analytics and integration(s)") legitimately outrank each other, so allow a looser rank.
+        queries.setdefault(title, (url, sample_top))
+    failures = [f for query, (expected, rank) in queries.items() if (f := check_query(key, query, expected, rank, timeout))]
     return failures, len(queries)
 
 
@@ -120,6 +131,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--fern-dir", type=Path, default=DEFAULT_FERN_DIR)
     parser.add_argument("--top", type=int, default=5, help="expected page must rank within this many distinct pages")
     parser.add_argument("--sample", type=int, default=25, help="number of published pages to look up by their own title")
+    parser.add_argument("--sample-top", type=int, default=10, help="a sampled page must rank within this many distinct pages for its own title")
     parser.add_argument("--salt", default=os.environ.get("SEARCH_SMOKE_SALT", ""), help="vary the page sample (e.g. the run date) so every page gets covered over time")
     parser.add_argument("--timeout", type=float, default=30)
     parser.add_argument("--json", type=Path, help="write failures as JSON to this path")
@@ -133,7 +145,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     try:
-        failures, total = run(base, site, args.top, args.sample, args.timeout, args.salt)
+        failures, total = run(base, site, args.top, args.sample, args.timeout, args.salt, args.sample_top)
     except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
         print(f"::error title=search-smoke::{exc}" if os.environ.get("GITHUB_ACTIONS") else f"FAIL {exc}")
         return 1
