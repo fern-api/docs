@@ -75,14 +75,14 @@ class Site:
     # resolved to a source file. Any link under one of these prefixes is accepted.
     generated_prefixes: list[str] = field(default_factory=list)
     changelog_dirs: list[Path] = field(default_factory=list)
-    redirects: dict[str, str] = field(default_factory=dict)
+    redirects: list[tuple[str, str]] = field(default_factory=list)  # (source, destination) in declaration order; first match wins
     languages: list[str] = field(default_factory=list)
     problems: list[tuple[Path, str]] = field(default_factory=list)
 
     def redirect_for(self, url: str) -> str | None:
         """Destination of the redirect whose ``source`` matches ``url`` (``:param`` and ``:param*`` patterns included)."""
-        for source, destination in self.redirects.items():
-            if source == url or (":" in source and _redirect_pattern(source).fullmatch(url)):
+        for source, destination in self.redirects:
+            if redirect_matches(source, url):
                 return destination
         return None
 
@@ -93,6 +93,32 @@ class Site:
     @property
     def nav_paths(self) -> set[Path]:
         return {page.path.resolve() for page in self.pages}
+
+
+def redirect_matches(source: str, url: str) -> bool:
+    return source == url or (":" in source and _redirect_pattern(source).fullmatch(url) is not None)
+
+
+def _load_redirects(site: Site, value: object, config_path: Path) -> list[tuple[str, str]]:
+    """``redirects`` is a list of ``{source, destination}`` entries, a path to a YAML file with a top-level ``redirects`` list, or a list of such paths."""
+    if value is None:
+        return []
+    if isinstance(value, str):
+        value = [value]
+    if not isinstance(value, list):
+        return []
+    redirects: list[tuple[str, str]] = []
+    for entry in value:
+        if isinstance(entry, dict) and "source" in entry and "destination" in entry:
+            redirects.append((str(entry["source"]), str(entry["destination"])))
+        elif isinstance(entry, str):
+            path = (config_path.parent / entry).resolve()
+            if not path.is_file():
+                site.problems.append((config_path, f"redirects file not found: {entry}"))
+                continue
+            loaded = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+            redirects += _load_redirects(site, loaded.get("redirects") if isinstance(loaded, dict) else None, path)
+    return redirects
 
 
 @lru_cache(maxsize=None)
@@ -145,9 +171,7 @@ def load_site(fern_dir: Path) -> Site:
         for entry in docs_config.get("translations") or []
         if isinstance(entry, dict) and entry.get("lang") and not entry.get("default")
     ]
-    for redirect in docs_config.get("redirects") or []:
-        if isinstance(redirect, dict) and "source" in redirect and "destination" in redirect:
-            site.redirects[str(redirect["source"])] = str(redirect["destination"])
+    site.redirects = _load_redirects(site, docs_config.get("redirects"), fern_dir / "docs.yml")
 
     products = docs_config.get("products")
     if products:

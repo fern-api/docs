@@ -35,6 +35,13 @@ redirects:
     destination: /learn/home
   - source: /learn/docs/guide/git-lab
     destination: /learn/docs/guide/overview
+  - source: /learn/docs/old
+    destination: /learn/docs/guide/git-lab
+  - source: /learn/docs/via-page
+    destination: /learn/docs/guide/git-lab
+  - source: /learn/docs/customization/:slug
+    destination: /learn/docs/guide/overview
+  - ./redirects.yml
 products:
   - display-name: Home
     path: ./products/home/home.yml
@@ -104,6 +111,7 @@ def make_site(root: Path) -> Path:
     fern = root / "fern"
     write(fern, "docs.yml", DOCS_YML)
     write(fern, "products/home/home.yml", HOME_YML)
+    write(fern, "redirects.yml", "redirects:\n  - source: /learn/docs/from-file\n    destination: /learn/docs/nowhere-either\n")
     write(fern, "products/docs/docs.yml", DOCS_PRODUCT_YML)
     write(fern, "products/home/pages/home.mdx", "---\ntitle: Home\nslug: /\ndescription: d\n---\n" + "word " * 50)
     write(fern, "products/home/pages/feedback.mdx", "---\ntitle: Feedback\nslug: user-feedback\ndescription: d\n---\n" + "word " * 50)
@@ -307,13 +315,23 @@ class ChecksTest(unittest.TestCase):
     def test_redirects(self):
         self.assertEqual(
             self.by_check("broken-redirect"),
-            ["fern/docs.yml: redirect destination is not a published URL: /learn/docs/gone -> /learn/docs/nowhere"],
+            [
+                "fern/docs.yml: redirect destination is not a published URL: /learn/docs/from-file -> /learn/docs/nowhere-either",
+                "fern/docs.yml: redirect destination is not a published URL: /learn/docs/gone -> /learn/docs/nowhere",
+            ],
         )
+        # /learn/docs/via-page targets a page that is also a redirect source: the redirect wins, so it still chains.
         self.assertEqual(
             self.by_check("redirect-chain"),
-            ["fern/docs.yml: redirect destination is itself redirected, point it at the final URL: /learn/docs/hop -> /learn/docs/old"],
+            [
+                "fern/docs.yml: redirect destination is itself redirected, point it at the final URL: /learn/docs/hop -> /learn/docs/old",
+                "fern/docs.yml: redirect destination is itself redirected, point it at the final URL: /learn/docs/via-page -> /learn/docs/guide/git-lab",
+            ],
         )
-        self.assertEqual(len(self.by_check("shadowed-redirect")), 2)  # /learn (frontmatter slug) and /learn/docs/guide/git-lab
+        self.assertEqual(self.by_check("duplicate-redirect"), ["fern/docs.yml: redirect source is declared more than once, only the first declaration fires: /learn/docs/old"])
+        shadowed = self.by_check("shadowed-redirect")
+        self.assertEqual(len(shadowed), 3)  # /learn (frontmatter slug), /learn/docs/guide/git-lab, and the :slug pattern
+        self.assertIn("fern/docs.yml: redirect source matches 1 page URL(s); the redirect wins, so those pages are only reachable at their navigation URL: /learn/docs/customization/:slug -> /learn/docs/customization/custom-react-components", shadowed)
 
     def test_snippets_and_assets(self):
         self.assertEqual(

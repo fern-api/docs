@@ -37,7 +37,8 @@ Inside GitHub Actions the output switches to workflow annotations and the covera
 | `redirected-link` | warning | Internal link that only resolves through a redirect |
 | `broken-redirect` | error | `docs.yml` redirect whose destination is not a published URL |
 | `redirect-chain` | warning | `docs.yml` redirect whose destination is itself redirected |
-| `shadowed-redirect` | warning | `docs.yml` redirect whose source is also a page URL (the redirect wins) |
+| `shadowed-redirect` | warning | `docs.yml` redirect whose source (exact or `:param` pattern) matches a page URL (the redirect wins) |
+| `duplicate-redirect` | warning | `docs.yml` redirect source declared twice (only the first fires) |
 | `relative-page-link` | warning | Link to a page written as a relative path instead of a published URL |
 | `orphan-page` | warning | Page file that no navigation entry or snippet include references |
 | `unused-snippet` | warning | Snippet file that no page includes |

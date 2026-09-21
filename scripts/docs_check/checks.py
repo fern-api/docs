@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Iterable, Iterator
 from urllib.parse import urlsplit
 
-from .site import Page, Site, parse_frontmatter
+from .site import Page, Site, parse_frontmatter, redirect_matches
 
 ERROR = "error"
 WARNING = "warning"
@@ -194,6 +194,7 @@ def check_internal_links(site: Site) -> Iterator[Finding]:
 def check_redirects(site: Site) -> Iterator[Finding]:
     """Redirects must point somewhere real and should not chain; ``:param`` destinations are accepted as-is."""
     urls = site.page_urls | {page.nav_url for page in site.pages}
+    config = _relative(site, site.root / "docs.yml")
 
     def resolves(url: str) -> bool:
         # A section URL (prefix of a page URL) is served by the platform as its first page.
@@ -203,18 +204,23 @@ def check_redirects(site: Site) -> Iterator[Finding]:
             or any(url == p or url.startswith(p + "/") for p in site.generated_prefixes)
         )
 
-    for source, destination in site.redirects.items():
-        if source in urls:
-            yield Finding("shadowed-redirect", WARNING, _relative(site, site.root / "docs.yml"), f"redirect source is also a page URL; the redirect wins, so the page is only reachable at its navigation URL: {source}")
+    seen_sources: set[str] = set()
+    for source, destination in site.redirects:
+        if source in seen_sources:
+            yield Finding("duplicate-redirect", WARNING, config, f"redirect source is declared more than once, only the first declaration fires: {source}")
+            continue
+        seen_sources.add(source)
+        shadowed = sorted(url for url in site.page_urls if redirect_matches(source, url))
+        if shadowed:
+            shown = ", ".join(shadowed[:3]) + (f" (+{len(shadowed) - 3} more)" if len(shadowed) > 3 else "")
+            yield Finding("shadowed-redirect", WARNING, config, f"redirect source matches {len(shadowed)} page URL(s); the redirect wins, so those pages are only reachable at their navigation URL: {source} -> {shown}")
         if ":" in destination or not _is_internal(destination, site):
             continue
         target = _normalize(destination, site)
-        if resolves(target):
-            continue
         if site.redirect_for(target):
-            yield Finding("redirect-chain", WARNING, _relative(site, site.root / "docs.yml"), f"redirect destination is itself redirected, point it at the final URL: {source} -> {destination}")
-        else:
-            yield Finding("broken-redirect", ERROR, _relative(site, site.root / "docs.yml"), f"redirect destination is not a published URL: {source} -> {destination}")
+            yield Finding("redirect-chain", WARNING, config, f"redirect destination is itself redirected, point it at the final URL: {source} -> {destination}")
+        elif not resolves(target):
+            yield Finding("broken-redirect", ERROR, config, f"redirect destination is not a published URL: {source} -> {destination}")
 
 
 def heading_slug(text: str) -> str:
