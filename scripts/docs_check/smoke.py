@@ -81,6 +81,12 @@ def normalize_title(text: str) -> str:
     return re.sub(r"\s+", " ", text.replace("`", "")).strip().lower()
 
 
+def source_title(title: str) -> str:
+    """Visible text of a frontmatter title: MDX components removed, backtick code kept verbatim."""
+    parts = re.split(r"(`[^`]*`)", title)
+    return normalize_title("".join(part if part.startswith("`") else TAG_RE.sub("", part) for part in parts))
+
+
 def rendered_title(html: str) -> str | None:
     """Visible text of the first ``<h1>``: markup removed, entities decoded."""
     match = H1_RE.search(html)
@@ -94,7 +100,7 @@ def check_page(base: str, page_url: str, timeout: float, retries: int, image_cac
     failures = [Failure(page_url, f"page renders an error: {marker!r}") for marker in ERROR_MARKERS if marker in html]
     if title is not None:
         heading = rendered_title(html)
-        if heading != normalize_title(title):
+        if heading != source_title(title):
             failures.append(Failure(page_url, f"heading {heading!r} does not match title {title!r}"))
     for image in sorted(page_images(base, page_url, html)):
         if image not in image_cache:
