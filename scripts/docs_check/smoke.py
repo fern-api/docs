@@ -1,13 +1,16 @@
 """Live smoke check for a deployed docs site (preview or production).
 
 For every page URL the site model derives (or a subset picked by changed files),
-fetch the page and assert it renders: HTTP 200, no error page markers, and every
-image under ``<main>`` loads. Run with ``python3 -m scripts.docs_check.smoke``.
+fetch the page and assert it renders: HTTP 200, no error page markers, the ``<h1>``
+matches the page's frontmatter title (a 200 that shows the wrong page is still a
+failure), and every image under ``<main>`` loads. Run with
+``python3 -m scripts.docs_check.smoke``.
 """
 
 from __future__ import annotations
 
 import argparse
+import html as html_lib
 import json
 import os
 import re
@@ -32,6 +35,8 @@ USER_AGENT = "fern-docs-smoke/1.0 (+https://github.com/fern-api/docs)"
 ERROR_MARKERS = ("Page not found", "Something went wrong")
 MAIN_RE = re.compile(r"<main\b.*?</main>", re.DOTALL)
 IMG_SRC_RE = re.compile(r"<img\b[^>]*\bsrc=[\"']([^\"']+)[\"']")
+H1_RE = re.compile(r"<h1\b[^>]*>(.*?)</h1>", re.DOTALL)
+TAG_RE = re.compile(r"<[^>]+>")
 NAVIGATION_SUFFIXES = (".yml", ".yaml")
 
 
@@ -71,11 +76,26 @@ def page_images(base: str, page_url: str, html: str) -> set[str]:
     return {urljoin(base + page_url, src) for src in IMG_SRC_RE.findall(scope) if not src.startswith("data:")}
 
 
-def check_page(base: str, page_url: str, timeout: float, retries: int, image_cache: dict[str, int]) -> list[Failure]:
+def normalize_title(text: str) -> str:
+    """Compare titles loosely: strip tags, entities, backticks, case and whitespace runs."""
+    text = html_lib.unescape(TAG_RE.sub("", text)).replace("`", "")
+    return re.sub(r"\s+", " ", text).strip().lower()
+
+
+def rendered_title(html: str) -> str | None:
+    match = H1_RE.search(html)
+    return normalize_title(match.group(1)) if match else None
+
+
+def check_page(base: str, page_url: str, timeout: float, retries: int, image_cache: dict[str, int], title: str | None = None) -> list[Failure]:
     status, html = fetch_with_retry(base + page_url, timeout, retries)
     if status != 200:
         return [Failure(page_url, f"HTTP {status}" if status else f"request failed: {html}")]
     failures = [Failure(page_url, f"page renders an error: {marker!r}") for marker in ERROR_MARKERS if marker in html]
+    if title is not None:
+        heading = rendered_title(html)
+        if heading != normalize_title(title):
+            failures.append(Failure(page_url, f"heading {heading!r} does not match title {title!r}"))
     for image in sorted(page_images(base, page_url, html)):
         if image not in image_cache:
             image_cache[image] = fetch_with_retry(image, timeout, retries)[0]
@@ -104,10 +124,15 @@ def urls_for_changed_files(site: Site, changed: list[Path]) -> set[str]:
     return urls
 
 
-def run(base: str, urls: list[str], timeout: float, retries: int, workers: int) -> list[Failure]:
+def page_titles(site: Site) -> dict[str, str]:
+    return {page.url: str(page.frontmatter["title"]) for page in site.pages if page.frontmatter.get("title")}
+
+
+def run(base: str, urls: list[str], timeout: float, retries: int, workers: int, titles: dict[str, str] | None = None) -> list[Failure]:
     image_cache: dict[str, int] = {}
+    titles = titles or {}
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        results = pool.map(lambda url: check_page(base, url, timeout, retries, image_cache), urls)
+        results = pool.map(lambda url: check_page(base, url, timeout, retries, image_cache, titles.get(url)), urls)
     return sorted({failure for batch in results for failure in batch}, key=lambda f: (f.url, f.message))
 
 
@@ -139,7 +164,7 @@ def main(argv: list[str] | None = None) -> int:
         print("no published pages to check")
         return 0
     print(f"checking {len(urls)} pages on {base}")
-    failures = run(base, urls, args.timeout, args.retries, args.workers)
+    failures = run(base, urls, args.timeout, args.retries, args.workers, page_titles(site))
 
     github = os.environ.get("GITHUB_ACTIONS")
     for failure in failures:

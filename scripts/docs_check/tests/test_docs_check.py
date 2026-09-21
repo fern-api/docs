@@ -228,9 +228,12 @@ class SmokeTest(unittest.TestCase):
             "https://cdn.test/missing.png": (404, ""),
             "https://x.test/learn/error": (200, "<main>Something went wrong</main>"),
             "https://x.test/learn/gone": (404, ""),
+            "https://x.test/learn/titled": (200, '<h1 class="x">The <code>llms.txt</code> &amp; friends</h1>'),
+            "https://x.test/learn/wrong-page": (200, "<h1>Welcome</h1>"),
         }
+        titles = {"/learn/titled": "The `llms.txt` & friends", "/learn/wrong-page": "Configuration"}
         with unittest.mock.patch.object(smoke, "fetch", lambda url, timeout: pages.get(url, (0, "boom"))):
-            failures = smoke.run("https://x.test", ["/learn/ok", "/learn/broken-img", "/learn/error", "/learn/gone", "/learn/down"], 1, 0, 2)
+            failures = smoke.run("https://x.test", ["/learn/ok", "/learn/broken-img", "/learn/error", "/learn/gone", "/learn/down", "/learn/titled", "/learn/wrong-page"], 1, 0, 2, titles)
         self.assertEqual(
             [(f.url, f.message) for f in failures],
             [
@@ -238,6 +241,7 @@ class SmokeTest(unittest.TestCase):
                 ("/learn/down", "request failed: boom"),
                 ("/learn/error", "page renders an error: 'Something went wrong'"),
                 ("/learn/gone", "HTTP 404"),
+                ("/learn/wrong-page", "heading 'welcome' does not match title 'Configuration'"),
             ],
         )
 

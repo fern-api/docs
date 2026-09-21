@@ -56,7 +56,7 @@ The run prints a note for every baseline line that no longer matches a finding.
 
 ## Live smoke check
 
-`smoke.py` fetches published pages from a deployed site and fails on a non-200 response, an error page (`Page not found`, `Something went wrong`), or an image under `<main>` that does not load. It reuses the site model, so a page that the navigation YAML publishes but the site does not serve is caught without a sitemap.
+`smoke.py` fetches published pages from a deployed site and fails on a non-200 response, an error page (`Page not found`, `Something went wrong`), an `<h1>` that does not match the page's frontmatter `title` (a 200 that serves the wrong page), or an image under `<main>` that does not load. It reuses the site model, so a page that the navigation YAML publishes but the site does not serve is caught without a sitemap.
 
 ```bash
 python3 -m scripts.docs_check.smoke                                   # every page on buildwithfern.com
