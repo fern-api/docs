@@ -185,7 +185,7 @@ The rendered site generates an `id` for:
 
 - Markdown headings (`##` through `######`), or the explicit id when written as `## Heading [#custom-id]`.
 - `<Step title="...">`, `<Tab title="...">`, `<Accordion title="...">` — the title becomes the id.
-- `<ParamField path="...">` — the path becomes the id.
+- `<ParamField path="..." toc={true}>` — the path becomes the id. Without `toc={true}` the field renders no id (it still counts toward duplicate suffixes on later ids).
 - `<Anchor id="...">` — the id as written.
 
 Ids are the text lowercased with punctuation removed and spaces turned into hyphens: `## Page actions (options.mcp)` becomes `#page-actionsoptionsmcp`, `path="extraDependencies"` becomes `#extradependencies`, `## "Edit this page" configuration` becomes `#edit-this-page-configuration`. A repeated id gets a numeric suffix (`#usage`, `#usage-1`).
