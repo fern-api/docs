@@ -111,7 +111,7 @@ def check_page(base: str, page_url: str, timeout: float, retries: int, image_cac
         return [Failure(page_url, f"HTTP {status}" if status else f"request failed: {html}")]
     failures = [Failure(page_url, f"page renders an error: {marker!r}") for marker in ERROR_MARKERS if marker in html]
     if redirected(base + page_url, final):
-        failures.append(Failure(page_url, f"navigation URL redirects to {urlsplit(final).path}; the site model and the live site disagree", warning=True))
+        failures.append(Failure(page_url, f"navigation URL redirects to {final}; the site model and the live site disagree", warning=True))
     if title is not None:
         heading = rendered_title(html)
         if heading != source_title(title):

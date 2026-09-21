@@ -286,8 +286,8 @@ class SmokeTest(unittest.TestCase):
                 ("/learn/error", "page renders an error: 'Something went wrong'", False),
                 ("/learn/gone", "HTTP 404", False),
                 ("/learn/wrong-page", "heading 'welcome' does not match title 'Configuration'", False),
-                ("/learn/moved", "navigation URL redirects to /learn/moved/home; the site model and the live site disagree", True),
-                ("/learn/other-host", "navigation URL redirects to /learn/other-host; the site model and the live site disagree", True),
+                ("/learn/moved", "navigation URL redirects to https://x.test/learn/moved/home; the site model and the live site disagree", True),
+                ("/learn/other-host", "navigation URL redirects to https://y.test/learn/other-host; the site model and the live site disagree", True),
             ],
         )
 
