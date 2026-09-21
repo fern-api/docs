@@ -72,8 +72,12 @@ def fetch_with_retry(url: str, timeout: float, retries: int) -> tuple[int, str, 
 
 
 def redirected(requested: str, final: str) -> bool:
-    """True when the server sent the request somewhere else (ignoring scheme, host case and a trailing slash)."""
-    normalize = lambda u: urlsplit(u).path.rstrip("/") or "/"
+    """True when the server sent the request to another host or path (ignoring scheme, host case and a trailing slash)."""
+
+    def normalize(url: str) -> tuple[str, str]:
+        parts = urlsplit(url)
+        return (parts.netloc.lower(), parts.path.rstrip("/") or "/")
+
     return normalize(requested) != normalize(final)
 
 

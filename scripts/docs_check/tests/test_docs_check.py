@@ -256,6 +256,7 @@ class SmokeTest(unittest.TestCase):
             "https://x.test/learn/escaped-title": (200, "<h1>Using &lt;Callout&gt;</h1>"),
             "https://x.test/learn/moved": (200, "<h1>Home</h1>", "https://x.test/learn/moved/home"),
             "https://x.test/learn/slashed": (200, "<h1>Home</h1>", "https://x.test/learn/slashed/"),
+            "https://x.test/learn/other-host": (200, "<h1>Home</h1>", "https://y.test/learn/other-host"),
         }
         titles = {
             "/learn/titled": "The `llms.txt` & friends",
@@ -271,7 +272,7 @@ class SmokeTest(unittest.TestCase):
         with unittest.mock.patch.object(smoke, "fetch", fake_fetch):
             failures = smoke.run(
                 "https://x.test",
-                ["/learn/ok", "/learn/broken-img", "/learn/error", "/learn/gone", "/learn/down", "/learn/titled", "/learn/wrong-page", "/learn/code-title", "/learn/badge-title", "/learn/escaped-title", "/learn/moved", "/learn/slashed"],
+                ["/learn/ok", "/learn/broken-img", "/learn/error", "/learn/gone", "/learn/down", "/learn/titled", "/learn/wrong-page", "/learn/code-title", "/learn/badge-title", "/learn/escaped-title", "/learn/moved", "/learn/slashed", "/learn/other-host"],
                 1,
                 0,
                 2,
@@ -286,6 +287,7 @@ class SmokeTest(unittest.TestCase):
                 ("/learn/gone", "HTTP 404", False),
                 ("/learn/wrong-page", "heading 'welcome' does not match title 'Configuration'", False),
                 ("/learn/moved", "navigation URL redirects to /learn/moved/home; the site model and the live site disagree", True),
+                ("/learn/other-host", "navigation URL redirects to /learn/other-host; the site model and the live site disagree", True),
             ],
         )
 
