@@ -82,9 +82,10 @@ def normalize_title(text: str) -> str:
 
 
 def source_title(title: str) -> str:
-    """Visible text of a frontmatter title: MDX components removed, backtick code kept verbatim."""
+    """Visible text of a frontmatter title: MDX components removed; backtick code and ``\<``-escaped brackets kept."""
     parts = re.split(r"(`[^`]*`)", title)
-    return normalize_title("".join(part if part.startswith("`") else TAG_RE.sub("", part) for part in parts))
+    visible = "".join(part if part.startswith("`") else TAG_RE.sub("", part.replace("\\<", "\0").replace("\\>", "\1")) for part in parts)
+    return normalize_title(visible.replace("\0", "<").replace("\1", ">"))
 
 
 def rendered_title(html: str) -> str | None:
