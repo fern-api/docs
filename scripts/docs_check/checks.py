@@ -30,7 +30,7 @@ ANCHOR_SOURCE_RE = re.compile(
     r"^[ \t]*#{1,6}[ \t]+(?P<heading>\S.*?)(?:[ \t]*\[#(?P<explicit>[^\]]+)\])?[ \t]*$"
     r"|<(?:Step|Tab|Accordion)\b[^>]*\btitle=[\"'](?P<title>[^\"']+)[\"']"
     r"|<ParamField\b(?P<param_attrs>(?:\"[^\"]*\"|'[^']*'|[^>\"'])*)>"
-    r"|<(?:Anchor|[a-z][a-z0-9]*)\b[^>]*\bid=[\"'](?P<anchor>[^\"']+)[\"']",
+    r"|<(?:Anchor|[a-z][A-Za-z0-9]*)\b[^>]*\bid=[\"'](?P<anchor>[^\"']+)[\"']",
     re.MULTILINE,
 )
 PARAM_FIELD_PATH_RE = re.compile(r"\bpath=[\"']([^\"']+)[\"']")
