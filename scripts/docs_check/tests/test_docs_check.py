@@ -9,7 +9,7 @@ import unittest.mock
 from collections import Counter
 from pathlib import Path
 
-from scripts.docs_check import checks, search_smoke, smoke
+from scripts.docs_check import checks, examples, search_smoke, smoke
 from scripts.docs_check.__main__ import CHANGELOG_DIRS, apply_baseline, run_checks
 from scripts.docs_check.site import load_site, slugify
 
@@ -351,6 +351,71 @@ class SearchSmokeTest(unittest.TestCase):
         self.assertIn("expected /learn/docs/x in top 5, got: no hits", by_query["docs.yml"])
         self.assertIn("overview", by_query)  # sampled page absent from the fake index
         self.assertGreater(total, 2)
+
+
+SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "title": {"type": "string"},
+        "navigation": {"type": "array", "items": {"$ref": "#/definitions/Item"}},
+        "groups": {"type": "object", "additionalProperties": {"$ref": "#/definitions/Group"}},
+        "github": {"oneOf": [{"$ref": "#/definitions/GithubPush"}, {"$ref": "#/definitions/GithubPR"}]},
+    },
+    "required": ["title"],
+    "definitions": {
+        "Item": {
+            "anyOf": [
+                {"type": "object", "additionalProperties": False, "properties": {"page": {"type": "string"}, "path": {"type": "string"}}},
+                {"type": "object", "additionalProperties": False, "properties": {"section": {"type": "string"}, "contents": {"type": "array"}}},
+            ]
+        },
+        "Group": {"type": "object", "additionalProperties": False, "properties": {"generators": {"type": "array", "items": {"$ref": "#/definitions/Generator"}}}},
+        "Generator": {"type": "object", "additionalProperties": False, "properties": {"name": {"type": "string"}, "version": {"type": "string"}, "config": {"$ref": "#/definitions/Config"}}},
+        "Config": {"type": "object", "additionalProperties": False, "properties": {"clientName": {"type": "string"}}},
+        "GithubPush": {"type": "object", "additionalProperties": False, "properties": {"repository": {"type": "string"}, "mode": {"enum": ["push"]}}},
+        "GithubPR": {"type": "object", "additionalProperties": False, "properties": {"repository": {"type": "string"}, "mode": {"enum": ["pull-request"]}, "reviewers": {"type": "array"}}},
+    },
+}
+
+
+class ExamplesTest(unittest.TestCase):
+    def setUp(self):
+        self.schema = examples.strip_required(SCHEMA)
+
+    def validate(self, body: str, kind: str = "docs.yml") -> list[str]:
+        return examples.validate_example(examples.Example(Path("p.mdx"), 1, kind, textwrap.dedent(body).strip("\n")), self.schema)
+
+    def test_extracts_named_fences_only(self):
+        text = textwrap.dedent("""
+            ```yaml title="docs.yml"
+            title: A
+            ```
+            ```yaml
+            title: unnamed
+            ```
+              ```yml generators.yml {2}
+              groups: {}
+              ```
+            ```yaml .github/workflows/publish-docs.yml
+            name: not a docs.yml
+            ```
+        """)
+        found = examples.extract_examples(Path("p.mdx"), text)
+        self.assertEqual([(e.kind, e.line, e.body) for e in found], [("docs.yml", 3, "title: A"), ("generators.yml", 9, "groups: {}")])
+
+    def test_complete_and_fragment_examples_pass(self):
+        self.assertEqual(self.validate("title: A\nnavigation:\n  - page: P\n    path: ./p.mdx"), [])
+        self.assertEqual(self.validate("config:\n  clientName: Base"), [])  # bare nested block
+        self.assertEqual(self.validate("my-group:\n  generators:\n    - name: x\n      version: <Markdown src='/snippets/v.mdx'/>"), [])  # named group, templated value
+        self.assertEqual(self.validate("navigation:\n  - section: S\n    contents:\n      - ...\n  - page: P\n    path: ..."), [])  # elided
+        self.assertEqual(self.validate("github:\n  repository: o/r\n  mode: pull-request\n  reviewers: []"), [])  # second oneOf branch
+
+    def test_reports_the_specific_branch_error(self):
+        self.assertEqual(self.validate("navigation:\n  - page: P\n    hidden: true"), ["navigation/0: Additional properties are not allowed ('hidden' was unexpected)"])
+        self.assertEqual(self.validate("github:\n  repository: o/r\n  mode: rebase"), ["github/mode: 'rebase' is not one of ['pull-request']"])  # one message per location
+        self.assertEqual(self.validate("bogus: 1\nother: 2"), ["(top level): no docs.yml object declares the key(s) bogus, other"])
+        self.assertEqual(self.validate("groups:\n\tbad: 1")[0][:15], "not valid YAML:")
 
 
 class ChecksTest(unittest.TestCase):

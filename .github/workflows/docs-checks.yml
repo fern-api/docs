@@ -84,7 +84,7 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
-          git diff --name-only --diff-filter=AM "$BASE_SHA"...HEAD -- 'fern/**/*.mdx' 'fern/**/*.yml' > changed-files.txt
+          git diff --name-only --diff-filter=AM "$BASE_SHA"...HEAD -- 'fern/**/*.md' 'fern/**/*.mdx' 'fern/**/*.yml' 'fern/**/*.yaml' > changed-files.txt
           # A config change still has to be parsed and applied by lychee: run it on a representative page.
           if ! git diff --quiet "$BASE_SHA"...HEAD -- .github/lychee.toml; then
             echo fern/products/docs/pages/getting-started/technical-evaluation.mdx >> changed-files.txt
@@ -162,6 +162,39 @@ jobs:
           path: search-report.json
           if-no-files-found: ignore
 
+  # Scheduled only: the schemas are fetched live, so this catches docs that drift
+  # from the current CLI rather than changes in a PR.
+  config-examples:
+    name: docs.yml / generators.yml examples
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install pyyaml jsonschema
+
+      - name: Validate examples against the published schemas
+        run: python3 -m scripts.docs_check.examples --json examples-report.json
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: examples-report
+          path: examples-report.json
+          if-no-files-found: ignore
+
   fern-check:
     name: fern check
     runs-on: ubuntu-latest
@@ -191,7 +224,7 @@ jobs:
 
   report-failure:
     name: Open tracking issue
-    needs: [static-checks, fern-check, live-smoke]
+    needs: [static-checks, fern-check, live-smoke, config-examples]
     if: always() && github.event_name == 'schedule' && contains(needs.*.result, 'failure')
     runs-on: ubuntu-latest
     permissions:
@@ -204,11 +237,12 @@ jobs:
           STATIC_RESULT: ${{ needs.static-checks.result }}
           FERN_RESULT: ${{ needs.fern-check.result }}
           SMOKE_RESULT: ${{ needs.live-smoke.result }}
+          EXAMPLES_RESULT: ${{ needs.config-examples.result }}
         run: |
           set -euo pipefail
           title="Nightly docs checks failing"
-          body=$(printf 'The scheduled docs checks failed.\n\n- Static docs checks: **%s**\n- fern check: **%s**\n- Live smoke check: **%s**\n\nRun: %s\n\nThe job summary on the run lists every finding. Known issues are suppressed by `scripts/docs_check/baseline.txt`.' \
-            "$STATIC_RESULT" "$FERN_RESULT" "$SMOKE_RESULT" "$RUN_URL")
+          body=$(printf 'The scheduled docs checks failed.\n\n- Static docs checks: **%s**\n- fern check: **%s**\n- Live smoke check: **%s**\n- Config examples: **%s**\n\nRun: %s\n\nThe job summary on the run lists every finding. Known issues are suppressed by `scripts/docs_check/baseline.txt` and `scripts/docs_check/examples-baseline.txt`.' \
+            "$STATIC_RESULT" "$FERN_RESULT" "$SMOKE_RESULT" "$EXAMPLES_RESULT" "$RUN_URL")
           existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "in:title \"$title\"" --json number --jq '.[0].number')
           if [ -n "$existing" ]; then
             gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body "$body"

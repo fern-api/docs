@@ -27,7 +27,7 @@ from .smoke import DEFAULT_BASE, DEFAULT_FERN_DIR, urls_for_changed_files
 # headless profile, analytics beacons, and browser feature warnings.
 IGNORED_MESSAGE_RE = re.compile(
     r"net::ERR_BLOCKED_BY_CLIENT"
-    r"|Failed to load resource: the server responded with a status of 4\d\d.*(?:analytics|segment|posthog|intercom|hubspot|gtm|google)"
+    r"|Failed to load resource: the server responded with a status of \d{3}"  # the response/requestfailed listeners report same-origin ones with their URL
     r"|ResizeObserver loop"
     r"|third-party cookie"
     r"|\[HMR\]|Download the React DevTools",
@@ -48,6 +48,12 @@ def _ignored(text: str, url: str = "") -> bool:
     return bool(IGNORED_MESSAGE_RE.search(text) or (host and IGNORED_HOSTS_RE.search(host)))
 
 
+def _is_prefetch(url: str, page_url: str) -> bool:
+    """Next.js prefetches linked pages (``?_rsc=``); a failure there belongs to the linked page, which has its own smoke run."""
+    parts = urlsplit(url)
+    return "_rsc=" in parts.query and parts.path.rstrip("/") != page_url.rstrip("/")
+
+
 def check_page(page, base: str, page_url: str, timeout_ms: int) -> list[Failure]:
     """Load ``base + page_url`` and return console errors, page errors and failed same-origin requests."""
     url = base + page_url
@@ -63,7 +69,7 @@ def check_page(page, base: str, page_url: str, timeout_ms: int) -> list[Failure]
     page.on("pageerror", lambda exc: add(f"uncaught error: {str(exc).splitlines()[0][:300]}"))
     page.on("console", lambda msg: msg.type == "error" and not _ignored(msg.text, msg.location.get("url", "")) and add(f"console.error: {msg.text[:300]}"))
     page.on("requestfailed", lambda req: urlsplit(req.url).netloc == origin and not _ignored(req.failure or "", req.url) and add(f"request failed: {req.url} ({req.failure})"))
-    page.on("response", lambda res: res.status >= 400 and urlsplit(res.url).netloc == origin and not _ignored("", res.url) and add(f"HTTP {res.status}: {res.url}"))
+    page.on("response", lambda res: res.status >= 400 and urlsplit(res.url).netloc == origin and not _ignored("", res.url) and not _is_prefetch(res.url, page_url) and add(f"HTTP {res.status}: {res.url}"))
 
     try:
         response = page.goto(url, wait_until="networkidle", timeout=timeout_ms)

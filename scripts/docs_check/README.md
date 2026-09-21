@@ -21,7 +21,7 @@ Inside GitHub Actions the output switches to workflow annotations and the covera
 | Pull request, external links | `docs-checks.yml` | lychee over the http(s) links in changed files, with the shared `.github/lychee.toml` |
 | Pull request, rendered preview | `preview-docs.yml` | `smoke.py` and `console_smoke.py` against the preview for every page the PR touches |
 | Push to `main` | `publish-docs.yml` | `smoke.py` against buildwithfern.com for every derived URL after `fern generate` |
-| Weekday schedule | `docs-checks.yml`, `check-links.yml` | Full static run, full production smoke run, search smoke run, full external link sweep; failures open a tracking issue |
+| Weekday schedule | `docs-checks.yml`, `check-links.yml` | Full static run, full production smoke run, search smoke run, config example validation, full external link sweep; failures open a tracking issue |
 
 ## Checks
 
@@ -86,6 +86,18 @@ python3 -m scripts.docs_check.console_smoke --base https://<preview-host> --chan
 ```bash
 python3 -m scripts.docs_check.search_smoke                # 10 golden + 25 sampled pages on buildwithfern.com
 python3 -m scripts.docs_check.search_smoke --sample 80 --salt today
+```
+
+## Config example check
+
+`examples.py` validates every fenced `docs.yml` and `generators.yml` example in the docs (a `yaml` block whose info string names the file) against the JSON schemas Fern publishes at `schema.buildwithfern.dev`, so a docs example that uses a key the CLI no longer accepts fails the weekday run. Examples are fragments: `required` constraints are dropped, a block whose keys belong to a nested object (a bare `config:`, a single named group) is matched against that object, elided values (`...`) and `<Markdown>` interpolations are ignored, and blocks whose top level is not a mapping are skipped. Unknown keys, wrong types, bad enum values and invalid YAML (tabs) still fail.
+
+Known-bad examples are listed in `examples-baseline.txt` (`<path> [<file>] <message>` per line, no line numbers so edits elsewhere in the page do not invalidate entries). The run prints a note for every entry that no longer reproduces; remove it. Everything in the initial baseline is a real discrepancy between the docs and the current schema (`spec:` in `api.specs`, `auth.all`, multi-URL environments, `intercom.endpoint`, `hidden` on tabs, tab-indented YAML) to be triaged with the CLI team.
+
+```bash
+pip install jsonschema
+python3 -m scripts.docs_check.examples                    # fetch schemas and validate
+python3 -m scripts.docs_check.examples --schema-dir ./schemas --write-baseline
 ```
 
 ## Limitations
