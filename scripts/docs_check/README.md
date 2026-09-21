@@ -33,7 +33,7 @@ Inside GitHub Actions the output switches to workflow annotations and the covera
 | `missing-asset` | error | Relative image or media file that does not exist |
 | `changelog-filename` | error | Changelog file not named `YYYY-MM-DD.mdx` |
 | `changelog-missing-tags` | error | `##` heading not directly followed by `<ChangelogTags>` |
-| `broken-anchor` | error | `#fragment` (same page or on a `/learn/...` link) that matches no heading, `<Anchor id>`, `<Step>`/`<Tab>`/`<Accordion>` title, or `<ParamField path toc={true}>` on the target page |
+| `broken-anchor` | error | `#fragment` (same page or on a `/learn/...` link) that matches no heading, explicit `id=` attribute (`<Anchor id>`, `<div id>`), `<Step>`/`<Tab>`/`<Accordion>` title, or `<ParamField path toc={true}>` on the target page |
 | `redirected-link` | warning | Internal link that only resolves through a redirect |
 | `broken-redirect` | error | `docs.yml` redirect whose destination is not a published URL |
 | `redirect-chain` | warning | `docs.yml` redirect whose destination is itself redirected |
@@ -60,7 +60,7 @@ The run prints a note for every baseline line that no longer matches a finding.
 
 ## Live smoke check
 
-`smoke.py` fetches published pages from a deployed site and fails on a non-200 response, an error page (`Page not found`, `Something went wrong`), an `<h1>` that does not match the page's frontmatter `title` (a 200 that serves the wrong page), or an image under `<main>` that does not load. It reuses the site model, so a page that the navigation YAML publishes but the site does not serve is caught without a sitemap. Redirects are followed, and a derived URL that lands somewhere else is reported as a warning (exit code unaffected): the model and the live site disagree about where that page lives. Today this fires once, for `/learn`, which `docs.yml` redirects to `/learn/home` (the same `shadowed-redirect` finding the static check baselines).
+`smoke.py` fetches published pages from a deployed site and fails on a non-200 response, an error page (`Page not found`, `Something went wrong`), an `<h1>` that does not match the page's frontmatter `title` (a 200 that serves the wrong page), or an image under `<main>` that does not load. It reuses the site model, so a page that the navigation YAML publishes but the site does not serve is caught without a sitemap. Redirects are followed, and a derived URL that lands somewhere else is reported as a warning (exit code unaffected): the model and the live site disagree about where that page lives. Production currently produces no warnings.
 
 ```bash
 python3 -m scripts.docs_check.smoke                                   # every page on buildwithfern.com

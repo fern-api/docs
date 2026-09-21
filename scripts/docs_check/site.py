@@ -8,7 +8,10 @@ The URL rules mirror the "Link checking" section of AGENTS.md:
   contributes nothing to the URL.
 * Slugs come from ``slug:`` when set, otherwise from the display name.
 * Page frontmatter ``slug:`` overrides the navigation ``slug:`` and is resolved
-  relative to the product root (``slug: /`` is the product root itself).
+  relative to the product root. A frontmatter slug that is empty after stripping
+  slashes (``slug: /``) does not publish the page at the root: the platform keeps
+  the navigation slug (the home page lives at ``/learn/home``, and ``/learn`` only
+  redirects there).
 """
 
 from __future__ import annotations
@@ -256,5 +259,6 @@ def _add_page(site: Site, nav_file: Path, item: dict, scope: Scope, hidden: bool
         return
     frontmatter = parse_frontmatter(page_path.read_text(encoding="utf-8", errors="replace"))
     nav_url = url if url is not None else _join(scope.prefix, str(item.get("slug") or slugify(str(item["page"]))))
-    url = _join(scope.product_url, str(frontmatter["slug"]).strip("/")) if frontmatter.get("slug") else nav_url
+    frontmatter_slug = str(frontmatter.get("slug") or "").strip("/")
+    url = _join(scope.product_url, frontmatter_slug) if frontmatter_slug else nav_url
     site.pages.append(Page(path=page_path, url=url, product=scope.product, hidden=hidden, frontmatter=frontmatter, nav_url=nav_url))

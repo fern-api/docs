@@ -160,10 +160,11 @@ def make_site(root: Path) -> Path:
         <ParamField path="api" type="list<string>">counted, not rendered</ParamField>
         <ParamField path="api" type="map<string, string>" toc={true}>x</ParamField>
         <Anchor id="explicit" />
+        <div id="get-support" className="help">raw html id</div>
         [same](#opts) [same-bad](#nope) [quiet](#quiet) [api-2](#api-2) [api-3](#api-3)
         [a](/learn/docs/guide/overview#shared-heading) [b](/learn/docs/guide/overview#missing-heading)
         [c](/learn/docs/guide/git-lab#your-site-is-live) [d](/learn/docs/guide/git-lab#install) [e](/learn/docs/guide/git-lab#api-1)
-        [f](/learn/docs/guide/git-lab#settingsfilter) [g](/learn/docs/guide/git-lab#explicit) [h](/learn/docs/guide/git-lab#not-a-heading)
+        [f](/learn/docs/guide/git-lab#settingsfilter) [g](/learn/docs/guide/git-lab#explicit) [g2](/learn/docs/guide/git-lab#get-support) [h](/learn/docs/guide/git-lab#not-a-heading)
         [i](/learn/docs/legacy/x#x) [j](/learn/docs/api/api-reference/endpoints/get#x) [k](https://example.com/page#x)
         """ + "word " * 50,
     )
@@ -201,7 +202,7 @@ class SiteTest(unittest.TestCase):
 
     def test_urls(self):
         urls = {p.path.name: p.url for p in self.site.pages}
-        self.assertEqual(urls["home.mdx"], "/learn")
+        self.assertEqual(urls["home.mdx"], "/learn/home")  # ``slug: /`` is not honoured; production serves the page at its navigation slug
         self.assertEqual(urls["feedback.mdx"], "/learn/user-feedback")
         self.assertEqual(urls["overview.mdx"], "/learn/docs/guide/overview")
         self.assertEqual(urls["gitlab.mdx"], "/learn/docs/guide/git-lab")
@@ -496,7 +497,7 @@ class ChecksTest(unittest.TestCase):
         )
         self.assertEqual(self.by_check("duplicate-redirect"), ["fern/docs.yml: redirect source is declared more than once, only the first declaration fires: /learn/docs/old"])
         shadowed = self.by_check("shadowed-redirect")
-        self.assertEqual(len(shadowed), 3)  # /learn (frontmatter slug), /learn/docs/guide/git-lab, and the :slug pattern
+        self.assertEqual(len(shadowed), 2)  # /learn/docs/guide/git-lab and the :slug pattern; ``/learn`` is not a page URL so its redirect shadows nothing
         self.assertIn("fern/docs.yml: redirect source matches 1 page URL(s); the redirect wins, so those pages are only reachable at their navigation URL: /learn/docs/customization/:slug -> /learn/docs/customization/custom-react-components", shadowed)
 
     def test_snippets_and_assets(self):
