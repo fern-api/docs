@@ -161,10 +161,11 @@ def make_site(root: Path) -> Path:
         <ParamField path="api" type="map<string, string>" toc={true}>x</ParamField>
         <Anchor id="explicit" />
         <div id="get-support" className="help">raw html id</div>
+        <Note id="component-id">components drop their id prop</Note>
         [same](#opts) [same-bad](#nope) [quiet](#quiet) [api-2](#api-2) [api-3](#api-3)
         [a](/learn/docs/guide/overview#shared-heading) [b](/learn/docs/guide/overview#missing-heading)
         [c](/learn/docs/guide/git-lab#your-site-is-live) [d](/learn/docs/guide/git-lab#install) [e](/learn/docs/guide/git-lab#api-1)
-        [f](/learn/docs/guide/git-lab#settingsfilter) [g](/learn/docs/guide/git-lab#explicit) [g2](/learn/docs/guide/git-lab#get-support) [h](/learn/docs/guide/git-lab#not-a-heading)
+        [f](/learn/docs/guide/git-lab#settingsfilter) [g](/learn/docs/guide/git-lab#explicit) [g2](/learn/docs/guide/git-lab#get-support) [g3](/learn/docs/guide/git-lab#component-id) [h](/learn/docs/guide/git-lab#not-a-heading)
         [i](/learn/docs/legacy/x#x) [j](/learn/docs/api/api-reference/endpoints/get#x) [k](https://example.com/page#x)
         """ + "word " * 50,
     )
@@ -473,6 +474,7 @@ class ChecksTest(unittest.TestCase):
                 "fern/products/docs/pages/guide/gitlab.mdx: no heading or anchor with this id on the target page: #api-2",
                 "fern/products/docs/pages/guide/gitlab.mdx: no heading or anchor with this id on the target page: #nope",
                 "fern/products/docs/pages/guide/gitlab.mdx: no heading or anchor with this id on the target page: #quiet",
+                "fern/products/docs/pages/guide/gitlab.mdx: no heading or anchor with this id on the target page: /learn/docs/guide/git-lab#component-id",
                 "fern/products/docs/pages/guide/gitlab.mdx: no heading or anchor with this id on the target page: /learn/docs/guide/git-lab#not-a-heading",
                 "fern/products/docs/pages/guide/gitlab.mdx: no heading or anchor with this id on the target page: /learn/docs/guide/overview#missing-heading",
                 "fern/snippets/shared.mdx: no heading or anchor with this id on the target page: #gone",

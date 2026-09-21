@@ -30,7 +30,7 @@ ANCHOR_SOURCE_RE = re.compile(
     r"^[ \t]*#{1,6}[ \t]+(?P<heading>\S.*?)(?:[ \t]*\[#(?P<explicit>[^\]]+)\])?[ \t]*$"
     r"|<(?:Step|Tab|Accordion)\b[^>]*\btitle=[\"'](?P<title>[^\"']+)[\"']"
     r"|<ParamField\b(?P<param_attrs>(?:\"[^\"]*\"|'[^']*'|[^>\"'])*)>"
-    r"|<[A-Za-z][\w.-]*\b[^>]*\bid=[\"'](?P<anchor>[^\"']+)[\"']",
+    r"|<(?:Anchor|[a-z][a-z0-9]*)\b[^>]*\bid=[\"'](?P<anchor>[^\"']+)[\"']",
     re.MULTILINE,
 )
 PARAM_FIELD_PATH_RE = re.compile(r"\bpath=[\"']([^\"']+)[\"']")
@@ -232,7 +232,7 @@ def heading_slug(text: str) -> str:
 
 
 def page_anchors(text: str) -> set[str]:
-    """Ids the platform renders for a page body: headings, ``Step``/``Tab``/``Accordion`` titles, ``ParamField toc={true}`` paths and any element with an explicit ``id`` (``<Anchor id>``, ``<div id>``)."""
+    """Ids the platform renders for a page body: headings, ``Step``/``Tab``/``Accordion`` titles, ``ParamField toc={true}`` paths and explicit ``id`` attributes on ``<Anchor>`` and raw HTML elements (``<div id>``); other components drop their ``id`` prop."""
     anchors: set[str] = set()
     seen: Counter[str] = Counter()
     for match in ANCHOR_SOURCE_RE.finditer(CODE_BLOCK_RE.sub("", text)):

@@ -33,7 +33,7 @@ Inside GitHub Actions the output switches to workflow annotations and the covera
 | `missing-asset` | error | Relative image or media file that does not exist |
 | `changelog-filename` | error | Changelog file not named `YYYY-MM-DD.mdx` |
 | `changelog-missing-tags` | error | `##` heading not directly followed by `<ChangelogTags>` |
-| `broken-anchor` | error | `#fragment` (same page or on a `/learn/...` link) that matches no heading, explicit `id=` attribute (`<Anchor id>`, `<div id>`), `<Step>`/`<Tab>`/`<Accordion>` title, or `<ParamField path toc={true}>` on the target page |
+| `broken-anchor` | error | `#fragment` (same page or on a `/learn/...` link) that matches no heading, explicit `id=` on `<Anchor>` or a raw HTML element (`<div id>`; component `id` props such as `<Note id>` are not rendered), `<Step>`/`<Tab>`/`<Accordion>` title, or `<ParamField path toc={true}>` on the target page |
 | `redirected-link` | warning | Internal link that only resolves through a redirect |
 | `broken-redirect` | error | `docs.yml` redirect whose destination is not a published URL |
 | `redirect-chain` | warning | `docs.yml` redirect whose destination is itself redirected |
