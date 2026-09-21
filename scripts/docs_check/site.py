@@ -51,6 +51,7 @@ class Page:
     product: str
     hidden: bool
     frontmatter: dict = field(default_factory=dict)
+    nav_url: str = ""  # URL the navigation alone would give; differs from ``url`` when frontmatter ``slug`` overrides it
 
 
 @dataclass
@@ -230,8 +231,6 @@ def _add_page(site: Site, nav_file: Path, item: dict, scope: Scope, hidden: bool
         site.problems.append((nav_file, f"page path does not exist: {item['path']}"))
         return
     frontmatter = parse_frontmatter(page_path.read_text(encoding="utf-8", errors="replace"))
-    if frontmatter.get("slug"):
-        url = _join(scope.product_url, str(frontmatter["slug"]).strip("/"))
-    elif url is None:
-        url = _join(scope.prefix, str(item.get("slug") or slugify(str(item["page"]))))
-    site.pages.append(Page(path=page_path, url=url, product=scope.product, hidden=hidden, frontmatter=frontmatter))
+    nav_url = url if url is not None else _join(scope.prefix, str(item.get("slug") or slugify(str(item["page"]))))
+    url = _join(scope.product_url, str(frontmatter["slug"]).strip("/")) if frontmatter.get("slug") else nav_url
+    site.pages.append(Page(path=page_path, url=url, product=scope.product, hidden=hidden, frontmatter=frontmatter, nav_url=nav_url))

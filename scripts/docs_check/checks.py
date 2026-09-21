@@ -24,14 +24,17 @@ SNIPPET_RE = re.compile(r"<Markdown\s+[^>]*src=[\"']([^\"']+)[\"']")
 HEADING_RE = re.compile(r"^##\s+\S.*$", re.MULTILINE)
 # Everything the platform gives an id, in document order: headings (optionally
 # with an explicit ``[#id]``), ``Step``/``Tab``/``Accordion`` titles and
-# ``ParamField`` paths share one duplicate counter (``api``, ``api-1``, ...).
+# ``ParamField`` paths (only with ``toc={true}``) share one duplicate counter
+# (``api``, ``api-1``, ...).
 ANCHOR_SOURCE_RE = re.compile(
     r"^[ \t]*#{1,6}[ \t]+(?P<heading>\S.*?)(?:[ \t]*\[#(?P<explicit>[^\]]+)\])?[ \t]*$"
     r"|<(?:Step|Tab|Accordion)\b[^>]*\btitle=[\"'](?P<title>[^\"']+)[\"']"
-    r"|<ParamField\b[^>]*\bpath=[\"'](?P<param>[^\"']+)[\"']"
+    r"|<ParamField\b(?P<param_attrs>(?:\"[^\"]*\"|'[^']*'|[^>\"'])*)>"
     r"|<Anchor\b[^>]*\bid=[\"'](?P<anchor>[^\"']+)[\"']",
     re.MULTILINE,
 )
+PARAM_FIELD_PATH_RE = re.compile(r"\bpath=[\"']([^\"']+)[\"']")
+PARAM_FIELD_TOC_RE = re.compile(r"\btoc=\{\s*true\s*\}")
 CHANGELOG_TAGS_RE = re.compile(r"<ChangelogTags")
 CHANGELOG_FILENAME_RE = re.compile(r"^\d{4}-\d{2}-\d{2}\.mdx$")
 WORD_RE = re.compile(r"[A-Za-z0-9']+")
@@ -188,6 +191,32 @@ def check_internal_links(site: Site) -> Iterator[Finding]:
             yield Finding("broken-internal-link", ERROR, _relative(site, path), f"no page publishes this URL: {raw}", line)
 
 
+def check_redirects(site: Site) -> Iterator[Finding]:
+    """Redirects must point somewhere real and should not chain; ``:param`` destinations are accepted as-is."""
+    urls = site.page_urls | {page.nav_url for page in site.pages}
+
+    def resolves(url: str) -> bool:
+        # A section URL (prefix of a page URL) is served by the platform as its first page.
+        return (
+            url == site.basepath
+            or any(url == p or p.startswith(url + "/") for p in urls)
+            or any(url == p or url.startswith(p + "/") for p in site.generated_prefixes)
+        )
+
+    for source, destination in site.redirects.items():
+        if source in urls:
+            yield Finding("shadowed-redirect", WARNING, _relative(site, site.root / "docs.yml"), f"redirect source is also a page URL; the redirect wins, so the page is only reachable at its navigation URL: {source}")
+        if ":" in destination or not _is_internal(destination, site):
+            continue
+        target = _normalize(destination, site)
+        if resolves(target):
+            continue
+        if site.redirect_for(target):
+            yield Finding("redirect-chain", WARNING, _relative(site, site.root / "docs.yml"), f"redirect destination is itself redirected, point it at the final URL: {source} -> {destination}")
+        else:
+            yield Finding("broken-redirect", ERROR, _relative(site, site.root / "docs.yml"), f"redirect destination is not a published URL: {source} -> {destination}")
+
+
 def heading_slug(text: str) -> str:
     """github-slugger: lowercase, drop punctuation, spaces to hyphens (``Your site is live!`` -> ``your-site-is-live``)."""
     text = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", text)
@@ -197,15 +226,25 @@ def heading_slug(text: str) -> str:
 
 
 def page_anchors(text: str) -> set[str]:
-    """Ids the platform renders for a page body: headings, ``Step``/``Tab``/``Accordion`` titles, ``ParamField`` paths and ``<Anchor id>``."""
+    """Ids the platform renders for a page body: headings, ``Step``/``Tab``/``Accordion`` titles, ``ParamField toc={true}`` paths and ``<Anchor id>``."""
     anchors: set[str] = set()
     seen: Counter[str] = Counter()
     for match in ANCHOR_SOURCE_RE.finditer(CODE_BLOCK_RE.sub("", text)):
         if match.group("anchor") or match.group("explicit"):
             anchors.add(match.group("anchor") or match.group("explicit"))
             continue
-        slug = heading_slug(match.group("heading") or match.group("title") or match.group("param"))
-        anchors.add(slug if seen[slug] == 0 else f"{slug}-{seen[slug]}")
+        rendered = True
+        if match.group("param_attrs") is not None:
+            param = PARAM_FIELD_PATH_RE.search(match.group("param_attrs"))
+            if not param:
+                continue
+            # A field without ``toc={true}`` gets no id but still advances the duplicate counter.
+            rendered = bool(PARAM_FIELD_TOC_RE.search(match.group("param_attrs")))
+            slug = heading_slug(param.group(1))
+        else:
+            slug = heading_slug(match.group("heading") or match.group("title"))
+        if rendered:
+            anchors.add(slug if seen[slug] == 0 else f"{slug}-{seen[slug]}")
         seen[slug] += 1
     return anchors
 

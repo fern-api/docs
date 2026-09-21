@@ -25,6 +25,16 @@ redirects:
     destination: /learn/docs/guide/overview
   - source: /learn/docs/legacy/:slug*
     destination: /learn/docs/guide/:slug*
+  - source: /learn/docs/gone
+    destination: /learn/docs/nowhere
+  - source: /learn/docs/hop
+    destination: /learn/docs/old
+  - source: /learn/docs/section
+    destination: /learn/docs/guide
+  - source: /learn
+    destination: /learn/home
+  - source: /learn/docs/guide/git-lab
+    destination: /learn/docs/guide/overview
 products:
   - display-name: Home
     path: ./products/home/home.yml
@@ -138,8 +148,11 @@ def make_site(root: Path) -> Path:
         </Steps>
         <ParamField path="settings.filter" type="string" toc={true}>x</ParamField>
         <ParamField path="api" type="string" toc={true}>x</ParamField>
+        <ParamField path="quiet" type="string">no id without toc</ParamField>
+        <ParamField path="api" type="list<string>">counted, not rendered</ParamField>
+        <ParamField path="api" type="map<string, string>" toc={true}>x</ParamField>
         <Anchor id="explicit" />
-        [same](#opts) [same-bad](#nope)
+        [same](#opts) [same-bad](#nope) [quiet](#quiet) [api-2](#api-2) [api-3](#api-3)
         [a](/learn/docs/guide/overview#shared-heading) [b](/learn/docs/guide/overview#missing-heading)
         [c](/learn/docs/guide/git-lab#your-site-is-live) [d](/learn/docs/guide/git-lab#install) [e](/learn/docs/guide/git-lab#api-1)
         [f](/learn/docs/guide/git-lab#settingsfilter) [g](/learn/docs/guide/git-lab#explicit) [h](/learn/docs/guide/git-lab#not-a-heading)
@@ -282,12 +295,25 @@ class ChecksTest(unittest.TestCase):
         self.assertEqual(
             self.by_check("broken-anchor"),
             [
+                "fern/products/docs/pages/guide/gitlab.mdx: no heading or anchor with this id on the target page: #api-2",
                 "fern/products/docs/pages/guide/gitlab.mdx: no heading or anchor with this id on the target page: #nope",
+                "fern/products/docs/pages/guide/gitlab.mdx: no heading or anchor with this id on the target page: #quiet",
                 "fern/products/docs/pages/guide/gitlab.mdx: no heading or anchor with this id on the target page: /learn/docs/guide/git-lab#not-a-heading",
                 "fern/products/docs/pages/guide/gitlab.mdx: no heading or anchor with this id on the target page: /learn/docs/guide/overview#missing-heading",
                 "fern/snippets/shared.mdx: no heading or anchor with this id on the target page: #gone",
             ],
         )
+
+    def test_redirects(self):
+        self.assertEqual(
+            self.by_check("broken-redirect"),
+            ["fern/docs.yml: redirect destination is not a published URL: /learn/docs/gone -> /learn/docs/nowhere"],
+        )
+        self.assertEqual(
+            self.by_check("redirect-chain"),
+            ["fern/docs.yml: redirect destination is itself redirected, point it at the final URL: /learn/docs/hop -> /learn/docs/old"],
+        )
+        self.assertEqual(len(self.by_check("shadowed-redirect")), 2)  # /learn (frontmatter slug) and /learn/docs/guide/git-lab
 
     def test_snippets_and_assets(self):
         self.assertEqual(

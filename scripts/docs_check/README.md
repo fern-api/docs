@@ -33,8 +33,11 @@ Inside GitHub Actions the output switches to workflow annotations and the covera
 | `missing-asset` | error | Relative image or media file that does not exist |
 | `changelog-filename` | error | Changelog file not named `YYYY-MM-DD.mdx` |
 | `changelog-missing-tags` | error | `##` heading not directly followed by `<ChangelogTags>` |
-| `broken-anchor` | error | `#fragment` (same page or on a `/learn/...` link) that matches no heading, `<Anchor id>`, `<Step>`/`<Tab>`/`<Accordion>` title, or `<ParamField path>` on the target page |
+| `broken-anchor` | error | `#fragment` (same page or on a `/learn/...` link) that matches no heading, `<Anchor id>`, `<Step>`/`<Tab>`/`<Accordion>` title, or `<ParamField path toc={true}>` on the target page |
 | `redirected-link` | warning | Internal link that only resolves through a redirect |
+| `broken-redirect` | error | `docs.yml` redirect whose destination is not a published URL |
+| `redirect-chain` | warning | `docs.yml` redirect whose destination is itself redirected |
+| `shadowed-redirect` | warning | `docs.yml` redirect whose source is also a page URL (the redirect wins) |
 | `relative-page-link` | warning | Link to a page written as a relative path instead of a published URL |
 | `orphan-page` | warning | Page file that no navigation entry or snippet include references |
 | `unused-snippet` | warning | Snippet file that no page includes |
