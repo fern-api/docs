@@ -77,14 +77,14 @@ def page_images(base: str, page_url: str, html: str) -> set[str]:
 
 
 def normalize_title(text: str) -> str:
-    """Compare titles loosely: strip tags, entities, backticks, case and whitespace runs."""
-    text = html_lib.unescape(TAG_RE.sub("", text)).replace("`", "")
-    return re.sub(r"\s+", " ", text).strip().lower()
+    """Compare visible text loosely: ignore backticks, case and whitespace runs."""
+    return re.sub(r"\s+", " ", text.replace("`", "")).strip().lower()
 
 
 def rendered_title(html: str) -> str | None:
+    """Visible text of the first ``<h1>``: markup removed, entities decoded."""
     match = H1_RE.search(html)
-    return normalize_title(match.group(1)) if match else None
+    return normalize_title(html_lib.unescape(TAG_RE.sub("", match.group(1)))) if match else None
 
 
 def check_page(base: str, page_url: str, timeout: float, retries: int, image_cache: dict[str, int], title: str | None = None) -> list[Failure]:

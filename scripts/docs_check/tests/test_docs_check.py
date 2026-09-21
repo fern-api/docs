@@ -230,10 +230,11 @@ class SmokeTest(unittest.TestCase):
             "https://x.test/learn/gone": (404, ""),
             "https://x.test/learn/titled": (200, '<h1 class="x">The <code>llms.txt</code> &amp; friends</h1>'),
             "https://x.test/learn/wrong-page": (200, "<h1>Welcome</h1>"),
+            "https://x.test/learn/code-title": (200, "<h1>Using <code>&lt;Button&gt;</code></h1>"),
         }
-        titles = {"/learn/titled": "The `llms.txt` & friends", "/learn/wrong-page": "Configuration"}
+        titles = {"/learn/titled": "The `llms.txt` & friends", "/learn/wrong-page": "Configuration", "/learn/code-title": "Using `<Button>`"}
         with unittest.mock.patch.object(smoke, "fetch", lambda url, timeout: pages.get(url, (0, "boom"))):
-            failures = smoke.run("https://x.test", ["/learn/ok", "/learn/broken-img", "/learn/error", "/learn/gone", "/learn/down", "/learn/titled", "/learn/wrong-page"], 1, 0, 2, titles)
+            failures = smoke.run("https://x.test", ["/learn/ok", "/learn/broken-img", "/learn/error", "/learn/gone", "/learn/down", "/learn/titled", "/learn/wrong-page", "/learn/code-title"], 1, 0, 2, titles)
         self.assertEqual(
             [(f.url, f.message) for f in failures],
             [
