@@ -1,10 +1,10 @@
 ---
 title: Server names and URL templating
 headline: Server names and URL templating (OpenAPI)
-description: Learn how to use x-fern-server-name, x-fern-default-url, and URL template variables in your OpenAPI specification for better SDK generation.
+description: Learn how to use x-fern-server-name, x-fern-default-url, x-fern-base-url-env, and URL template variables in your OpenAPI specification for better SDK generation.
 ---
 
-Fern supports several extensions for configuring the `servers` block in your OpenAPI specification. Use `x-fern-server-name` to give servers human-readable names, then combine it with URL template variables and `x-fern-default-url` to support dynamic base URLs in generated SDKs.
+Fern supports several extensions for configuring the `servers` block in your OpenAPI specification. Use `x-fern-server-name` to give servers human-readable names, then combine it with URL template variables and `x-fern-default-url` to support dynamic base URLs in generated SDKs. Use `x-fern-base-url-env` to let generated SDKs read their base URL from an environment variable.
 
 ## `x-fern-server-name`
 
@@ -81,4 +81,23 @@ Each variable is defined under the `variables` map and supports the following fi
 
 - `default` — The fallback value used when the SDK user doesn't provide one. This field is required by the OpenAPI specification.
 - `enum` — An optional list of allowed values. When provided, Fern generates the variable as a typed enum in the SDK rather than an open string.
+
+## `x-fern-base-url-env`
+
+Set the root-level `x-fern-base-url-env` extension to the name of an environment variable that the generated SDK reads for its base URL, the same way auth credentials can default from environment variables. This lets each deployment (staging, production, self-hosted) point the SDK at a different host without passing a base URL in code.
+
+```yaml title="openapi.yml"
+x-fern-base-url-env: PLANTS_API_BASE_URL
+servers:
+  - url: https://api.example.com
+    x-fern-server-name: Production
+  - url: https://sandbox.example.com
+    x-fern-server-name: Sandbox
+```
+
+The generated client resolves the base URL in this order: an explicit base URL passed to the client, an explicit environment passed to the client, the value of the environment variable, then the default environment. The extension requires at least one entry under `servers`; `fern check` warns (`valid-base-url-env`) otherwise.
+
+A `base-url-env` set in the [`api.environments` override in `generators.yml`](/learn/sdks/reference/generators-yml#environments) takes precedence over `x-fern-base-url-env`.
+
+Only the TypeScript SDK generator supports this setting.
 
