@@ -152,6 +152,32 @@ socket.sendSendReading({ temperature: 22.5, humidity: 65 });
 socket.close();
 ```
 
+Detach a handler with `socket.off(event, handler)`. By default, registering a second handler for the same event replaces the first; set [`websocketHandlerMode: accumulate`](/learn/sdks/generators/typescript/configuration#websockethandlermode) in `generators.yml` to fire every registered handler in order.
+
+```typescript
+const logStatus = (message) => console.log(message.health);
+
+socket.on("message", logStatus);
+socket.off("message", logStatus);
+```
+
+The connection call accepts `reconnectAttempts` (default `30`, `0` disables reconnection) and a `shouldReconnect` predicate that receives the `CloseEvent` and decides whether to reconnect. The default reconnects on every close code except `1000`. Return `false` to treat a close as terminal, for example after the client has sent an end-of-stream message:
+
+```typescript
+let streamEnded = false;
+
+const socket = await client.plantUpdates.createPlantUpdatesConnection({
+  plantId: "plant-123",
+  reconnectAttempts: 5,
+  shouldReconnect: (event) => !streamEnded && event.code !== 1000,
+});
+
+streamEnded = true;
+socket.sendSendReading({ temperature: 22.5, humidity: 65 });
+```
+
+`shouldReconnect` isn't consulted after `socket.close()` or when the `abortSignal` aborts, and a predicate that throws is treated as terminal.
+
 </Tab>
 <Tab title="Python" language="python">
 

@@ -9,6 +9,8 @@ Embedded mode strips the header and footer (including navigation and logo) from 
 - Embed a page in an iframe without the standard navigation chrome
 - Render content-only views in another application
 
+Pages served with `embedded=true` omit the `frame-ancestors` Content Security Policy directive, so any origin can load them in an iframe. Without the parameter, only the docs site's own origin and Fern's hosts can frame the page.
+
 ## Enable embedded mode
 
 Add the `embedded=true` query parameter to the URL:
@@ -29,17 +31,22 @@ Add the `embedded=true` query parameter to the URL:
 
 Embedded mode persists across navigation within a session, so internal links keep it active without the query string on every URL.
 
-## Fine-grained chrome control
+## Keep the header or footer
 
-`?header=false` and `?footer=false` can be used independently of `?embedded=true` to hide only one piece of chrome at a time. Inside embedded mode, `?header=true` or `?footer=true` opts that piece back in.
+Embedded mode hides both the header and footer by default. Add `header=true` or `footer=true` alongside `embedded=true` to keep that element:
 
-| URL parameter(s) | Header | Footer |
-|---|---|---|
-| `?embedded=true` | hidden | hidden |
-| `?header=false` | hidden | shown |
-| `?footer=false` | shown | hidden |
-| `?embedded=true&header=true` | shown | hidden |
-| `?embedded=true&footer=true` | hidden | shown |
+| Parameter | Effect |
+|-----------|--------|
+| `embedded=true&header=true` | Hides the footer, keeps the header |
+| `embedded=true&footer=true` | Hides the header, keeps the footer |
+| `embedded=true&header=true&footer=true` | Keeps both; the page still allows framing from any origin |
+
+```jsx HTML
+<iframe
+  src="https://elevenlabs.io/docs/overview/intro?embedded=true&footer=true"
+  style="width: 100%; height: 500px; border: none; border-radius: 8px;"
+></iframe>
+```
 
 ## Embed external pages
 

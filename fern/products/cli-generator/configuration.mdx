@@ -113,6 +113,7 @@ config:
     keywords: ["plants", "cli"]
 ```
 </ParamField>
+
 <Indent>
 <ParamField path="packageIdentity.name" type="string" required={false}>
 Crate name. Must be a valid cargo crate name: it starts with a letter and contains only letters, digits, `-`, and `_`. Invalid values fail at generation time with a config error instead of surfacing later as a manifest error during `cargo build`. The generator renames the matching `Cargo.lock` entry in the same pass, so `cargo build --locked` still resolves the workspace member.
@@ -142,6 +143,32 @@ Crate authors, in Cargo's `Name <email>` form.
 Keywords for crates.io search.
 </ParamField>
 </Indent>
+
+<ParamField path="extraDependencies" type="object" toc={true} required={false}>
+Adds crates to the `[dependencies]` table of the generated root `Cargo.toml`. Use it when code you keep in `.fernignore`, such as [custom command](/learn/cli-generator/get-started/customization) handlers or custom authentication, imports crates the generated CLI doesn't already depend on. Each value is a version requirement string or a dependency table with any of `version`, `features`, `optional`, `defaultFeatures`, `package`, `path`, `git`, `branch`, `rev`, and `registry`. Crates the generated CLI already depends on can't be redeclared.
+
+```yaml title="generators.yml"
+config:
+  binaryName: plant
+  extraDependencies:
+    google-cloud-auth: "1.16"
+    google-cloud-iam-credentials-v1:
+      version: "1.12"
+      defaultFeatures: false
+```
+
+Generation writes the dependencies to `Cargo.toml` only. The first `cargo build` after generation resolves them into `Cargo.lock`.
+</ParamField>
+
+<ParamField path="extraDevDependencies" type="object" required={false}>
+Same as `extraDependencies`, for the `[dev-dependencies]` table.
+
+```yaml title="generators.yml"
+config:
+  extraDevDependencies:
+    mockall: "0.11"
+```
+</ParamField>
 
 <ParamField path="distribution" type="object" toc={true} required={false}>
 Adds Homebrew and Scoop publishing on top of the GitHub Release archives every generated CLI already ships. Both channels install from a tagged release, so `distribution` is honored only when the generator delivers to a GitHub repository through the `github` block. Enabling a channel adds a publish job to the release workflow and the matching install command to the generated README. Each job pushes to a public [tap or bucket repository](/learn/cli-generator/get-started/publishing#configure-distribution-channels) you create, authenticating with either a personal access token per channel or a GitHub App whose credentials you store as repository secrets.
