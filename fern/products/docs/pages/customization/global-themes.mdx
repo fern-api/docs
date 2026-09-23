@@ -108,56 +108,12 @@ When a global theme is applied, the theme's values take precedence over branding
 | [`ai-search`](/learn/docs/configuration/site-level-settings#ask-fern-configuration) | Theme | AI search configuration |
 | [`announcement`](/learn/docs/customization/announcement-banner) | Theme | Announcement banner |
 | [`metadata`](/learn/docs/configuration/site-level-settings#seo-metadata-configuration) | Theme | SEO metadata |
-| [`products`](/learn/docs/configuration/products) | Merged | Product switcher entries, combined with the child repository's own products |
 | [`navigation`](/learn/docs/configuration/navigation) | Child repository | Tabs, sections, pages |
 | [`apis`](/learn/docs/api-references/overview) | Child repository | API references |
 | [`redirects`](/learn/docs/configuration/site-level-settings#redirects-configuration) | Child repository | Redirects |
 | [`versions`](/learn/docs/configuration/versions) | Child repository | Versions |
 | [`instances`](/learn/docs/configuration/site-level-settings#instances-configuration) | Child repository | Domain and URL |
 </StickyTable>
-
-## Share products across sites
-
-A global theme can carry the product list, so every site that references the theme shows the same [product switcher](/learn/docs/configuration/products). Without it, each site's switcher shows only the products defined in its own `docs.yml`.
-
-The control repository lists every product in the organization: its own with `path`, and products published by other repositories with `href`.
-
-```yaml docs.yml
-products:
-  - display-name: Sunflower
-    path: ./products/sunflower.yml
-    icon: fa-solid fa-sun
-
-  - display-name: Tulip Bulbs
-    path: ./products/tulips.yml
-    slug: tulips
-
-  - display-name: Soil
-    href: https://docs.example.com/soil # published by another repository
-```
-
-`fern docs theme export` rewrites the control repository's own products into absolute links built from its first `instances` entry, turning `Sunflower` into `https://docs.example.com/seeds/sunflower`. Entries that already use `href` pass through unchanged. Each exported entry keeps `display-name`, `subtitle`, `icon`, and `image`. Fields that only resolve inside the repository owning the product are dropped: `versions`, `announcement`, `audiences`, `viewers`, `orphaned`, and `feature-flag`.
-
-When a site publishes, it merges the theme's product list with its own:
-
-- Entries pointing into the publishing site resolve to that site's internal product, preserving in-site navigation and the current-product highlight.
-- Entries pointing at other sites stay external links.
-- Local products the theme omits are appended after the theme's entries.
-
-A site with no products of its own renders the theme's list entirely as links. Adding a product to one repository leaves every other switcher unchanged until the control repository re-exports the theme and each site republishes.
-
-### Reference a product in another repository
-
-An `href` can name the product directly or the site that serves it.
-
-| `href` | Resolves to |
-| --- | --- |
-| `https://docs.example.com/soil/topsoil` | The product whose slug is `topsoil` |
-| `https://docs.example.com/soil` | The product whose display name matches the entry, or that site's only product |
-
-Matching a site root by display name requires the name in the theme to agree with the name in that repository's `docs.yml`. If the two diverge, the entry stays an external link: still reachable, no longer highlighted as the current product.
-
-Products carried by a theme appear as links on every site except the one that owns them, so they can't use [versions](/learn/docs/configuration/products#add-versioning-to-your-products).
 
 ## Updating a theme
 
