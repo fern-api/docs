@@ -190,7 +190,7 @@ The rendered site generates an `id` for:
 
 Ids are the text lowercased with punctuation removed and spaces turned into hyphens: `## Page actions (options.mcp)` becomes `#page-actionsoptionsmcp`, `path="extraDependencies"` becomes `#extradependencies`, `## "Edit this page" configuration` becomes `#edit-this-page-configuration`. A repeated id gets a numeric suffix (`#usage`, `#usage-1`).
 
-`<Card title="...">` and other components generate no anchor. Headings inside an included snippet resolve on every page that includes it. Anchors are verified by `python3 -m scripts.docs_check`, which fails a PR on a link to a missing id.
+`<Card title="...">` and other components generate no anchor. Headings inside an included snippet resolve on every page that includes it.
 
 ### Sweep checklist
 
