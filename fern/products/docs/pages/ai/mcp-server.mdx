@@ -94,6 +94,20 @@ For Cursor, VS Code, and other clients, add `FERN_TOKEN: <jwt>` to the `headers`
   JWTs expire. Re-run the token exchange when the token lapses. There is no automatic refresh mechanism in the MCP transport.
 </Note>
 
+## Exclude test and eval traffic from analytics
+
+By default, every request through the MCP server is recorded as a conversation in the [Ask Fern analytics dashboard](/learn/docs/ai-features/ask-fern/overview). Automated tests or evals that call the server are recorded alongside real user queries, which can skew the data.
+
+To prevent a request from being recorded, include the header `x-fern-skip-save-query: true` (or `x-fern-skip-save-query: 1`) on the MCP HTTP request. The request is still answered normally and still consumes AI credits — only the analytics recording is skipped.
+
+In Claude Code, pass the header with `--header`:
+
+```bash
+claude mcp add --transport http \
+  --header "x-fern-skip-save-query: true" \
+  fern_mcp_docs.example.com https://docs.example.com/_mcp/server
+```
+
 ## Disable the MCP server
 
 To turn the server off entirely, set `mcp` to `false` in your [`page-actions` configuration](/learn/docs/configuration/site-level-settings#page-actionsoptions.mcp):
