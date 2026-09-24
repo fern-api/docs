@@ -320,6 +320,28 @@ Custom interceptors run in registration order, inside Fern's retry interceptor, 
 
 To attach an interceptor yourself rather than requiring every caller to register one, override the protected `setInterceptors(ClientOptions.Builder)` method on a [custom builder](#adding-custom-client-configuration), and add that builder to `.fernignore` so regeneration doesn't overwrite it.
 
+## Closing the client
+
+Generated root clients, both sync (`PlantsClient`) and async (`AsyncPlantsClient`), implement `AutoCloseable`. Calling `close()` shuts down the dispatcher executor of the underlying `OkHttpClient` and evicts its connection pool. Without this, the default `OkHttpClient`'s threads can keep a short-lived Java process (a CLI tool, batch job, or test) alive after the work is done.
+
+Use `try-with-resources` to release resources when the block exits:
+
+```java
+try (PlantsClient client = PlantsClient.builder().token("<token>").build()) {
+    client.plants().get("plant_123");
+}
+```
+
+Or call `close()` explicitly:
+
+```java
+AsyncPlantsClient client = AsyncPlantsClient.builder().token("<token>").build();
+client.plants().get("plant_123").join();
+client.close();
+```
+
+`close()` only tears down an `OkHttpClient` that the SDK created. A client passed to the builder's `httpClient(...)` method is left running: the caller owns it and is responsible for closing it. Subpackage clients such as `client.plants()` aren't `AutoCloseable`; close the root client instead.
+
 ## Adding custom dependencies
 
 To add packages that your custom code requires, update your `generators.yml`.
