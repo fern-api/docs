@@ -290,6 +290,26 @@ A name missing from `FERN_RUNTIME_ENV_VARS`, or listed with no value in the cont
 
 Page content can also spell out `FERN_SELF_HOSTED_ENV_<NAME>` directly, for sources that don't use `${VAR}` substitution.
 
+### Global themes in self-hosted
+
+Self-hosted containers support [`global-theme`](/learn/docs/customization/global-themes) when the theme is vendored into the image. Vendor the theme by copying its directory (the output of `fern docs theme download --name <name>`) into the image at `/fern-themes/<name>/`, where `<name>` matches the value of `global-theme` in `docs.yml`:
+
+```dockerfile Dockerfile
+ARG BASE_IMAGE=fernenterprise/fern-self-hosted:latest
+FROM ${BASE_IMAGE}
+
+# Vendor the theme outside /fern so a later COPY fern/ /fern/ cannot overwrite it.
+COPY theme/ /fern-themes/my-org-theme/
+
+COPY fern/ /fern/
+
+RUN fern-generate
+```
+
+During `fern-generate`, the container finds the vendored theme, uploads it into its local registry, and publishes with the theme applied — exactly as a Fern-hosted build would. If the theme directory is absent, the container logs a warning, strips `global-theme` from `docs.yml`, and builds unthemed instead of failing.
+
+Use `fern docs theme download --name <name>` to obtain the theme directory from Fern's cloud registry and commit it to your image source.
+
 ### Air-gapped deployments with gRPC
 
 If your API uses gRPC with dependencies from the [Buf Schema Registry](https://buf.build) (BSR), the `buf` CLI fetches modules from `buf.build` during generation. This fails in air-gapped environments without network access.
