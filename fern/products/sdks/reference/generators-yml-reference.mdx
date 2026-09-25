@@ -277,6 +277,48 @@ api:
   For example, use this to ensure consistent parsing behavior across all your OpenAPI specs. For available settings, see the [specification type](#specification-types) documentation below.
 </ParamField>
 
+<ParamField path="settings.error-responses" type="object" toc={true}>
+  Applies one typed body schema to OpenAPI 4xx/5xx responses during import, for generated SDKs and API References. Set it under `api.settings` for all OpenAPI specs, or under `api.specs[].settings` to override it for one spec. Without this setting, error responses are imported as declared.
+
+  ```yaml title="generators.yml"
+  api:
+    settings:
+      error-responses:
+        schema: errors/plant_problem.yml
+        name: PlantProblem
+        apply-to: all
+        ensure:
+          - status-code: 422
+            methods: [post, put, patch]
+    specs:
+      - openapi: ./plants.yml
+  ```
+</ParamField>
+
+<ParamField path="settings.error-responses.schema" type="string | object" required={true} toc={true}>
+  OpenAPI schema for error bodies: a YAML/JSON file path relative to the API workspace (the directory containing `generators.yml`), or an inline schema object. The schema is registered in `components.schemas` under `name`. Any `$ref` inside it must be a local `#/...` pointer into the OpenAPI spec.
+</ParamField>
+
+<ParamField path="settings.error-responses.name" type="string" toc={true}>
+  Generated error body type name. Defaults to the schema's `title`, then `ProblemDetails`. A different existing schema with this name is replaced if nothing still references it after the error responses are rewritten. Otherwise, `fern check` reports the remaining JSON Pointers; references from 2xx responses, other schemas, or typed errors retained by `apply-to: untyped` prevent replacement.
+</ParamField>
+
+<ParamField path="settings.error-responses.apply-to" type="all | untyped" default="all" toc={true}>
+  `all` replaces the body schema of every 400–599 response, including `4XX` and `5XX` wildcards, and drops examples attached to replaced schemas. `untyped` adds the shared schema only to responses without a body schema; existing typed errors remain unchanged. Response descriptions and headers are preserved, as are examples on previously schemaless responses. Responses with no content receive `application/json`.
+</ParamField>
+
+<ParamField path="settings.error-responses.ensure" type="list of objects" toc={true}>
+  Adds each listed status code to operations without that response, using the shared schema.
+</ParamField>
+
+<ParamField path="settings.error-responses.ensure[].status-code" type="integer" required={true} toc={true}>
+  Error status code to add, from 400 to 599.
+</ParamField>
+
+<ParamField path="settings.error-responses.ensure[].methods" type="list of HTTP methods" toc={true}>
+  Restricts the added response to the listed methods (`get`, `post`, `put`, `patch`, `delete`, `head`, `options`, or `trace`). Defaults to all methods.
+</ParamField>
+
 <ParamField path="settings.auto-generate-idempotency-key" type="boolean | object" default="false" toc={true}>
   Enables [idempotency-key auto-generation](/learn/sdks/deep-dives/idempotency#auto-generate-idempotency-keys) for every generator in the API, instead of setting it under each generator's `config`. When enabled, generated SDKs attach a UUIDv4 idempotency-key header on eligible methods unless the caller supplies one.
 
