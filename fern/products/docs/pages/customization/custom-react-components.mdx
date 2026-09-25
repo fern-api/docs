@@ -76,6 +76,64 @@ import { CustomCard } from "../components/CustomCard"
   ```
 </Steps>
 
+## Define Markdown output with `toMarkdown`
+
+Generated Markdown (`.md` page twins, `llms.txt`, and `llms-full.txt`) is derived from the MDX source, so custom components normally contribute nothing to it: self-closing tags are dropped and wrapped children are kept as-is. To give a component a Markdown representation, export a `toMarkdown(props): string` function next to it. Fern calls it with the same props the component receives and splices the returned Markdown in place of the tag.
+
+```tsx components/FeatureAccess.tsx
+type Plan = { name: string; included?: boolean };
+type Props = { plans?: Plan[] };
+
+export function FeatureAccess({ plans = [] }: Props) {
+  return (
+    <table>
+      <tbody>
+        {plans.map((plan) => (
+          <tr key={plan.name}>
+            <td>{plan.name}</td>
+            <td>{plan.included === false ? "No" : "Yes"}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+export function toMarkdown({ plans = [] }: Props): string {
+  const rows = plans.map((plan) => `| ${plan.name} | ${plan.included === false ? "No" : "Yes"} |`);
+  return ["**Available for the following plan types**", "", "| Plan | Included |", "| --- | --- |", ...rows].join("\n");
+}
+```
+
+Props are built from the tag's attributes: string attributes are passed as strings, attributes without a value as `true`, and `{...}` expressions are evaluated with `frontmatter` in scope. Children are passed as the raw MDX string under `children`.
+
+```mdx guide.mdx
+---
+title: StoryAI Opportunities
+access:
+  plans:
+    - name: Enterprise
+    - name: Business
+      included: false
+---
+
+import { FeatureAccess } from "@/components/FeatureAccess";
+
+<FeatureAccess plans={frontmatter.access.plans} />
+```
+
+For a module that exports several components, attach `toMarkdown` to the component instead:
+
+```tsx components/Price.tsx
+export function Price({ amount }: { amount: number }) {
+  return <strong>${amount.toFixed(2)}</strong>;
+}
+
+Price.toMarkdown = ({ amount }: { amount: number }) => `**$${amount.toFixed(2)}**`;
+```
+
+`toMarkdown` must be synchronous and return a string. If a component has no `toMarkdown`, or the function throws, times out, or returns anything other than a string, the tag falls back to the default behavior and the page still renders.
+
 {/*
 ## Import third-party packages <Badge intent="warning" minimal>Beta</Badge>
 
