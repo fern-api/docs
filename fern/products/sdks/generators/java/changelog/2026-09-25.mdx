@@ -1,3 +1,12 @@
+## 4.22.2
+**`(fix):`** `RetryInterceptor` now applies the client `timeout` to each attempt individually instead of to the
+whole retry loop. Previously a `Retry-After` wait as long as the timeout (e.g. `Retry-After: 60`
+with the default 60s timeout) cancelled the call during the backoff sleep and surfaced
+`IOException: Canceled` instead of retrying or returning the received 429. The call timeout is
+paused while waiting for the backoff and restarted for each retry attempt, so a call that retries
+may now take up to `timeout * (maxRetries + 1)` plus the backoff waits.
+
+
 ## 4.22.1
 **`(fix):`** Closing the root client (or `ClientOptions.close()`) now disconnects any WebSocket clients that are still
 connected before the SDK-owned OkHttp dispatcher is shut down, so they stop reconnecting cleanly instead of
