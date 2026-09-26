@@ -5,7 +5,7 @@ description: Configure webhook signature verification in your Fern-generated SDK
 
 <Markdown src="/snippets/enterprise-plan.mdx"/>
 
-When you define webhooks in your API spec, Fern automatically generates utilities that allow your SDK users to verify webhook signatures and ensure events originate from your API. These helpers are generated for the TypeScript, Python, Java, Go, PHP, Ruby, and C# SDKs.
+When you define a webhook signing scheme, in your API spec or [API-wide in `generators.yml`](#configure-api-wide-in-generatorsyml), Fern automatically generates utilities that allow your SDK users to verify webhook signatures and ensure events originate from your API. These helpers are generated for the TypeScript, Python, Java, Go, PHP, Ruby, and C# SDKs.
 
 Fern supports two signature verification methods:
 - **Hash-based Message Authentication Code (HMAC)** — Symmetric key verification using shared secrets
@@ -106,3 +106,36 @@ var isValid = WebhooksHelper.VerifySignature(
 ## Setting up webhook signature verification
 
 Configure signature verification in your API definition with the [`x-fern-webhook-signature` extension](/learn/api-definitions/openapi/endpoints/webhooks#sdk-signature-verification), at the document level (inherited by all webhooks) or per-webhook.
+
+## Configure API-wide in generators.yml
+
+If every webhook your API sends is signed the same way, declare the scheme once under [`api.settings.webhook-signature`](/learn/sdks/reference/generators-yml#settingswebhook-signature) in `generators.yml` instead of in the API definition. Every generator in the API emits the shared `WebhooksHelper` from this scheme, even when the spec models no webhooks and carries no `x-fern-webhook-signature` extension. This fits providers such as Twilio, which signs every webhook identically but does not model incoming webhooks in its OpenAPI specs.
+
+The block accepts the same [configuration options](/learn/api-definitions/openapi/endpoints/webhooks#sdk-signature-verification) as a webhook signature block in the API definition:
+
+```yaml title="generators.yml"
+api:
+  specs:
+    - openapi: ./openapi.yml
+  settings:
+    webhook-signature:
+      type: hmac
+      header: X-Twilio-Signature
+      algorithm: sha1
+      encoding: base64
+      payload-format:
+        components: [notification-url, body]
+        delimiter: ""
+        body-sort: alphabetical
+      body-hash-binding:
+        algorithm: sha256
+        encoding: hex
+        location:
+          type: query-parameter
+          name: bodySHA256
+      url-normalization:
+        port-variants: true
+        legacy-query-encoding: true
+```
+
+When the API definition also configures signatures, the more specific scheme wins: a webhook's own `signature` overrides a document-level `webhook-signature` or `x-fern-webhook-signature`, which overrides `api.settings.webhook-signature`. A webhook with a distinct scheme still gets its own helper, such as `PlantShippedWebhooksHelper`; the API-wide scheme always backs the default `WebhooksHelper`.
