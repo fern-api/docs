@@ -1,0 +1,108 @@
+# docs_check
+
+Static checks for the docs source tree. They read `fern/docs.yml` and the product navigation files, build the published `/learn/...` URL of every page, and report coverage gaps that `fern check`, Vale, and the live link checker do not catch.
+
+```bash
+pip install pyyaml
+python3 -m scripts.docs_check                 # text output, exit 1 on errors
+python3 -m scripts.docs_check --strict        # also fail on warnings
+python3 -m scripts.docs_check --only orphan-page stub-page
+python3 -m scripts.docs_check --json report.json --summary summary.md
+python3 -m unittest discover -s scripts/docs_check/tests -t .
+```
+
+Inside GitHub Actions the output switches to workflow annotations and the coverage table is appended to the job summary.
+
+## Where each layer runs
+
+| Stage | Workflow | What runs |
+|---|---|---|
+| Pull request, source | `docs-checks.yml` | Unit tests, the static checks, `fern check` |
+| Pull request, external links | `docs-checks.yml` | lychee over the http(s) links in changed files, with the shared `.github/lychee.toml` |
+| Pull request, rendered preview | `preview-docs.yml` | `smoke.py` and `console_smoke.py` against the preview for every page the PR touches |
+| Push to `main` | `publish-docs.yml` | `smoke.py` against buildwithfern.com for every derived URL after `fern generate` |
+| Weekday schedule | `docs-checks.yml`, `check-links.yml` | Full static run, full production smoke run, search smoke run, config example validation, full external link sweep; failures open a tracking issue |
+
+## Checks
+
+| Check | Severity | What it catches |
+|---|---|---|
+| `nav-path-missing` | error | Navigation entry points at a file or directory that does not exist |
+| `broken-internal-link` | error | `/learn/...` link that no page, API reference, changelog, or redirect publishes |
+| `missing-snippet` | error | `<Markdown src>` target that does not exist |
+| `missing-asset` | error | Relative image or media file that does not exist |
+| `changelog-filename` | error | Changelog file not named `YYYY-MM-DD.mdx` |
+| `changelog-missing-tags` | error | `##` heading not directly followed by `<ChangelogTags>` |
+| `broken-anchor` | error | `#fragment` (same page or on a `/learn/...` link) that matches no heading, explicit `id=` on `<Anchor>` or a raw HTML element (`<div id>`; component `id` props such as `<Note id>` are not rendered), `<Step>`/`<Tab>`/`<Accordion>` title, or `<ParamField path toc={true}>` on the target page |
+| `redirected-link` | warning | Internal link that only resolves through a redirect |
+| `broken-redirect` | error | `docs.yml` redirect whose destination is not a published URL |
+| `redirect-chain` | warning | `docs.yml` redirect whose destination is itself redirected |
+| `shadowed-redirect` | warning | `docs.yml` redirect whose source (exact or `:param` pattern) matches a page URL (the redirect wins) |
+| `duplicate-redirect` | warning | `docs.yml` redirect source declared twice (only the first fires) |
+| `relative-page-link` | warning | Link to a page written as a relative path instead of a published URL |
+| `orphan-page` | warning | Page file that no navigation entry or snippet include references |
+| `unused-snippet` | warning | Snippet file that no page includes |
+| `missing-title` / `missing-description` | warning | Page frontmatter without a title or description |
+| `stub-page` | warning | Page body under 40 words with no snippet include |
+| `changelog-h1` | warning | Changelog entry with an `#` heading |
+
+Generated paths (`fern/translations/`, the CLI changelog, `version-number-*` snippets) are never edited by these checks; findings on them are baselined.
+
+## Baseline
+
+`baseline.txt` lists known findings as `<check> <path> <message>` so the checks pass today and only new problems fail a PR. Because the message is part of the key, a second broken link in an already-listed page is still reported, and each line suppresses one occurrence, so repeating a listed URL in the same file is also reported. Fix an issue and delete its line, or regenerate the file after a deliberate review:
+
+```bash
+python3 -m scripts.docs_check --write-baseline
+```
+
+The run prints a note for every baseline line that no longer matches a finding.
+
+## Live smoke check
+
+`smoke.py` fetches published pages from a deployed site and fails on a non-200 response, an error page (`Page not found`, `Something went wrong`), an `<h1>` that does not match the page's frontmatter `title` (a 200 that serves the wrong page), or an image under `<main>` that does not load. It reuses the site model, so a page that the navigation YAML publishes but the site does not serve is caught without a sitemap. Redirects are followed, and a derived URL that lands somewhere else is reported as a warning (exit code unaffected): the model and the live site disagree about where that page lives. Production currently produces no warnings.
+
+```bash
+python3 -m scripts.docs_check.smoke                                   # every page on buildwithfern.com
+python3 -m scripts.docs_check.smoke --base https://<preview-host>/learn --changed fern/products/docs/pages/x.mdx fern/snippets/y.mdx
+python3 -m scripts.docs_check.smoke --changed-from changed-files.txt --json smoke.json
+```
+
+`--changed` maps each edited page to its URL and each edited snippet to every page that includes it; an edited navigation YAML widens the run to the whole site. 404 and 5xx responses are retried with backoff so a deploy that is still propagating does not fail the run.
+
+## Browser console check
+
+`console_smoke.py` opens pages in headless Chromium (Playwright) and fails on uncaught JavaScript errors, `console.error` output, and failed or 4xx/5xx same-origin requests. It catches components that render on the server but crash on the client, which `smoke.py` cannot see. Third-party analytics and blocked-tracker noise is ignored. `preview-docs.yml` runs it on the changed pages of every PR (capped at 40 pages).
+
+```bash
+pip install playwright && python3 -m playwright install chromium
+python3 -m scripts.docs_check.console_smoke --base https://<preview-host> --changed-from changed-files.txt
+```
+
+## Search smoke check
+
+`search_smoke.py` queries the production search index the way the browser does (scoped public key from `/learn/api/fern-docs/search/v2/key`, then Algolia) and fails when an expected page is not discoverable. Two kinds of query run: fixed golden queries (`generators.yml`, `docs.yml`, `openapi`, ...) whose page must rank in the top 5, and a salted sample of published pages that must rank in the top 10 for their own title. Hidden pages, `noindex` pages and titles shared by several pages are excluded from the sample. The weekday job salts the sample with the run id so the whole site is covered over time.
+
+```bash
+python3 -m scripts.docs_check.search_smoke                # 10 golden + 25 sampled pages on buildwithfern.com
+python3 -m scripts.docs_check.search_smoke --sample 80 --salt today
+```
+
+## Config example check
+
+`examples.py` validates every fenced `docs.yml` and `generators.yml` example in the docs (a `yaml` block whose info string names the file) against the JSON schemas Fern publishes at `schema.buildwithfern.dev`, so a docs example that uses a key the CLI no longer accepts fails the weekday run. Examples are fragments: `required` constraints are dropped, a block whose keys belong to a nested object (a bare `config:`, a single named group) is matched against that object, elided values (`...`) and `<Markdown>` interpolations are ignored, and blocks whose top level is not a mapping are skipped. Unknown keys, wrong types, bad enum values and invalid YAML (tabs) still fail.
+
+Known-bad examples are listed in `examples-baseline.txt` (`<path> [<file>] <message>` per line, no line numbers so edits elsewhere in the page do not invalidate entries; each line suppresses exactly one occurrence, so a new copy of a known error still fails). The run prints a note for every entry that no longer reproduces; remove it. Everything in the initial baseline is a real discrepancy between the docs and the current schema (`spec:` in `api.specs`, `auth.all`, multi-URL environments, `intercom.endpoint`, `hidden` on tabs, tab-indented YAML) to be triaged with the CLI team.
+
+```bash
+pip install jsonschema
+python3 -m scripts.docs_check.examples                    # fetch schemas and validate
+python3 -m scripts.docs_check.examples --schema-dir ./schemas --write-baseline
+```
+
+## Limitations
+
+- Display-name slugs are derived with a local approximation of Fern's rules (`v3 (Deprecated)` -> `v-3-deprecated`, `GitLab` -> `git-lab`, `APIs` -> `ap-is`). Every URL in the current navigation was verified against the live site, but an unusual new name could be mis-derived and produce a false `broken-internal-link`. Set an explicit `slug:` on the entry to remove the ambiguity.
+- `folder:` navigation entries and `ref:`-backed versions are not expanded into pages; links under their URL prefix are accepted without validation, like API references.
+- Only `/learn/...` paths and relative links are checked. Links to external hosts and query strings are not validated; the lychee job in `docs-checks.yml` covers external links in changed files and `check-links.yml` sweeps the whole site.
+- Anchor ids are derived from the source. Fern applies its own id transformations to some generated components, so a fragment that targets one of those can pass the check while the rendered page uses a different id. Every `broken-anchor` reported today was confirmed against the live site; links into API reference and changelog pages are accepted without anchor validation.
