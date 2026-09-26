@@ -1,0 +1,91 @@
+---
+title: Content Security Policy
+description: Learn how Fern sets the Content-Security-Policy header on your docs site and how to remove unsafe-eval and unsafe-inline for sites with custom JavaScript or Google Tag Manager.
+---
+
+Fern sends a `Content-Security-Policy` header with every page of your docs site. Scripts are allowed by hash plus `'strict-dynamic'`, so `script-src` never contains `'unsafe-inline'`. Two `unsafe-` tokens can still appear, depending on what your site loads:
+
+| Token | When it appears |
+| --- | --- |
+| `script-src 'unsafe-eval'` | The site has [custom JavaScript](/learn/docs/customization/custom-css-js#custom-javascript) or [Google Tag Manager](/learn/docs/integrations/analytics/google#google-tag-manager). |
+| `style-src 'unsafe-inline'` | The site has custom JavaScript or an [analytics provider](/learn/docs/configuration/site-level-settings#analytics-configuration), which can insert `<style>` tags Fern can't see at build time. |
+
+Sites without these features get neither token. On sites that keep `'unsafe-inline'`, Fern also sends the strict style policy as `Content-Security-Policy-Report-Only`, so the browser reports which inline styles it would block without blocking them.
+
+Security scanners often flag any `unsafe-` token. The `settings.content-security-policy` key in `docs.yml` removes both, at the cost of blocking whatever on the page relies on them.
+
+## Configuration
+
+```yaml docs.yml
+settings:
+  content-security-policy:
+    style-hashes:
+      - "sha256-Xn86JLDplvyEYS5Le9qI7kfofm28Yt4KSLpywXweBXo="
+    allow-eval: false
+```
+
+Changes take effect on the next `fern generate --docs`.
+
+<ParamField path="settings.content-security-policy.style-hashes" type="list of strings" required={false} toc={true}>
+  Hashes of the inline `<style>` tags your custom JavaScript, GTM tags, or widgets insert at runtime. Setting this key, even to an empty list, removes `'unsafe-inline'` from `style-src` and adds each hash to it. Any `<style>` tag whose hash isn't listed is blocked, and the element it styles renders without those styles.
+
+  Each entry is a `sha256-`, `sha384-`, or `sha512-` prefix followed by the base64 digest, without quotes. Up to 16 hashes are allowed.
+
+  A hash matches one exact stylesheet. When a vendor changes the CSS its script inserts, the hash stops matching and the new styles are blocked until you add the new hash. Hashes don't cover `style` attributes. Fern restores `style` attributes on its own components and on elements that scripts add to the page, but a `style` attribute a script sets with `setAttribute` on an element already on the page is blocked.
+
+  `<style>` tags in your MDX pages and [custom CSS files](/learn/docs/customization/custom-css-js#custom-css) don't need hashes: Fern moves them into stylesheets at build time.
+</ParamField>
+
+<ParamField path="settings.content-security-policy.allow-eval" type="boolean" required={false} toc={true}>
+  Whether `script-src` includes `'unsafe-eval'`. By default, it's included when the site has custom JavaScript or Google Tag Manager. Set to `false` to remove it. Code that calls `eval()`, `new Function()`, or `setTimeout()` with a string then throws an error, and WebAssembly compilation is blocked.
+
+  Sites with [authentication](/learn/docs/authentication/overview) and self-hosted sites keep `'unsafe-eval'` regardless of this setting, since their pages evaluate compiled MDX in the browser.
+</ParamField>
+
+## Find the hashes your site needs
+
+The `Content-Security-Policy-Report-Only` header already on your site reports every inline style the strict policy would block. Collect the hashes before you set `style-hashes`, so nothing is blocked when the policy takes effect.
+
+An AI agent with a headless browser can crawl your site and collect them:
+
+<Prompt
+  title="Find Content Security Policy hashes for my Fern docs site"
+  actions={["cursor", "claude", "chatgpt"]}
+>
+Find the Content Security Policy values my Fern docs site needs to remove `'unsafe-inline'` and `'unsafe-eval'`. Follow the [Content Security Policy guide](https://buildwithfern.com/learn/docs/security/content-security-policy.md).
+
+1. Ask me for my docs site URL. Pick 5–10 pages that cover different layouts: the homepage, a guide, an API reference endpoint, and any page with an embedded widget.
+2. With Playwright and Chromium, open each page. Accept the cookie banner, open any chat or support widget, and submit no forms. Wait for network idle.
+3. Collect every console message that starts with `[Report Only] Refused to apply inline style`. Keep the `sha256-…` hash from each message. Discard messages that say "hashes do not apply to event handlers, style attributes": those are `style` attributes, and a hash can't allow them.
+4. For each kept hash, find the `<style>` element whose text content hashes to it (SHA-256, base64) and note which script inserted it.
+5. Check eval usage: intercept each document response with `page.route`, remove `'unsafe-eval'` from the `content-security-policy` header, and reload. Record every `securitypolicyviolation` event where `blockedURI` is `eval`, with its `sourceFile`.
+6. Report a `settings.content-security-policy` block for my `docs.yml`, with the deduplicated `style-hashes` and a comment naming the source of each. Set `allow-eval: false` only if step 5 found no violations. Otherwise, list which scripts use eval. If one of them is `googletagmanager.com/gtm.js`, tell me to check my GTM container for Custom JavaScript variables.
+</Prompt>
+
+To collect them yourself, open your site in Chrome, open DevTools, and interact with each widget. For each blocked `<style>` tag, the console logs `[Report Only] Refused to apply inline style … a hash ('sha256-…') … is required`. Copy the hash into `style-hashes`, and skip messages that end in "hashes do not apply to event handlers, style attributes". After `style-hashes` is set, the same messages appear without the `[Report Only]` prefix, which is how a vendor CSS change shows up. If you know the exact CSS a script inserts, you can compute the hash directly and prefix the output with `sha256-`:
+
+```bash
+printf '%s' "$CSS" | openssl dgst -sha256 -binary | base64
+```
+
+## Google Tag Manager
+
+GTM loads under `'strict-dynamic'` without extra configuration, and so do the scripts its tags add. GTM [Custom JavaScript variables](https://developers.google.com/tag-platform/security/guides/csp#custom_javascript_variables) are the exception: GTM evaluates them with `eval`, so with `allow-eval: false` each one evaluates to `undefined`. Tags and triggers that read those variables (consent state, bot filtering, campaign attribution) then silently misfire.
+
+Before setting `allow-eval: false` on a site with GTM:
+
+<Steps>
+### Find Custom JavaScript variables
+
+In GTM, open **Variables** and check **User-Defined Variables** for any of type **Custom JavaScript**.
+
+### Replace or remove them
+
+Rebuild each variable as a [custom variable template](https://developers.google.com/tag-platform/tag-manager/templates), or use a built-in variable type such as **Data Layer Variable** or **1st Party Cookie** where one fits. Remove variables the docs site doesn't need.
+
+### Check `<style>` tags from Custom HTML tags
+
+Custom HTML tags that insert `<style>` elements need their hashes in `style-hashes`. Collect them with the steps in [Find the hashes your site needs](#find-the-hashes-your-site-needs).
+</Steps>
+
+If you can't change the container, keep `allow-eval` unset. You can still set `style-hashes` to remove `'unsafe-inline'`.
