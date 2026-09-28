@@ -112,6 +112,10 @@ To catch issues earlier in your workflow, set up Vale to run automatically on yo
 2. Install the hook: `pre-commit install`
 </details>
 
+### Structural checks
+
+`python3 -m scripts.docs_check` builds the published URL of every page from the navigation YAML and reports broken internal links, missing snippets and images, orphan pages, and pages without a description. It runs on PRs and nightly through the Docs Checks workflow; see [scripts/docs_check/README.md](scripts/docs_check/README.md) for the check list and baseline handling.
+
 ### Getting changes reviewed
 
 If you want to **add a new page or make a large structural change**:
