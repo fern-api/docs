@@ -1,0 +1,423 @@
+---
+title: Migrating to Python generator v6
+headline: Migrating to Python SDK generator v6
+description: Breaking changes in version 6.0.0 of the Fern Python SDK generator and how to update code that uses your generated Python SDK.
+---
+
+Version 6.0.0 of the Python SDK generator changes import paths, request configuration, pagination, the underlying HTTP library, and several runtime behaviors. Release the regenerated SDK as a new major version, and share this page with your SDK users so they can update their code.
+
+## Before you upgrade
+
+Generator versions 6.0.0 and later read configuration from `sdk-config.yml` instead of `generators.yml`. Run `fern sdk migrate` to create `sdk-config.yml` from your existing configuration.
+
+## Models and errors are imported from `.models` and `.errors`
+
+The package root exports only the sync client, the async client, and `Environment`. Models move to `<package>.models` and exceptions to `<package>.errors`. The async client is named `<Sdk>Async` instead of `Async<Sdk>`. Other class names are unchanged.
+
+```python title="Before"
+from plantstore import PlantStore, AsyncPlantStore, Plant, PlantStatus, NotFoundError
+from plantstore.types import CareSummary
+from plantstore.core.api_error import ApiError
+```
+
+```python title="After"
+from plantstore import PlantStore, PlantStoreAsync
+from plantstore.models import Plant, PlantStatus, CareSummary
+from plantstore.errors import NotFoundError, ApiError
+```
+
+**To fix:** Update import lines.
+
+## `request_options` becomes `request_config`
+
+Every method takes a `request_config` dict instead of a `request_options` object. Passing `request_options=` raises `TypeError`. Inside the dict, `timeout_in_seconds` becomes `timeout` and `max_retries` becomes `retry`. There's no replacement for `additional_query_parameters`, `additional_body_parameters`, or `chunk_size`; pass query and body values as method arguments.
+
+```python title="Before"
+from plantstore.core.request_options import RequestOptions
+
+plant = client.plants.get(
+    "plant_123",
+    request_options=RequestOptions(
+        timeout_in_seconds=30,
+        max_retries=2,
+        additional_headers={"X-Trace-Id": trace_id},
+    ),
+)
+```
+
+```python title="After"
+plant = client.plants.get(
+    "plant_123",
+    request_config={
+        "timeout": 30,
+        "retry": {"attempts": 2},
+        "additional_headers": {"X-Trace-Id": trace_id},
+    },
+)
+```
+
+**To fix:** Rename the keyword, pass a dict, and rename the keys.
+
+## Pagers no longer expose a page object
+
+Paginated methods still return `SyncPager[T]` or `AsyncPager[T]`, and iterating a pager still yields items. `iter_pages()` yields each page's list of items directly, and the pager has no `.items`, `.has_next`, `.next_page()`, or `.response`. A pager can be iterated only once. Endpoints that previously returned a plain page model also return a pager.
+
+```python title="Before"
+page = client.plants.list(per_page=50)
+while True:
+    for plant in page.items or []:
+        handle(plant)
+    if not page.has_next:
+        break
+    page = page.next_page()
+```
+
+```python title="After"
+for plant in client.plants.list(per_page=50):
+    handle(plant)
+
+for page in client.plants.list(per_page=50).iter_pages():
+    handle_batch(page)
+
+# Keep the pages if you need to iterate them twice
+pages = list(client.plants.list(per_page=50).iter_pages())
+```
+
+**To fix:** Replace manual page loops with pager iteration, and replace `page.items` with `page`.
+
+## The client uses `requests`, and four constructor parameters are removed
+
+The SDK uses `requests` instead of `httpx`. The `httpx_client`, `headers`, `follow_redirects`, and `logging` constructor parameters raise `TypeError`. Default headers move to `set_config`, and a custom HTTP client is set with `set_http_client()`. `requests` reads proxy settings from the environment. Redirect behavior and request logging have no equivalent.
+
+```python title="Before"
+client = PlantStore(
+    api_key=os.environ["PLANTSTORE_API_KEY"],
+    headers={"X-Tenant": tenant_id},
+    httpx_client=httpx.Client(proxies="http://proxy.internal:8080"),
+)
+```
+
+```python title="After"
+os.environ["HTTPS_PROXY"] = "http://proxy.internal:8080"
+
+client = PlantStore(api_key=os.environ["PLANTSTORE_API_KEY"], timeout=30)
+client.set_config({"additional_headers": {"X-Tenant": tenant_id}})
+```
+
+**To fix:** Remove the parameters, move default headers to `set_config`, and set proxies through environment variables.
+
+## Timeouts and connection failures raise SDK errors
+
+A timeout raises `ApiTimeoutError`. A refused connection, DNS failure, or TLS failure raises `ApiConnectionError`. Both subclass `ApiError`, have no status code, and keep the underlying exception on `.cause`.
+
+```python title="Before"
+try:
+    plant = client.plants.get("plant_123")
+except httpx.ReadTimeout:
+    retry_later()
+except httpx.ConnectError:
+    alert_oncall()
+```
+
+```python title="After"
+from plantstore.errors import ApiTimeoutError, ApiConnectionError
+
+try:
+    plant = client.plants.get("plant_123")
+except ApiTimeoutError:
+    retry_later()
+except ApiConnectionError as exc:
+    alert_oncall(exc.cause)
+```
+
+**To fix:** Replace `httpx` exception handlers with the SDK error types.
+
+## Undeclared enum values raise a validation error
+
+Enums are `Enum` classes validated on input, with no fallback member. Previously, an enum was a string union that accepted unknown values. If the API returns a value the spec doesn't declare, parsing the response raises `ValidationError`.
+
+```python title="After"
+class PlantStatus(str, Enum):
+    AVAILABLE = "available"
+    PENDING = "pending"
+    SOLD = "sold"
+
+plant = client.plants.get("plant_123")
+# ValidationError if the API returns "reserved"
+```
+
+**To fix:** Keep the spec's enums in sync with the API. If the API adds enum values without a version change, turn off response validation for the client or for a call:
+
+```python
+client.set_config({"validation": {"response_validation": False}})
+```
+
+## Array parameters are serialized in their declared style
+
+Array headers, array path parameters, and `spaceDelimited` or `pipeDelimited` query parameters are serialized in the style the spec declares. Previously, array headers and path parameters were sent as a Python `repr`, and delimited query parameters were sent as repeated keys. An empty list is omitted.
+
+```python
+client.plants.search(tags=["shade", "indoor"], trace=["a", "b"])
+# Before: ?tags=shade&tags=indoor   X-Trace: ['a', 'b']
+# After:  ?tags=shade%20indoor      X-Trace: a,b
+```
+
+**To fix:** Update any server-side code that parses the previous format.
+
+## Retries are configured with a `retry` dict
+
+Set retries with a `retry` dict on the constructor, a resource, a method, or a single call. `http_methods_to_retry`, `status_codes_to_retry`, and `max_delay_ms` take effect. Previously, every method was retried on 5xx, 408, 409, and 429. Failed streams are also retried.
+
+```python title="Before"
+client = PlantStore(api_key=api_key, max_retries=3)
+```
+
+```python title="After"
+client = PlantStore(
+    api_key=api_key,
+    retry={
+        "attempts": 3,
+        "http_methods_to_retry": ["GET", "PUT"],
+        "status_codes_to_retry": [502, 503],
+        "max_delay_ms": 4000,
+    },
+)
+
+client.plants.create(name="Monstera", request_config={"retry": {"attempts": 5}})
+```
+
+**To fix:** Replace `max_retries` with `retry`, and set `attempts` explicitly.
+
+## Multipart uploads can't set the part filename
+
+File parameters take `bytes`. The `(filename, file, content_type)` tuple is no longer accepted. Each part is named after its field and sent as `application/octet-stream`.
+
+```python title="Before"
+with open("care-guide.csv", "rb") as fh:
+    client.files.upload(file=("care-guide.csv", fh, "text/csv"), plant_id=plant_id)
+```
+
+```python title="After"
+with open("care-guide.csv", "rb") as fh:
+    client.files.upload(file=fh.read(), plant_id=plant_id)
+```
+
+**To fix:** Pass the file contents as `bytes`. If the server reads the filename, send it in a field the spec declares.
+
+## Server-sent events are parsed frame by frame
+
+If a single SSE frame contains several `data:` lines, they can be combined into one event, so the consumer receives fewer events than the server sent.
+
+**To fix:** If your API sends several events in one frame, test a representative stream against the regenerated SDK.
+
+## Each security scheme has a constructor parameter
+
+When an API declares several security schemes, every scheme has its own constructor parameter. Previously, some schemes, such as Basic, had no parameter and the header had to be set manually.
+
+```python title="Before"
+creds = base64.b64encode(b"ada:secret").decode()
+client = PlantStore(token=None, headers={"Authorization": f"Basic {creds}"})
+```
+
+```python title="After"
+client = PlantStore(username="ada", password="secret")
+```
+
+**To fix:** Remove manually built auth headers and pass credentials to the constructor.
+
+## Set credentials on the client, not a resource client
+
+Resource clients expose credential setters, and calling one can change the `Authorization` header that other resource clients send.
+
+<Warning>
+Don't call credential setters such as `set_access_token()` on a resource client. Set credentials on the constructor, override them for a single call with `request_config`, or create a second client.
+</Warning>
+
+```python
+client.plants.list(request_config={"token": partner_token})
+# or
+partner = PlantStore(token=partner_token)
+```
+
+## File downloads return `bytes`
+
+Binary responses are read in full and returned as `bytes` instead of an open stream, so large downloads are held in memory.
+
+```python title="Before"
+with client.photos.download("photo_123") as stream:
+    with open("monstera.jpg", "wb") as fh:
+        for chunk in stream.iter_bytes():
+            fh.write(chunk)
+```
+
+```python title="After"
+data = client.photos.download("photo_123")
+with open("monstera.jpg", "wb") as fh:
+    fh.write(data)
+```
+
+**To fix:** Remove the context manager and write the returned bytes.
+
+## Each declared status has its own response type
+
+Responses for different declared statuses, such as 200 and 201, are deserialized to their own schemas. A declared 202 or plain string response parses instead of raising. Text and XML responses are decoded as text and XML instead of bytes. `ParsingError` is removed: a body that doesn't match its schema raises pydantic's `ValidationError`, and status errors are raised from `<package>.errors`.
+
+```python title="After"
+created = client.plants.with_raw_response.create(name="Monstera")
+
+if created.status_code == 201:
+    schedule_watering(created.data.id)
+else:
+    reconcile(created.data)
+```
+
+**To fix:** Replace `except ParsingError` with `except ValidationError`, and check `status_code` where an operation declares several success responses.
+
+## Text and XML request bodies are sent
+
+A `text/plain` request body is passed as a `request_body` argument. Previously, the method had no body parameter. An `application/xml` body is sent as XML instead of form-encoded.
+
+```python
+client.notes.create(request_body="Water every Tuesday")
+```
+
+**To fix:** Replace manual HTTP calls with the generated method.
+
+## Cookie parameters are method arguments
+
+Declared cookie parameters are method arguments. Previously, they were omitted from the generated method.
+
+```python title="Before"
+client.plants.list(
+    request_options=RequestOptions(additional_headers={"Cookie": f"session={session_id}"}),
+)
+```
+
+```python title="After"
+client.plants.list(session=session_id)
+```
+
+**To fix:** Pass cookies as arguments and remove manually built `Cookie` headers.
+
+## OAuth client credentials are handled by the client
+
+Pass `client_id` and `client_secret` to the constructor. The client fetches and caches a token on the first request, sends it as a bearer token, and includes endpoint scopes in the token request.
+
+```python title="Before"
+token = PlantStore().oauth.get_token(client_id=client_id, client_secret=client_secret)
+client = PlantStore(token=token.access_token)
+```
+
+```python title="After"
+client = PlantStore(client_id=client_id, client_secret=client_secret)
+```
+
+**To fix:** Remove code that fetches tokens manually.
+
+## Configuration can be scoped
+
+The same configuration keys apply at four levels: the constructor, a resource client (`set_config()`), a method (`set_<method>_config()`), and a single call (`request_config`). The narrowest level wins. `set_base_url()`, `set_timeout()`, and `set_config()` also apply to resource clients you've already used.
+
+```python
+client = PlantStore(api_key=api_key, timeout=2.0)
+client.reports.set_config({"timeout": 60.0})
+
+client.plants.list()                          # 2 seconds
+client.reports.generate(period="2026-08")     # 60 seconds
+client.reports.generate(period="2026-08", request_config={"timeout": 120.0})
+```
+
+**To fix:** No changes are required. You can replace multiple clients that differ only in configuration with scoped configuration.
+
+## Models are mutable
+
+Models are no longer frozen. Assignments are validated, so an invalid value raises when you set it. Enum fields accept the member or its value.
+
+```python
+plant = client.plants.get("plant_123")
+plant.status = PlantStatus.SOLD   # allowed
+plant.status = "wilted"           # ValidationError
+```
+
+**To fix:** Replace `model_copy(update=...)` workarounds with assignment where appropriate. If code relies on models being immutable, such as using them as dict keys, copy them first.
+
+## Raw responses are available on every client and page
+
+`with_raw_response` returns `HttpResponse[T]` with `.data`, `.status_code`, and `.headers`, and is also available on the root client. For paginated endpoints, `iter_pages_with_response()` returns the status and headers of each page. Pass optional parameters to raw methods by keyword.
+
+```python
+for page in client.plants.list(limit=100).iter_pages_with_response():
+    print(page.status_code, page.headers["X-Trace"], len(page.data))
+```
+
+**To fix:** Replace `pager.response` with `iter_pages_with_response()`.
+
+## WebSocket channels
+
+The changes above also apply to WebSocket clients: frame models are imported from `<package>.models`, `connect()` takes `request_config` instead of `request_options`, and frame models are mutable. `request_config` has no `additional_query_parameters` equivalent, so pass declared query parameters as `connect()` arguments. The following changes are specific to WebSockets.
+
+### The environment has no socket addresses
+
+`Environment` is an enum with one URL per member instead of an object with an attribute per host. Socket addresses such as `env.events` no longer exist; the socket derives its address from the URL of the channel. A configured `base_url` takes precedence. Two members with the same URL are merged, so one of them reports the other's `.name` and doesn't appear when you iterate the enum.
+
+```python title="Before"
+env = PlantStoreEnvironment.PRODUCTION
+print(env.base)    # https://api.plantstore.dev
+print(env.events)  # wss://events.plantstore.dev
+```
+
+```python title="After"
+print(Environment.DEFAULT.url)  # https://api.plantstore.dev
+print(Environment.EVENTS.url)   # https://events.plantstore.dev
+```
+
+**To fix:** Remove reads of socket attributes, and check code that logs, stores, or compares `Environment.<member>.name`.
+
+### The credential isn't read from an environment variable
+
+The constructor no longer reads the credential from an environment variable or raises when it's missing. A client with no credentials is created successfully and fails on the first call.
+
+```python
+api_key = os.environ.get("PLANTSTORE_API_KEY")
+if api_key is None:
+    raise RuntimeError("PLANTSTORE_API_KEY is not set")
+
+client = PlantStore(api_key=api_key)
+```
+
+**To fix:** Read the environment variable and check it where you create the client.
+
+### Control-frame types are merged
+
+Frames that share a definition are generated as one type with a `type` discriminator. For example, separate keep-alive and close-stream types are removed. The payload on the wire is unchanged. Some receive-only frame types are removed and have no replacement.
+
+```python title="Before"
+from plantstore.growth.v1.types import GrowthV1Finalize, GrowthV1KeepAlive
+
+sock.send_finalize(GrowthV1Finalize(type="Finalize"))
+sock.send_keep_alive(GrowthV1KeepAlive(type="KeepAlive"))
+```
+
+```python title="After"
+from plantstore.models import GrowthV1Finalize, GrowthV1FinalizeType
+
+sock.send_finalize(GrowthV1Finalize(type=GrowthV1FinalizeType.FINALIZE))
+sock.send_keep_alive(GrowthV1Finalize(type=GrowthV1FinalizeType.KEEPALIVE))
+```
+
+**To fix:** Replace each removed type with the merged type and set `type` explicitly. Remove handlers for receive events that no longer exist.
+
+### Received frames are typed
+
+Iterating a socket yields typed frame models, and `recv()` returns a model instead of a dict. Previously, the iterator dropped text frames and logged a warning about unknown message types.
+
+```python
+with client.growth.v1.connect(mode="standard") as sock:
+    for message in sock:
+        if isinstance(message, bytes):
+            handle_binary(message)
+        elif isinstance(message, GrowthV1Results):
+            handle_results(message)
+```
+
+**To fix:** Remove code that parses frames from dicts, and update `isinstance(message, dict)` checks.
