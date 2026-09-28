@@ -1,0 +1,147 @@
+---
+title: Migrating to TypeScript generator v4
+headline: Migrating to TypeScript SDK generator v4
+description: Breaking changes in version 4.0.0 of the Fern TypeScript SDK generator and how to update code that uses your generated TypeScript SDK.
+---
+
+Version 4.0.0 of the TypeScript SDK generator changes some generated type names and, for WebSocket channels, several generated types and parameters. Release the regenerated SDK as a new major version, and share this page with your SDK users so they can update their code.
+
+## Before you upgrade
+
+- Generator versions 4.0.0 and later read configuration from `sdk-config.yml` instead of `generators.yml`. Run `fern sdk migrate` to create `sdk-config.yml` from your existing configuration.
+- Many changes depend on the shape of your API definition. Regenerate the SDK and compile and test your existing code against it before you release.
+
+## Request wrapper names may differ
+
+If two operations use the same request body schema, or an operation has an anonymous inline body, the generated request type name may differ from the previous version.
+
+**To fix:** Compare the request type names in the regenerated SDK with the previous names, and update references.
+
+## Named primitive and array types aren't exported
+
+If your API definition gives a primitive or array schema its own name, the generated SDK uses the underlying type instead of exporting an alias.
+
+```typescript
+// Before
+export type PlantHeightCm = number;
+export interface Plant {
+  id: string;
+  heightCm: PlantStore.PlantHeightCm;
+}
+
+// After
+export interface Plant {
+  id: string;
+  heightCm: number;
+}
+```
+
+**To fix:** Replace references to the alias with the underlying type.
+
+## WebSocket channels
+
+The following changes apply to SDKs with WebSocket channels.
+
+### Values outside a closed enum don't compile
+
+Parameters whose allowed values are declared as a `oneOf` of constants are typed as exactly those values. Parameters declared as a plain `enum` list still accept any string.
+
+```typescript
+// Before
+await client.growth.v1.create({ format: "compact" });
+
+// After
+await client.growth.v1.create({ format: "compact" as PlantStore.GrowthV1Format });
+```
+
+**To fix:** Cast values that the API accepts but the definition doesn't declare, and add them to the definition.
+
+### Nested payload types move to the top level
+
+Inline object types inside a message are generated at the top of the service namespace with a flattened name, instead of nested under the message type. Field shapes are unchanged.
+
+```typescript
+// Before
+function handleSensor(sensor: PlantStore.growth.GrowthV1Reading.Payload.Sensors.Item): void {}
+
+// After
+function handleSensor(sensor: PlantStore.growth.PayloadSensorsItem): void {}
+```
+
+**To fix:** Rename explicit references to nested types. Code that relies on type inference doesn't change.
+
+### An environment is a single URL
+
+An environment is a single string instead of an object with one URL per purpose, and the environment URLs type is removed. Selecting an environment when you construct the client is unchanged.
+
+```typescript
+// Before
+const urls: PlantStoreEnvironmentUrls = PlantStoreEnvironment.Production;
+console.log(urls.base, urls.realtime);
+
+// After
+const url: PlantStoreEnvironment = PlantStoreEnvironment.Production;
+console.log(url);
+```
+
+**To fix:** Remove references to the environment URLs type, and read the environment as a string.
+
+### Channel parameters are typed as `string`
+
+Named channel parameter types are removed. Enum parameters keep their types, and parameters declared as a string or a list of strings are `string | string[]`. Other parameters are `string`, so convert numbers, objects, and lists where you build them. The values sent are unchanged.
+
+```typescript
+// Before
+const intervalMs: PlantStore.GrowthV1IntervalMs = 5000;
+const tags: PlantStore.GrowthV1Tags = ["shade", "indoor"];
+
+// After
+const intervalMs: string = "5000";
+const tags: string = JSON.stringify(["shade", "indoor"]);
+```
+
+**To fix:** Replace the removed types with `string`, and convert values with `String()` or `JSON.stringify()`. Don't convert `string | string[]` parameters; pass the list so it's sent as a repeated key.
+
+### Control frames that share a definition share a type
+
+Messages that reference the same message definition share one generated type, named after the first message. Send methods keep their names, and the payload on the wire is unchanged.
+
+```typescript
+// Before
+const keepAlive: PlantStore.growth.v1.GrowthV1KeepAlive = { type: "KeepAlive" };
+
+// After
+const keepAlive: PlantStore.growth.v1.GrowthV1Finalize = { type: "KeepAlive" };
+socket.sendKeepAlive(keepAlive);
+```
+
+**To fix:** Replace removed frame types with the shared type. Continue to send each frame with its own `send` method.
+
+### `protocols` takes an array
+
+```typescript
+// Before
+await client.growth.v1.connect({ Authorization: "Token ***", protocols: "token" });
+
+// After
+await client.growth.v1.connect({ Authorization: "Token ***", protocols: ["token"] });
+```
+
+### Some receive messages aren't in the response union
+
+A declared receive message may have no generated type in the response union.
+
+```typescript
+socket.on("message", (message) => {
+  const frame = message as { type?: string };
+  if (frame.type === "Pruned") handlePruned(frame);
+});
+```
+
+**To fix:** Narrow the message with a local type.
+
+### Unexpected binary frames are reported as errors
+
+On a channel that declares only text messages, an unexpected binary frame is passed to the `error` handler with the message `Received unexpected binary frame`, and the connection stays open. Previously, the SDK threw a `SyntaxError` from the message handler.
+
+**To fix:** No changes are required. Add an `error` handler to observe these frames.
