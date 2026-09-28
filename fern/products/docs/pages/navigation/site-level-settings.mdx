@@ -752,6 +752,9 @@ settings:
   use-javascript-as-typescript: false
   folder-title-source: frontmatter
   substitute-env-vars: true
+  iframe:
+    allowed-parent-origins:
+      - https://app.example.com
 ```
 
 <ParamField path="settings.search-text" type="string" required={false} default="Search" toc={true}>
@@ -843,6 +846,29 @@ settings:
   <Note>
   During local preview (`fern docs dev`), undefined variables resolve to empty strings. During publishing, undefined variables cause the build to fail.
   </Note>
+</ParamField>
+
+<ParamField path="settings.iframe" type="object" required={false} toc={true}>
+  Configure which third-party origins are allowed to embed your docs in an iframe. By default, Fern sets a `Content-Security-Policy: frame-ancestors 'self' https://*.buildwithfern.com` header on every page. Use `?embedded=true` to omit `frame-ancestors` entirely and allow any origin to frame the page.
+
+  <Indent>
+  <ParamField path="settings.iframe.allowed-parent-origins" type="list of strings" required={false} toc={true}>
+    A list of origins to append to the `Content-Security-Policy: frame-ancestors` directive, allowing those origins to embed your docs in an iframe. Each entry must be a valid CSP host source of the form `scheme://host[:port]` (e.g. `https://app.example.com`, `https://*.example.com`). Bare wildcards (`*`), keyword sources (`'none'`, `'self'`), scheme-only sources (`https:`), and entries with paths are rejected.
+
+    ```yaml docs.yml
+    settings:
+      iframe:
+        allowed-parent-origins:
+          - https://app.trumpet.app
+          - https://*.example.com
+    ```
+
+    This produces a `Content-Security-Policy` header with:
+    ```
+    frame-ancestors 'self' https://*.buildwithfern.com https://app.trumpet.app https://*.example.com
+    ```
+  </ParamField>
+  </Indent>
 </ParamField>
 
 ## Page actions configuration
