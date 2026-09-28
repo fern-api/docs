@@ -1,0 +1,40 @@
+---
+title: Migrating to PHP generator v3
+headline: Migrating to PHP SDK generator v3
+description: Breaking changes in version 3.0.0 of the Fern PHP SDK generator and how to update code that uses your generated PHP SDK.
+---
+
+Version 3.0.0 of the PHP SDK generator validates API responses by default. Release the regenerated SDK as a new major version, and share this page with your SDK users so they can update their code.
+
+## Before you upgrade
+
+Generator versions 3.0.0 and later read configuration from `sdk-config.yml` instead of `generators.yml`. Run `fern sdk migrate` to create `sdk-config.yml` from your existing configuration.
+
+## Responses are validated against the schema
+
+The `validateResponses` option is enabled by default. If a response doesn't match its OpenAPI schema, the SDK throws a `ValidationException` instead of returning a model.
+
+```php title="Before"
+$plant = $client->plants->get($request);
+```
+
+```php title="After"
+try {
+    $plant = $client->plants->get($request);
+} catch (ValidationException $error) {
+    // The response didn't match the declared schema.
+}
+```
+
+**To fix:** Handle `ValidationException` where responses may not match the schema. If the API returns responses that differ from the schema, fix the schema. Set `validateResponses: false` only after confirming the responses are correct.
+
+## Test the regenerated SDK
+
+Generate the SDK with the previous and new generator from the same inputs. Install the new package in a clean environment and run the tests that cover API calls.
+
+```bash
+composer update plantstore/plantstore-php
+vendor/bin/phpunit
+```
+
+For representative operations, verify the request URL, query string, headers, cookies, body format (including XML and multipart), retries, timeout behavior, and decoded result.
