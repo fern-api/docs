@@ -1,0 +1,94 @@
+---
+title: Migrating to Swift generator v1
+headline: Migrating to Swift SDK generator v1
+description: Breaking changes in version 1.0.0 of the Fern Swift SDK generator and how to update code that uses your generated Swift SDK.
+---
+
+Version 1.0.0 of the Swift SDK generator keeps the same resource clients and method names, but changes the shape of some generated types. Because Swift SDKs use `Codable` types, these changes surface as compile errors at existing call sites and, in one case, as decode failures at runtime. Release the regenerated SDK as a new major version, and share this page with your SDK users so they can update their code.
+
+## Before you upgrade
+
+Generator versions 1.0.0 and later read configuration from `sdk-config.yml` instead of `generators.yml`. Run `fern sdk migrate` to create `sdk-config.yml` from your existing configuration.
+
+## Inline and shared types are renamed
+
+The JSON on the wire is unchanged, but many generated type names are different. Renaming a parent type also renames every type nested under it, so a single rename can affect many symbols.
+
+- **Array element and body suffixes are dropped.** `[ListPlantsResponseItem]` becomes `[ListPlantsResponse]`, and `UpdatePlantRequestBody` becomes `UpdatePlantRequest`.
+- **Inline types are fully qualified.** An inline type's name includes its full parent chain instead of a short name. For example, `Care` becomes `CreatePlantRequestCare`.
+- **Response structs are named after the endpoint.** The generator still emits a struct and a `typealias` for each response, but the struct takes the endpoint-derived name, and the entity name (such as `Plant`) is no longer generated.
+
+```swift title="Before"
+let plants: [ListPlantsResponseItem] = try await client.plants.list()
+```
+
+```swift title="After"
+let plants: [ListPlantsResponse] = try await client.plants.list()
+```
+
+**To fix:** Update references to renamed types. Compiler errors point to each affected call site.
+
+## Memberwise initializer argument order changed
+
+Properties inherited through `allOf` come last in a struct's memberwise initializer instead of first. Initializer calls fail to compile even when all property names match.
+
+```swift title="Before"
+// Inherited properties (name, species) come first
+let plant = Plant(name: "Fern", species: "Nephrolepis exaltata", wateringFrequency: "weekly")
+```
+
+```swift title="After"
+// Inherited properties (name, species) come last
+let plant = Plant(wateringFrequency: "weekly", name: "Fern", species: "Nephrolepis exaltata")
+```
+
+**To fix:** Reorder the arguments in each memberwise initializer call.
+
+## Optional properties can become required
+
+<Warning>
+This change fails at runtime, not at compile time.
+</Warning>
+
+When an OpenAPI schema has no `required` list, all its properties are optional. The previous generator modeled them as optional Swift properties, but the new generator can emit them as non-optional. If an API response omits one of these properties, `JSONDecoder` throws an error instead of setting the property to `nil`.
+
+```swift title="Before"
+public struct PlantNotFoundError: Codable {
+    public let code: Int?
+    public let message: String?
+}
+```
+
+```swift title="After"
+public struct PlantNotFoundError: Codable {
+    public let code: Int
+    public let message: String
+}
+```
+
+**To fix:** Audit responses whose schemas don't declare a `required` list, and test that responses which omit properties still decode.
+
+## Union types changed shape
+
+The JSON on the wire is unchanged, but the generated Swift types for unions differ:
+
+- **Discriminator properties are removed from member structs.** A union member no longer exposes the constant that identifies it. For example, `Dog.type` and its single-case `DogType` enum are no longer generated. The SDK still reads and writes the discriminator on the wire.
+- **Case and member type names are based on position and include the parent type name.** For example, `case double(PlantHeightDouble)` becomes `case plantHeightZero(PlantHeightZero)`, and `PlantEvent.watered` becomes `.plantEventWatered`.
+- **A union with only one member becomes that member type.** For example, a property typed as `CreatePlantRequestCarePlan?` becomes `WateringCarePlan?`.
+- **Large unions can become a single struct.** A union with many members can be generated as one struct that contains every member's properties as optional values. You can still send any variant, but the compiler no longer checks which variant you're building.
+
+```swift title="Before"
+switch event {
+case .watered(let e): handle(e)
+default: break
+}
+```
+
+```swift title="After"
+switch event {
+case .plantEventWatered(let e): handle(e)
+default: break
+}
+```
+
+**To fix:** Update `switch` statements and references to union cases and member types. Stop reading or setting discriminator properties on member structs.
