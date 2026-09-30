@@ -54,7 +54,7 @@ Err(ApiError::UnauthorizedError(body)) => log(&body.response_text),
 Err(ApiError::Http { status: 404, message }) => retry(message),
 ```
 
-`ApiError` also adds `DecodeError`, `ValidationError`, and `WebSocket` variants. Because `ApiError` isn't `#[non_exhaustive]`, an exhaustive `match` without a wildcard arm fails to compile.
+`ApiError` also adds `DecodeError` and `WebSocket` variants. Because `ApiError` isn't `#[non_exhaustive]`, an exhaustive `match` without a wildcard arm fails to compile.
 
 **To fix:** Update `match` arms to the new variant shapes, and add arms or a wildcard for the new variants.
 
@@ -112,12 +112,6 @@ if let Some(watering) = care.as_watering() { apply(&watering.schedule, watering.
 ```
 
 **To fix:** Construct variants with a `data` struct, and replace `match` destructuring with the accessor methods.
-
-## Requests are validated before they're sent
-
-The SDK validates request bodies and path parameters against schema constraints such as `maxLength`, `pattern`, `minimum`, and `multipleOf` before sending the request. A value that previously reached the server and returned a `422` fails locally with `ApiError::ValidationError`, and no request is sent.
-
-**To fix:** Update error handling and tests that expect a server response for invalid input.
 
 ## Other changes
 
