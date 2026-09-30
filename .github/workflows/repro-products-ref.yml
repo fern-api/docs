@@ -1,0 +1,41 @@
+name: Repro products+ref
+
+# Demonstrates that a `ref:` version declared under `products[].versions`
+# fails on the stock Fern CLI. `fern check` skips ref-backed versions, so the
+# publish path is the only place the failure shows.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - repro-products-ref
+
+jobs:
+  stock-cli:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # ref: versions need the tag
+          persist-credentials: false
+
+      - name: Publish preview with stock CLI (expected to fail)
+        env:
+          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
+          FERN_NO_VERSION_REDIRECTION: "true"
+        run: |
+          set +e
+          OUTPUT=$(npx --yes fern-api@5.143.1 generate --docs --preview --id repro-products-ref \
+            --instance fern.docs.buildwithfern.com/learn 2>&1)
+          STATUS=$?
+          set -e
+          echo "$OUTPUT"
+          echo "exit status: $STATUS"
+          if echo "$OUTPUT" | grep -q "Could not determine the content root for git ref 'cli-generator-v1.0.0'"; then
+            echo "::notice::Reproduced: stock CLI cannot resolve a ref-backed version under products."
+          else
+            echo "::error::Did not reproduce; see output above."
+            exit 1
+          fi
