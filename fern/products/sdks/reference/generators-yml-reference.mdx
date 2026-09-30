@@ -302,6 +302,30 @@ api:
   ```
 </ParamField>
 
+<ParamField path="settings.webhook-signature" type="object" toc={true}>
+  Declares the [webhook signing scheme](/learn/sdks/deep-dives/webhook-signature-verification#configure-api-wide-in-generatorsyml) once for the whole API, instead of in the API definition (`x-fern-webhook-signature` in OpenAPI or `webhook-signature` in a Fern Definition). Every generator in the API emits the shared `WebhooksHelper` class from this scheme, even when the spec models no webhooks.
+
+  Accepts the same [configuration options](/learn/api-definitions/openapi/endpoints/webhooks#sdk-signature-verification) as a webhook signature block in the API definition. A malformed block fails generation with `Invalid api.settings.webhook-signature in generators.yml`.
+
+  Modeled webhooks that declare no scheme of their own fall back to this value. A webhook's own `signature`, or a definition-level `webhook-signature` / `x-fern-webhook-signature`, takes precedence.
+
+  ```yaml title="generators.yml"
+  api:
+    specs:
+      - openapi: ./openapi.yml
+    settings:
+      webhook-signature:
+        type: hmac
+        header: X-Twilio-Signature
+        algorithm: sha1
+        encoding: base64
+        payload-format:
+          components: [notification-url, body]
+          delimiter: ""
+          body-sort: alphabetical
+  ```
+</ParamField>
+
 ### Specification types
 
 Each specification type (OpenAPI, AsyncAPI, etc.) supports various configuration options including the spec file location, namespace, overrides, and type-specific settings.
