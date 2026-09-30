@@ -32,6 +32,26 @@ paths:
 
 Fern keeps one success response per operation. When an operation declares several 2XX responses, Fern picks the first match in the order `200`, `201`, `202`, `204` and drops the others. Only responses in the `400`–`600` range are classified as errors.
 
+The wildcard response keys `4XX` and `5XX` are imported as errors named `ClientRequestError` and `ServerError`. A wildcard covers every status in its range that the operation doesn't declare explicitly, so a `404` response takes precedence over `4XX`. Wildcards work in the spec itself or in an [overlay](/learn/api-definitions/openapi/overlays), and the Go SDK generator decodes them into typed errors that preserve the actual response status code. Other generators map `4XX` to `400` and `5XX` to `500`. `default` responses aren't classified as errors.
+
+```yaml title="openapi.yml"
+responses:
+  '200':
+    description: Success
+  '4XX':
+    description: Caller error
+    content:
+      application/json:
+        schema:
+          $ref: '#/components/schemas/ApiError'
+  '5XX':
+    description: Server error
+    content:
+      application/json:
+        schema:
+          $ref: '#/components/schemas/ApiError'
+```
+
 ## Examples
 
 You can provide examples of requests and responses by using the `examples` key. If a body has no media-type examples, Fern falls back to the [schema-level examples](/learn/api-definitions/openapi/extensions/examples#schema-level-examples) on the body schema.
