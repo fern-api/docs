@@ -4,45 +4,69 @@ headline: Migrating to TypeScript SDK generator v4
 description: Breaking changes in version 4.0.0 of the Fern TypeScript SDK generator and how to update code that uses your generated TypeScript SDK.
 ---
 
-Version 4.0.0 of the TypeScript SDK generator changes some generated type names and, for WebSocket channels, several generated types and parameters. Release the regenerated SDK as a new major version, and share this page with your SDK users so they can update their code.
+Version 4.0.0 of the TypeScript SDK generator requires few code changes, and most code that uses your SDK doesn't change. The changes below depend on the shape of your API definition, and most apply only to specific schemas or to WebSocket channels. Release the regenerated SDK as a new major version, and share this page with your SDK users so they can update their code.
 
 ## Before you upgrade
 
 - Generator versions 4.0.0 and later read configuration from `sdk-config.yml` instead of `generators.yml`. Run `fern sdk migrate` to create `sdk-config.yml` from your existing configuration.
-- Many changes depend on the shape of your API definition. Regenerate the SDK and compile and test your existing code against it before you release.
+- Regenerate the SDK and run your test suite against it before you release. The changes on this page depend on your API definition, so some might not apply to your SDK.
 
-## Request wrapper names may differ
+## File uploads accept in-memory data only
 
-If two operations use the same request body schema, or an operation has an anonymous inline body, the generated request type name may differ from the previous version.
-
-**To fix:** Compare the request type names in the regenerated SDK with the previous names, and update references.
-
-## Named primitive and array types aren't exported
-
-If your API definition gives a primitive or array schema its own name, the generated SDK uses the underlying type instead of exporting an alias.
+A file upload field accepts `ArrayBuffer | Uint8Array | Buffer | Blob`, the same in-memory types as before. A file path reference (`{ path: string }`) and an object that wraps the data with metadata such as a filename aren't supported.
 
 ```typescript
 // Before
-export type PlantHeightCm = number;
-export interface Plant {
-  id: string;
-  heightCm: PlantStore.PlantHeightCm;
-}
+await client.plants.uploadPhoto({ file: { path: "/tmp/fern.jpg" } });
 
 // After
-export interface Plant {
-  id: string;
-  heightCm: number;
-}
+await client.plants.uploadPhoto({ file: await fs.promises.readFile("/tmp/fern.jpg") });
 ```
 
-**To fix:** Replace references to the alias with the underlying type.
+**To fix:** Read the file into memory before calling the SDK. Code that already passes an `ArrayBuffer`, `Uint8Array`, `Buffer`, or `Blob` doesn't change.
 
-## WebSocket channels
+## Some response and request types change shape
 
-The following changes apply to SDKs with WebSocket channels.
+When several operations return the same anonymous response shape, their response types become aliases of one shared model. The exported names still exist and have the same structure, so existing code keeps working.
 
-### Values outside a closed enum don't compile
+```typescript
+// Before
+export interface CreatePlantResponse { id: number; }
+export interface CreateSeedResponse { id: number; }
+
+// After
+export type CreatePlantResponse = CreateModel;
+export type CreateSeedResponse = CreateModel;
+export interface CreateModel { id: number; }
+```
+
+When a schema uses `oneOf` inside `allOf` to require one of two sets of fields, the generated type is a union of the two variants instead of one type with every field optional. A call that sets neither required field no longer compiles.
+
+```typescript
+// Before: both fields are optional, so this compiles
+client.plants.order({ quantity: 1 });
+
+// After: set speciesId or customSpecies
+client.plants.order({ quantity: 1, speciesId: 42 });
+```
+
+**To fix:** Set one of the required fields where the compiler reports an error.
+
+## Pagination is unchanged
+
+`Page<T>` keeps its shape, so `getNextPage()`, `hasNextPage()`, and `for await` iteration work as before. A version literal type generated from an API version header, such as `PlantStoreVersion = "2025-06-11"`, is no longer generated.
+
+**To fix:** Replace references to the version literal type with `string` or a local type.
+
+## A client-level API version override isn't sent
+
+<Warning>
+If your SDK has a `version` option that sends an API version header on every request, the option still exists on `ClientOptions` and `RequestOptions`, but the header isn't sent. Requests can't select a specific API version through the SDK.
+</Warning>
+
+**To fix:** If you set `version` to select an API version, check that your application works with the API's default version.
+
+## Values outside a `oneOf` of constants don't compile
 
 Parameters whose allowed values are declared as a `oneOf` of constants are typed as exactly those values. Parameters declared as a plain `enum` list still accept any string.
 
@@ -55,6 +79,44 @@ await client.growth.v1.create({ format: "compact" as PlantStore.GrowthV1Format }
 ```
 
 **To fix:** Cast values that the API accepts but the definition doesn't declare, and add them to the definition.
+
+## WebSocket channels
+
+The following changes apply to SDKs with WebSocket channels.
+
+### A channel that shares a group name with HTTP operations is a separate resource
+
+If a WebSocket channel and HTTP operations use the same `x-fern-sdk-group-name`, the HTTP methods stay under the group name and the channel moves to a resource named after the channel's address.
+
+```typescript
+// Before
+await client.greenhouse.connect({ greenhouseId });
+
+// After
+client.greenhouse.send(greenhouseId, request); // unchanged
+await client.greenhouseGreenhouseIdConnect.connect({ greenhouseId });
+```
+
+**To fix:** Update `.connect()` calls to the new resource name. HTTP methods don't change.
+
+### An environment is a single URL
+
+An environment is a single URL instead of an object with one URL per host, and the environment URLs type is removed. Each host is its own environment member. Each channel connects to its own host by default, but an `environment` or `baseUrl` set on the client takes precedence, so selecting a non-default environment sends every socket to that URL. This change doesn't apply if your API definition declares environments as named sets of URLs.
+
+```typescript
+// Before
+const client = new PlantStoreClient({ apiKey, environment: PlantStoreEnvironment.Staging });
+const urls: PlantStoreEnvironmentUrls = PlantStoreEnvironment.Staging;
+console.log(urls.base, urls.realtime);
+
+// After
+const client = new PlantStoreClient({ apiKey, environment: PlantStoreEnvironment.Staging });
+const url: PlantStoreEnvironment = PlantStoreEnvironment.Staging;
+console.log(url);
+client.growth.v1.setGrowthV1Config({ environment: PlantStoreEnvironment.Realtime });
+```
+
+**To fix:** Read the environment as a string. If you select a non-default environment, set each channel's host with its config method, such as `setGrowthV1Config()`, and check where each socket connects before you release.
 
 ### Nested payload types move to the top level
 
@@ -69,22 +131,6 @@ function handleSensor(sensor: PlantStore.growth.PayloadSensorsItem): void {}
 ```
 
 **To fix:** Rename explicit references to nested types. Code that relies on type inference doesn't change.
-
-### An environment is a single URL
-
-An environment is a single string instead of an object with one URL per purpose, and the environment URLs type is removed. Selecting an environment when you construct the client is unchanged.
-
-```typescript
-// Before
-const urls: PlantStoreEnvironmentUrls = PlantStoreEnvironment.Production;
-console.log(urls.base, urls.realtime);
-
-// After
-const url: PlantStoreEnvironment = PlantStoreEnvironment.Production;
-console.log(url);
-```
-
-**To fix:** Remove references to the environment URLs type, and read the environment as a string.
 
 ### Channel parameters are typed as `string`
 
@@ -102,21 +148,6 @@ const tags: string = JSON.stringify(["shade", "indoor"]);
 
 **To fix:** Replace the removed types with `string`, and convert values with `String()` or `JSON.stringify()`. Don't convert `string | string[]` parameters; pass the list so it's sent as a repeated key.
 
-### Control frames that share a definition share a type
-
-Messages that reference the same message definition share one generated type, named after the first message. Send methods keep their names, and the payload on the wire is unchanged.
-
-```typescript
-// Before
-const keepAlive: PlantStore.growth.v1.GrowthV1KeepAlive = { type: "KeepAlive" };
-
-// After
-const keepAlive: PlantStore.growth.v1.GrowthV1Finalize = { type: "KeepAlive" };
-socket.sendKeepAlive(keepAlive);
-```
-
-**To fix:** Replace removed frame types with the shared type. Continue to send each frame with its own `send` method.
-
 ### `protocols` takes an array
 
 ```typescript
@@ -127,18 +158,25 @@ await client.growth.v1.connect({ Authorization: "Token ***", protocols: "token" 
 await client.growth.v1.connect({ Authorization: "Token ***", protocols: ["token"] });
 ```
 
-### Some receive messages aren't in the response union
+### Binary receive frames are typed as `ArrayBuffer | Blob`
 
-A declared receive message may have no generated type in the response union.
+On a channel that receives binary frames and JSON messages, binary frames are typed as `ArrayBuffer | Blob` instead of `string`.
 
 ```typescript
+// Before
 socket.on("message", (message) => {
-  const frame = message as { type?: string };
-  if (frame.type === "Pruned") handlePruned(frame);
+  if (typeof message === "string") playChime(message);
+  else handleEvent(message);
+});
+
+// After
+socket.on("message", (message) => {
+  if (message instanceof ArrayBuffer || message instanceof Blob) playChime(message);
+  else handleEvent(message);
 });
 ```
 
-**To fix:** Narrow the message with a local type.
+**To fix:** Narrow binary frames with `instanceof ArrayBuffer` or `instanceof Blob`.
 
 ### Unexpected binary frames are reported as errors
 
