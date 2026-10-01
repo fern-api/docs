@@ -58,18 +58,30 @@ var client = new PlantStoreClient(token, new ClientOptions
 
 ## Keep existing type names with configuration
 
-If the regenerated SDK renames the root client, base exceptions, or environment class, set the previous name in your generator configuration instead of updating call sites.
+If the regenerated SDK renames the root client, base exceptions, or environment class, set the previous name in `sdk-config.yml` instead of updating call sites. Most keys are renamed from their `generators.yml` spellings, so setting the old key in `sdk-config.yml` has no effect.
 
-| Configuration key | Controls |
-| --- | --- |
-| `client-class-name` | The root client class |
-| `exported-client-class-name` | The publicly exported client, if it differs from the internal client |
-| `base-api-exception-class-name` | The base API exception (`<Sdk>ApiException`) |
-| `base-exception-class-name` | The base exception (`<Sdk>Exception`) |
-| `environment-class-name` | The environment constants class |
-| `namespace` / `package-id` | The root namespace and package ID |
+| `generators.yml` key | `sdk-config.yml` key | Controls |
+| --- | --- | --- |
+| `client-class-name` | `generation.naming.clientName` | The root client class |
+| `exported-client-class-name` | `generation.naming.exportedClientName` | The publicly exported client, if it differs from the internal client |
+| `base-api-exception-class-name` | `generation.naming.apiErrorName` | The base API exception (`<Sdk>ApiException`) |
+| `base-exception-class-name` | `generation.naming.baseErrorName` | The base exception (`<Sdk>Exception`) |
+| `environment-class-name` | `generation.naming.environmentTypeName` | The environment constants class |
+| `namespace` | `namespace` | The root namespace |
+| `package-id` | `package.packageName` | The package ID |
 
-**To fix:** Set any renamed classes back to their previous names. Setting `namespace` and `package-id` to the current root namespace keeps existing `using` directives valid.
+The `generation.naming` keys go under the C# entry in `targets`, at the same level as `generation.wireTests`:
+
+```yaml title="sdk-config.yml"
+targets:
+  - language: csharp
+    generation:
+      naming:
+        clientName: PlantStoreClient
+        apiErrorName: PlantStoreApiException
+```
+
+**To fix:** Set any renamed classes back to their previous names. Setting `namespace` and `package.packageName` to the current root namespace and package ID keeps existing `using` directives valid.
 
 ## Connection and timeout errors have their own exception types
 
@@ -84,7 +96,7 @@ catch (TaskCanceledException ex) { /* timeout or cancellation */ }
 
 ```csharp title="After"
 try { await client.Plants.GetAsync(plantId); }
-catch (PlantStoreApiException ex) { /* status code, body, RawResponse */ }
+catch (PlantStoreApiException ex) { /* unchanged: status code, body, RawResponse */ }
 catch (ApiTimeoutException ex) { /* timeout */ }
 catch (ApiConnectionException ex) { /* connection failure */ }
 ```
