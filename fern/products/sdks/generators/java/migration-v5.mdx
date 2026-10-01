@@ -16,14 +16,14 @@ Generator versions 5.0.0 and later read configuration from `sdk-config.yml` inst
 
 This change affects every SDK and causes the most compile errors, so fix it first.
 
-Generated request and response types are named resource first instead of verb first:
+Most request wrapper names are unchanged. The `idiomatic-request-names` option defaults to `true`, which produces the same verb-first names as the previous generator. Set it to `false` to use resource-first names. When the API definition doesn't name a request body, the generated name may leave out the resource name:
 
 ```java
 // Before
-client.plants().get(id, GetPlantsRequest.builder().build());
+GetByV1IdPlantsRequest
 
 // After
-client.plants().get(id, PlantsGetRequest.builder().build());
+GetByV1IdRequest
 ```
 
 Core exception types include the client name:
@@ -34,7 +34,7 @@ PlantStoreException    PlantStoreClientException
 PlantStoreApiException PlantStoreClientApiException
 ```
 
-The root package is unchanged, but packages below it move. Per-resource `types` packages are merged into the resource package, and error classes move to a single `errors` package at the root.
+Packages below the root package move. Per-resource `types` packages are merged into the resource package, and error classes move to a single `errors` package at the root.
 
 ```java
 // Before
@@ -46,7 +46,11 @@ import com.plantstore.api.resources.inventory.types.PlantStatus;
 import com.plantstore.api.errors.NotFoundError;
 ```
 
-**To fix:** Rename types, then remove generated-package imports and let your IDE resolve them again. A `cannot find symbol` error for a type you used before usually means the type has a resource-first name.
+<Warning>
+If you don't set `package-prefix`, the root package can change. Set `package-prefix` to your current root package, such as `com.plantstore.api`, to keep it.
+</Warning>
+
+**To fix:** Rename types, then remove generated-package imports and let your IDE resolve them again. A `cannot find symbol` error for a type you used before usually means the type has a different name.
 
 ## Paginated methods return a pager
 
@@ -74,28 +78,6 @@ for (Plant plant : client.plants().list()) {
 ```
 
 **To fix:** Replace cursor loops with iteration. Call `getResponse()` to read the raw response, such as a cursor or total count.
-
-## Nullable fields become `Optional`
-
-Fields that could be explicitly `null` change from `OptionalNullable<T>` to `Optional<T>`, which can't distinguish between an unset value and `null`. An empty `Optional` omits the field from the request instead of sending `null`. Explicitly null query parameters and headers are also omitted.
-
-```java
-// Before
-UpdatePlantRequest.builder()
-    .nickname(Nullable.of(null))
-    .build();
-// Sends {"nickname": null}, and the server clears the field
-
-// After
-UpdatePlantRequest.builder()
-    .nickname(Optional.empty())
-    .build();
-// Sends {}, and the server leaves the field unchanged
-```
-
-<Warning>
-Check update requests, such as `PATCH` calls, that send `null` to clear a field. They compile after you switch to `Optional`, but no longer clear the field.
-</Warning>
 
 ## Responses are validated against the schema
 
@@ -174,20 +156,6 @@ if (plant.getStatus() == PlantStatus.AVAILABLE) { }
 
 **To fix:** Compare against enum constants. `toString()` returns the wire value.
 
-## Free-form object fields are `Object`
-
-Untyped object fields, such as metadata, are `Object` instead of `Map<String, Object>`, because the spec doesn't guarantee that the value is a map.
-
-```java
-// Before
-Map<String, Object> metadata = plant.getMetadata();
-
-// After
-PlantMetadata metadata = objectMapper.convertValue(plant.getMetadata(), PlantMetadata.class);
-```
-
-**To fix:** Cast or deserialize the value where you use it, or declare the field's shape in the spec.
-
 ## File uploads are set on the request object
 
 On file-upload endpoints, the file is a field on the request object instead of a separate method parameter. The file is a `FileStream`, which includes its filename and content type.
@@ -219,9 +187,9 @@ GET /plants/42/.shade/;location=indoor
 
 **To fix:** Confirm that your API's routing accepts the encoded form.
 
-## Build files change, and no tests are generated
+## Build files and documentation change
 
-The SDK still includes `build.gradle` and `settings.gradle`, but doesn't include the Gradle wrapper, the Spotless plugin, or the generated tests for SDK runtime helpers. Java compatibility is set in the `java {}` block, which supports Gradle 8 and 9.
+The SDK still includes `build.gradle` and `settings.gradle`, but doesn't include the Gradle wrapper or the Spotless plugin. Java compatibility is set in the `java {}` block, which supports Gradle 8 and 9.
 
 ```groovy
 java {
@@ -230,7 +198,11 @@ java {
 }
 ```
 
-**To fix:** Check in your own Gradle wrapper, and add integration tests that cover nullable fields, response validation, and exception handling.
+The per-resource `documentation/` directory is removed. The SDK root includes `README.md`, `reference.md`, which lists every endpoint with its signature and an example, and `CONTRIBUTING.md`.
+
+Tests for the SDK's runtime helpers aren't generated. To generate tests for your API, turn on `generateTests`. The generated suite includes a serialization round-trip test for each model and a wire test for each endpoint that uses `MockWebServer`. The build file adds `junit-jupiter`, `junit-platform-launcher`, `mockwebserver`, and a `test { useJUnitPlatform() }` task.
+
+**To fix:** Check in your own Gradle wrapper, and update links to `documentation/` to point to `reference.md`. Generated tests don't cover behavior that depends on your server, so add integration tests that cover response validation and exception handling.
 
 ## WebSocket channels
 
@@ -266,74 +238,40 @@ import com.plantstore.api.resources.growth.v1.types.GrowthV1Mode;
 
 **To fix:** Move frame model imports to the shared package and parameter enum imports to the per-channel package. Moving every import to one package fixes half the errors and causes the other half.
 
-### Nested types lose their owner prefix
+### The discriminator is a typed field
 
-A type nested in a frame is named after itself instead of the frame that contains it, and moves to the shared package. Field shapes are unchanged.
-
-```java
-// Before
-import com.plantstore.api.resources.growth.v1.types.GrowthV1ReadingSensor;
-
-// After
-import com.plantstore.api.types.Sensor;
-```
-
-**To fix:** Remove the owner prefix and update the import.
-
-### The socket client and message handlers are renamed
-
-The per-channel socket client, its accessor, and message handlers include the channel name. Lifecycle handlers (connected, disconnected, error, and raw message), `disconnect`, `close`, `getReadyState`, and reconnect options keep their names.
+Frame models declare the `type` field, so it's no longer in the additional-properties map, and `getType()` returns an enum instead of a `String`. Code that reads `type` from the additional-properties map gets `null`.
 
 ```java
 // Before
-V1WebSocketClient socket = client.growth().v1().v1WebSocket();
-socket.onReading(this::handleReading);
-
-// After
-GrowthV1WebSocketClient socket = client.growth().v1().growthV1WebSocket();
-socket.onGrowthV1Reading(this::handleReading);
-```
-
-**To fix:** Rename the client type, accessor, and message handlers.
-
-### The discriminator is a declared field
-
-Frame models declare the `type` field, so it's no longer in the additional-properties map.
-
-```java
-// Before
-String kind = (String) reading.getAdditionalProperties().get("type");
-
-// After
 String kind = reading.getType();
+String sameKind = (String) reading.getAdditionalProperties().get("type");
+
+// After
+GrowthV1ReadingType kind = reading.getType();
+String wireValue = reading.getType().toString(); // "Reading"
 ```
 
-**To fix:** Read the discriminator from `getType()`.
+**To fix:** Read the discriminator from `getType()`, call `toString()` where you need the wire value, and check code that iterates the additional-properties map.
 
-### Control-frame types are merged
+### Send frames require the discriminator
 
-Frames that share a definition are generated as one type with a `type` discriminator. For example, separate keep-alive and close-stream types are removed. The payload on the wire is unchanged. Some receive-only frame types are removed and their handlers have no replacement.
+Some send-frame builders previously set `type` automatically. These builders require you to set it.
 
 ```java
 // Before
-socket.sendKeepAlive(GrowthV1KeepAlive.builder().build());
+socket.sendNote(GrowthV1Note.builder()
+        .text("New leaf")
+        .build());
 
 // After
-socket.sendKeepAlive(GrowthV1Finalize.builder()
-        .type(GrowthV1FinalizeType.KEEP_ALIVE)
-        .build());
-```
-
-Some send-frame builders that previously set `type` automatically also require it:
-
-```java
 socket.sendNote(GrowthV1Note.builder()
         .type(GrowthV1NoteType.NOTE)
         .text("New leaf")
         .build());
 ```
 
-**To fix:** Replace each removed type with the merged type, and set `type` on builders that require it. Remove handlers for receive events that no longer exist.
+**To fix:** Add the `type` call to each affected builder.
 
 ### Parameter wrapper types become `String`
 
@@ -354,12 +292,6 @@ GrowthV1ConnectOptions.builder()
 ```
 
 **To fix:** Replace each `Wrapper.of(value)` call with the value's string form.
-
-### The OkHttp dependency uses an earlier major version
-
-The SDK depends on an earlier major version of OkHttp. If your project or another dependency uses a later major version, the resolved version can cause a `NoSuchMethodError` at runtime.
-
-**To fix:** Run `gradle dependencies` to check the resolved version, and add a dependency constraint if needed.
 
 ### Reconnection reports exhaustion
 
