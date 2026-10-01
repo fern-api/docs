@@ -87,7 +87,7 @@ pages = list(client.plants.list(per_page=50).iter_pages())
 
 ## The client uses `requests`, and two constructor parameters are removed
 
-The SDK uses `requests` instead of `httpx`. The `httpx_client` and `headers` constructor parameters raise `TypeError`. Default headers move to `set_config`. Configure proxies, a custom transport, TLS settings, and connection limits on a `requests.Session` and pass it as `http_client`. Redirect behavior and request logging are configured with `follow_redirects` and `logger`.
+The SDK uses `requests` instead of `httpx`. The `httpx_client` and `headers` constructor parameters raise `TypeError`. Default headers move to `set_config`. Configure proxies, a custom transport, TLS settings, and connection limits on a `requests.Session` and pass it as `http_client`. The `follow_redirects` constructor parameter works as before, and request logging is configured with the `logger` constructor parameter, which replaces `logging`.
 
 ```python title="Before"
 import httpx
@@ -112,15 +112,13 @@ client = PlantStore(
     api_key=os.environ["PLANTSTORE_API_KEY"],
     timeout=30,
     http_client=session,
+    follow_redirects=True,
     logger=logging.getLogger("plantstore"),
 )
 client.set_config({"additional_headers": {"X-Tenant": tenant_id}})
-
-# follow_redirects defaults to True. Pass False to return a 3xx response as-is.
-client.set_follow_redirects(False)
 ```
 
-**To fix:** Replace `httpx_client` with a `requests.Session` passed as `http_client`, move default headers to `set_config`, and replace `logging` with `logger`.
+**To fix:** Replace `httpx_client` with a `requests.Session` passed as `http_client`, move default headers to `set_config`, and rename `logging` to `logger`. Keep `follow_redirects` as is.
 
 ## Timeouts and connection failures raise SDK errors
 
