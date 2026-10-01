@@ -85,26 +85,42 @@ pages = list(client.plants.list(per_page=50).iter_pages())
 
 **To fix:** Replace manual page loops with pager iteration, and replace `page.items` with `page`.
 
-## The client uses `requests`, and four constructor parameters are removed
+## The client uses `requests`, and two constructor parameters are removed
 
-The SDK uses `requests` instead of `httpx`. The `httpx_client`, `headers`, `follow_redirects`, and `logging` constructor parameters raise `TypeError`. Default headers move to `set_config`, and a custom HTTP client is set with `set_http_client()`. `requests` reads proxy settings from the environment. Redirect behavior and request logging have no equivalent.
+The SDK uses `requests` instead of `httpx`. The `httpx_client` and `headers` constructor parameters raise `TypeError`. Default headers move to `set_config`. Configure proxies, a custom transport, TLS settings, and connection limits on a `requests.Session` and pass it as `http_client`. Redirect behavior and request logging are configured with `follow_redirects` and `logger`.
 
 ```python title="Before"
+import httpx
+
 client = PlantStore(
     api_key=os.environ["PLANTSTORE_API_KEY"],
     headers={"X-Tenant": tenant_id},
+    follow_redirects=True,
+    logging=LogConfig(level="DEBUG"),
     httpx_client=httpx.Client(proxies="http://proxy.internal:8080"),
 )
 ```
 
 ```python title="After"
-os.environ["HTTPS_PROXY"] = "http://proxy.internal:8080"
+import logging
+import requests
 
-client = PlantStore(api_key=os.environ["PLANTSTORE_API_KEY"], timeout=30)
+session = requests.Session()
+session.proxies = {"https": "http://proxy.internal:8080"}
+
+client = PlantStore(
+    api_key=os.environ["PLANTSTORE_API_KEY"],
+    timeout=30,
+    http_client=session,
+    logger=logging.getLogger("plantstore"),
+)
 client.set_config({"additional_headers": {"X-Tenant": tenant_id}})
+
+# follow_redirects defaults to True. Pass False to return a 3xx response as-is.
+client.set_follow_redirects(False)
 ```
 
-**To fix:** Remove the parameters, move default headers to `set_config`, and set proxies through environment variables.
+**To fix:** Replace `httpx_client` with a `requests.Session` passed as `http_client`, move default headers to `set_config`, and replace `logging` with `logger`.
 
 ## Timeouts and connection failures raise SDK errors
 
@@ -225,19 +241,19 @@ client = PlantStore(username="ada", password="secret")
 
 **To fix:** Remove manually built auth headers and pass credentials to the constructor.
 
-## Set credentials on the client, not a resource client
+## Resource clients have their own credential setters
 
-Resource clients expose credential setters, and calling one can change the `Authorization` header that other resource clients send.
-
-<Warning>
-Don't call credential setters such as `set_access_token()` on a resource client. Set credentials on the constructor, override them for a single call with `request_config`, or create a second client.
-</Warning>
+Resource clients expose credential setters, such as `set_access_token()`, that apply only to that resource client. Previously, using a second identity required a second client.
 
 ```python
+# Applies only to client.plants
+client.plants.set_access_token(partner_token)
+
+# Or override the credential for one call
 client.plants.list(request_config={"token": partner_token})
-# or
-partner = PlantStore(token=partner_token)
 ```
+
+Set credentials on the constructor for the whole SDK, on a resource client for that resource, or in `request_config` for a single call.
 
 ## File downloads return `bytes`
 
@@ -358,20 +374,33 @@ The changes above also apply to WebSocket clients: frame models are imported fro
 
 ### The environment has no socket addresses
 
-`Environment` is an enum with one URL per member instead of an object with an attribute per host. Socket addresses such as `env.events` no longer exist; the socket derives its address from the URL of the channel. A configured `base_url` takes precedence. Two members with the same URL are merged, so one of them reports the other's `.name` and doesn't appear when you iterate the enum.
+`Environment` is an enum with one URL per member instead of an object with an attribute per host. Each socket host is its own member, so reading a host as an attribute, such as `env.events`, raises `AttributeError`. Read `.url` from the member instead. Two members with the same URL are merged, so one of them reports the other's `.name` and doesn't appear when you iterate the enum.
+
+Passing an environment as `base_url` also moves every socket channel to that environment's host. Previously, each channel kept its own host.
 
 ```python title="Before"
-env = PlantStoreEnvironment.PRODUCTION
-print(env.base)    # https://api.plantstore.dev
+env = PlantStoreEnvironment.STAGING
+print(env.base)    # https://api.staging.plantstore.dev
 print(env.events)  # wss://events.plantstore.dev
+
+client = PlantStore(api_key=api_key, environment=env)
+with client.growth.v1.connect(mode="standard") as sock:
+    ...  # connects to wss://events.plantstore.dev
 ```
 
 ```python title="After"
 print(Environment.DEFAULT.url)  # https://api.plantstore.dev
-print(Environment.EVENTS.url)   # https://events.plantstore.dev
+print(Environment.EVENTS.url)   # wss://events.plantstore.dev
+
+client = PlantStore(api_key=api_key, base_url=Environment.STAGING)
+with client.growth.v1.connect(
+    mode="standard",
+    request_config={"base_url": Environment.EVENTS},
+) as sock:
+    ...  # without request_config, connects to wss://api.staging.plantstore.dev
 ```
 
-**To fix:** Remove reads of socket attributes, and check code that logs, stores, or compares `Environment.<member>.name`.
+**To fix:** Replace socket attribute reads with `.url`, check code that logs, stores, or compares `Environment.<member>.name`, and if you select a non-default environment, set the socket host on `connect()` with `request_config`.
 
 ### The credential isn't read from an environment variable
 
@@ -386,6 +415,30 @@ client = PlantStore(api_key=api_key)
 ```
 
 **To fix:** Read the environment variable and check it where you create the client.
+
+### Some connect parameter types change
+
+Connect parameters that accepted any value are annotated as `str`. Only the annotation changes: the SDK still serializes integers, lists, and dicts as before, so only a type checker reports the difference. Enum parameter types keep their type but gain a `Parameter` suffix.
+
+```python title="Before"
+from plantstore.growth.v1.types import GrowthV1Mode
+
+with client.growth.v1.connect(mode=GrowthV1Mode.STANDARD, window_ms=16000, tags=["shade", "indoor"]) as sock:
+    ...
+```
+
+```python title="After"
+from plantstore.models import GrowthV1ModeParameter
+
+with client.growth.v1.connect(
+    mode=GrowthV1ModeParameter.STANDARD,
+    window_ms=16000,          # sent correctly, but flagged by a type checker
+    tags=["shade", "indoor"], # sent as repeated keys
+) as sock:
+    ...
+```
+
+**To fix:** Rename the suffixed enum types, and convert or ignore the scalar values that a type checker flags. Don't convert a list or dict with `str()`, because the SDK then sends its string representation as one value.
 
 ### Control-frame types are merged
 
