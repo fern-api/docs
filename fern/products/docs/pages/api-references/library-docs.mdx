@@ -4,7 +4,7 @@ description: Generate MDX documentation pages from your Python or C++ library so
 ---
 
 
-The library docs generator parses your **Python or C++** library source code and generates MDX documentation pages for modules, classes, functions, methods, and parameters. Generated pages are added to your Fern Docs site with hierarchical navigation.
+The library docs generator parses your **Python or C++** library source code and generates MDX documentation pages for modules, classes, functions, methods, and parameters. For C++ libraries, the generator also produces pages for classes, structs, functions, enums, typedefs, variables, and macros. Generated pages are added to your Fern Docs site with hierarchical navigation.
 
 Cross-links are automatic. When a fully qualified identifier appears in a code block — for example, in a class signature or type annotation — the generator links it to the page documenting that symbol, so readers can jump straight to the definition.
 
@@ -104,7 +104,7 @@ For C++ libraries, the parser uses the source root (your `path` directory, or th
 If you have multiple libraries configured, `fern docs md generate` processes all libraries in parallel. Use `--library plant-sdk` to generate docs for a specific library only.
 </Tip>
 
-The generated docs form a navigation section with pages for each module, class, function, and type in your library. For C++ libraries, groups defined with `@defgroup`, `@ingroup`, or `@addtogroup` also get index pages in a `groups/` folder inside `output.path`: each lists the group's description, its members by kind, and its subgroups (nested as subfolders). Member documentation stays on the symbol pages, groups with no members are skipped, and the `folder:` navigation entry picks the group pages up without changes.
+The generated docs form a navigation section with pages for each module, class, function, and type in your library. For C++ libraries, groups defined with `@defgroup`, `@ingroup`, or `@addtogroup` also get index pages in a `groups/` folder inside `output.path`: each lists the group's description, its members by kind, and its subgroups (nested as subfolders). Member documentation stays on the symbol pages, groups with no members are skipped, and the `folder:` navigation entry picks the group pages up without changes. Documented preprocessor macros (`#define`) also get pages: function-like macros include their parameter list, and object-like macros include their replacement text. Include guards are never emitted.
 
 </Step>
 <Step title="Preview locally">
@@ -204,6 +204,10 @@ You can also edit page content by modifying the MDX files directly — generated
 
 <ParamField path="lang" type="string" required={true}>
   The language of the library. Supported values: `python`, `cpp`.
+</ParamField>
+
+<ParamField path="config.includeUndocumentedMacros" type="boolean">
+  Also emit `#define`s that have no doc comment. C++ only. Defaults to `false`. When `false`, only macros with a Doxygen doc comment (`/** … */` or `///`) are included. Include guards are never emitted regardless of this setting.
 </ParamField>
 
 <ParamField path="config.doxyfile" type="string">
