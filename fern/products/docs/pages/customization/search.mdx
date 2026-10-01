@@ -71,9 +71,9 @@ experimental:
 
 Each entry points to a `sitemap.xml` or a sitemap index; nested indexes are expanded automatically. Fern fetches every listed sitemap, indexes its URLs into the same Algolia index as your documentation, and tags them to your docs domain. External results are flagged as third-party, which demotes them below all first-party pages in the ranking, and they open in a new tab when selected.
 
-For sitemaps that list pages in several languages, Fern routes each URL to the search index of the matching site locale. The language of a URL comes from its `hreflang` alternate in the sitemap, or from a leading locale path segment such as `/ja-jp/`. URLs without either belong to the default locale. URLs in languages the site doesn't [translate](/learn/docs/configuration/localization) are skipped.
+For sitemaps that list pages in several languages, Fern indexes each URL only into the search index of the matching site locale. A URL's language comes from its `hreflang` alternate in the sitemap, then from a leading locale path segment such as `/ja-jp/` or `/zh-tw/`, and otherwise falls back to the site's default locale. A bare language code matches its regional variants (`ja` matches `ja-jp`), but different regions don't match each other (`zh-cn` doesn't match `zh-tw`). URLs in languages your site doesn't [translate](/learn/docs/localization/overview) are skipped.
 
-If a sitemap's URLs carry no usable language signal (for example, an English help center served from the root while your site defaults to Dutch), set `locale` on the entry to index every URL in that sitemap into one site locale. This overrides per-URL detection for that sitemap:
+If a sitemap's URLs carry no usable language signal (for example, an English help center served from the root while your site defaults to Dutch), set `locale` on the entry to index every URL in that sitemap into one site locale. This overrides per-URL detection for that sitemap, and entries without `locale` keep the automatic routing:
 
 ```yaml docs.yml
 experimental:
@@ -82,6 +82,8 @@ experimental:
     - url: https://help.example.com/sitemap.xml
       locale: en
 ```
+
+The `locale` value must match one of the languages listed under `translations` in `docs.yml`. `fern check` warns when it matches none of them, since that sitemap would never be indexed.
 
 ## How results are ranked
 
