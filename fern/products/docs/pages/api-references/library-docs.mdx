@@ -8,6 +8,23 @@ The library docs generator parses your **Python or C++** library source code and
 
 Cross-links are automatic. When a fully qualified identifier appears in a code block — for example, in a class signature or type annotation — the generator links it to the page documenting that symbol, so readers can jump straight to the definition.
 
+## Cython support
+
+The Python parser natively documents Cython `.pyx` modules. When any `.pyx` file is found in the package, the parser automatically synthesizes a Python stub for each one and passes it to Griffe — no configuration flag is needed. Packages without `.pyx` files are unaffected.
+
+What is documented from `.pyx` files:
+
+- `class` and `cdef class` definitions (emitted as `class`), including base classes and decorators
+- `def` and `cpdef` functions (emitted as `def`), including `@staticmethod`, `@classmethod`, `*args`/`**kwargs`, keyword-only and positional-only markers
+- `cdef public` and `cdef readonly` class attributes (Python-readable), with C types mapped to Python equivalents where unambiguous
+- Docstrings (verbatim, including NumPy-style sections)
+- `@property` and legacy `property x:` blocks
+- `__all__`, module-level constants, and `import`/`from ... import` statements
+
+What is not documented: `cdef` (non-`cpdef`) functions, private `cdef` attributes, `ctypedef`, `cimport`, `nogil`/`except` clauses, and C types with no unambiguous Python equivalent.
+
+If a `.pyx` module cannot be parsed, it is skipped and the rest of the library is still documented. The Fern CLI prints a warning for each skipped module: `Library '<name>': Skipping Cython module <path>: <reason>`.
+
 ## Configuration
 
 <Steps>
