@@ -4,37 +4,25 @@ headline: Migrating to C# SDK generator v3
 description: Breaking changes in version 3.0.0 of the Fern C# SDK generator and how to update code that uses your generated .NET SDK.
 ---
 
-Version 3.0.0 of the C# SDK generator changes some generated types, constructors, and method signatures. Which changes affect your SDK depends on your API. Some apply to every SDK, and others only to specific shapes such as unions or multiple auth schemes. Release the regenerated SDK as a new major version, and share this page with your SDK users so they can update their code.
-
-The changes below are ordered from most to least likely to affect you.
+Version 3.0.0 of the C# SDK generator includes changes the compiler doesn't catch: code that still builds but behaves differently, and changes that aren't visible in your code at all. Which changes affect your SDK depends on your API. Release the regenerated SDK as a new major version, and share this page with your SDK users so they can update their code.
 
 ## Before you upgrade
 
 Generator versions 3.0.0 and later read configuration from `sdk-config.yml` instead of `generators.yml`. Run `fern sdk migrate` to create `sdk-config.yml` from your existing configuration.
 
-## Connection and timeout errors have their own exception types
+## Pass credentials by name
 
-A connection failure throws `ApiConnectionException` instead of the raw `HttpRequestException`. A request timeout throws `ApiTimeoutException` instead of `TaskCanceledException`, so timeouts are distinguishable from caller cancellations. The base API exception and per-status exceptions (such as `NotFoundError`) keep their names.
+How credentials are passed changes for several auth styles, and the order of constructor parameters may change. A positional call still compiles, but the value can bind to a different credential and fail at request time with an authentication error. All credential parameters are optional, so the compiler doesn't flag the change.
 
-```csharp title="Before"
-try { await client.Plants.GetAsync(plantId); }
-catch (PlantStoreApiException ex) { /* status code, body */ }
-catch (HttpRequestException ex) { /* connection refused */ }
-catch (TaskCanceledException ex) { /* timeout or cancellation */ }
+```csharp
+// Risky: still compiles, but the first parameter may be a different credential
+var client = new PlantStoreClient("my-api-key");
+
+// Safe
+var client = new PlantStoreClient(apiKey: "my-api-key");
 ```
 
-```csharp title="After"
-try { await client.Plants.GetAsync(plantId); }
-catch (PlantStoreApiException ex) { /* status code, body, RawResponse */ }
-catch (ApiTimeoutException ex) { /* timeout */ }
-catch (ApiConnectionException ex) { /* connection failure */ }
-```
-
-**To fix:** Replace `catch (HttpRequestException)` with `catch (ApiConnectionException)` and `catch (TaskCanceledException)` with `catch (ApiTimeoutException)` where they handled connection failures or timeouts.
-
-## Client constructor arguments changed
-
-The way credentials are passed to the client constructor changes for several auth styles:
+Common changes include:
 
 ```csharp title="Before"
 // A single bearer token
@@ -66,100 +54,121 @@ var client = new PlantStoreClient(token, new ClientOptions
 });
 ```
 
-`ClientOptions` (`BaseUrl`, `HttpClient`, `AdditionalHeaders`, `MaxRetries`, `Timeout`) is unchanged.
+**To fix:** Pass every credential argument by name, and check client construction against the new constructor signature. Pass `clientOptions:` by name as well.
 
-**To fix:** Update client construction to match the new constructor signature. The first constructor parameter may be a credential (such as `string? token`), so pass options by name: `new PlantStoreClient(clientOptions: options)`.
+## Keep existing type names with configuration
 
-## Base URL replaces the environment enum
+If the regenerated SDK renames the root client, base exceptions, or environment class, set the previous name in your generator configuration instead of updating call sites.
 
-If your SDK exposed a named environment enum on `ClientOptions`, set the base URL string directly. If the SDK also had a region field that built the URL, set the full URL.
+| Configuration key | Controls |
+| --- | --- |
+| `client-class-name` | The root client class |
+| `exported-client-class-name` | The publicly exported client, if it differs from the internal client |
+| `base-api-exception-class-name` | The base API exception (`<Sdk>ApiException`) |
+| `base-exception-class-name` | The base exception (`<Sdk>Exception`) |
+| `environment-class-name` | The environment constants class |
+| `namespace` / `package-id` | The root namespace and package ID |
+
+**To fix:** Set any renamed classes back to their previous names. Setting `namespace` and `package-id` to the current root namespace keeps existing `using` directives valid.
+
+## Connection and timeout errors have their own exception types
+
+A connection failure throws `ApiConnectionException` instead of the raw `HttpRequestException`. A request timeout throws `ApiTimeoutException` instead of `TaskCanceledException`, so timeouts are distinguishable from caller cancellations. Existing `catch` blocks still compile but no longer catch these errors.
 
 ```csharp title="Before"
-var client = new PlantStoreClient(token, new ClientOptions { Environment = PlantStoreEnvironment.Sandbox });
+try { await client.Plants.GetAsync(plantId); }
+catch (PlantStoreApiException ex) { /* status code, body */ }
+catch (HttpRequestException ex) { /* connection refused */ }
+catch (TaskCanceledException ex) { /* timeout or cancellation */ }
 ```
 
 ```csharp title="After"
-var client = new PlantStoreClient(token, new ClientOptions { BaseUrl = "https://sandbox.plantstore.dev" });
+try { await client.Plants.GetAsync(plantId); }
+catch (PlantStoreApiException ex) { /* status code, body, RawResponse */ }
+catch (ApiTimeoutException ex) { /* timeout */ }
+catch (ApiConnectionException ex) { /* connection failure */ }
 ```
 
-**To fix:** Replace environment enum values and region fields with the corresponding base URL.
+The new exception types are in the `<RootNamespace>.Http.Exceptions` namespace. The base API exception (`<Sdk>ApiException`) and per-status exceptions such as `NotFoundError` keep their names and namespaces.
 
-## Some method names include the resource name
+**To fix:** Replace `catch (HttpRequestException)` and `catch (TaskCanceledException)` blocks that handled connection failures or timeouts.
 
-If your API's operation IDs aren't already qualified with the resource name, generated method names include it. Arguments are unchanged.
+## Enums accept unknown values
+
+If an enum was a plain C# `enum`, it becomes a struct that wraps a string. Most SDKs already use this shape, so nothing changes for them.
 
 ```csharp title="Before"
-await client.Plants.CreateAsync(request);
+public enum PlantStatus { Available, Pending, Sold }
 ```
 
 ```csharp title="After"
-await client.Plants.PlantsCreateAsync(request);
-```
-
-**To fix:** Rename the affected method calls.
-
-## Some request bodies are nested under `Body`
-
-For some endpoints, the request body moves to a `Body` property on a request wrapper. Other per-request fields, such as path parameters, query parameters, and per-request auth or idempotency headers, are set on the wrapper.
-
-```csharp title="Before"
-await client.Plants.CreateAsync(new CreatePlantEndpointRequest
+public readonly record struct PlantStatus : IStringEnum
 {
-    Plant = new PlantRequest { /* ... */ },
+    public static readonly PlantStatus Available = new(Values.Available);
+    public string Value { get; }
+    public static class Values { public const string Available = "available"; /* ... */ }
+}
+```
+
+Equality comparisons such as `plant.Status == PlantStatus.Available` still work. A `switch` over the enum doesn't compile, because the members are `static readonly` fields instead of constants (error `CS9135`). Switch on `.Value` and the generated `Values` constants instead:
+
+```csharp
+switch (plant.Status.Value)
+{
+    case PlantStatus.Values.Available: ...
+    case PlantStatus.Values.Sold: ...
+    default: ...
+}
+```
+
+Previously, an unknown value was converted to the first enum member, so an API that returned `"reserved"` produced `Available`. The SDK preserves the value as-is, so `plant.Status.Value` is `"reserved"` and reaches the `default` branch.
+
+**To fix:** Rewrite `switch` statements to use `.Value` and the `Values` constants, and add a `default` branch for values added to the API after the SDK was generated.
+
+## Some exception bodies are no longer typed
+
+Most typed error bodies are unchanged. If an exception exposes a named error model, such as `ErrorResponse`, `ex.Body` keeps that type. In two cases, `Body` becomes `object`:
+
+- **The body is a primitive.** A status whose body schema is a scalar, such as `type: string`, has no typed accessor.
+- **The status has different body shapes.** If the same status code has more than one body schema across the API, every exception for that status exposes `object`.
+
+Reading a property from `Body` stops compiling in these cases. Because the runtime type can vary, check the type instead of casting:
+
+```csharp
+// Don't: throws when the endpoint returns a different shape
+catch (BadRequestError ex) { var code = ((PlantError)ex.Body).Code; }
+
+// Do
+catch (BadRequestError ex)
+{
+    if (ex.Body is PlantError error) { /* use error.Code */ }
+    else { /* use ex.Message, ex.StatusCode, or ex.RawResponse */ }
+}
+```
+
+**To fix:** Where the compiler flags a `Body` read, check the type with `is`, such as `ex.Body is string text` for a plain-text body, and handle other types.
+
+## SDK identification headers aren't sent
+
+The SDK doesn't send the `X-Fern-Language`, `X-Fern-SDK-Name`, or `X-Fern-SDK-Version` headers, and doesn't send a `User-Agent` header in their place. Application code is unaffected, but server-side logging, routing, or firewall rules that depend on these headers stop matching.
+
+```csharp
+var client = new PlantStoreClient(token, new ClientOptions
+{
+    AdditionalHeaders = new Dictionary<string, string> { ["User-Agent"] = "plant-app/1.0" },
 });
 ```
 
-```csharp title="After"
-await client.Plants.CreateAsync(new CreatePlantRequest
-{
-    IdempotencyKey = key,
-    Body = new CreatePlantEndpointRequest { /* ... */ },
-});
-```
+**To fix:** Update server-side rules that depend on the previous headers, and set your own identifying header if you need one.
 
-**To fix:** Move the body into the `Body` property and set the other fields on the wrapper.
+## The project layout changes
 
-## Union types may change shape
+The generated project is organized by kind (`Clients/`, `Models/`, `Services/`, `Core/`, `Exceptions/`, and `Http/`) instead of one folder per API group. Namespaces are mostly unchanged, so existing `using` directives keep working. A group's client type may move to the root namespace, for example from `PlantStore.Inventory.InventoryClient` to `PlantStore.InventoryClient`. Accessing the group through `client.Inventory` is unchanged.
 
-Unions keep all their variants, but their shape and names may differ. A discriminated union may be generated as a flat record without `Is*` and `As*()` accessors, a flat record may be generated as a union, and some accessor and type names change.
+**To fix:** Update `using` directives that reference a moved client type, and update tooling that references generated files by path, such as file lists, per-file lint or coverage rules, and solution filters.
 
-```csharp title="Before"
-Plant plant = response.Plant;
-if (plant.IsFern()) { var fern = plant.AsFern(); }
-plant.Match(onFern: f => ..., onCactus: c => ...);
-```
+## Other changes
 
-```csharp title="After"
-var plant = response.Plant;
-// Read the record's fields directly, or use the regenerated accessor and type names
-```
-
-**To fix:** Check each union call site against the regenerated type and update reads and names.
-
-## Plain C# enums become string enum structs
-
-String enums are generated as `IStringEnum` structs with the same member names. Most SDKs already used this shape. If an enum was previously a plain C# `enum`, it becomes an `IStringEnum` struct. Comparisons read the same, but exhaustive `switch` statements need a default branch.
-
-```csharp
-if (plant.Status == PlantStatus.Available) { }
-```
-
-**To fix:** Add a default case to exhaustive `switch` statements over enums that were plain C# `enum` types.
-
-## SDK identification headers changed
-
-The SDK sends a standard `User-Agent` header with the SDK name and version instead of the `X-Fern-SDK-Name` and `X-Fern-SDK-Version` headers.
-
-**To fix:** No code changes are needed. Update server logs, routing, or firewall rules that depend on the `X-Fern-SDK-*` headers.
-
-## New client and request configuration
-
-These additions don't require code changes:
-
-- `SetConfig(...)` and `Set{Method}Config(...)` configure a client's resources.
-- `RequestOptions` has a `Retry` field for per-call retry behavior, alongside `Timeout`, `MaxRetries`, and `BaseUrl`.
-
-```csharp
-client.Plants.SetConfig(new RequestConfig { Timeout = TimeSpan.FromSeconds(10) });
-await client.Plants.GetAsync(plantId, new RequestOptions { MaxRetries = 0, Retry = new RetryConfig { /* ... */ } });
-```
+- **Union accessors and type names may change.** For example, `value.AsText()` may become `value.AsContentText()`, and a flat record may become a union. Check each regenerated type instead of assuming its shape is unchanged.
+- **Generated tests are replaced.** The test project moves from `<Sdk>.Test/` to `Tests/` and covers models and resources instead of individual endpoints. To turn off generated tests, set `generation.wireTests.enabled: false` in `sdk-config.yml`. When you migrate from `generators.yml`, `enable-wire-tests: false` is carried over, but `generate-mock-server-tests: false` isn't.
+- **New configuration is available.** `SetConfig(...)` and `Set{Method}Config(...)` configure the client, and `RequestOptions` has a `Retry` policy alongside `Timeout`, `MaxRetries`, and `BaseUrl`. These additions don't require code changes.
