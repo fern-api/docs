@@ -1,0 +1,53 @@
+---
+title: Multiple servers
+description: Generate separate MCP servers for different audiences from one API definition.
+availability: beta
+---
+
+One spec can back more than one MCP server. Add another group with its own `tools` filter, and `fern generate` builds each independently:
+
+```yaml title="generators.yml"
+groups:
+  mcp-payments:
+    generators:
+      - name: fernapi/fern-mcp-server
+        config:
+          server-name: acme-payments
+          tools:
+            include: [{ tag: payments }]
+  mcp-admin:
+    generators:
+      - name: fernapi/fern-mcp-server
+        config:
+          server-name: acme-admin
+          tools:
+            include: [{ tag: admin }]
+```
+
+`fern mcp init` always adds a new group; it never mutates an existing one. `fern mcp tools --refine --group <name>` is the mutation path for a group already written.
+
+Two endpoints can appear in more than one group's toolset — `fern mcp list` reports the overlap as information, not a warning. When a spec grows a new endpoint, it lands in whichever group's rules match; `fern check` warns if a new endpoint matches none of them, so nothing silently falls through the cracks.
+
+## Groups vs. presets
+
+Groups and [presets](/learn/mcp-generator/get-started/configuration#presets) both narrow a toolset, but for different reasons:
+
+- A **group** is a separately generated and published server — its own npm package, its own GitHub repo, its own version.
+- A **preset** is a named subset of one group's toolset that a client can connect to directly — one deploy, several audiences.
+
+Reach for multiple groups when the audiences need different deployments (an internal admin server your public one shouldn't ship). Reach for presets when one deployment is enough and you just want to hand different clients a narrower slice of it. Small APIs typically need neither; large ones mostly need presets before they need multiple groups.
+
+## Splitting by audience with AI-curated
+
+If your intent describes more than one distinct audience, the [AI-curated preset](/learn/mcp-generator/get-started/tool-selection#ai-curated-rulesets) proposes a group per audience instead of one ruleset:
+
+```txt
+✦ This API serves 3 distinct audiences. Proposed split:
+│  acme-support     (24 tools · 15k)  customers, payments read + refunds
+│  acme-admin       (18 tools · 12k)  admin tag, destructive ops — internal only
+│  acme-reporting   (11 tools ·  9k)  read-only analytics
+│
+◆ Accept all / Accept some / Merge into one / Adjust…
+```
+
+Accepting writes each proposed group in one pass, with its own `tools.intent`.
