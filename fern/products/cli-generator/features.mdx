@@ -8,7 +8,7 @@ availability: beta
 The CLI generator is in early access. [Reach out](https://buildwithfern.com/book-demo?type=cli) to get started.
 </Note>
 
-Generated CLIs ship with a common set of runtime flags and environment variables: output formatting, retries with exponential backoff, pagination, dry-run previewing, TLS and proxy configuration, exit codes, and structured logging. APIs with templated server URLs also expose per-variable flags and environment variables. The binary name (set via [`binaryName`](/learn/cli-generator/get-started/configuration#config-options)) determines the environment-variable prefix used by TLS, proxy, and logging settings below.
+Generated CLIs ship with a common set of runtime flags and environment variables: output formatting, retries with exponential backoff, pagination, dry-run previewing, TLS and proxy configuration, exit codes, and structured logging. APIs with templated server URLs also expose per-variable flags and environment variables. The binary name (set via [`binaryName`](/learn/cli-generator/get-started/configuration#config-options)) determines the environment-variable prefix used by TLS, proxy, and logging settings below. The root `--help` output ends with an `Environment variables:` section generated from the spec, listing `<NAME>_PROFILE`, `<NAME>_BASE_URL`, `<NAME>_OUTPUT`, `<NAME>_RETRIES`, one variable per server URL variable (such as `<NAME>_REGION`), and the transport variables (`<NAME>_CA_BUNDLE`, `<NAME>_INSECURE`, `<NAME>_PROXY`, `<NAME>_TIMEOUT_SECS`, `<NAME>_USER_AGENT_SUFFIX`).
 
 ## Output formatting
 
@@ -200,6 +200,15 @@ Every generated CLI honors environment variables for TLS and proxy configuration
 
 Standard environment variables (`HTTPS_PROXY`, `HTTP_PROXY`, `NO_PROXY`, `SSL_CERT_FILE`) are honored when the scoped overrides are absent.
 
+With [named profiles](/learn/cli-generator/get-started/authentication#named-profiles) enabled, `<NAME>_CA_BUNDLE`, `<NAME>_INSECURE`, `<NAME>_PROXY`, `<NAME>_TIMEOUT_SECS`, and `<NAME>_USER_AGENT_SUFFIX` can also be stored per profile with `profiles set`, for example a corporate-proxy profile. A selected profile's value outranks the exported variable, which applies only when the profile leaves the setting unset.
+
+```bash
+export CONTOSO_TIMEOUT_SECS=10
+contoso profiles set corp CONTOSO_TIMEOUT_SECS=45 CONTOSO_PROXY=http://proxy.corp:3128
+contoso profiles use corp
+contoso plants list   # 45-second timeout through the corp proxy
+```
+
 <Accordion title="Common scenarios">
 
 **Behind a MITM proxy (Proxyman, Charles, mitmproxy):**
@@ -223,7 +232,7 @@ contoso plants list
 
 Each generated CLI sends a `User-Agent` header identifying it by binary name and version, `<binaryName>-cli/<version>` (for example, `contoso-cli/1.4.0`), so its traffic is distinguishable on the API backend. The `-cli` suffix is added automatically.
 
-A tool built on top of the CLI can append its own product token without replacing the CLI's identity, producing `contoso-cli/1.4.0 partner-app/3.1`. Supply the token at runtime with either the `--user-agent-suffix` flag or the `<NAME>_USER_AGENT_SUFFIX` environment variable; the flag takes precedence when both are set. Rename the flag and its environment variable at generation time with [`userAgentSuffixFlag`](/learn/cli-generator/get-started/configuration#config-options).
+A tool built on top of the CLI can append its own product token without replacing the CLI's identity, producing `contoso-cli/1.4.0 partner-app/3.1`. Supply the token at runtime with either the `--user-agent-suffix` flag or the `<NAME>_USER_AGENT_SUFFIX` environment variable, or store it on a [named profile](/learn/cli-generator/get-started/authentication#named-profiles). The flag wins over a selected profile, which wins over the environment variable. Rename the flag and its environment variable at generation time with [`userAgentSuffixFlag`](/learn/cli-generator/get-started/configuration#config-options).
 
 ```bash
 # Append a product token via flag
