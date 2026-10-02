@@ -1,0 +1,131 @@
+---
+title: Migrating to Swift generator v1
+headline: Migrating to Swift SDK generator v1
+description: Breaking changes in version 1.0.0 of the Fern Swift SDK generator and how to update code that uses your generated Swift SDK.
+---
+
+Version 1.0.0 of the Swift SDK generator keeps the same resource clients and method names, but changes the shape of some generated types. Because Swift SDKs use `Codable` types, most of these changes surface as compile errors at existing call sites, and a few also change behavior at runtime. Release the regenerated SDK as a new major version, and share this page with your SDK users so they can update their code.
+
+## Before you upgrade
+
+Generator versions 1.0.0 and later read configuration from `sdk-config.yml` instead of `generators.yml`. Run `fern sdk migrate` to create `sdk-config.yml` from your existing configuration.
+
+`fern sdk migrate` carries over the `moduleName`, `clientClassName`, and `environmentEnumName` settings, so the names they set don't change. If your `generators.yml` sets [`nullableAsOptional`](/learn/sdks/generators/swift/configuration#nullableasoptional), check that the Swift target in `sdk-config.yml` sets it too. Without it, nullable properties use the `Nullable<T>` wrapper instead of `T?`.
+
+```yaml title="sdk-config.yml"
+targets:
+  - language: swift
+    generation:
+      nullableAsOptional: true
+```
+
+## Numeric enums are generated as enums
+
+The previous generator typed an integer or number `enum` as a plain `Int` or `Double`, and generated a named one as a `typealias`. Version 1.0.0 generates a Swift enum with one case per declared value, named by spelling out the value, and turns an integer or number `const` into a single-case enum. Because the enum accepts only the declared values, a response that carries any other value fails to decode.
+
+```swift title="Before"
+let pot = Pot(diameterInches: 6)
+```
+
+```swift title="After"
+let pot = Pot(diameterInches: .six)
+```
+
+**To fix:** Replace numeric literals with enum cases, and read `.rawValue` where you need the number. If the API can return values that the schema doesn't list, add them to the schema's `enum`.
+
+## Union types changed shape
+
+The generated Swift types for unions differ:
+
+- **Discriminator properties are removed from member structs.** When a schema belongs to a discriminated union and is also used elsewhere, the previous generator kept the discriminator property on its struct. The new generator removes it, so `WateringCarePlan.type` and its single-case `WateringCarePlanType` enum are no longer generated. The union still reads and writes the discriminator, but the member struct doesn't include it when it's sent on its own.
+- **A single-member union that repeats its member in `allOf` becomes that member type.** When a schema declares a `oneOf` with one member and lists the same member in `allOf`, the property is typed as the member. For example, `CreatePlantRequestCarePlan?` becomes `WateringCarePlan?`, and `WateringCarePlan` gains its discriminator property.
+- **Some unions without a `discriminator` are generated as undiscriminated unions.** When each member of a union sets a property such as `type` to a different constant, the previous generator treated the union as discriminated even without a `discriminator`. The new generator does the same unless a member leaves that property out of `required`. In that case, case names come from the member type names instead of the property's values, inline members get different type names, and member structs keep the property. For example, `PlantEvent.watered` becomes `.plantEventWatered`.
+
+```swift title="Before"
+switch event {
+case .watered(let e): handle(e)
+default: break
+}
+```
+
+```swift title="After"
+switch event {
+case .plantEventWatered(let e): handle(e)
+default: break
+}
+```
+
+**To fix:** Update `switch` statements and references to union cases and member types, and add or remove the discriminator argument when you initialize a member struct. To send a member struct that lost its discriminator property outside its union, add the discriminator to `additionalProperties`, for example `WateringCarePlan(everyDays: 3, additionalProperties: ["type": .string("watering")])`.
+
+## Inline `anyOf` objects become one struct
+
+An `anyOf` whose members are all inline object schemas is generated as a single struct that holds every member's properties, instead of a union with one case per member. If two members declare the same property differently, the struct keeps the last member's declaration, so a response that matches an earlier member fails to decode.
+
+```swift title="Before"
+let filter = CatalogEntryHeightFilter.catalogEntryHeightFilterMinHeight(
+    CatalogEntryHeightFilterMinHeight(minHeight: 10)
+)
+```
+
+```swift title="After"
+let filter = CatalogEntryHeightFilter(minHeight: 10)
+```
+
+**To fix:** Initialize the struct with the properties of the member you mean, and read its optional properties instead of switching on cases.
+
+## Initializer argument order changed for some `allOf` types
+
+When a schema declares its own `properties` and also has an `allOf` that includes an inline object, the memberwise initializer lists the inline object's properties before the schema's own properties. The previous generator listed them after. Initializer calls fail to compile even when every property name matches.
+
+```swift title="Before"
+let lily = Lily(petals: 6, name: "Stargazer", scent: "sweet", stems: 3)
+```
+
+```swift title="After"
+let lily = Lily(petals: 6, name: "Stargazer", stems: 3, scent: "sweet")
+```
+
+**To fix:** Reorder the arguments in each affected initializer call.
+
+## Object schemas with empty `properties` become dictionaries
+
+An object schema that declares an empty `properties` map is generated as a `[String: JSONValue]` type alias instead of a struct that only holds `additionalProperties`.
+
+```swift title="Before"
+let labels = PlantLabels(additionalProperties: ["light": .string("full sun")])
+```
+
+```swift title="After"
+let labels: PlantLabels = ["light": .string("full sun")]
+```
+
+**To fix:** Use a dictionary literal instead of the initializer, and read values from the dictionary instead of `additionalProperties`.
+
+## Binary properties are typed as `Data`
+
+A schema property declared as `type: string` with `format: binary` is `Data` instead of `String`, and the SDK base64-encodes it in JSON. Multipart file parts, which take a `FormFile`, are unchanged.
+
+```swift title="Before"
+let upload = PlantPhotoUpload(file: photoString)
+```
+
+```swift title="After"
+let upload = PlantPhotoUpload(file: photoData)
+```
+
+**To fix:** Pass the file contents as `Data`.
+
+## Some type names changed
+
+The JSON on the wire is unchanged, but some generated type names are different:
+
+- **Resource client classes that share a name.** When two resource groups have the same name, the client class names can be assigned differently. For example, `GardenClient.beds` is a `GardenBedsClient` instead of a `BedsClient`. Code that reaches the client through its property, such as `client.garden.beds`, isn't affected.
+- **Titled inline schemas, if your spec sets `title-as-schema-name: true`.** Inline schemas that share a title, and the items of a titled inline array, are named after their parent and property instead of their title. For example, `[PhotosItem]` becomes `[PlantPhotosItem]`. A title that only one inline object uses is still its name.
+
+**To fix:** Update references to renamed types. Compiler errors point to each affected call site.
+
+## Failed requests are retried three times by default
+
+The client retries a failed request up to 3 times by default instead of 2. If your `generators.yml` sets `maxRetries`, `fern sdk migrate` writes it to `sdk-config.yml` as `client.retry.maxAttempts`, one higher than `maxRetries`, and the SDK uses `maxAttempts` as its number of retries.
+
+**To fix:** Pass `maxRetries` when you create the client, or set `client.retry.maxAttempts` in `sdk-config.yml` to the number of retries you want.
