@@ -7,15 +7,15 @@ noindex: true
 
 <Markdown src="/snippets/enterprise-plan.mdx" />
 
-On a [multi-source](/learn/docs/preview-publish/multi-source) domain, each sub-path is a separate docs site published from its own repository. The site switcher adds a dropdown to the header that lists the other sites on the domain, so readers can jump from `/product-a` to `/product-b` without a hand-maintained list of links in every repository.
+On a [multi-source](/learn/docs/preview-publish/multi-source-docs) domain, each sub-path is a separate docs site published from its own repository. The site switcher adds a dropdown to the header that lists the other sites on the domain, so readers can jump from `/product-a` to `/product-b` without a hand-maintained list of links in every repository.
 
 ## How it works
 
 Fern builds the list of sites for you. When a repository publishes to a multi-source domain, Fern records every live site on that domain, and that snapshot is what the switcher displays. `theme.site-switcher` only controls whether the switcher appears and how it presents the sites.
 
 - **Labels** come from each site's `title` in `docs.yml`. Sites without a title use a label generated from the last segment of the basepath (`/sdk-user-guide` becomes "Sdk User Guide").
-- **Nested sites** such as `/seeds/sunflower` are listed directly after their parent (`/seeds`). If the parent isn't published, the nested site is listed as a top-level entry.
-- **The root site** at `/`, if any, isn't listed. When a reader is on the root site, the switcher reads "Home".
+- **Nested sites** such as `/seeds/sunflower` are listed directly after their parent (`/seeds`). A nested site is still a whole site, not a page of its parent. If the parent isn't published, the nested site is listed as a top-level entry.
+- **The root site** at `/`, if any, isn't listed; the logo links back to it. When a reader is on the root site, the switcher reads "Home".
 - **Selecting a site** opens that site's homepage (`/{basepath}/`). Unlike the [product switcher](/learn/docs/configuration/products), it doesn't try to keep the reader on the same page, because sibling sites have unrelated page paths.
 - The switcher renders only when at least two sites would be listed, and it never appears on preview URLs.
 
@@ -29,7 +29,7 @@ The list of sites is a snapshot taken when each site publishes. When a new site 
 
 <Step title="Set up multi-source docs">
 
-Publish each sub-path from its own `fern/` project with `multi-source: true`, as described in [Multi-source docs](/learn/docs/preview-publish/multi-source).
+Publish each sub-path from its own `fern/` project with `multi-source: true`, as described in [Multi-source docs](/learn/docs/preview-publish/multi-source-docs).
 
 </Step>
 
@@ -78,7 +78,7 @@ theme:
 ```
 
 <ParamField path="theme.site-switcher.enabled" type="boolean" required={false} default="false" toc={true}>
-  Show the site switcher in the header.
+  Show the site switcher in the header, or in the sidebar when [`layout.switcher-placement`](/learn/docs/configuration/site-level-settings#layout-configuration) is `sidebar`.
 </ParamField>
 
 <ParamField path="theme.site-switcher.order" type="list of strings" required={false} toc={true}>
@@ -90,16 +90,16 @@ theme:
 </ParamField>
 
 <ParamField path="theme.site-switcher.labels" type="map of strings" required={false} toc={true}>
-  Display labels keyed by basepath. Overrides the site's `title`.
+  Display labels keyed by basepath. Overrides the site's `title`, which in turn overrides the label generated from the basepath.
 </ParamField>
 
 <ParamField path="theme.site-switcher.show-products" type="boolean" required={false} default="false" toc={true}>
-  List each site's top-level [products](/learn/docs/configuration/products) indented beneath it. Each product links to its page on that site, or to the product's external link.
+  List each site's top-level [products](/learn/docs/configuration/products) indented beneath it. Each product links to `/{basepath}/{product-slug}/`, or to the product's external link.
 </ParamField>
 
 ## Place the switcher in a custom header
 
-By default, the site switcher sits in the header ahead of the product and version switchers. If you use a [custom header](/learn/docs/customization/custom-header-footer), render it with `<Fern.SiteSwitcher />` from the `Fern` prop. It renders nothing when the switcher is turned off.
+By default, the site switcher sits in the header ahead of the product and version switchers, or at the top of the sidebar when `layout.switcher-placement` is `sidebar`. If you use a [custom header](/learn/docs/customization/header-and-footer), render it with `<Fern.SiteSwitcher />` from the `Fern` prop. It renders nothing when the switcher is turned off.
 
 ```tsx components/CustomHeader.tsx
 export default function CustomHeader({ Fern }) {
