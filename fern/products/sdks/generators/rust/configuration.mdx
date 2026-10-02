@@ -26,7 +26,7 @@ The name of the generated client struct. This allows you to customize the struct
 </ParamField>
 
 <ParamField path="crateName" type="string" required={false} toc={true}>
-The name of the generated Rust crate. This is used in `Cargo.toml` and determines how users will add your SDK as a dependency.
+The name of the generated Rust crate. This is used in `Cargo.toml` and determines how users will add your SDK as a dependency. By default, hyphens become underscores in the package name (`my-sdk` publishes as `my_sdk`); set [`preserveCrateNameHyphens`](#preservecratenamehyphens) to keep them.
 </ParamField>
 
 <ParamField path="crateVersion" type="string" required={false} toc={true}>
@@ -62,10 +62,36 @@ When enabled, generates code examples in the README and reference documentation.
 The default number of retries for failed requests. When not set, the generated SDK defaults to 3 retries. SDK users can still override this per-request via request options.
 </ParamField>
 
+<ParamField path="preserveCrateNameHyphens" type="boolean" default="false" required={false} toc={true}>
+Keeps hyphens from [`crateName`](#cratename) in the Cargo package name. By default, the generator converts every run of hyphens and underscores to a single underscore, so `crateName: my-sdk` produces `name = "my_sdk"` in `Cargo.toml`. crates.io treats hyphenated and underscored spellings as the same crate, so enable this option when your crate is already published under a hyphenated name.
+
+```yaml title="generators.yml"
+config:
+  crateName: my-sdk
+  preserveCrateNameHyphens: true
+```
+
+The hyphenated name applies to the `Cargo.toml` package name, the default description and docs.rs documentation URL, the default crates.io publish package name, and the README install snippet (`cargo add my-sdk`). The name is still lowercased, invalid characters are replaced, repeated separators are collapsed, and leading or trailing separators are trimmed. Rust code continues to import the crate by its underscored name (`use my_sdk::prelude::*`), since Cargo maps a hyphenated package name to an underscored library name. When `crateName` isn't set, the default name derived from your organization and API name also keeps its hyphens.
+</ParamField>
+
 <ParamField path="respectOptionalRequestBody" type="boolean" default="false" required={false} toc={true}>
 Lets callers omit the request body on endpoints with an optional request body. The method takes the body as an `Option`, and a call that passes `None` sends no body and no `Content-Type` header, instead of an empty JSON object (`{}`). Enable this when your API treats a missing body differently from an empty one.
 
 Only applies to request bodies declared as a single named type that the endpoint takes on its own. Required bodies, bodies folded into a request wrapper, and inlined request properties are unaffected.
+</ParamField>
+
+<ParamField path="userAgentFromPlatformHeaders" type="boolean" default="false" required={false} toc={true}>
+Sets the default `ClientConfig.user_agent` to the platform `User-Agent` value that Fern computes for the SDK, matching the other Fern SDKs. By default, the Rust SDK uses `"<ApiName> Rust SDK"` (the API name in PascalCase) and ignores the `user-agent` template.
+
+With this option enabled, the default user agent is `<package-name>/<version>`, or the resolved `user-agent` template when one is set. The template supports the `{packageName}`, `{version}`, `{language}`, `{generatorVersion}`, `{organization}`, and `{apiName}` placeholders and is resolved at generation time.
+
+```yaml title="generators.yml"
+config:
+  userAgentFromPlatformHeaders: true
+  user-agent: "plantstore-rust-sdk/{version}"
+```
+
+This sets the default user agent to `plantstore-rust-sdk/0.1.0`. When Fern has no platform `User-Agent` value for the generation (for example, when the SDK version isn't known), the default falls back to `"<ApiName> Rust SDK"`.
 </ParamField>
 
 ### Package metadata
