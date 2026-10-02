@@ -1,0 +1,93 @@
+---
+title: Migrating to TypeScript generator v4
+headline: Migrating to TypeScript SDK generator v4
+description: Breaking changes in version 4.0.0 of the Fern TypeScript SDK generator and how to update code that uses your generated TypeScript SDK.
+---
+
+Version 4.0.0 of the TypeScript SDK generator requires few code changes, and most code that uses your SDK doesn't change. The changes below depend on the shape of your API definition, and most apply only to specific schemas or to WebSocket channels. Release the regenerated SDK as a new major version, and share this page with your SDK users so they can update their code.
+
+## Before you upgrade
+
+- Generator versions 4.0.0 and later read configuration from `sdk-config.yml` instead of `generators.yml`. Run `fern sdk migrate` to create `sdk-config.yml` from your existing configuration.
+- Regenerate the SDK and run your test suite against it before you release. The changes on this page depend on your API definition, so some might not apply to your SDK.
+
+## Some response and request types change shape
+
+When several operations return the same anonymous response shape, their response types become aliases of one shared model. The exported names still exist and have the same structure, so existing code, including named imports, keeps working.
+
+```typescript
+// Before
+export interface CreatePlantResponse { id: number; }
+export interface CreateSeedResponse { id: number; }
+
+// After
+export type CreatePlantResponse = CreateModel;
+export type CreateSeedResponse = CreateModel;
+export interface CreateModel { id: number; }
+```
+
+When a schema uses `oneOf` inside `allOf` to require one of two sets of fields, the generated type is a union of the two variants instead of one type with every field optional. A call that sets neither required field compiled in earlier versions and failed at the API. In version 4.0.0, it fails to compile.
+
+```typescript
+// Before: both fields are optional, so this compiles
+client.plants.order({ quantity: 1 });
+
+// After: set speciesId or customSpecies
+client.plants.order({ quantity: 1, speciesId: 42 });
+```
+
+**To fix:** No changes are required for response aliases. For unions, set one of the required fields where the compiler reports an error.
+
+## WebSocket channels
+
+The following changes apply to SDKs with WebSocket channels.
+
+### An environment is a single URL
+
+An environment is a single URL instead of an object with one URL per host, and the environment URLs type is removed. Each host is its own environment member. Each channel connects to its own host by default, but an `environment` or `baseUrl` set on the client takes precedence, so selecting a non-default environment sends every socket to that URL. This change doesn't apply if your API definition declares environments as named sets of URLs.
+
+```typescript
+// Before: each channel reads its own host from the environment
+const client = new PlantStoreClient({ apiKey, environment: PlantStoreEnvironment.Staging });
+const urls: PlantStoreEnvironmentUrls = PlantStoreEnvironment.Staging;
+console.log(urls.base, urls.realtime);
+await client.growth.v1.connect({ Authorization: "Token ***" }); // realtime host
+
+// After: the client-level environment overrides each channel's host
+const client = new PlantStoreClient({ apiKey, environment: PlantStoreEnvironment.Staging });
+const url: PlantStoreEnvironment = PlantStoreEnvironment.Staging;
+console.log(url);
+await client.growth.v1.connect({ Authorization: "Token ***" }); // Staging URL
+```
+
+<Warning>
+Setting a channel's host with its config method, such as `client.growth.v1.setGrowthV1Config({ environment: PlantStoreEnvironment.Realtime })`, takes precedence over the client-level environment, but this hasn't been verified end to end. Test it against your deployment before you rely on it.
+</Warning>
+
+**To fix:** Read the environment as a string where you previously read URLs from it. If you select a non-default environment, set each channel back to its own host with its config method, and check where each socket connects before you release.
+
+### Binary receive frames are typed as `ArrayBuffer | Blob`
+
+On a channel that receives binary frames and JSON messages, binary frames are typed as `ArrayBuffer | Blob` instead of `string`, which matches what the socket delivers.
+
+```typescript
+// Before
+socket.on("message", (message) => {
+  if (typeof message === "string") playChime(message);
+  else handleEvent(message);
+});
+
+// After
+socket.on("message", (message) => {
+  if (message instanceof ArrayBuffer || message instanceof Blob) playChime(message);
+  else handleEvent(message);
+});
+```
+
+**To fix:** Narrow binary frames with `instanceof ArrayBuffer` or `instanceof Blob`.
+
+### Unexpected binary frames are reported as errors
+
+On a channel that declares only JSON messages, an unexpected binary frame is passed to the `error` handler with the message `Received unexpected binary frame`, and the connection stays open. Previously, the SDK parsed the frame as JSON, which threw and crashed the process.
+
+**To fix:** No changes are required. Add an `error` handler that checks for `Received unexpected binary frame` to observe these frames.
