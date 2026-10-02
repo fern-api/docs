@@ -138,7 +138,9 @@ These commands generate SDKs from your API definition, keep generators up to dat
 
     ### package
 
-    Use `--package` to build a distributable package artifact for every generator in the run whose [output location](/learn/sdks/reference/generators-yml#output) is `local-file-system`. Artifacts are written to a `fern-dist/` folder inside that generator's output directory, so a generated SDK can be handed to internal consumers without publishing it to a public registry. `--package` works with both cloud and local (`--local`) generation.
+    Use `--package` to build a distributable package artifact for every generator in the run with a known language whose [output location](/learn/sdks/reference/generators-yml#output) is `local-file-system`. Artifacts are written to a `fern-dist/` folder inside that generator's output directory, so a generated SDK can be handed to internal consumers without publishing it to a public registry. `--package` works with both cloud and local (`--local`) generation.
+
+    Generators with other output locations are skipped. `--package` and `--package-only` fail if no generator in the group has a known language and `local-file-system` output.
 
     ```bash
     # Package every local-file-system output
@@ -171,7 +173,7 @@ These commands generate SDKs from your API definition, keep generators up to dat
     |----------|----------------|--------------|
     | TypeScript | `npm` | `node` |
     | Python | `pip` | `python` |
-    | Java | `gradle` | `gradle` |
+    | Java | Generated Gradle wrapper (`gradlew` / `gradlew.bat`) when available; otherwise `gradle` | `gradle` |
     | C# | `dotnet` | `dotnet/sdk` |
     | Ruby | `gem` | `ruby` |
     | PHP | `composer` | `composer` |
@@ -182,6 +184,13 @@ These commands generate SDKs from your API definition, keep generators up to dat
     ```
 
     `--package-mode` requires `--package` or `--package-only`.
+
+    #### Restricted networks and proxies
+
+    - **Docker mode (all languages):** Host `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY` environment variables, including their lowercase variants, are forwarded into each packaging toolchain container.
+    - **Docker mode (Java):** Gradle caches persist across runs in `~/.fern/gradle-docker-home`. Existing host `gradle.properties` and `init.d/` from `$GRADLE_USER_HOME` (or `~/.gradle` when unset) are mounted read-only, preserving corporate mirror and proxy configuration.
+    - **Java (both modes):** Fern adds `https://maven-central.storage-download.googleapis.com/maven2/` ahead of existing repositories to avoid Maven Central HTTP 429 rate limits. Set `FERN_MAVEN_CENTRAL_MIRROR=<url>` to use a corporate mirror, or `FERN_MAVEN_CENTRAL_MIRROR=off` to disable mirror injection.
+    - **Java (both modes):** Proxy environment variables are translated into Gradle JVM proxy properties without overriding existing JVM proxy settings.
 
     ### package-only
 
