@@ -217,6 +217,7 @@ config:
 acme profiles create prod --set AccountSid=AC11… --with-token   # token read from stdin, stored in the OS keychain
 acme profiles create sub --parent prod --set AccountSid=AC99…   # subaccount that shares prod's credential
 acme profiles set prod ACME_REGION=us1 ACME_RETRIES=3           # add or change values by env var name
+acme profiles set staging --yes ACME_BASE_URL=https://staging.acme.dev   # create a missing profile without asking
 acme profiles use sub                                           # make it the active profile
 
 acme messages list             # no --account-sid needed
@@ -230,7 +231,17 @@ acme profiles remove sub       # also deletes that profile's stored credential
 
 `profiles create` accepts `--set <name>=<value>` for API parameters (validated against the spec, so a typo is rejected), `--server-var <name>=<value>` or `--<name> <value>` for server URL variables, `--base-url`, `--retries <N>`, `--default-format`, `--parent <name>`, and `--with-token` to read a credential from stdin. When several auth schemes are declared, `--scheme` names the one the credential belongs to.
 
-`profiles set <name> KEY=VALUE ...` takes any environment variable the CLI reads (a credential such as `ACME_AUTH_TOKEN`, or a setting such as `ACME_RETRIES`, `ACME_BASE_URL`, `ACME_OUTPUT`, or `ACME_<SERVER_VAR>`) or an API parameter by its spec name, and creates the profile if it doesn't exist. Keys are validated before anything is written, and an unrecognized key fails with a suggestion. `auth login --from-env` captures the credential from the CLI's own environment variables into the active profile.
+`profiles set <name> KEY=VALUE ...` takes any environment variable the CLI reads (a credential such as `ACME_AUTH_TOKEN`, or a setting such as `ACME_RETRIES`, `ACME_BASE_URL`, `ACME_OUTPUT`, or `ACME_<SERVER_VAR>`) or an API parameter by its spec name. Keys are validated before anything is written, and an unrecognized key fails with a suggestion. `auth login --from-env` captures the credential from the CLI's own environment variables into the active profile.
+
+`profiles set` updates an existing profile without prompting but never creates a missing one unasked, so a mistyped name can't quietly store credentials under a new profile. In a terminal it asks first. When an existing profile has a similar name, it offers that one (answering yes writes to it), then asks whether to create the named profile. Any answer other than `y` or `yes` counts as no, and declining every question writes nothing.
+
+```
+$ acme profiles set prd ACME_RETRIES=3
+Profile `prd` doesn't exist. Did you mean `prod`? [y/N] n
+Create profile `prd`? [y/N] y
+```
+
+When stdin or stderr isn't a terminal (a script, CI job, or agent), `set` on a missing profile fails with a validation error that names any similar profile, and nothing is written. Pass `--yes` / `-y` to create the profile without asking, or run `profiles create` first.
 
 ### Select a profile
 
