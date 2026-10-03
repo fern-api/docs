@@ -33,6 +33,7 @@ libraries:
     lang: cpp # python or cpp
     config:
       doxyfile: ./Doxyfile # optional, C++ only
+      include-undocumented-macros: true # optional, C++ only
 ```
 </Tab>
 <Tab title="path input">
@@ -46,6 +47,7 @@ libraries:
     lang: cpp # python or cpp
     config:
       doxyfile: ./Doxyfile # optional, C++ only
+      include-undocumented-macros: true # optional, C++ only
 ```
 </Tab>
 </Tabs>
@@ -104,7 +106,9 @@ For C++ libraries, the parser uses the source root (your `path` directory, or th
 If you have multiple libraries configured, `fern docs md generate` processes all libraries in parallel. Use `--library plant-sdk` to generate docs for a specific library only.
 </Tip>
 
-The generated docs form a navigation section with pages for each module, class, function, and type in your library. For C++ libraries, groups defined with `@defgroup`, `@ingroup`, or `@addtogroup` also get index pages in a `groups/` folder inside `output.path`: each lists the group's description, its members by kind, and its subgroups (nested as subfolders). Member documentation stays on the symbol pages, groups with no members are skipped, and the `folder:` navigation entry picks the group pages up without changes.
+The generated docs form a navigation section with pages for each module, class, function, and type in your library. For C++ libraries, groups defined with `@defgroup`, `@ingroup`, or `@addtogroup` also get index pages in a `groups/` folder inside `output.path`: each lists the group's description, its members by kind, and its subgroups (nested as subfolders). Member documentation stays on the symbol pages, groups with no members are skipped, and the `folder:` navigation entry picks the group pages up without changes. References inside a group (`\ref`, `@see`) link to the generated symbol pages.
+
+C++ libraries also get pages for preprocessor macros (`#define`), listed under a "Macros" category and in group pages. Only macros with a Doxygen doc comment are included by default; set [`config.include-undocumented-macros`](#configinclude-undocumented-macros) to include every macro. Include guards are always skipped. Plain C libraries, whose symbols are declared at global scope rather than in a namespace, get the same library and category index pages as namespaced C++ libraries.
 
 </Step>
 <Step title="Preview locally">
@@ -210,4 +214,8 @@ You can also edit page content by modifying the MDX files directly — generated
   Path to a custom [Doxyfile](https://www.doxygen.nl/manual/config.html). C++ only. Fern reads four settings from it and applies them to its own doxygen configuration: `ALIASES`, `PREDEFINED`, `FILE_PATTERNS`, and `OPTIMIZE_OUTPUT_FOR_C`. `ALIASES` supports parameterized macros and backslash line continuations.
 
   Every other setting is ignored, including `INPUT`, `INPUT_FILTER`, `GENERATE_XML`, and the `@INCLUDE` and `@INCLUDE_PATH` directives. Publishing fails when one of the four supported settings has an invalid value: a space or shell metacharacter in `FILE_PATTERNS`, a value other than `YES` or `NO` for `OPTIMIZE_OUTPUT_FOR_C`, an `ALIASES` entry that isn't an alias definition, a trailing backslash, or doxygen's `$(VAR)` environment-variable expansion. Doxyfile content over 262,144 characters is also rejected.
+</ParamField>
+
+<ParamField path="config.include-undocumented-macros" type="boolean" default="false" toc={true}>
+  Generate pages for every `#define`, including macros without a Doxygen doc comment. C++ only. When `false`, only documented macros get pages. Include guards are skipped regardless of this setting.
 </ParamField>
