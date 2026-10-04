@@ -103,6 +103,28 @@ results instead of managing pagination complexity manually.
   }
   ```
 </Tab>
+<Tab title="Rust" language="rust">
+
+  Once you've configured pagination for an endpoint, Fern generates a Rust SDK
+  method with a `_paginated` suffix alongside the single-page method. It returns
+  an `AsyncPaginator<T>` where `T` is the underlying data type. The
+  `AsyncPaginator<T>` implements the `futures` `Stream` trait and fetches
+  subsequent pages as your users iterate. The generated prelude
+  re-exports `StreamExt`, so `use your_crate::prelude::*;` provides
+  `.next().await` without a direct `futures` dependency.
+
+  ```rust
+  use your_crate::prelude::*;
+
+  let mut users = client.users.list_paginated(None).await?;
+  while let Some(user) = users.next().await {
+      match user {
+          Ok(user) => println!("{:?}", user),
+          Err(e) => eprintln!("Error fetching page: {}", e),
+      }
+  }
+  ```
+</Tab>
 </Tabs>
 
 ## Setting up auto-pagination

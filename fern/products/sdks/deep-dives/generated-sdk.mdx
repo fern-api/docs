@@ -57,6 +57,21 @@ When the API returns a 4xx or 5xx status code, the SDK throws an error that incl
 
 When your API uses [server-sent events](/learn/api-definitions/openapi/endpoints/sse#server-sent-events), the generated SDK returns a streaming response that yields parsed data objects. SDK users can opt into [metadata-aware iteration](/learn/sdks/deep-dives/sse-metadata) to read SSE protocol fields (event ID, event type, retry interval) alongside the parsed data, which is useful for stream resumption via the `Last-Event-ID` header. [Newline-delimited JSON streams](/learn/api-definitions/openapi/endpoints/sse#json-streaming) yield the same async-iterable response, one parsed object per line.
 
+In Rust SDKs, streaming methods return an `SseStream<T>` that implements the `futures` `Stream` trait. The generated prelude re-exports `futures::StreamExt`, so importing the prelude provides `.next().await` for SSE streams and [paginated responses](/learn/sdks/deep-dives/auto-pagination) without adding `futures` as a direct dependency. `SseStream<T>` must be pinned before iteration, which `std::pin::pin!` handles with no extra dependency:
+
+```rust
+use your_crate::prelude::*;
+
+// `stream` is the `SseStream<T>` returned by a streaming method
+let mut stream = std::pin::pin!(stream);
+while let Some(result) = stream.next().await {
+    match result {
+        Ok(chunk) => println!("Received: {:?}", chunk),
+        Err(e) => eprintln!("Error: {}", e),
+    }
+}
+```
+
 ## Webhook signature verification
 
 When you define webhooks in your API spec, Fern automatically [generates utilities that allow your users to verify webhook signatures](./webhook-signature-verification) and ensure events originate from your API.
