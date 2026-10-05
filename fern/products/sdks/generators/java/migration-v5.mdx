@@ -240,38 +240,19 @@ import com.plantstore.api.resources.growth.v1.types.GrowthV1Mode;
 
 ### The discriminator is a typed field
 
-Frame models declare the `type` field, so it's no longer in the additional-properties map, and `getType()` returns an enum instead of a `String`. Code that reads `type` from the additional-properties map gets `null`.
+Frame models declare the `type` field. `getType()` still returns a `String`, as before. What changed: `type` is no longer also collected into the additional-properties map. Code that reads `type` from the additional-properties map gets `null`.
 
 ```java
 // Before
-String kind = reading.getType();
-String sameKind = (String) reading.getAdditionalProperties().get("type");
+String kind = reading.getType();                                         // "Reading"
+String sameKind = (String) reading.getAdditionalProperties().get("type"); // "Reading"
 
 // After
-GrowthV1ReadingType kind = reading.getType();
-String wireValue = reading.getType().toString(); // "Reading"
+String kind = reading.getType();                                 // "Reading"
+Object sameKind = reading.getAdditionalProperties().get("type");  // null
 ```
 
-**To fix:** Read the discriminator from `getType()`, call `toString()` where you need the wire value, and check code that iterates the additional-properties map.
-
-### Send frames require the discriminator
-
-Some send-frame builders previously set `type` automatically. These builders require you to set it.
-
-```java
-// Before
-socket.sendNote(GrowthV1Note.builder()
-        .text("New leaf")
-        .build());
-
-// After
-socket.sendNote(GrowthV1Note.builder()
-        .type(GrowthV1NoteType.NOTE)
-        .text("New leaf")
-        .build());
-```
-
-**To fix:** Add the `type` call to each affected builder.
+**To fix:** Nothing, if you already read the discriminator from `getType()`. Check any code that iterates the additional-properties map expecting `type` to be there.
 
 ### Parameter wrapper types become `String`
 
