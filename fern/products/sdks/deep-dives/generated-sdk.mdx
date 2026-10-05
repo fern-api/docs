@@ -82,4 +82,30 @@ Your SDK users can configure individual requests using language-specific options
 | Custom headers | Send additional headers with any request | TypeScript, Java, and Swift |
 | Raw response data | Access response headers alongside parsed data | TypeScript, Python, and Go |
 | Query parameters | Add extra query string parameters | TypeScript and Swift |
+| [Additional body parameters](#additional-body-parameters) | Send extra properties in the request body, such as beta fields that aren't in your API definition | TypeScript and Python |
 | Abort signals | Cancel in-flight requests | TypeScript only |
+
+### Additional body parameters
+
+SDK users can send request body properties that aren't part of the generated request types, such as beta or undocumented fields, without waiting for a new SDK release. The SDK merges these properties into the serialized request body. Keys use the API's wire format (for example, `snake_case`), and they override generated properties with the same name.
+
+<CodeBlocks>
+  <CodeBlock title="TypeScript">
+    ```ts {3}
+    await client.plants.create(
+      { name: "Monstera" },
+      { additionalBodyParameters: { watering_schedule: "weekly" } }
+    );
+    ```
+  </CodeBlock>
+  <CodeBlock title="Python">
+    ```python {3}
+    client.plants.create(
+        name="Monstera",
+        request_options={"additional_body_parameters": {"watering_schedule": "weekly"}},
+    )
+    ```
+  </CodeBlock>
+</CodeBlocks>
+
+In TypeScript, `additionalBodyParameters` requires [generator version 3.78.0](/learn/sdks/generators/typescript/changelog) or later and applies only to endpoints with a JSON request body. File upload (multipart) endpoints ignore it.
