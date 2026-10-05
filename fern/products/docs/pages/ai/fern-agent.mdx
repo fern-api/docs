@@ -244,6 +244,58 @@ Review the feedback readers left on our docs pages and fix the pages they said w
 Report on how our docs are doing: the pages readers spend the most time on, where they drop off, the searches that return nothing, and what changed since last week.
 </Prompt>
 
+## Clerk
+
+Clerk watches the pull requests that merge in your product repositories and keeps your docs in step with them. Unlike scheduled automations — which run a prompt on a cron — Clerk is triggered by code changes: every merged pull request is reviewed as it arrives, and Clerk decides whether the docs need updating.
+
+### Setup
+
+<Steps>
+<Step title="Create a Clerk automation">
+On the **Automations** page, find the Clerk section and click **Set up Clerk** (or **New Clerk automation** if you already have one). In the dialog:
+
+- **Authorize Fern** to review merges as you. One authorization covers all your automations. Granting access opens in a new tab; the dialog moves on to setup once it lands.
+- Choose a **name**, the **docs site** Clerk keeps current (picked from your org's sites, or typed in), a **cadence**, and whether Clerk should open pull requests.
+</Step>
+
+<Step title="Choose a cadence">
+Three options control when Clerk acts on what it finds:
+
+- **Review each merge** (`immediate`): every merged pull request is reviewed as it lands and may open its own docs pull request.
+- **Daily digest**: every merged pull request is reviewed as it lands; the ones that need a docs change wait for one docs pull request per day.
+- **Weekly digest**: same, but one docs pull request per week.
+</Step>
+
+<Step title="Connect a repository">
+After creating the automation, open its detail page. Under **Repositories**:
+
+1. Add a repository secret named `FERN_TOKEN` holding a Fern token for your organization. Create one with `fern token`.
+2. Commit the generated GitHub Actions workflow to `.github/workflows/fern-clerk.yml` in the repository whose merges Clerk should review. The workflow file is pre-filled with your org and automation ID.
+
+A repository shows up as connected after its first merged pull request reaches Clerk.
+</Step>
+</Steps>
+
+### Modes
+
+Clerk operates in one of two modes, set when creating or updating the automation:
+
+- **Opens docs pull requests** (`open_pr`): when a merge changes what the docs say, Clerk opens or adds to a docs pull request and comments on the source pull request.
+- **Observing only** (`observe`): Clerk records what it would have changed, but posts nothing and opens nothing. The review shows up in the merge history.
+
+### Detail page
+
+Each Clerk automation has a detail page with:
+
+- An on/off toggle and an **Open digest now** button (enabled when reviewed merges are waiting on a digest).
+- A **Configuration** card to update the docs site, cadence, and mode.
+- A **Repositories** card showing connected repositories and the workflow to install.
+- A **Merges** table showing every merge Clerk has been told about: repo, PR link, merge time, lifecycle stage (queued / reviewing / pending digest / done), Clerk's verdict, and a link to any docs PR opened.
+
+### Permissions
+
+Everyone in the organization sees every Clerk automation. Only its creator can change, delete, or toggle it. Turning it off pauses reviews; merges are still recorded.
+
 ## Privacy and data handling
 
 Fern Agent acts with your own Fern permissions on every surface, so it reads and edits only the sites, analytics, and organization data your account can already see. Requests are scoped to a single session: the prompt, any Slack message or thread you tag it in, and attached files are stored to complete the task and aren't retained afterward.
