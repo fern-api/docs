@@ -418,16 +418,24 @@ export function TileDots() {
   // hovered, hide the neighbors' rest rings there so the bracket stays clean.
   useEffect(() => {
     const wrapper = ref.current as HTMLElement | null;
-    const tile = wrapper?.parentElement;
-    const grid = tile?.closest(".hg-grid");
-    if (!wrapper || !tile || !grid) return;
+    if (!wrapper) return;
 
+    // Listen on the document: the surrounding MDX tile can be re-rendered
+    // after hydration, so a listener bound to it directly may go stale.
     let suppressed: Element[] = [];
     const center = (el: Element) => {
       const r = el.getBoundingClientRect();
       return [r.left + r.width / 2, r.top + r.height / 2];
     };
-    const onEnter = () => {
+    const release = () => {
+      for (const dot of suppressed) dot.removeAttribute("data-suppressed");
+      suppressed = [];
+    };
+    const onOver = (event: PointerEvent) => {
+      const tile = wrapper.closest(".hg-tile");
+      const grid = tile?.closest(".hg-grid");
+      if (!tile || !grid || suppressed.length > 0) return;
+      if (!tile.contains(event.target as Node)) return;
       const own = Array.from(wrapper.querySelectorAll(".rail-dot")).map(center);
       suppressed = Array.from(grid.querySelectorAll(".rail-dot")).filter((dot) => {
         if (wrapper.contains(dot)) return false;
@@ -436,16 +444,18 @@ export function TileDots() {
       });
       for (const dot of suppressed) dot.setAttribute("data-suppressed", "true");
     };
-    const onLeave = () => {
-      for (const dot of suppressed) dot.removeAttribute("data-suppressed");
-      suppressed = [];
+    const onOut = (event: PointerEvent) => {
+      const tile = wrapper.closest(".hg-tile");
+      if (suppressed.length === 0) return;
+      if (tile && tile.contains(event.relatedTarget as Node)) return;
+      release();
     };
-    tile.addEventListener("pointerenter", onEnter);
-    tile.addEventListener("pointerleave", onLeave);
+    document.addEventListener("pointerover", onOver);
+    document.addEventListener("pointerout", onOut);
     return () => {
-      tile.removeEventListener("pointerenter", onEnter);
-      tile.removeEventListener("pointerleave", onLeave);
-      onLeave();
+      document.removeEventListener("pointerover", onOver);
+      document.removeEventListener("pointerout", onOut);
+      release();
     };
   }, []);
 
