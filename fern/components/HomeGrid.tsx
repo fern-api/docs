@@ -290,11 +290,17 @@ export function GridGutters({ shape = "trail" }: { shape?: PatternShape }) {
   );
 }
 
-/** Rail-to-rail animated pattern band, continuing into both gutters. */
-export function GridPatternRow({ shape = "trail" }: { shape?: PatternShape }) {
+/** Rail-to-rail animated pattern band; `bleed` continues it into both gutters. */
+export function GridPatternRow({
+  shape = "trail",
+  bleed = true,
+}: {
+  shape?: PatternShape;
+  bleed?: boolean;
+}) {
   return (
     <div aria-hidden className="hg-pattern-row">
-      <GridGutters shape={shape} />
+      {bleed && <GridGutters shape={shape} />}
       <AlignmentGrid shape={shape} />
     </div>
   );
@@ -644,5 +650,110 @@ export function CliTerminal() {
         </div>
       </div>
     </div>
+  );
+}
+
+// --- Quick nav ----------------------------------------------------------------
+
+// Fern leaf from marketing-site footer-fern-cutout.tsx.
+const LEAF_PATH =
+  "M 157.586 84.627 C 146.204 75.005 129.059 71.148 113.863 82.38 C 113.163 82.889 112.294 82.02 112.824 81.342 C 116.427 76.7 120.602 71.699 123.972 66.676 C 127.405 61.526 132.534 57.838 138.447 56.036 C 169.92 46.499 160.468 0 160.468 0 C 160.468 0 111.849 3.137 117.847 45.079 C 118.843 52.094 116.978 59.237 112.591 64.811 C 107.208 71.614 100.956 78.12 96.42 82.825 C 95.466 83.8 93.856 82.868 94.237 81.554 C 98.624 66.782 101.825 43.935 86.629 29.205 L 65.244 11.445 L 61.132 16.87 C 48.904 32.999 52.485 55.74 68.635 67.947 C 77.897 74.941 82.093 82.55 81.436 90.9 C 81.033 95.902 78.766 100.586 75.375 104.295 C 68.995 111.289 63.04 118.791 58.441 127.481 C 57.805 128.689 55.961 128.223 56.025 126.845 C 56.682 112.497 55.304 80.155 31.143 68.604 L 4.1 58.156 L 2.002 64.408 C -4.802 84.585 6.325 106.139 26.48 112.984 C 44.008 118.94 50.26 130.236 46.042 147.17 C 45.852 147.785 42.8 165.227 43.224 172.963 L 62.658 172.963 C 63.315 160.967 75.904 153.083 86.819 157.979 C 89.892 159.356 93.05 161.327 96.293 163.871 C 113.672 177.562 139.274 174.319 152.944 156.919 L 156.844 151.96 L 132.259 134.305 C 115.389 121.038 92.881 127.036 76.222 138.396 C 74.824 139.349 73.043 137.823 73.827 136.298 C 93.962 96.792 120.136 96.877 130.394 105.651 C 142.835 116.291 161.676 114.383 172.23 101.9 L 175.261 98.318 L 157.564 84.627 L 157.586 84.627 Z";
+
+const LEAF_W = 175.261;
+const HEIGHT = 173.046;
+
+type QuickNavItem = { id: string; label: string };
+type QuickNavLink = { label: string; href: string };
+
+/** Sticky left rail that jumps to page sections and tracks the one in view. */
+export function QuickNav({ items, links = [] }: { items: QuickNavItem[]; links?: QuickNavLink[] }) {
+  const [active, setActive] = useState(items[0]?.id);
+
+  useEffect(() => {
+    let raf = 0;
+    const update = () => {
+      raf = 0;
+      const header = document.getElementById("fern-header");
+      const line = (header?.getBoundingClientRect().bottom ?? 0) + 120;
+      let current = items[0]?.id;
+      for (const item of items) {
+        const el = document.getElementById(item.id);
+        if (el && el.getBoundingClientRect().top <= line) current = item.id;
+      }
+      const last = items[items.length - 1];
+      const lastEl = last && document.getElementById(last.id);
+      if (lastEl && lastEl.getBoundingClientRect().bottom < window.innerHeight * 0.6) {
+        current = last.id;
+      }
+      setActive(current);
+    };
+    const onScroll = () => {
+      if (!raf) raf = requestAnimationFrame(update);
+    };
+    update();
+    document.addEventListener("scroll", onScroll, { capture: true, passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      cancelAnimationFrame(raf);
+      document.removeEventListener("scroll", onScroll, { capture: true });
+      window.removeEventListener("resize", onScroll);
+    };
+  }, []);
+
+  const jump = (e: MouseEvent, id: string) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    e.preventDefault();
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const headerBottom = document.getElementById("fern-header")?.getBoundingClientRect().bottom ?? 0;
+    window.scrollTo({
+      top: el.getBoundingClientRect().top + window.scrollY - headerBottom - 24,
+      behavior: reduced ? "auto" : "smooth",
+    });
+    history.replaceState(null, "", `#${id}`);
+    setActive(id);
+  };
+
+  return (
+    <nav aria-label="Page sections" className="hg-quicknav">
+      <div className="hg-quicknav-inner">
+        <a
+          className="hg-quicknav-logo"
+          href={`#${items[0]?.id ?? ""}`}
+          aria-label="Back to top"
+          onClick={(e: MouseEvent) => items[0] && jump(e, items[0].id)}
+        >
+          <svg viewBox={`0 0 ${LEAF_W} ${HEIGHT}`} aria-hidden>
+            <path fill="currentColor" d={LEAF_PATH} />
+          </svg>
+        </a>
+        <ul className="hg-quicknav-list">
+          {items.map((item) => (
+            <li key={item.id}>
+              <a
+                href={`#${item.id}`}
+                className="hg-quicknav-link"
+                data-active={active === item.id ? "true" : undefined}
+                aria-current={active === item.id ? "location" : undefined}
+                onClick={(e: MouseEvent) => jump(e, item.id)}
+              >
+                {item.label}
+              </a>
+            </li>
+          ))}
+        </ul>
+        {links.length > 0 && (
+          <ul className="hg-quicknav-list hg-quicknav-ctas">
+            {links.map((link) => (
+              <li key={link.href}>
+                <a href={link.href} className="hg-quicknav-cta">
+                  {link.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </nav>
   );
 }
