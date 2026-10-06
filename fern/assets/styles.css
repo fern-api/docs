@@ -1347,7 +1347,6 @@ h4, h5, h6 {
    gutters like the marketing site's SectionDivider. */
 .hg-grid {
   position: relative;
-  z-index: 1;
   display: grid;
   gap: 1px;
   padding: 1px 0;
@@ -1506,21 +1505,199 @@ h4, h5, h6 {
   color: var(--grayscale-12);
 }
 
-.hg-terminal {
-  font-family: var(--font-code, ui-monospace, monospace);
-  font-size: 0.8125rem;
-  line-height: 1.7;
-  padding: 1rem 1.25rem;
-  border: 1px solid var(--border);
+/* Grayscale port of the buildwithfern.com/cli hero terminal. */
+.hg-cli {
+  --hg-cli-bg: #121212;
+  --hg-cli-border: rgba(255, 255, 255, 0.14);
+  --hg-cli-fg: rgba(255, 255, 255, 0.92);
+  --hg-cli-dim: rgba(255, 255, 255, 0.5);
+  --hg-cli-accent: rgba(255, 255, 255, 0.72);
+  overflow: hidden;
   border-radius: 0.625rem;
-  background-color: var(--card-background);
-  color: var(--grayscale-11);
+  background: var(--hg-cli-bg);
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.18),
+    0 0 0 1px var(--hg-cli-border);
+  font-family: var(--font-code, ui-monospace, monospace);
+  opacity: 0;
+  transform: scale(0.97);
+  filter: blur(6px);
+  transition:
+    opacity 700ms ease-out,
+    transform 700ms ease-out,
+    filter 700ms ease-out;
+}
+
+.hg-cli[data-started="true"] {
+  opacity: 1;
+  transform: none;
+  filter: none;
+}
+
+.hg-cli-titlebar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 1.375rem;
+  margin: 0.5rem 0.5rem 0;
+  padding: 0 0.5rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.hg-cli-dots {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.hg-cli-dots span {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.hg-cli-path {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.625rem;
+  color: var(--hg-cli-fg);
+  opacity: 0.85;
+}
+
+.hg-cli-body {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  padding: 0.75rem 1rem 1rem;
+}
+
+.hg-cli-banner {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  background-color: transparent;
+  background-image: linear-gradient(
+    90deg,
+    #9a9a9a 0%,
+    #c8c8c8 22%,
+    #ffffff 50%,
+    #c8c8c8 78%,
+    #8a8a8a 100%
+  );
+  background-size: 300% 100%;
+  background-position: 100% 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-family: inherit;
+  font-size: calc(100cqw / 57);
+  line-height: 1;
+  letter-spacing: -0.05em;
   white-space: pre;
+  animation: hg-cli-shine 6.5s steps(36, end) infinite;
+}
+
+.hg-cli-subtitle {
+  display: flex;
+  gap: 0.5rem;
+  font-size: min(0.625rem, calc(100cqw / 28));
+  color: var(--hg-cli-dim);
+  white-space: nowrap;
   overflow: hidden;
 }
 
-.hg-terminal .hg-prompt {
-  color: var(--accent);
+.hg-cli-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+  font-size: min(0.6875rem, calc(100cqw / 32));
+  line-height: 1.55;
+}
+
+.hg-cli-line {
+  display: flex;
+  align-items: baseline;
+  gap: 0.375rem;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateY(3px);
+  transition:
+    opacity 350ms ease-out,
+    transform 350ms ease-out;
+}
+
+.hg-cli-line[data-visible="true"] {
+  opacity: 1;
+  transform: none;
+}
+
+.hg-cli-fg {
+  color: var(--hg-cli-fg);
+}
+
+.hg-cli-dim {
+  color: var(--hg-cli-dim);
+}
+
+.hg-cli-accent {
+  color: var(--hg-cli-accent);
+}
+
+.hg-cli-bullet {
+  width: 0.75rem;
+  flex-shrink: 0;
+  color: var(--hg-cli-accent);
+}
+
+.hg-cli-caret {
+  display: inline-block;
+  width: 0.375rem;
+  height: 0.75rem;
+  margin-left: 0.125rem;
+  align-self: center;
+  background: var(--hg-cli-fg);
+}
+
+.hg-cli-caret-blink {
+  animation: hg-cli-caret 1s steps(1) infinite;
+}
+
+@keyframes hg-cli-shine {
+  0%,
+  55% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: 0% 0;
+  }
+}
+
+@keyframes hg-cli-caret {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hg-cli,
+  .hg-cli-line {
+    transition: none;
+  }
+
+  .hg-cli-banner,
+  .hg-cli-caret-blink {
+    animation: none;
+  }
 }
 
 /* RailDot: ring on a grid intersection that collapses and grows into a

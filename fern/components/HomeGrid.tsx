@@ -2,7 +2,7 @@
 // from the marketing site (marketing-site/src/components/site-frame.tsx,
 // alignment-grid-impl.tsx, pattern-mode-toggle.tsx).
 declare const React: any;
-const { useEffect, useRef } = React;
+const { useEffect, useRef, useState } = React;
 
 type PatternShape = "trail" | "dot" | "line" | "fern";
 
@@ -519,5 +519,130 @@ export function GridTile({
     </a>
   ) : (
     <div className={cls}>{content}</div>
+  );
+}
+
+// Grayscale port of the buildwithfern.com/cli hero terminal
+// (marketing-site/src/components/cli-hero-terminal.tsx).
+const CLI_BANNER = [
+  "██╗   ██╗ ██████╗ ██╗   ██╗██████╗      ██████╗ ██████╗ ███╗   ███╗██████╗  █████╗ ███╗   ██╗██╗   ██╗",
+  "╚██╗ ██╔╝██╔═══██╗██║   ██║██╔══██╗    ██╔════╝██╔═══██╗████╗ ████║██╔══██╗██╔══██╗████╗  ██║╚██╗ ██╔╝",
+  " ╚████╔╝ ██║   ██║██║   ██║██████╔╝    ██║     ██║   ██║██╔████╔██║██████╔╝███████║██╔██╗ ██║ ╚████╔╝ ",
+  "  ╚██╔╝  ██║   ██║██║   ██║██╔══██╗    ██║     ██║   ██║██║╚██╔╝██║██╔═══╝ ██╔══██║██║╚██╗██║  ╚██╔╝  ",
+  "   ██║   ╚██████╔╝╚██████╔╝██║  ██║    ╚██████╗╚██████╔╝██║ ╚═╝ ██║██║     ██║  ██║██║ ╚████║   ██║   ",
+  "   ╚═╝    ╚═════╝  ╚═════╝ ╚═╝  ╚═╝     ╚═════╝ ╚═════╝ ╚═╝     ╚═╝╚═╝     ╚═╝  ╚═╝╚═╝  ╚═══╝   ╚═╝   ",
+].join("\n");
+
+type CliTone = "fg" | "dim" | "accent";
+const CLI_SCRIPT: { text: string; tone: CliTone; bullet?: string }[] = [
+  { text: "$ yourco orders create --amount 4200 --currency usd", tone: "fg" },
+  { text: "Authenticating with API key", tone: "dim" },
+  { text: "POST /v1/orders", tone: "accent", bullet: "→" },
+  { text: "Order ord_8e2x created (pending)", tone: "fg", bullet: "✓" },
+  { text: "$ yourco orders list --status pending --limit 5", tone: "fg" },
+  { text: "3 orders in 142ms", tone: "accent", bullet: "→" },
+  { text: "$ ", tone: "fg" },
+];
+
+const CLI_PROMPT = "$ ";
+const CLI_START_MS = 900;
+const CLI_LINE_MS = 380;
+const CLI_CHAR_MS = 28;
+const CLI_POST_TYPE_MS = 280;
+
+export function CliTerminal() {
+  const ref = useRef(null);
+  const [started, setStarted] = useState(false);
+  const [typed, setTyped] = useState(() => CLI_SCRIPT.map(() => -1));
+
+  useEffect(() => {
+    const el = ref.current as HTMLElement | null;
+    if (!el) return;
+    const timers: number[] = [];
+    const finish = () => {
+      setStarted(true);
+      setTyped(CLI_SCRIPT.map((line) => line.text.length));
+    };
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      finish();
+      return;
+    }
+
+    const setLine = (i: number, n: number) =>
+      setTyped((prev: number[]) => {
+        const next = prev.slice();
+        next[i] = n;
+        return next;
+      });
+
+    const run = () => {
+      setStarted(true);
+      let cursor = CLI_START_MS;
+      CLI_SCRIPT.forEach((line, i) => {
+        if (line.text.startsWith(CLI_PROMPT)) {
+          const start = CLI_PROMPT.length;
+          const at = cursor;
+          timers.push(window.setTimeout(() => setLine(i, start), at));
+          for (let c = start + 1; c <= line.text.length; c++) {
+            timers.push(window.setTimeout(() => setLine(i, c), at + (c - start) * CLI_CHAR_MS));
+          }
+          cursor = at + (line.text.length - start) * CLI_CHAR_MS + CLI_POST_TYPE_MS;
+        } else {
+          const at = cursor;
+          timers.push(window.setTimeout(() => setLine(i, line.text.length), at));
+          cursor = at + CLI_LINE_MS;
+        }
+      });
+    };
+
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        io.disconnect();
+        run();
+      }
+    });
+    io.observe(el);
+    return () => {
+      io.disconnect();
+      timers.forEach(window.clearTimeout);
+    };
+  }, []);
+
+  const lastShown = typed.reduce((acc: number, n: number, i: number) => (n >= 0 ? i : acc), -1);
+
+  return (
+    <div ref={ref} className="hg-cli" data-started={started ? "true" : "false"} aria-hidden="true">
+      <div className="hg-cli-titlebar">
+        <span className="hg-cli-dots">
+          <span />
+          <span />
+          <span />
+        </span>
+        <span className="hg-cli-path">~/projects/yourco</span>
+      </div>
+      <div className="hg-cli-body">
+        <pre className="hg-cli-banner">{CLI_BANNER}</pre>
+        <div className="hg-cli-subtitle">
+          <span>v1.4.0</span>
+          <span>·</span>
+          <span>Your Company API, in your terminal</span>
+        </div>
+        <div className="hg-cli-lines">
+          {CLI_SCRIPT.map((line, i) => {
+            const n = typed[i];
+            const input = line.text.startsWith(CLI_PROMPT);
+            const typing = input && n >= 0 && n < line.text.length;
+            const caret = n >= 0 && (typing || (line.text === CLI_PROMPT && i === lastShown));
+            return (
+              <div key={i} className={`hg-cli-line hg-cli-${line.tone}`} data-visible={n >= 0 ? "true" : "false"}>
+                {line.bullet ? <span className="hg-cli-bullet">{line.bullet}</span> : null}
+                <span>{input ? line.text.slice(0, Math.max(n, 0)) : line.text}</span>
+                {caret ? <span className={`hg-cli-caret ${typing ? "" : "hg-cli-caret-blink"}`} /> : null}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
   );
 }
