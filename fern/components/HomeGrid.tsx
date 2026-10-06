@@ -412,13 +412,50 @@ export function RailDot({ position, curve }: { position: Corner; curve: Corner }
 
 /** Four rail dots for a tile's corners; the tile needs `group hg-tile`. */
 export function TileDots() {
+  const ref = useRef(null);
+
+  // Neighboring tiles stack their own dots on shared corners. While a tile is
+  // hovered, hide the neighbors' rest rings there so the bracket stays clean.
+  useEffect(() => {
+    const wrapper = ref.current as HTMLElement | null;
+    const tile = wrapper?.parentElement;
+    const grid = tile?.closest(".hg-grid");
+    if (!wrapper || !tile || !grid) return;
+
+    let suppressed: Element[] = [];
+    const center = (el: Element) => {
+      const r = el.getBoundingClientRect();
+      return [r.left + r.width / 2, r.top + r.height / 2];
+    };
+    const onEnter = () => {
+      const own = Array.from(wrapper.querySelectorAll(".rail-dot")).map(center);
+      suppressed = Array.from(grid.querySelectorAll(".rail-dot")).filter((dot) => {
+        if (wrapper.contains(dot)) return false;
+        const [x, y] = center(dot);
+        return own.some(([ox, oy]) => Math.abs(ox - x) < 3 && Math.abs(oy - y) < 3);
+      });
+      for (const dot of suppressed) dot.setAttribute("data-suppressed", "true");
+    };
+    const onLeave = () => {
+      for (const dot of suppressed) dot.removeAttribute("data-suppressed");
+      suppressed = [];
+    };
+    tile.addEventListener("pointerenter", onEnter);
+    tile.addEventListener("pointerleave", onLeave);
+    return () => {
+      tile.removeEventListener("pointerenter", onEnter);
+      tile.removeEventListener("pointerleave", onLeave);
+      onLeave();
+    };
+  }, []);
+
   return (
-    <>
+    <span ref={ref} className="hg-dots">
       <RailDot position="tl" curve="br" />
       <RailDot position="tr" curve="bl" />
       <RailDot position="bl" curve="tr" />
       <RailDot position="br" curve="tl" />
-    </>
+    </span>
   );
 }
 
