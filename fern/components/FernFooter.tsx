@@ -269,6 +269,7 @@ const GUST_LIFE = 1.2;
 function FooterFernCutout() {
   const containerRef = useRef(null);
   const canvasRef = useRef(null);
+  const frameRef = useRef(null);
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -316,11 +317,19 @@ function FooterFernCutout() {
       mask.h = Math.max(1, Math.floor(height));
       mask.canvas.width = mask.w;
       mask.canvas.height = mask.h;
-      const scale = Math.min(width / iw, height / ih);
+      // Fit the lockup inside the centered content frame; the field itself bleeds full width.
+      const frame: HTMLDivElement | null = frameRef.current;
+      const fr = frame?.getBoundingClientRect();
+      const cr = container.getBoundingClientRect();
+      const fx = fr ? fr.left - cr.left : 0;
+      const fy = fr ? fr.top - cr.top : 0;
+      const fw = fr?.width || width;
+      const fh = fr?.height || height;
+      const scale = Math.min(fw / iw, fh / ih);
       const dw = iw * scale;
       const dh = ih * scale;
       mask.ctx.clearRect(0, 0, mask.w, mask.h);
-      mask.ctx.drawImage(mask.img, (width - dw) / 2, (height - dh) / 2, dw, dh);
+      mask.ctx.drawImage(mask.img, fx + (fw - dw) / 2, fy + (fh - dh) / 2, dw, dh);
       mask.data = mask.ctx.getImageData(0, 0, mask.w, mask.h);
     };
     const createMask = (src: string): FieldMask | null => {
@@ -516,6 +525,7 @@ function FooterFernCutout() {
   return (
     <div ref={containerRef} aria-hidden className="fern-cf-pattern">
       <canvas ref={canvasRef} />
+      <div ref={frameRef} className="fern-cf-frame" />
     </div>
   );
 }
@@ -689,23 +699,28 @@ export default function FernFooter() {
         .dark .fern-cf-dark { display: block; }
 
         .fern-cf-field {
-          width: 100%;
-          max-width: calc(var(--page-width, 88rem) + 4rem);
-          margin: 0 auto;
-          padding: 0 2rem;
-        }
-
-        .fern-cf-field-inner {
           position: relative;
+          width: 100%;
           height: 36rem;
           border-top: 1px solid var(--border);
+          overflow: hidden;
+        }
+
+        .fern-cf-frame {
+          position: absolute;
+          top: 0;
+          bottom: 0;
+          left: 50%;
+          width: min(var(--spacing-page-width, 1504px), calc(100% - 4rem));
+          transform: translateX(-50%);
+          pointer-events: none;
         }
 
         .fern-cf-pattern {
           --fern-cf-highlight: #000000;
           position: absolute;
           inset: 0;
-          color: #c7c7c7;
+          color: #b4b4b4;
           opacity: 0;
           transition: opacity 700ms ease-out;
         }
@@ -716,7 +731,7 @@ export default function FernFooter() {
 
         .dark .fern-cf-pattern {
           --fern-cf-highlight: #ffffff;
-          color: #343434;
+          color: #484848;
         }
 
         .fern-cf-pattern canvas {
@@ -726,15 +741,15 @@ export default function FernFooter() {
         }
 
         @media (max-width: 767px) {
-          .fern-cf-field-inner {
+          .fern-cf-field {
             height: 20rem;
           }
         }
 
         /* Mobile */
         @media (max-width: 640px) {
-          .fern-cf-field {
-            padding: 0 1rem;
+          .fern-cf-frame {
+            width: calc(100% - 2rem);
           }
 
           .fern-cf {
@@ -886,9 +901,7 @@ export default function FernFooter() {
       </footer>
 
       <div className="fern-cf-field">
-        <div className="fern-cf-field-inner">
-          <FooterFernCutout />
-        </div>
+        <FooterFernCutout />
       </div>
     </>
   );

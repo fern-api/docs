@@ -551,7 +551,7 @@ const CLI_SCRIPT: { text: string; tone: CliTone; bullet?: string }[] = [
 ];
 
 const CLI_PROMPT = "$ ";
-const CLI_START_MS = 900;
+const CLI_START_MS = 2000;
 const CLI_LINE_MS = 380;
 const CLI_CHAR_MS = 28;
 const CLI_POST_TYPE_MS = 280;
@@ -559,11 +559,14 @@ const CLI_POST_TYPE_MS = 280;
 export function CliTerminal() {
   const ref = useRef(null);
   const [started, setStarted] = useState(false);
+  const [size, setSize] = useState({ w: 0, h: 0 });
   const [typed, setTyped] = useState(() => CLI_SCRIPT.map(() => -1));
 
   useEffect(() => {
     const el = ref.current as HTMLElement | null;
     if (!el) return;
+    const ro = new ResizeObserver(() => setSize({ w: el.offsetWidth, h: el.offsetHeight }));
+    ro.observe(el);
     const timers: number[] = [];
     const finish = () => {
       setStarted(true);
@@ -571,7 +574,7 @@ export function CliTerminal() {
     };
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       finish();
-      return;
+      return () => ro.disconnect();
     }
 
     const setLine = (i: number, n: number) =>
@@ -609,6 +612,7 @@ export function CliTerminal() {
     });
     io.observe(el);
     return () => {
+      ro.disconnect();
       io.disconnect();
       timers.forEach(window.clearTimeout);
     };
@@ -617,7 +621,13 @@ export function CliTerminal() {
   const lastShown = typed.reduce((acc: number, n: number, i: number) => (n >= 0 ? i : acc), -1);
 
   return (
-    <div ref={ref} className="hg-cli" data-started={started ? "true" : "false"} aria-hidden="true">
+    <div ref={ref} className="hg-cli-frame" data-started={started ? "true" : "false"} aria-hidden="true">
+      {size.w > 0 && size.h > 0 ? (
+        <svg className="hg-cli-trace" width={size.w} height={size.h} viewBox={`0 0 ${size.w} ${size.h}`}>
+          <rect x={0.5} y={0.5} width={size.w - 1} height={size.h - 1} rx={10} ry={10} pathLength={1000} />
+        </svg>
+      ) : null}
+      <div className="hg-cli" data-started={started ? "true" : "false"}>
       <div className="hg-cli-titlebar">
         <span className="hg-cli-dots">
           <span />
@@ -648,6 +658,7 @@ export function CliTerminal() {
             );
           })}
         </div>
+      </div>
       </div>
     </div>
   );
