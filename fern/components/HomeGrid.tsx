@@ -680,11 +680,6 @@ export function QuickNav({ items, links = [] }: { items: QuickNavItem[]; links?:
         const el = document.getElementById(item.id);
         if (el && el.getBoundingClientRect().top <= line) current = item.id;
       }
-      const last = items[items.length - 1];
-      const lastEl = last && document.getElementById(last.id);
-      if (lastEl && lastEl.getBoundingClientRect().bottom < window.innerHeight * 0.6) {
-        current = last.id;
-      }
       setActive(current);
     };
     const onScroll = () => {
