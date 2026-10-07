@@ -978,7 +978,7 @@ export function DocsPreview() {
                 key={p}
                 className="hg-docs-side-item"
                 data-active={i === page ? "true" : undefined}
-                style={{ transitionDelay: `${DRAW_CONTENT_MS + i * 80}ms` }}
+                style={{ animationDelay: `${DRAW_CONTENT_MS + i * 80}ms` }}
               >
                 {p}
               </span>
@@ -990,9 +990,9 @@ export function DocsPreview() {
               {DOCS_PAGES[page]}
             </span>
             {[92, 78, 85, 40].map((w, i) => (
-              <span key={i} className="hg-docs-bar" style={{ width: `${w}%`, transitionDelay: `${DRAW_CONTENT_MS + 300 + i * 90}ms` }} />
+              <span key={i} className="hg-docs-bar" style={{ width: `${w}%`, animationDelay: `${DRAW_CONTENT_MS + 300 + i * 90}ms` }} />
             ))}
-            <span className="hg-docs-block" style={{ transitionDelay: `${DRAW_CONTENT_MS + 700}ms` }}>
+            <span className="hg-docs-block" style={{ animationDelay: `${DRAW_CONTENT_MS + 700}ms` }}>
               <span className="hg-docs-method">POST</span>
               <span>/v1/{DOCS_PAGES[page]!.toLowerCase()}</span>
             </span>
