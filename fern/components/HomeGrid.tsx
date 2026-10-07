@@ -674,6 +674,7 @@ export function QuickNav({ items, links = [] }: { items: QuickNavItem[]; links?:
   const [active, setActive] = useState(items[0]?.id);
   // While a click-triggered smooth scroll runs, hold the clicked item so the
   // highlight doesn't flash through the sections scrolled past.
+  const navRef = useRef(null);
   const lockRef = useRef(false);
   const unlockRef = useRef(0);
 
@@ -698,14 +699,30 @@ export function QuickNav({ items, links = [] }: { items: QuickNavItem[]; links?:
       }
       if (!raf) raf = requestAnimationFrame(update);
     };
+    // Line the first link's text up with the first section's heading.
+    const align = () => {
+      const nav = navRef.current as HTMLElement | null;
+      const first = items[0] && document.getElementById(items[0].id);
+      const title = first?.querySelector(".card-title, h1, h2, h3") ?? first;
+      const link = nav?.querySelector(".hg-quicknav-link") as HTMLElement | null;
+      if (!nav || !title || !link || nav.offsetParent === null) return;
+      const t = title.getBoundingClientRect();
+      const offset = t.top + t.height / 2 - nav.getBoundingClientRect().top - link.offsetHeight / 2;
+      nav.style.setProperty("--hg-quicknav-offset", `${Math.max(0, Math.round(offset))}px`);
+    };
+    const onResize = () => {
+      align();
+      onScroll();
+    };
+    align();
     update();
     document.addEventListener("scroll", onScroll, { capture: true, passive: true });
-    window.addEventListener("resize", onScroll);
+    window.addEventListener("resize", onResize);
     return () => {
       cancelAnimationFrame(raf);
       window.clearTimeout(unlockRef.current);
       document.removeEventListener("scroll", onScroll, { capture: true });
-      window.removeEventListener("resize", onScroll);
+      window.removeEventListener("resize", onResize);
     };
   }, []);
 
@@ -727,7 +744,7 @@ export function QuickNav({ items, links = [] }: { items: QuickNavItem[]; links?:
   };
 
   return (
-    <nav aria-label="Page sections" className="hg-quicknav">
+    <nav ref={navRef} aria-label="Page sections" className="hg-quicknav">
       <div className="hg-quicknav-inner">
         <ul className="hg-quicknav-list">
           {items.map((item) => (
