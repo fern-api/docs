@@ -113,6 +113,30 @@ app_info: { name: "partner-app", version: "3.1.0", comment: "+https://partner.ex
 ```
 </ParamField>
 
+<ParamField path="allowCustomHttpClient" type="boolean" default="false" required={false} toc={true}>
+When enabled, the generated client accepts an optional `http_client:` keyword that replaces the SDK's built-in `Net::HTTP` connection. Use it to route requests through a proxy, configure custom TLS, reuse connections, or add request and response interceptors for logging, signing, or header injection.
+
+The object must respond to `request(url, http_request)`, where `url` is a `URI` and `http_request` is a `Net::HTTPGenericRequest`, and return a `Net::HTTPResponse`. The client passes it to every request, including OAuth and inferred-auth token requests. The SDK's retry loop still wraps each attempt, but the custom client owns its connection settings, including timeouts.
+
+```yaml title="generators.yml"
+config:
+  allowCustomHttpClient: true
+```
+
+```ruby
+class LoggingTransport
+  def request(url, http_request)
+    puts "#{http_request.method} #{url}"
+    Net::HTTP.start(url.host, url.port, use_ssl: url.scheme == "https") do |http|
+      http.request(http_request)
+    end
+  end
+end
+
+client = Acme::Client.new(token: "...", http_client: LoggingTransport.new)
+```
+</ParamField>
+
 <ParamField path="requirePaths" type="array of strings" required={false} toc={true}>
 <Markdown src="/snippets/enterprise-plan.mdx"/>
 
@@ -143,8 +167,23 @@ This sends `User-Agent: plantstore-ruby-sdk/0.1.0`. With [`includePlatformHeader
 Names the client's credential keyword arguments after the auth schemes in your API definition. For example, `token: { name: apiKey }` produces `Client.new(api_key:)` instead of `Client.new(token:)`. Enabling it renames the keyword argument for existing callers of a published gem.
 </ParamField>
 
+<ParamField path="requireAuthCredentials" type="boolean" default="false" required={false} toc={true}>
+When enabled, the client constructor raises `ArgumentError` if a bearer token or header-auth credential is empty, whether it's passed as an argument or read from its environment variable. Without this option, the client is constructed and sends an empty auth header on every request.
+
+```ruby
+Acme::Client.new
+# ArgumentError: secret is required; pass secret: or set the ACME_SECRET environment variable
+```
+
+The check is skipped for endpoint-level security and for `any`-composed auth with multiple schemes, where each credential is independently optional.
+</ParamField>
+
 <ParamField path="respectOptionalRequestBody" type="boolean" default="false" required={false} toc={true}>
 Lets callers omit the request body on endpoints with an optional request body. A call that omits it sends no body and no `Content-Type` header, instead of an empty JSON object (`{}`). Enable this when your API treats a missing body differently from an empty one.
 
 Only applies to request bodies declared as a single named type. Required bodies, inlined request properties, and form-urlencoded bodies are unaffected.
+</ParamField>
+
+<ParamField path="wrapInvalidJsonResponses" type="boolean" default="false" required={false} toc={true}>
+When enabled, a 2xx response whose body isn't valid JSON raises `Errors::ResponseError`, carrying the raw body and status code, instead of letting `JSON::ParserError` escape to the caller.
 </ParamField>
