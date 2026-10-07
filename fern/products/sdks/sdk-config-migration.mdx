@@ -1,0 +1,324 @@
+---
+title: Migrating to SDK Config
+headline: Migrating an existing Fern project from generators.yml to SDK Config
+description: Move SDK generation from generators.yml to sdk-config.yml with fern sdk migrate, one language at a time or all at once, while keeping a rollback path.
+---
+
+Use `fern sdk migrate` to move SDK generation from `generators.yml` to `sdk-config.yml` and adopt the new SDK generators. You can migrate every language at once or one language at a time, and spread targets across more than one SDK Config file. A project that doesn't run `fern sdk migrate` keeps generating from `generators.yml`.
+
+The migration keeps your original configuration as comments in `generators.legacy.yml`, so you can roll back.
+
+## Why migrate
+
+`generators.yml` names the generator to run, its version, and its generator-specific options. `sdk-config.yml` describes the SDK you want instead: the API source, shared client behavior, package identity, delivery, publishing, and target languages. You declare shared settings once, every target inherits them, and language-specific differences are explicit overrides. Adding an SDK means adding a language target.
+
+```yaml title="sdk-config.yml"
+targets:
+  - language: typescript
+  - language: python
+```
+
+| `generators.yml` | `sdk-config.yml` |
+| --- | --- |
+| Selects generator groups with `--group` | Selects language targets with `--target` |
+| Usually pins each generator version | Uses the newest supported generator unless you set `generatorVersion` |
+| Organized around generator invocations | Organized around SDK behavior and languages |
+| Runs the existing generators | Runs the new SDK generators |
+
+For migrated targets, `sdk-config.yml` owns SDK generation, and `docs.yml` continues to own your docs site. The migration doesn't change `docs.yml`. `generators.legacy.yml` holds only the targets you haven't migrated and the rollback comments.
+
+## Migration states
+
+A project is in one of these states:
+
+- **Not migrated:** The project has only `generators.yml` and generates as before, for example with `fern generate --api plant-store --group public`.
+- **Partially migrated:** `generators.legacy.yml` holds the active legacy targets and the rollback comments, and `sdk-config.yml` holds the migrated targets. For example, Python stays on its pinned generator while TypeScript uses the newest TypeScript generator.
+- **Fully migrated:** `sdk-config.yml` holds every compatible SDK target, and `generators.legacy.yml` keeps the original configuration as comments.
+- **Multiple SDK Configs:** The project has more than one SDK Config file, such as `sdk-config.yml` and `sdk-config.internal.yml`, and can configure the same language in each. Select a file with `--sdk-config`.
+
+## Before you start
+
+<Steps>
+<Step title="Upgrade the Fern CLI">
+
+Migration requires Fern CLI version 5.143.0 or later. Update the installed CLI and the version pinned in [`fern.config.json`](/learn/sdks/overview/project-structure#fernconfigjson):
+
+```bash
+npm install -g fern-api@latest
+fern upgrade --yes
+fern --version
+```
+
+Installing a newer CLI globally isn't enough on its own, because the CLI runs the version pinned in `fern.config.json`. If `fern --version` still reports an older version, check your organization's [CLI version policy](/learn/cli-api-reference/cli-reference/version-policy) with `fern org get --json`. An admin might need to raise the maximum version.
+
+<Warning>
+Don't run `fern generator upgrade` during a partial migration. It can change the generator versions pinned for languages that stay on `generators.yml`. After you upgrade the CLI, confirm that their `version` fields haven't changed.
+</Warning>
+
+</Step>
+<Step title="Create a branch and check the project">
+
+```bash
+git checkout -b migrate/fern-sdk-config
+git status --short
+fern check --api plant-store
+```
+
+</Step>
+<Step title="Log in">
+
+Run `fern login` before you preview or generate. In CI, set the `FERN_TOKEN` environment variable instead. See [`fern generate`](/learn/cli-api-reference/cli-reference/sdk-commands#fern-generate) for details.
+
+</Step>
+<Step title="Decide what to migrate">
+
+Identify the API, such as `plant-store`, the generator group, such as `public`, the languages to migrate first, and the languages to keep on their current generators. Pass `--api`, `--group`, and `--language` explicitly, even if your project has only one of each.
+
+</Step>
+</Steps>
+
+## Migrate one language
+
+These steps migrate TypeScript from a `public` group that also contains Python, and leave Python on its current generator.
+
+<Steps>
+<Step title="Preview the migration">
+
+```bash
+fern sdk migrate \
+  --api plant-store \
+  --group public \
+  --language typescript \
+  --dry-run
+```
+
+A dry run validates the migration and lists the file operations it would perform:
+
+```text
+Would rename generators.yml to generators.legacy.yml.
+Would create sdk-config.yml.
+Would comment 1 generator invocation in group 'public'.
+```
+
+A dry run doesn't show the full file changes. To inspect them, run the migration on a branch.
+
+</Step>
+<Step title="Run the migration">
+
+```bash
+fern sdk migrate \
+  --api plant-store \
+  --group public \
+  --language typescript
+```
+
+There's no `--apply` flag; the command changes files unless you pass `--dry-run`. It renames `generators.yml` to `generators.legacy.yml`, creates `sdk-config.yml` or merges into an existing one, comments out the TypeScript invocation, leaves Python active at its existing version, and prints rollback instructions.
+
+```yaml title="generators.legacy.yml"
+groups:
+  public:
+    generators:
+      - name: fernapi/fern-python-sdk
+        version: 4.30.2
+
+      # Migrated to ./sdk-config.yml.
+      # - name: fernapi/fern-typescript-sdk
+      #   version: 3.3.3
+```
+
+```yaml title="sdk-config.yml"
+schemaVersion: sdk-config/v1
+
+targets:
+  - language: typescript
+```
+
+The generated `sdk-config.yml` also contains the API source, SDK name, output configuration, and the settings migrated from your project.
+
+</Step>
+</Steps>
+
+### Migrate more languages or groups
+
+To migrate several languages, repeat `--language`:
+
+```bash
+fern sdk migrate --api plant-store --group public --language typescript --language python
+```
+
+To migrate every compatible SDK generator in a group, omit `--language`. The command leaves non-SDK and unsupported generators active and reports them. When you migrate a whole group, the command comments out the group and adjusts `default-group` and aliases so the remaining legacy configuration stays valid, keeping their original values in comments.
+
+```bash
+fern sdk migrate --api plant-store --group public
+```
+
+To migrate several groups into one file, repeat `--group`. The groups must use compatible API sources and different languages.
+
+```bash
+fern sdk migrate --api plant-store --group typescript-sdk --group python-sdk
+```
+
+## Review the configuration
+
+Review the changes before you generate:
+
+```bash
+git diff -- \
+  fern/apis/plant-store/generators.legacy.yml \
+  fern/apis/plant-store/sdk-config.yml
+```
+
+Confirm that:
+
+- The remaining legacy generators are active and keep their pinned versions.
+- The migrated generator invocations are comments.
+- `sdk-config.yml` contains only the targets you meant to migrate.
+- The API source paths, output, and publishing configuration are correct.
+- The credential environment variables that publishing needs are available.
+- `docs.yml` is unchanged.
+
+### Choose a generator version
+
+The migration doesn't copy the legacy generator version into `sdk-config.yml`. A target without `generatorVersion` uses the newest supported generator for its language. To pin a version, set `generatorVersion` to a version that supports SDK Config:
+
+```yaml title="sdk-config.yml"
+targets:
+  - language: typescript
+    generatorVersion: 4.0.0
+```
+
+Don't copy a legacy generator version into `generatorVersion`. The CLI rejects versions older than the first version of that language's generator that supports SDK Config.
+
+<Note>
+`fern generate --version` sets the version of the generated SDK package, not the generator version.
+</Note>
+
+## Validate and preview
+
+Validate the migrated project, then preview the migrated target:
+
+```bash
+fern check --api plant-store
+fern generate --api plant-store --target typescript --preview --force
+```
+
+A preview runs Fern's remote generation, writes the output locally, and doesn't publish.
+
+## Generate
+
+Generate a migrated target with `--target`:
+
+```bash
+fern generate --api plant-store --target typescript --version 1.2.3 --force
+```
+
+Generate the languages that stay on `generators.yml` with `--group`. The group runs only its active generators, so the commented-out TypeScript generator doesn't run:
+
+```bash
+fern generate --api plant-store --group public --version 1.2.3 --force
+```
+
+To generate both in one command, pass `--group` and `--target`. Fern runs the legacy and SDK Config targets as separate jobs, which can run at the same time.
+
+```bash
+fern generate --api plant-store --group public --target typescript --version 1.2.3 --force
+```
+
+Pass `--group` or `--target` explicitly while you migrate. Without them, `fern generate` runs the default legacy group and every target in the default `sdk-config.yml`.
+
+## Use more than one SDK Config file
+
+To create or merge into a different file, pass `--output`:
+
+```bash
+fern sdk migrate \
+  --api plant-store \
+  --group public \
+  --language typescript \
+  --output ./fern/apis/plant-store/sdk-config.internal.yml
+```
+
+Generate from it with `--sdk-config`:
+
+```bash
+fern generate \
+  --api plant-store \
+  --sdk-config ./fern/apis/plant-store/sdk-config.internal.yml \
+  --target typescript \
+  --version 1.2.3 \
+  --force
+```
+
+Separate SDK Config files can configure the same language, but each file can contain only one target per language. The migration comments in `generators.legacy.yml` record which SDK Config file owns each migrated target.
+
+## Migrate the next language
+
+To migrate Python later, preview and run the migration again:
+
+```bash
+fern sdk migrate --api plant-store --group public --language python --dry-run
+fern sdk migrate --api plant-store --group public --language python
+```
+
+The CLI merges Python into the existing `sdk-config.yml` when the API source and shared settings are compatible. If they aren't, write Python to a separate file with `--output ./fern/apis/plant-store/sdk-config.python.yml`.
+
+Running the migration for a target that's already migrated leaves the files unchanged and reports that the target is already migrated. Treat this as a configuration error, not a successful run.
+
+## Update CI/CD
+
+Replace `--group` with `--target` in generation commands for migrated languages:
+
+```bash
+# Before
+fern generate --api plant-store --group typescript-sdk
+
+# After
+fern generate --api plant-store --target typescript
+```
+
+For a partial migration, pass both:
+
+```bash
+fern generate \
+  --api plant-store \
+  --group public \
+  --target typescript \
+  --version "$SDK_VERSION" \
+  --force
+```
+
+For a different SDK Config file, add `--sdk-config`. Make sure CI sets `FERN_TOKEN` and any publishing credentials that the selected targets reference.
+
+## Roll back
+
+Because the original generator versions and settings stay in comments, you can restore the previous configuration without rewriting it.
+
+<AccordionGroup>
+<Accordion title="Roll back one language">
+
+1. Remove the language's target from `sdk-config.yml`.
+2. Uncomment its original invocation in `generators.legacy.yml`. Keep the file name `generators.legacy.yml` while other targets use `sdk-config.yml`.
+3. Generate the legacy group: `fern generate --api plant-store --group public`.
+
+</Accordion>
+<Accordion title="Roll back the entire migration">
+
+1. Delete the SDK Config file, or remove every migrated target from it.
+2. Rename `generators.legacy.yml` to `generators.yml`.
+3. Uncomment the original groups, generator invocations, `default-group`, and aliases.
+4. Run your original generation command, such as `fern generate --api plant-store --group public`.
+
+</Accordion>
+</AccordionGroup>
+
+## Limitations
+
+Contact Fern support if:
+
+- Your project uses a Fern Definition, protobuf, OpenRPC, or Conjure source, which `fern sdk migrate` doesn't support yet.
+- Your API specification comes from a Git repository and can't be referenced by a local path.
+- The groups you're merging use different API sources, import settings, audiences, or incompatible shared SDK settings.
+- Your publishing credentials can't be referenced as environment variables.
+- Your organization's CLI version policy prevents using version 5.143.0 or later.
+
+To roll out with the least risk, upgrade the CLI, migrate one language, preview it, check its SDK output, and update CI before you migrate the next language.
