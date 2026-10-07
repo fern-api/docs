@@ -828,174 +828,190 @@ function DrawTrace({ size }: { size: { w: number; h: number } }) {
 
 const DRAW_CONTENT_MS = 1900;
 
-const SDK_LANGS: { label: string; install: string; code: string[] }[] = [
-  {
-    label: "TypeScript",
-    install: "npm install yourco",
-    code: ['import { YourcoClient } from "yourco";', "const client = new YourcoClient({ apiKey });", "await client.orders.create({ amount: 4200 });"],
-  },
-  {
-    label: "Python",
-    install: "pip install yourco",
-    code: ["from yourco import Yourco", "client = Yourco(api_key=api_key)", "client.orders.create(amount=4200)"],
-  },
-  {
-    label: "Go",
-    install: "go get github.com/yourco/yourco-go",
-    code: ['import yourco "github.com/yourco/yourco-go"', "client := yourco.NewClient(apiKey)", "client.Orders.Create(ctx, &yourco.Order{Amount: 4200})"],
-  },
-  {
-    label: "Java",
-    install: "implementation 'com.yourco:yourco:1.4.0'",
-    code: ["import com.yourco.YourcoClient;", "var client = YourcoClient.builder().apiKey(apiKey).build();", "client.orders().create(Order.builder().amount(4200).build());"],
-  },
-  {
-    label: "C#",
-    install: "dotnet add package Yourco",
-    code: ["using Yourco;", "var client = new YourcoClient(apiKey);", "await client.Orders.CreateAsync(new() { Amount = 4200 });"],
-  },
-  {
-    label: "Ruby",
-    install: "gem install yourco",
-    code: ['require "yourco"', "client = Yourco::Client.new(api_key: api_key)", "client.orders.create(amount: 4200)"],
-  },
+const SDK_TABS: { label: string; cmd?: string }[] = [
+  { label: "Typescript", cmd: "npm install your-company" },
+  { label: "Python", cmd: "pip install your-company" },
+  { label: "GO", cmd: "go get github.com/your-company/go-sdk" },
+  { label: "Java", cmd: 'compile "com.your-company:java-sdk:1.0.0"' },
+  { label: ".NET", cmd: "> dotnet add package YourCompany.Net --version 1.0.0" },
+  { label: "PHP", cmd: "composer require your-company/your-company-php" },
+  { label: "Ruby", cmd: "gem install your_company" },
+  { label: "Swift" },
+  { label: "Rust" },
 ];
 
-const SDK_HOLD_MS = 2600;
+const elementsOf = (children: any) => React.Children.toArray(children).filter((c: any) => React.isValidElement(c));
 
-/** Grayscale SDK window: cycles languages, typing each install command. */
-export function SdkInstall() {
-  const { ref, started, reduced, size } = useDrawIn();
-  const [lang, setLang] = useState(0);
-  const [typed, setTyped] = useState(-1);
+/**
+ * SDK install picker (recreates the Rive SDK graphic). Children are the
+ * language logos, in SDK_TABS order. Hover previews a language, click selects it.
+ */
+export function SdkInstall({ children }: { children?: any }) {
+  const { ref, started, size } = useDrawIn();
+  const logos = elementsOf(children);
+  const [selected, setSelected] = useState(0);
+  const [hovered, setHovered] = useState(null as number | null);
+  const [copied, setCopied] = useState(false);
+  const active = hovered ?? selected;
+  const cmd = SDK_TABS[active]?.cmd ?? "";
 
-  useEffect(() => {
-    if (!started) return;
-    if (reduced) {
-      setTyped(SDK_LANGS[0]!.install.length);
-      return;
-    }
-    const timers: number[] = [];
-    let cancelled = false;
-    const play = (i: number, at: number) => {
-      const cmd = SDK_LANGS[i]!.install;
-      timers.push(
-        window.setTimeout(() => {
-          if (cancelled) return;
-          setLang(i);
-          setTyped(0);
-        }, at),
-      );
-      for (let c = 1; c <= cmd.length; c++) {
-        timers.push(window.setTimeout(() => !cancelled && setTyped(c), at + c * CLI_CHAR_MS));
-      }
-      const next = at + cmd.length * CLI_CHAR_MS + SDK_HOLD_MS;
-      timers.push(window.setTimeout(() => !cancelled && play((i + 1) % SDK_LANGS.length, 0), next));
-    };
-    play(0, DRAW_CONTENT_MS);
-    return () => {
-      cancelled = true;
-      timers.forEach(window.clearTimeout);
-    };
-  }, [started, reduced]);
-
-  const current = SDK_LANGS[lang]!;
-  const done = typed >= current.install.length;
+  const copy = () => {
+    navigator.clipboard?.writeText(cmd.replace(/^> /, "")).then(() => {
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1200);
+    });
+  };
 
   return (
-    <div ref={ref} className="hg-cli-frame hg-draw" data-started={started ? "true" : "false"} aria-hidden="true">
+    <div ref={ref} className="hg-cli-frame hg-draw hg-rv-frame" data-started={started ? "true" : "false"}>
       <DrawTrace size={size} />
-      <div className="hg-win" data-started={started ? "true" : "false"}>
-        <div className="hg-win-tabs">
-          {SDK_LANGS.map((l, i) => (
-            <span key={l.label} className="hg-win-tab" data-active={i === lang ? "true" : undefined}>
-              {l.label}
-            </span>
+      <div className="hg-win hg-sdk" data-started={started ? "true" : "false"}>
+        <span className="hg-rv-bar hg-sdk-pill" />
+        <div className="hg-sdk-tabs" role="tablist" aria-label="SDK language" onMouseLeave={() => setHovered(null)}>
+          {SDK_TABS.map((tab, i) => (
+            <button
+              key={tab.label}
+              type="button"
+              role="tab"
+              className="hg-sdk-tab hg-rv-in"
+              aria-selected={i === active}
+              disabled={!tab.cmd}
+              data-active={i === active ? "true" : undefined}
+              style={{ animationDelay: `${DRAW_CONTENT_MS + i * 60}ms` }}
+              onMouseEnter={() => tab.cmd && setHovered(i)}
+              onFocus={() => tab.cmd && setHovered(i)}
+              onBlur={() => setHovered(null)}
+              onClick={() => tab.cmd && setSelected(i)}
+            >
+              <span className="hg-sdk-logo">{logos[i]}</span>
+              <span className="hg-sdk-label">{tab.label}</span>
+            </button>
           ))}
         </div>
-        <div className="hg-win-body">
-          <div className="hg-win-install">
-            <span className="hg-win-dim">$</span>
-            <span>{current.install.slice(0, Math.max(typed, 0))}</span>
-            <span className={`hg-cli-caret ${done ? "hg-cli-caret-blink" : ""}`} />
-          </div>
-          <div className="hg-win-code" data-visible={done ? "true" : "false"}>
-            {current.code.map((line, i) => (
-              <div key={`${lang}-${i}`} className="hg-win-code-line" style={{ transitionDelay: `${i * 90}ms` }}>
-                <span className="hg-win-ln">{i + 1}</span>
-                <span>{line}</span>
-              </div>
-            ))}
-          </div>
+        <div className="hg-sdk-cmd hg-rv-in" style={{ animationDelay: `${DRAW_CONTENT_MS + 600}ms` }}>
+          <span key={active} className="hg-sdk-cmd-text">
+            {cmd}
+          </span>
+          <button type="button" className="hg-sdk-copy" aria-label="Copy install command" onClick={copy}>
+            {copied ? (
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M3 8.5l3 3 7-7" />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2">
+                <rect x="5.5" y="5.5" width="8" height="8" rx="1.5" />
+                <path d="M10.5 3.5v-.5a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.5 3v5A1.5 1.5 0 0 0 4 9.5h.5" />
+              </svg>
+            )}
+          </button>
         </div>
       </div>
     </div>
   );
 }
 
-const DOCS_PAGES = ["Introduction", "Authentication", "Orders", "Payments", "Webhooks"];
-const DOCS_QUERIES = ["create an order", "refund a payment", "verify webhooks"];
-const DOCS_STEP_MS = 2400;
+const DOCS_SIDE_ICONS = [
+  <svg key="grid" viewBox="0 0 16 16" fill="currentColor">
+    <rect x="1" y="2" width="7" height="5" rx="1" />
+    <rect x="1" y="9" width="7" height="5" rx="1" />
+    <rect x="9.5" y="2" width="5.5" height="12" rx="1" />
+  </svg>,
+  <svg key="lock" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
+    <rect x="3" y="7" width="10" height="7.5" rx="1.5" />
+    <path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" />
+  </svg>,
+  <svg key="warn" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3">
+    <path d="M8 2l6.5 11.5h-13z" strokeLinejoin="round" />
+    <path d="M8 6.5v3.5M8 11.8v.2" />
+  </svg>,
+  <svg key="more" viewBox="0 0 16 16" fill="currentColor">
+    <circle cx="3" cy="8" r="1.2" />
+    <circle cx="8" cy="8" r="1.2" />
+    <circle cx="13" cy="8" r="1.2" />
+  </svg>,
+];
 
-/** Grayscale docs-site mock: sidebar and page skeleton build in, then pages cycle. */
-export function DocsPreview() {
-  const { ref, started, reduced, size } = useDrawIn();
-  const [page, setPage] = useState(0);
-  const [query, setQuery] = useState("");
+const DOCS_ENDPOINTS = ["GET", "GET", "POST", "POST"];
 
-  useEffect(() => {
-    if (!started || reduced) return;
-    const timers: number[] = [];
-    let step = 0;
-    const tick = () => {
-      step += 1;
-      setPage(step % DOCS_PAGES.length);
-      const q = DOCS_QUERIES[step % DOCS_QUERIES.length]!;
-      setQuery("");
-      for (let c = 1; c <= q.length; c++) timers.push(window.setTimeout(() => setQuery(q.slice(0, c)), c * 45));
-      timers.push(window.setTimeout(tick, DOCS_STEP_MS));
-    };
-    timers.push(window.setTimeout(tick, DRAW_CONTENT_MS + 1600));
-    return () => timers.forEach(window.clearTimeout);
-  }, [started, reduced]);
+/**
+ * Docs site mock (recreates the Rive Docs graphic). The child is the hero
+ * image. Sidebar rows and header items highlight on hover.
+ */
+export function DocsPreview({ children }: { children?: any }) {
+  const { ref, started, size } = useDrawIn();
+  const hero = elementsOf(children)[0];
+  let step = 0;
+  const delay = () => ({ animationDelay: `${DRAW_CONTENT_MS + step++ * 45}ms` });
 
   return (
-    <div ref={ref} className="hg-cli-frame hg-draw" data-started={started ? "true" : "false"} aria-hidden="true">
+    <div ref={ref} className="hg-cli-frame hg-draw hg-rv-frame" data-started={started ? "true" : "false"} aria-hidden="true">
       <DrawTrace size={size} />
       <div className="hg-win hg-docs" data-started={started ? "true" : "false"}>
         <div className="hg-docs-header">
-          <span className="hg-docs-logo" />
-          <span className="hg-docs-brand">Your company</span>
-          <span className="hg-docs-search">
-            <span className="hg-win-dim">⌕</span>
-            <span>{query || <span className="hg-win-dim">Search</span>}</span>
+          <span className="hg-docs-brand hg-rv-in" style={delay()}>
+            <svg className="hg-docs-logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.1">
+              {Array.from({ length: 16 }, (_, i) => {
+                const a = (i / 16) * Math.PI * 2;
+                return <line key={i} x1={12 + Math.cos(a) * 3} y1={12 + Math.sin(a) * 3} x2={12 + Math.cos(a) * 10} y2={12 + Math.sin(a) * 10} />;
+              })}
+            </svg>
+            Your company
           </span>
+          <span className="hg-docs-search hg-rv-in" style={delay()}>
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+              <circle cx="7" cy="7" r="4.75" />
+              <path d="M10.5 10.5L14 14" />
+            </svg>
+            Search
+          </span>
+          <span className="hg-rv-bar hg-docs-navbar hg-rv-in" style={delay()} />
+          <span className="hg-rv-bar hg-docs-navbar hg-rv-in" style={delay()} />
+          <span className="hg-docs-btn hg-rv-in" style={delay()}>
+            <span className="hg-rv-bar" />
+          </span>
+          <svg className="hg-docs-sun hg-rv-in" style={delay()} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2">
+            <circle cx="8" cy="8" r="2.75" />
+            <path d="M8 1.5v1.5M8 13v1.5M1.5 8H3M13 8h1.5M3.4 3.4l1 1M11.6 11.6l1 1M3.4 12.6l1-1M11.6 4.4l1-1" />
+          </svg>
+        </div>
+        <div className="hg-docs-tabs">
+          {[0, 1, 2, 3].map((i) => (
+            <span key={i} className="hg-docs-tab hg-rv-in" data-active={i === 2 ? "true" : undefined} style={delay()}>
+              <span className="hg-rv-bar" />
+            </span>
+          ))}
         </div>
         <div className="hg-docs-body">
           <div className="hg-docs-side">
-            {DOCS_PAGES.map((p, i) => (
-              <span
-                key={p}
-                className="hg-docs-side-item"
-                data-active={i === page ? "true" : undefined}
-                style={{ animationDelay: `${DRAW_CONTENT_MS + i * 80}ms` }}
-              >
-                {p}
+            <span className="hg-rv-bar hg-docs-heading hg-rv-in" style={delay()} />
+            {DOCS_SIDE_ICONS.map((icon, i) => (
+              <span key={i} className="hg-docs-item hg-rv-in" data-active={i === 0 ? "true" : undefined} style={delay()}>
+                <span className="hg-docs-icon">{icon}</span>
+                <span className="hg-rv-bar" />
+              </span>
+            ))}
+            <span className="hg-rv-bar hg-docs-heading hg-rv-in" style={delay()} />
+            <span className="hg-docs-item hg-docs-group hg-rv-in" style={delay()}>
+              <span className="hg-rv-bar" />
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M4 6l4 4 4-4" />
+              </svg>
+            </span>
+            {DOCS_ENDPOINTS.map((method, i) => (
+              <span key={i} className="hg-docs-item hg-docs-endpoint hg-rv-in" style={delay()}>
+                <span className="hg-docs-method">{method}</span>
+                <span className="hg-rv-bar" />
               </span>
             ))}
           </div>
           <div className="hg-docs-main">
-            <span className="hg-docs-crumb">API reference</span>
-            <span key={page} className="hg-docs-title">
-              {DOCS_PAGES[page]}
+            <span className="hg-rv-bar hg-docs-title hg-rv-in" style={delay()} />
+            <span className="hg-docs-hero hg-rv-in" style={delay()}>
+              {hero}
             </span>
-            {[92, 78, 85, 40].map((w, i) => (
-              <span key={i} className="hg-docs-bar" style={{ width: `${w}%`, animationDelay: `${DRAW_CONTENT_MS + 300 + i * 90}ms` }} />
+            {[98, 164, 92].map((w, i) => (
+              <span key={i} className="hg-rv-bar hg-docs-line hg-rv-in" style={{ ...delay(), width: `calc(var(--u) * ${w})` }} />
             ))}
-            <span className="hg-docs-block" style={{ animationDelay: `${DRAW_CONTENT_MS + 700}ms` }}>
-              <span className="hg-docs-method">POST</span>
-              <span>/v1/{DOCS_PAGES[page]!.toLowerCase()}</span>
-            </span>
           </div>
         </div>
       </div>
