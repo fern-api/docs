@@ -452,7 +452,7 @@ function FooterFernCutout() {
           if (haloPixels) {
             const raw = mx < haloW && my < haloH ? haloPixels[(my * haloW + mx) * 4 + 3]! / 255 : 0;
             // Lift the falloff so blades near the wordmark contrast more.
-            const sample = raw > 0.02 ? Math.min(1, Math.pow(raw, 0.55) * 1.15) : 0;
+            const sample = raw > 0.02 ? Math.min(1, Math.pow(raw, 0.75)) : 0;
             const style =
               sample > 0.02
                 ? `rgb(${(baseRgb![0] + (highlightRgb![0] - baseRgb![0]) * sample) | 0},${(baseRgb![1] + (highlightRgb![1] - baseRgb![1]) * sample) | 0},${(baseRgb![2] + (highlightRgb![2] - baseRgb![2]) * sample) | 0})`
@@ -719,7 +719,7 @@ export default function FernFooter() {
         }
 
         .fern-cf-pattern {
-          --fern-cf-highlight: #000000;
+          --fern-cf-highlight: rgb(0, 0, 0);
           position: absolute;
           inset: 0;
           color: #b4b4b4;
@@ -732,7 +732,7 @@ export default function FernFooter() {
         }
 
         .dark .fern-cf-pattern {
-          --fern-cf-highlight: #ffffff;
+          --fern-cf-highlight: rgb(255, 255, 255);
           color: #484848;
         }
 
