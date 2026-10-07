@@ -715,12 +715,15 @@ export function QuickNav({ items, links = [] }: { items: QuickNavItem[]; links?:
       onScroll();
     };
     align();
+    document.fonts?.ready.then(align);
+    const alignLater = window.setTimeout(align, 1500);
     update();
     document.addEventListener("scroll", onScroll, { capture: true, passive: true });
     window.addEventListener("resize", onResize);
     return () => {
       cancelAnimationFrame(raf);
       window.clearTimeout(unlockRef.current);
+      window.clearTimeout(alignLater);
       document.removeEventListener("scroll", onScroll, { capture: true });
       window.removeEventListener("resize", onResize);
     };
