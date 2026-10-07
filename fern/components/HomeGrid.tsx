@@ -783,3 +783,222 @@ export function QuickNav({ items, links = [] }: { items: QuickNavItem[]; links?:
     </nav>
   );
 }
+
+// --- Draw-in tile graphics (SDKs, Docs) ---------------------------------------
+
+/** Measures the frame and flips `started` once it scrolls into view. */
+function useDrawIn() {
+  const ref = useRef(null);
+  const [started, setStarted] = useState(false);
+  const [reduced, setReduced] = useState(false);
+  const [size, setSize] = useState({ w: 0, h: 0 });
+  useEffect(() => {
+    const el = ref.current as HTMLElement | null;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setSize({ w: el.offsetWidth, h: el.offsetHeight }));
+    ro.observe(el);
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setReduced(true);
+      setStarted(true);
+      return () => ro.disconnect();
+    }
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        io.disconnect();
+        setStarted(true);
+      }
+    });
+    io.observe(el);
+    return () => {
+      ro.disconnect();
+      io.disconnect();
+    };
+  }, []);
+  return { ref, started, reduced, size };
+}
+
+function DrawTrace({ size }: { size: { w: number; h: number } }) {
+  if (!(size.w > 0 && size.h > 0)) return null;
+  return (
+    <svg className="hg-cli-trace" width={size.w} height={size.h} viewBox={`0 0 ${size.w} ${size.h}`}>
+      <rect x={0.5} y={0.5} width={size.w - 1} height={size.h - 1} rx={10} ry={10} pathLength={1000} />
+    </svg>
+  );
+}
+
+const DRAW_CONTENT_MS = 1900;
+
+const SDK_LANGS: { label: string; install: string; code: string[] }[] = [
+  {
+    label: "TypeScript",
+    install: "npm install yourco",
+    code: ['import { YourcoClient } from "yourco";', "const client = new YourcoClient({ apiKey });", "await client.orders.create({ amount: 4200 });"],
+  },
+  {
+    label: "Python",
+    install: "pip install yourco",
+    code: ["from yourco import Yourco", "client = Yourco(api_key=api_key)", "client.orders.create(amount=4200)"],
+  },
+  {
+    label: "Go",
+    install: "go get github.com/yourco/yourco-go",
+    code: ['import yourco "github.com/yourco/yourco-go"', "client := yourco.NewClient(apiKey)", "client.Orders.Create(ctx, &yourco.Order{Amount: 4200})"],
+  },
+  {
+    label: "Java",
+    install: "implementation 'com.yourco:yourco:1.4.0'",
+    code: ["import com.yourco.YourcoClient;", "var client = YourcoClient.builder().apiKey(apiKey).build();", "client.orders().create(Order.builder().amount(4200).build());"],
+  },
+  {
+    label: "C#",
+    install: "dotnet add package Yourco",
+    code: ["using Yourco;", "var client = new YourcoClient(apiKey);", "await client.Orders.CreateAsync(new() { Amount = 4200 });"],
+  },
+  {
+    label: "Ruby",
+    install: "gem install yourco",
+    code: ['require "yourco"', "client = Yourco::Client.new(api_key: api_key)", "client.orders.create(amount: 4200)"],
+  },
+];
+
+const SDK_HOLD_MS = 2600;
+
+/** Grayscale SDK window: cycles languages, typing each install command. */
+export function SdkInstall() {
+  const { ref, started, reduced, size } = useDrawIn();
+  const [lang, setLang] = useState(0);
+  const [typed, setTyped] = useState(-1);
+
+  useEffect(() => {
+    if (!started) return;
+    if (reduced) {
+      setTyped(SDK_LANGS[0]!.install.length);
+      return;
+    }
+    const timers: number[] = [];
+    let cancelled = false;
+    const play = (i: number, at: number) => {
+      const cmd = SDK_LANGS[i]!.install;
+      timers.push(
+        window.setTimeout(() => {
+          if (cancelled) return;
+          setLang(i);
+          setTyped(0);
+        }, at),
+      );
+      for (let c = 1; c <= cmd.length; c++) {
+        timers.push(window.setTimeout(() => !cancelled && setTyped(c), at + c * CLI_CHAR_MS));
+      }
+      const next = at + cmd.length * CLI_CHAR_MS + SDK_HOLD_MS;
+      timers.push(window.setTimeout(() => !cancelled && play((i + 1) % SDK_LANGS.length, 0), next));
+    };
+    play(0, DRAW_CONTENT_MS);
+    return () => {
+      cancelled = true;
+      timers.forEach(window.clearTimeout);
+    };
+  }, [started, reduced]);
+
+  const current = SDK_LANGS[lang]!;
+  const done = typed >= current.install.length;
+
+  return (
+    <div ref={ref} className="hg-cli-frame hg-draw" data-started={started ? "true" : "false"} aria-hidden="true">
+      <DrawTrace size={size} />
+      <div className="hg-win" data-started={started ? "true" : "false"}>
+        <div className="hg-win-tabs">
+          {SDK_LANGS.map((l, i) => (
+            <span key={l.label} className="hg-win-tab" data-active={i === lang ? "true" : undefined}>
+              {l.label}
+            </span>
+          ))}
+        </div>
+        <div className="hg-win-body">
+          <div className="hg-win-install">
+            <span className="hg-win-dim">$</span>
+            <span>{current.install.slice(0, Math.max(typed, 0))}</span>
+            <span className={`hg-cli-caret ${done ? "hg-cli-caret-blink" : ""}`} />
+          </div>
+          <div className="hg-win-code" data-visible={done ? "true" : "false"}>
+            {current.code.map((line, i) => (
+              <div key={`${lang}-${i}`} className="hg-win-code-line" style={{ transitionDelay: `${i * 90}ms` }}>
+                <span className="hg-win-ln">{i + 1}</span>
+                <span>{line}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const DOCS_PAGES = ["Introduction", "Authentication", "Orders", "Payments", "Webhooks"];
+const DOCS_QUERIES = ["create an order", "refund a payment", "verify webhooks"];
+const DOCS_STEP_MS = 2400;
+
+/** Grayscale docs-site mock: sidebar and page skeleton build in, then pages cycle. */
+export function DocsPreview() {
+  const { ref, started, reduced, size } = useDrawIn();
+  const [page, setPage] = useState(0);
+  const [query, setQuery] = useState("");
+
+  useEffect(() => {
+    if (!started || reduced) return;
+    const timers: number[] = [];
+    let step = 0;
+    const tick = () => {
+      step += 1;
+      setPage(step % DOCS_PAGES.length);
+      const q = DOCS_QUERIES[step % DOCS_QUERIES.length]!;
+      setQuery("");
+      for (let c = 1; c <= q.length; c++) timers.push(window.setTimeout(() => setQuery(q.slice(0, c)), c * 45));
+      timers.push(window.setTimeout(tick, DOCS_STEP_MS));
+    };
+    timers.push(window.setTimeout(tick, DRAW_CONTENT_MS + 1600));
+    return () => timers.forEach(window.clearTimeout);
+  }, [started, reduced]);
+
+  return (
+    <div ref={ref} className="hg-cli-frame hg-draw" data-started={started ? "true" : "false"} aria-hidden="true">
+      <DrawTrace size={size} />
+      <div className="hg-win hg-docs" data-started={started ? "true" : "false"}>
+        <div className="hg-docs-header">
+          <span className="hg-docs-logo" />
+          <span className="hg-docs-brand">Your company</span>
+          <span className="hg-docs-search">
+            <span className="hg-win-dim">⌕</span>
+            <span>{query || <span className="hg-win-dim">Search</span>}</span>
+          </span>
+        </div>
+        <div className="hg-docs-body">
+          <div className="hg-docs-side">
+            {DOCS_PAGES.map((p, i) => (
+              <span
+                key={p}
+                className="hg-docs-side-item"
+                data-active={i === page ? "true" : undefined}
+                style={{ transitionDelay: `${DRAW_CONTENT_MS + i * 80}ms` }}
+              >
+                {p}
+              </span>
+            ))}
+          </div>
+          <div className="hg-docs-main">
+            <span className="hg-docs-crumb">API reference</span>
+            <span key={page} className="hg-docs-title">
+              {DOCS_PAGES[page]}
+            </span>
+            {[92, 78, 85, 40].map((w, i) => (
+              <span key={i} className="hg-docs-bar" style={{ width: `${w}%`, transitionDelay: `${DRAW_CONTENT_MS + 300 + i * 90}ms` }} />
+            ))}
+            <span className="hg-docs-block" style={{ transitionDelay: `${DRAW_CONTENT_MS + 700}ms` }}>
+              <span className="hg-docs-method">POST</span>
+              <span>/v1/{DOCS_PAGES[page]!.toLowerCase()}</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
