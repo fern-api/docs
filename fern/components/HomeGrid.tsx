@@ -672,6 +672,10 @@ type QuickNavLink = { label: string; href: string };
 /** Sticky left rail that jumps to page sections and tracks the one in view. */
 export function QuickNav({ items, links = [] }: { items: QuickNavItem[]; links?: QuickNavLink[] }) {
   const [active, setActive] = useState(items[0]?.id);
+  // While a click-triggered smooth scroll runs, hold the clicked item so the
+  // highlight doesn't flash through the sections scrolled past.
+  const lockRef = useRef(false);
+  const unlockRef = useRef(0);
 
   useEffect(() => {
     let raf = 0;
@@ -687,6 +691,11 @@ export function QuickNav({ items, links = [] }: { items: QuickNavItem[]; links?:
       setActive(current);
     };
     const onScroll = () => {
+      if (lockRef.current) {
+        window.clearTimeout(unlockRef.current);
+        unlockRef.current = window.setTimeout(() => (lockRef.current = false), 150);
+        return;
+      }
       if (!raf) raf = requestAnimationFrame(update);
     };
     update();
@@ -694,6 +703,7 @@ export function QuickNav({ items, links = [] }: { items: QuickNavItem[]; links?:
     window.addEventListener("resize", onScroll);
     return () => {
       cancelAnimationFrame(raf);
+      window.clearTimeout(unlockRef.current);
       document.removeEventListener("scroll", onScroll, { capture: true });
       window.removeEventListener("resize", onScroll);
     };
@@ -703,6 +713,9 @@ export function QuickNav({ items, links = [] }: { items: QuickNavItem[]; links?:
     const el = document.getElementById(id);
     if (!el) return;
     e.preventDefault();
+    lockRef.current = true;
+    window.clearTimeout(unlockRef.current);
+    unlockRef.current = window.setTimeout(() => (lockRef.current = false), 1000);
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const headerBottom = document.getElementById("fern-header")?.getBoundingClientRect().bottom ?? 0;
     window.scrollTo({
