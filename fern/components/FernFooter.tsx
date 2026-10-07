@@ -242,7 +242,7 @@ function buildLeafHaloMask(dilate: number, blur: number) {
   )}`;
 }
 
-const HALO_MASK_URL = buildHaloMask(6, 6);
+const HALO_MASK_URL = buildHaloMask(7, 7);
 const HALO_MASK_URL_MOBILE = buildLeafHaloMask(14, 12);
 
 type FieldMask = {
@@ -450,7 +450,9 @@ function FooterFernCutout() {
             continue;
           }
           if (haloPixels) {
-            const sample = mx < haloW && my < haloH ? haloPixels[(my * haloW + mx) * 4 + 3]! / 255 : 0;
+            const raw = mx < haloW && my < haloH ? haloPixels[(my * haloW + mx) * 4 + 3]! / 255 : 0;
+            // Lift the falloff so blades near the wordmark contrast more.
+            const sample = raw > 0.02 ? Math.min(1, Math.pow(raw, 0.55) * 1.15) : 0;
             const style =
               sample > 0.02
                 ? `rgb(${(baseRgb![0] + (highlightRgb![0] - baseRgb![0]) * sample) | 0},${(baseRgb![1] + (highlightRgb![1] - baseRgb![1]) * sample) | 0},${(baseRgb![2] + (highlightRgb![2] - baseRgb![2]) * sample) | 0})`
