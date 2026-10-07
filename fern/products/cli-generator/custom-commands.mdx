@@ -1,0 +1,110 @@
+---
+title: Custom commands
+description: Add your own Rust commands to a generated CLI, such as workflows that chain API calls, shortcuts, and local utilities.
+availability: beta
+---
+
+<Note title="Early access">
+The CLI generator is in early access. [Reach out](https://buildwithfern.com/book-demo?type=cli) to get started.
+</Note>
+
+Custom commands are subcommands you write in Rust and compile into the generated CLI alongside the commands derived from your API spec. Use them for anything that doesn't map to a single endpoint: a workflow that chains several API calls, a shortcut for a common task, or a local utility such as verifying a webhook signature.
+
+Custom commands call your API through a typed SDK client that Fern generates with the CLI. That client uses the CLI's own auth, retries, base URL, TLS settings, and global headers, so a handler doesn't need to set any of these up.
+
+## Generated files
+
+Custom command support is on by default. Each `fern generate` run produces these files in the CLI repository:
+
+| Path | Description | Regenerated |
+| --- | --- | --- |
+| `cli/<binaryName>/custom.rs` | Where you register and write your commands | No (listed in `.fernignore`) |
+| `cli/<binaryName>/sdk.rs` | Helpers that connect your handlers to the SDK client: `client()` and `block_on()` | Yes |
+| `cli/<binaryName>/main.rs` | CLI entry point, which calls `custom::register(app)` at startup | Yes |
+| `<binaryName>-sdk/` | Typed Rust SDK for your API | Yes |
+| `<binaryName>-types/` | Typed Rust models for your API's request and response bodies | Yes |
+
+<Tip>
+The generated repository also includes `.agents/skills/custom-commands/SKILL.md`, a guide written for coding agents that uses your API's real endpoint and client names. Point an agent such as Claude Code at it to have it write custom commands for you.
+</Tip>
+
+## Add a command
+
+<Steps>
+
+<Step title="Register the command in custom.rs">
+
+Open `cli/<binaryName>/custom.rs`. The generated file contains a `register` function with a commented-out example. Add each command with `app.command(...)`: a [clap](https://docs.rs/clap) `Command` that defines the name, help text, and arguments, plus a handler wrapped in `OpenApiBinding::handler(...)`.
+
+```rust title="cli/plant/custom.rs"
+use fern_cli_sdk::app::CliApp;
+use fern_cli_sdk::openapi::OpenApiBinding;
+
+pub fn register(app: CliApp) -> CliApp {
+    app.command(
+        clap::Command::new("get-plant")
+            .about("Fetch a plant by its ID")
+            .arg(clap::Arg::new("plant-id").required(true)),
+        OpenApiBinding::handler(|matches, ctx| {
+            let plant_id = matches.get_one::<String>("plant-id").unwrap();
+            let client = super::sdk::client(ctx);
+            let plant = super::sdk::block_on(
+                client.plants.get_plant(plant_id, None),
+            )?;
+            println!("{}", serde_json::to_string_pretty(&plant).unwrap());
+            Ok(())
+        }),
+    )
+}
+```
+
+The handler must be wrapped in `OpenApiBinding::handler(...)`. Passing a bare closure doesn't compile.
+
+</Step>
+
+<Step title="Build and run it">
+
+```bash
+cargo build
+./target/debug/plant get-plant 123
+```
+
+The new command shows up in `plant --help` next to the spec-derived commands. Pass `--debug` to print the full HTTP request and response for every SDK call the handler makes.
+
+</Step>
+
+</Steps>
+
+## Call your API from a handler
+
+Two helpers in the generated `sdk.rs` cover most handlers:
+
+- **`super::sdk::client(ctx)`** returns the typed SDK client, with one field per resource in your API (for example, `client.plants`). Requests go through the CLI's own HTTP stack, so the user's credentials, `--base-url`, retries, and global headers all apply.
+- **`super::sdk::block_on(future)`** runs an async SDK call from inside the handler and converts SDK errors into CLI errors, so `?` works as expected.
+
+Typed models are available from `<binary_name>_sdk::api::*` (for a CLI named `plant`, `use plant_sdk::api::*;`). To chain calls, use the result of one SDK call as the input to the next inside the same handler.
+
+## Choose where the command appears
+
+| Method | Result |
+| --- | --- |
+| `app.command(cmd, handler)` | Top-level command, such as `plant get-plant` |
+| `app.command_under(&["plants"], cmd, handler)` | Nested under an existing command group, such as `plant plants verify` |
+| `app.command_typed("adopt", "Adopt a plant", handler)` | Top-level command whose arguments come from a `#[derive(clap::Args)]` struct instead of manual `ArgMatches` parsing |
+| `app.command_under_typed(&["plants"], "find", "Find plants by name", handler)` | Typed version of `command_under` |
+
+To keep your own commands at the top level and the API commands under a single group, set `rootGroup` in `generators.yml`. With the following config, `plant plants list` becomes `plant api plants list`:
+
+```yaml title="generators.yml"
+config:
+  binaryName: plant
+  rootGroup: api
+```
+
+## Things to know
+
+- **Regeneration doesn't touch `custom.rs`**, but everything it calls is regenerated from your spec. If a spec change renames an endpoint or resource, update `custom.rs` to match. `cargo build` reports every call that no longer exists.
+- **Handlers control their own output.** Response transforms and error-recovery hooks configured on the CLI only apply to spec-derived commands, so print results however suits the command.
+- **Extra Rust crates go in `generators.yml`.** If a handler imports a crate the CLI doesn't already depend on, add it with [`extraDependencies`](/learn/cli-generator/get-started/configuration#extradependencies) instead of editing `Cargo.toml`, which is regenerated.
+- **Wire tests don't cover custom commands.** The optional [`generateWireTests`](/learn/cli-generator/get-started/configuration#generatewiretests) suite only tests spec-derived commands, so add your own tests for custom ones.
+- **You can turn custom commands off.** Set [`customCommands: false`](/learn/cli-generator/get-started/configuration#customcommands) to generate a spec-only CLI without `custom.rs` or the SDK and types crates.
