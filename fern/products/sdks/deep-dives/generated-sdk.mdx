@@ -82,7 +82,7 @@ Your SDK users can configure individual requests using language-specific options
 | Custom headers | Send additional headers with any request | TypeScript, Java, and Swift |
 | Raw response data | Access response headers alongside parsed data | TypeScript, Python, and Go |
 | Query parameters | Add extra query string parameters | TypeScript and Swift |
-| [Additional body parameters](#additional-body-parameters) | Send extra properties in the request body, such as beta fields that aren't in your API definition | TypeScript and Python |
+| [Additional body parameters](#additional-body-parameters) | Send extra properties in the request body, such as beta fields that aren't in your API definition | All languages |
 | Abort signals | Cancel in-flight requests | TypeScript only |
 
 ### Additional body parameters
@@ -106,6 +106,91 @@ SDK users can send request body properties that aren't part of the generated req
     )
     ```
   </CodeBlock>
+  <CodeBlock title="Go">
+    ```go {4-6}
+    response, err := client.Plants.Create(
+      ctx,
+      &acme.CreatePlantRequest{Name: "Monstera"},
+      option.WithBodyProperties(map[string]interface{}{
+        "watering_schedule": "weekly",
+      }),
+    )
+    ```
+  </CodeBlock>
+  <CodeBlock title="Java">
+    ```java {3-5}
+    client.plants().create(
+        CreatePlantRequest.builder().name("Monstera").build(),
+        RequestOptions.builder()
+            .addBodyProperty("watering_schedule", "weekly")
+            .build()
+    );
+    ```
+  </CodeBlock>
+  <CodeBlock title="C#">
+    ```csharp {3-9}
+    await client.Plants.CreateAsync(
+        new CreatePlantRequest { Name = "Monstera" },
+        new RequestOptions
+        {
+            AdditionalBodyProperties = new Dictionary<string, object?>
+            {
+                ["watering_schedule"] = "weekly",
+            },
+        }
+    );
+    ```
+  </CodeBlock>
+  <CodeBlock title="PHP">
+    ```php {3}
+    $client->plants->create(
+        new CreatePlantRequest(['name' => 'Monstera']),
+        ['bodyProperties' => ['watering_schedule' => 'weekly']],
+    );
+    ```
+  </CodeBlock>
+  <CodeBlock title="Ruby">
+    ```ruby {3-5}
+    client.plants.create(
+      name: "Monstera",
+      request_options: {
+        additional_body_parameters: { "watering_schedule" => "weekly" }
+      }
+    )
+    ```
+  </CodeBlock>
+  <CodeBlock title="Rust">
+    ```rust {3}
+    let response = client.plants.create(
+        &request,
+        Some(RequestOptions::new().additional_body_param("watering_schedule", "weekly")),
+    ).await?;
+    ```
+  </CodeBlock>
+  <CodeBlock title="Swift">
+    ```swift {3-5}
+    let plant = try await client.plants.create(
+        request: .init(name: "Monstera"),
+        requestOptions: .init(
+            additionalBodyProperties: ["watering_schedule": "weekly"]
+        )
+    )
+    ```
+  </CodeBlock>
 </CodeBlocks>
 
-In TypeScript, `additionalBodyParameters` requires [generator version 3.78.0](/learn/sdks/generators/typescript/changelog) or later and applies only to endpoints with a JSON request body. File upload (multipart) endpoints ignore it.
+Behavior varies slightly by language:
+
+| Language | Minimum generator version | Supported request bodies | Notes |
+|----------|---------------------------|--------------------------|-------|
+| TypeScript | [3.78.0](/learn/sdks/generators/typescript/changelog) | JSON | |
+| Python | Any | JSON | |
+| Go | [1.65.3](/learn/sdks/generators/go/changelog) | JSON and form-encoded | Earlier versions return an error when a key matches a generated property instead of overriding it. |
+| Java | [4.24.0](/learn/sdks/generators/java/changelog) | JSON and form-encoded | |
+| C# | [2.86.2](/learn/sdks/generators/csharp/changelog) | JSON and form-encoded | Nested objects are merged recursively rather than replaced. Earlier versions support JSON bodies only and throw an error on endpoints without a request body. |
+| PHP | [0.11.0](/learn/sdks/generators/php/changelog) | JSON | Ignored on endpoints without a JSON request body. |
+| Ruby | [1.30.1](/learn/sdks/generators/ruby/changelog) | JSON and form-encoded | Ignored on `GET` and `HEAD` requests. |
+| Rust | [0.53.0](/learn/sdks/generators/rust/changelog) | JSON and form-encoded | |
+| Swift | [0.37.0](/learn/sdks/generators/swift/changelog) | JSON | Ignored on `GET` and `HEAD` requests. `additionalBodyParameters` is also available but accepts only string values. |
+
+In every language, file upload (multipart) endpoints ignore additional body parameters. When an endpoint has no request body, most SDKs send the additional properties as a JSON body.
