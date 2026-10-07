@@ -676,7 +676,6 @@ export function QuickNav({ items, links = [] }: { items: QuickNavItem[]; links?:
   // highlight doesn't flash through the sections scrolled past.
   const navRef = useRef(null);
   const lockRef = useRef(false);
-  const unlockRef = useRef(0);
 
   useEffect(() => {
     let raf = 0;
@@ -692,11 +691,7 @@ export function QuickNav({ items, links = [] }: { items: QuickNavItem[]; links?:
       setActive(current);
     };
     const onScroll = () => {
-      if (lockRef.current) {
-        window.clearTimeout(unlockRef.current);
-        unlockRef.current = window.setTimeout(() => (lockRef.current = false), 150);
-        return;
-      }
+      if (lockRef.current) return;
       if (!raf) raf = requestAnimationFrame(update);
     };
     // Line the first link's text up with the first section's heading.
@@ -704,16 +699,27 @@ export function QuickNav({ items, links = [] }: { items: QuickNavItem[]; links?:
       const nav = navRef.current as HTMLElement | null;
       const first = items[0] && document.getElementById(items[0].id);
       const title = first?.querySelector(".card-title, h1, h2, h3") ?? first;
+      const inner = nav?.querySelector(".hg-quicknav-inner") as HTMLElement | null;
       const link = nav?.querySelector(".hg-quicknav-link") as HTMLElement | null;
-      if (!nav || !title || !link || nav.offsetParent === null) return;
+      if (!nav || !inner || !title || !link || nav.offsetParent === null) return;
       const t = title.getBoundingClientRect();
-      const offset = t.top + t.height / 2 - nav.getBoundingClientRect().top - link.offsetHeight / 2;
+      // The inner column is sticky, so measure from where it actually sits.
+      const offset = t.top + t.height / 2 - inner.getBoundingClientRect().top - link.offsetHeight / 2;
       nav.style.setProperty("--hg-quicknav-offset", `${Math.max(0, Math.round(offset))}px`);
     };
     const onResize = () => {
       align();
       onScroll();
     };
+    // Hold the clicked item until the user scrolls on their own; the target
+    // may sit too low on the page to ever reach the active line.
+    const release = () => {
+      if (!lockRef.current) return;
+      lockRef.current = false;
+      onScroll();
+    };
+    const userInputs = ["wheel", "touchmove", "keydown", "pointerdown"];
+    userInputs.forEach((type) => window.addEventListener(type, release, { passive: true }));
     align();
     document.fonts?.ready.then(align);
     const alignLater = window.setTimeout(align, 1500);
@@ -722,8 +728,8 @@ export function QuickNav({ items, links = [] }: { items: QuickNavItem[]; links?:
     window.addEventListener("resize", onResize);
     return () => {
       cancelAnimationFrame(raf);
-      window.clearTimeout(unlockRef.current);
       window.clearTimeout(alignLater);
+      userInputs.forEach((type) => window.removeEventListener(type, release));
       document.removeEventListener("scroll", onScroll, { capture: true });
       window.removeEventListener("resize", onResize);
     };
@@ -734,8 +740,6 @@ export function QuickNav({ items, links = [] }: { items: QuickNavItem[]; links?:
     if (!el) return;
     e.preventDefault();
     lockRef.current = true;
-    window.clearTimeout(unlockRef.current);
-    unlockRef.current = window.setTimeout(() => (lockRef.current = false), 1000);
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const headerBottom = document.getElementById("fern-header")?.getBoundingClientRect().bottom ?? 0;
     window.scrollTo({
