@@ -1,3 +1,34 @@
+## 3.104.5
+**`(fix):`** Paginated endpoints no longer modify the request object you pass in. Calling `getNextPage()`
+used to write the next cursor or offset into your original request (including nested fields
+such as `options.offset`), so reusing that object started from the wrong position. The pager
+now sends an updated copy and leaves your request unchanged.
+
+
+## 3.104.4
+**`(fix):`** SSE unions discriminated by the `event:` line (`x-fern-discriminator-context: protocol`) now parse
+both variant styles: envelope variants (`{event, data: Payload}`) are built from the `data:` JSON,
+and payload variants (the `data:` JSON itself) get the `event:` value injected as the discriminant.
+The event name no longer has to be repeated inside the `data:` JSON.
+
+
+## 3.104.3
+**`(fix):`** Malformed JSON no longer loses HTTP details. An error response labelled JSON whose body isn't valid
+JSON (for example a `502` HTML page from a proxy) now throws the SDK's API error with the status code,
+raw body and response headers, instead of a generic JSON parse error. Error responses with no
+`Content-Type` now carry the raw text as the error body. A successful response with a JSON
+`Content-Type` (`application/json`, `text/json` or `*+json`) and malformed JSON now throws the SDK's
+API error too, instead of resolving the internal `{ ok: false, error: ... }` record as if it were the
+endpoint's data. Successful non-JSON bodies, such as `200 OK` as `text/plain` on a void endpoint,
+still resolve as before.
+
+
+**`(fix):`** Cancelling a request with `abortSignal` while the SDK is waiting to retry (for example after a
+`429` with `Retry-After`) now stops the wait right away and does not send another request. Before,
+the call stayed pending until the backoff finished. The backoff timer and abort listener are always
+cleaned up.
+
+
 ## 3.104.2
 **`(fix):`** `timeoutInSeconds` now also covers reading the response body. Before, the timer stopped as soon as
 headers arrived, so a response whose JSON body was slow to arrive could take far longer than the
