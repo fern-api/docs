@@ -246,51 +246,53 @@ Report on how our docs are doing: the pages readers spend the most time on, wher
 
 ## Clerk
 
-Clerk watches the pull requests that merge in your product repositories and keeps your docs in step with them. Unlike scheduled automations — which run a prompt on a cron — Clerk is triggered by code changes: every merged pull request is reviewed as it arrives, and Clerk decides whether the docs need updating.
+Clerk watches the pull requests that merge in your product repositories and keeps your docs in step with them. Where a scheduled automation runs a prompt at a set time, Clerk runs on code changes: it reviews every merged pull request and decides whether the docs need updating.
 
 ### Setup
 
 <Steps>
 <Step title="Create a Clerk automation">
-On the **Automations** page, find the Clerk section and click **Set up Clerk** (or **New Clerk automation** if you already have one). In the dialog:
+On the **Automations** page, find the **Clerk** section and select **Set up Clerk** (or **New Clerk automation** if you already have one). If you haven't authorized Fern yet, the dialog first asks you to **Authorize** Fern to review merges as you. One authorization covers all your automations.
 
-- **Authorize Fern** to review merges as you. One authorization covers all your automations. Granting access opens in a new tab; the dialog moves on to setup once it lands.
-- Choose a **name**, the **docs site** Clerk keeps current (picked from your org's sites, or typed in), a **cadence**, and whether Clerk should open pull requests.
+Choose a **Name**, the **Docs site** Clerk keeps current, a [cadence](#cadence), and whether Clerk should **Open docs pull requests**, then select **Save**.
 </Step>
 
-<Step title="Choose a cadence">
-Three options control when Clerk acts on what it finds:
+<Step title="Connect your repositories">
+Open the automation's page. Under **Repositories**, select **Install the Fern GitHub App** and install it on each repository Clerk should review and on the repository your docs site publishes from. Then add each repository to review, as `owner/name` or its GitHub URL. An automation watches up to 20 repositories, and each must belong to the same GitHub owner as your docs repository.
 
-- **Review each merge** (`immediate`): every merged pull request is reviewed as it lands and may open its own docs pull request.
-- **Daily digest**: every merged pull request is reviewed as it lands; the ones that need a docs change wait for one docs pull request per day.
-- **Weekly digest**: same, but one docs pull request per week.
-</Step>
-
-<Step title="Connect a repository">
-After creating the automation, open its detail page. Under **Repositories**:
-
-1. Add a repository secret named `FERN_TOKEN` holding a Fern token for your organization. Create one with `fern token`.
-2. Commit the generated GitHub Actions workflow to `.github/workflows/fern-clerk.yml` in the repository whose merges Clerk should review. The workflow file is pre-filled with your org and automation ID.
-
-A repository shows up as connected after its first merged pull request reaches Clerk.
+Clerk receives every pull request merged into a listed repository's default branch. A repository appears under **Connected repositories** after its first merged pull request reaches Clerk.
 </Step>
 </Steps>
 
+### Cadence
+
+Clerk reviews every merged pull request as it arrives, whatever the cadence. The cadence controls when Clerk writes the docs changes those reviews call for:
+
+| Cadence | When Clerk writes docs changes |
+|---------|--------------------------------|
+| **Review each merge** (default) | Right after each review. A merge that needs a docs change gets a docs pull request, and Clerk comments on the source pull request. |
+| **Daily digest** | Every day at 09:00 UTC. |
+| **Weekly digest** | Every Monday at 09:00 UTC. |
+
+A daily or weekly digest suits repositories that merge often. Clerk holds the merges that need a docs change, and the digest opens one docs pull request covering them all, adding to the automation's previous docs pull request if it's still open. Clerk comments only on the source pull requests the digest updated docs for, so merges that need no docs change get no comment. A digest with no merges waiting does nothing.
+
+To write a digest before its scheduled time, select **Open digest now** on the automation's page. Switching an automation back to **Review each merge** writes the merges it was holding without waiting for the next digest.
+
 ### Modes
 
-Clerk operates in one of two modes, set when creating or updating the automation:
+The **Open docs pull requests** setting controls whether Clerk acts on its reviews:
 
-- **Opens docs pull requests** (`open_pr`): when a merge changes what the docs say, Clerk opens or adds to a docs pull request and comments on the source pull request.
-- **Observing only** (`observe`): Clerk records what it would have changed, but posts nothing and opens nothing. The review shows up in the merge history.
+- **Opens docs pull requests** (on): when a merge changes what the docs say, Clerk opens or adds to a docs pull request and comments on the source pull request, on the automation's cadence.
+- **Observing only** (off): Clerk records what it would have changed, but posts nothing and opens nothing. Each review shows up in the automation's merge history as the merge arrives, so the cadence has no effect.
 
 ### Detail page
 
-Each Clerk automation has a detail page with:
+Each Clerk automation has its own page with:
 
-- An on/off toggle and an **Open digest now** button (enabled when reviewed merges are waiting on a digest).
-- A **Configuration** card to update the docs site, cadence, and mode.
-- A **Repositories** card showing connected repositories and the workflow to install.
-- A **Merges** table showing every merge Clerk has been told about: repo, PR link, merge time, lifecycle stage (queued / reviewing / pending digest / done), Clerk's verdict, and a link to any docs PR opened.
+- An on/off toggle and the **Open digest now** button, which shows how many merges are waiting for the next digest.
+- A **Configuration** section to update the docs site, cadence, and mode, with a link to Clerk's current docs pull request.
+- A **Merges** table listing every merge Clerk has received, its review status, Clerk's verdict, and the resulting docs pull request. Merges held for a digest show as **Docs update · next digest**. You can label each verdict **Correct**, **False positive**, or **False negative**.
+- A **Repositories** section listing connected and watched repositories.
 
 ### Permissions
 
