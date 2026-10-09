@@ -17,10 +17,12 @@ Each message sent through the MCP server runs Ask Fern under the hood and consum
 
 ## Self-hosted containers
 
-[Self-hosted](/learn/docs/self-hosted/overview) containers also serve `/_mcp/server`, without Ask Fern or AI credits. The self-hosted server doesn't use the RAG pipeline. It exposes two tools instead:
+[Self-hosted](/learn/docs/self-hosted/overview) containers also serve `/_mcp/server`, without Ask Fern or AI credits. Instead of the RAG pipeline, the self-hosted server exposes two tools:
 
-- **`searchDocs`** runs keyword search against the container's own Meilisearch index, configured with [`MEILISEARCH_ORIGIN` and `MEILISEARCH_MASTER_KEY`](/learn/docs/self-hosted/set-up#mcp-search). Results are filtered by the caller's roles and access, the same way a browser request is. If Meilisearch isn't configured, the tool returns a "search is not configured" message instead of an error.
-- **`fetchPage`** reads a page's [Markdown](/learn/docs/ai-features/markdown) through the container's own router, so access control is enforced. It works whether or not Meilisearch is configured.
+- **`searchDocs`** runs keyword search against the container's built-in search index and returns matching pages rather than a synthesized answer.
+- **`fetchPage`** returns a page's [Markdown](/learn/docs/ai-features/markdown).
+
+Both tools enforce the same access control as a browser request. A result is only returned for a page the caller could open, based on their roles and credentials (including a [`FERN_TOKEN` header](#authenticated-sites)). Setting `mcp: false` [disables the server](#disable-the-mcp-server) on self-hosted containers too.
 
 ## Connect to your MCP server
 
