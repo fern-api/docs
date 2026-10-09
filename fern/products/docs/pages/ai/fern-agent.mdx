@@ -244,6 +244,60 @@ Review the feedback readers left on our docs pages and fix the pages they said w
 Report on how our docs are doing: the pages readers spend the most time on, where they drop off, the searches that return nothing, and what changed since last week.
 </Prompt>
 
+## Clerk
+
+Clerk watches the pull requests that merge in your product repositories and keeps your docs in step with them. Where a scheduled automation runs a prompt at a set time, Clerk runs on code changes: it reviews every merged pull request and decides whether the docs need updating.
+
+### Setup
+
+<Steps>
+<Step title="Create a Clerk automation">
+On the **Automations** page, find the **Clerk** section and select **Set up Clerk** (or **New Clerk automation** if you already have one). If you haven't authorized Fern yet, the dialog first asks you to **Authorize** Fern to review merges as you. One authorization covers all your automations.
+
+Choose a **Name**, the **Docs site** Clerk keeps current, a [cadence](#cadence), and whether Clerk should **Open docs pull requests**, then select **Save**.
+</Step>
+
+<Step title="Connect your repositories">
+Open the automation's page. Under **Repositories**, select **Install the Fern GitHub App** and install it on each repository Clerk should review and on the repository your docs site publishes from. Then add each repository to review, as `owner/name` or its GitHub URL. An automation watches up to 20 repositories, and each must belong to the same GitHub owner as your docs repository.
+
+Clerk receives every pull request merged into a listed repository's default branch. A repository appears under **Connected repositories** after its first merged pull request reaches Clerk.
+</Step>
+</Steps>
+
+### Cadence
+
+Clerk reviews every merged pull request as it arrives, whatever the cadence. The cadence controls when Clerk writes the docs changes those reviews call for:
+
+| Cadence | When Clerk writes docs changes |
+|---------|--------------------------------|
+| **Review each merge** (default) | Right after each review. A merge that needs a docs change gets a docs pull request, and Clerk comments on the source pull request. |
+| **Daily digest** | Every day at 09:00 UTC. |
+| **Weekly digest** | Every Monday at 09:00 UTC. |
+
+A daily or weekly digest suits repositories that merge often. Clerk holds the merges that need a docs change, and the digest opens one docs pull request covering them all, adding to the automation's previous docs pull request if it's still open. Clerk comments only on the source pull requests the digest updated docs for, so merges that need no docs change get no comment. A digest with no merges waiting does nothing.
+
+To write a digest before its scheduled time, select **Open digest now** on the automation's page. Switching an automation back to **Review each merge** writes the merges it was holding without waiting for the next digest.
+
+### Modes
+
+The **Open docs pull requests** setting controls whether Clerk acts on its reviews:
+
+- **Opens docs pull requests** (on): when a merge changes what the docs say, Clerk opens or adds to a docs pull request and comments on the source pull request, on the automation's cadence.
+- **Observing only** (off): Clerk records what it would have changed, but posts nothing and opens nothing. Each review shows up in the automation's merge history as the merge arrives, so the cadence has no effect.
+
+### Detail page
+
+Each Clerk automation has its own page with:
+
+- An on/off toggle and the **Open digest now** button, which shows how many merges are waiting for the next digest.
+- A **Configuration** section to update the docs site, cadence, and mode, with a link to Clerk's current docs pull request.
+- A **Merges** table listing every merge Clerk has received, its review status, Clerk's verdict, and the resulting docs pull request. Merges held for a digest show as **Docs update · next digest**. You can label each verdict **Correct**, **False positive**, or **False negative**.
+- A **Repositories** section listing connected and watched repositories.
+
+### Permissions
+
+Everyone in the organization sees every Clerk automation. Only its creator can change, delete, or toggle it. Turning it off pauses reviews; merges are still recorded.
+
 ## Privacy and data handling
 
 Fern Agent acts with your own Fern permissions on every surface, so it reads and edits only the sites, analytics, and organization data your account can already see. Requests are scoped to a single session: the prompt, any Slack message or thread you tag it in, and attached files are stored to complete the task and aren't retained afterward.
