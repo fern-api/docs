@@ -1,0 +1,61 @@
+---
+title: Maintaining MCP servers
+description: Regenerate on spec changes, catch breaking tool changes before you publish, and keep a published server's toolset stable.
+availability: beta
+---
+
+Maintaining a generated MCP server follows the same loop as an SDK — edit config, regenerate — with a few commands on top for a surface an SDK doesn't have: a live toolset that downstream agents depend on staying stable.
+
+| Command | What it does |
+|---|---|
+| `fern mcp list` | Table of every configured MCP group: server name, presets, tool count, token estimate, output target, and toolset overlaps with other groups. |
+| `fern mcp tools [--group g] [--preset p]` | Resolved toolset for a group, with per-tool token cost, the [budget verdict](/learn/mcp-generator/get-started/tool-selection#the-budget-verdict), and a quality lint (missing or derived-from-junk descriptions, tool name collisions, ambiguous near-duplicate tools, oversized responses). `--refine` opens the mutation loop; `--diff` compares the resolved toolset against `tools.lock`. |
+| `fern generate --group g` | Regenerates the server from the current config and spec, same as any other generator. |
+| `fern generator upgrade` | Upgrades the pinned generator version, same as for SDKs. |
+| `fern check` | Validates config, including the [MCP-specific rules](#fern-check-rules). |
+
+## `tools.lock`
+
+`fern generate` writes a `tools.lock` file next to `generators.yml` — the resolved tool names, input schema hashes, and token costs for that group, at that generation. It's the baseline `fern mcp tools --diff` compares against, and the artifact that makes a breaking-change classification reviewable in a pull request alongside the config change that caused it.
+
+## Breaking-change handling
+
+A renamed or removed tool breaks any agent already integrated against it — a worse failure than a breaking SDK change, because nobody recompiles an agent's tool list. `fern mcp tools --diff` classifies every delta against `tools.lock`:
+
+- **Additive** — a new tool, or a longer/clarified description.
+- **Breaking** — a tool removed or renamed, a required parameter added, response fields dropped, or the server's identity changed (`server-name` or package name, on a group that's already published).
+
+A breaking delta produces a `fern check` warning and a major-version-bump recommendation on publish; an additive one recommends a minor bump. This release detects and warns — it doesn't prevent a breaking change from generating or publishing.
+
+To retire a tool without breaking existing integrations immediately, mark it deprecated instead of removing it:
+
+```yaml
+config:
+  tools:
+    overrides:
+      POST /v1/charges:
+        deprecated: true
+```
+
+This keeps the tool available but marks it deprecated in its description, giving downstream agents a migration window instead of an outage.
+
+## `fern check` rules
+
+Beyond the general SDK checks, `fern check` also flags, for MCP groups:
+
+- A [budget](/learn/mcp-generator/get-started/tool-selection#the-budget-verdict) warning.
+- An `include`/`exclude` selector that matches nothing.
+- A destructive endpoint with no `destructive` annotation override.
+- A new spec endpoint matching no configured group.
+- An **orphaned override** — an `overrides` entry keyed to an endpoint no longer in the spec, so a hand-written description doesn't just silently stop applying.
+- A `server-name` or package rename on an already-published group, which `tools --diff` can't see on its own since it compares tools, not identity.
+- A `response-fields` projection set under a generator version that doesn't support it.
+
+All of these print as warnings, not blockers, in CI and `--json` output.
+
+## Updating a server
+
+- **Spec changed** — regenerate; `fern mcp tools --diff` reports what moved.
+- **Renaming or pruning tools** — edit `overrides` or `exclude`, then regenerate.
+- **New generator version** — `fern generator upgrade`.
+- **Publishing** — the same `github` and npm output blocks, and the same autorelease infrastructure, as SDK generators.

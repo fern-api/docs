@@ -1,0 +1,39 @@
+---
+title: Authentication
+description: How your API's security schemes become the environment variables an MCP server reads at startup.
+availability: beta
+---
+
+The generated MCP server doesn't need a separate auth configuration. It reads one environment variable per security scheme declared under your spec's `components.securitySchemes` and forwards it as the corresponding header on every request that needs it.
+
+## How the variable name is derived
+
+The variable's base name is the security scheme's key, upper-snake-cased. A scheme named `widgetKey` becomes `WIDGET_KEY`; a scheme named `apiToken` becomes `API_TOKEN`.
+
+- **HTTP Basic** schemes get two variables: `{BASE}_USERNAME` and `{BASE}_PASSWORD`.
+- Every other scheme type — API key, bearer token, another HTTP scheme — gets one: `{BASE}` itself.
+
+A scheme named `basicAuth` with type `http`/`basic`, for example, produces `BASIC_AUTH_USERNAME` and `BASIC_AUTH_PASSWORD`.
+
+Generation fails if a scheme's derived base isn't a legal environment variable name, or if it collides with another scheme's base or with one of the two reserved names, `BASE_URL` or `MCP_TOOLSET` — so a naming conflict surfaces at generation time instead of as a runtime mystery.
+
+## Always-present variables
+
+Every generated server also reads:
+
+- **`BASE_URL`** — the API's base URL.
+- **`MCP_TOOLSET`** — selects which [toolset or preset](/learn/mcp-generator/get-started/configuration#presets) the server exposes at startup. Its description lists every valid value: `default`, plus whatever you've configured.
+
+Because these two names are reserved, no security scheme in your spec can be named `baseUrl` or `mcpToolset` — rename the scheme if it collides.
+
+## Where the description comes from
+
+Each environment variable's description comes from the security scheme's own OpenAPI `description`, when you've written one. Otherwise the generator fills in a fallback naming the credential type, such as "Credential for the widgetKey security scheme (API key)."
+
+## Missing credentials
+
+Every environment variable is optional at startup, so the server always starts even with none set. A tool call that needs a credential you haven't set fails when it's made, not before. [`fern mcp dev`](/learn/mcp-generator/get-started/local-development) checks for this up front: it detects which credentials the toolset you're running actually needs and prints the exact `export` command for anything missing, instead of leaving you to debug a 401.
+
+## Current limits
+
+OAuth client-credentials schemes aren't supported as a server's only auth source — the generated server has no token-acquisition flow to run, so generation fails outright if every security scheme your spec declares is OAuth client-credentials. Add an API key or bearer scheme for the endpoints an MCP client should reach, or [scope the toolset](/learn/mcp-generator/get-started/tool-selection) away from the ones that require it.
