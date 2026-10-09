@@ -1,0 +1,186 @@
+---
+title: XML-encoded types
+description: Generate typed XML serializers, parsers, and fluent builders for object types that carry OpenAPI xml metadata, in every Fern SDK.
+---
+
+Object types that carry XML encoding metadata are generated as XML-capable models. Each one gets a serializer, a parser, and fluent builder methods for its child elements, so SDK users build and read XML documents (for example, telephony markup such as TwiML) through typed code instead of hand-written strings.
+
+Fern generates XML support in TypeScript, Python, Java, C#, Go, Ruby, and PHP SDKs. No `generators.yml` configuration is required: generation is driven entirely by the XML metadata in your API definition. Types without XML metadata are unchanged, and the XML runtime is only added to an SDK when an XML-encoded type references it.
+
+## Define types with XML metadata
+
+Fern reads the OpenAPI [`xml` object](https://spec.openapis.org/oas/v3.1.0#xml-object) on object schemas and their properties. `name` sets the element or attribute name, `attribute: true` emits a property as an XML attribute instead of a child element, and `wrapped: true` wraps an array in a container element. `prefix` and `namespace` are honored as well.
+
+```yaml
+components:
+  schemas:
+    Garden:
+      type: object
+      xml:
+        name: Garden
+      properties:
+        climate:
+          type: string
+          xml:
+            attribute: true
+        plants:
+          type: array
+          items:
+            $ref: "#/components/schemas/Plant"
+          xml:
+            name: Plants
+            wrapped: true
+    Plant:
+      type: object
+      xml:
+        name: Plant
+      properties:
+        sunlight:
+          type: string
+          enum: [full, partial, shade]
+          xml:
+            attribute: true
+        name:
+          type: string
+```
+
+This definition describes documents like:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<Garden climate="temperate">
+  <Plants>
+    <Plant sunlight="full">Fern</Plant>
+  </Plants>
+</Garden>
+```
+
+Element names, attributes, text bodies, nested and union children, repeated children, wrapped lists, list separators on attributes and text, namespaces, prefixes, and escaping are all honored.
+
+## Generated methods
+
+Every XML-encoded type gets three capabilities, named idiomatically per language:
+
+- **Serialize**: `toXml()` (`to_xml` in Python and Ruby, `ToXml()` in C# and Go) returns the element as an XML document prefixed with the `<?xml version="1.0" encoding="UTF-8"?>` declaration. Pass `false` to omit the declaration: `toXml(false)` in TypeScript, Java, and PHP, `ToXml(false)` in C#, `to_xml(xml_declaration=False)` in Python, and `to_xml(xml_declaration: false)` in Ruby. Go's `ToXml()` always includes it. Nested children are always written without a declaration.
+- **Parse**: `fromXml(xml)` (`from_xml` in Python and Ruby, `FromXml()` in C#, `<Type>FromXml()` in Go) parses an XML string back into the model. Parsing validates the root element name and scalar values, and rejects malformed input and `DOCTYPE` declarations. Enum values are open in Go, PHP, and Ruby, and in TypeScript with `enableForwardCompatibleEnums: true`: a value the enum doesn't declare (for example, one added to the API after the SDK was generated) is kept and re-emitted by `toXml`.
+- **Build**: one fluent method per child element type, named after the XML tag (for example, `garden.plant(...)`). In TypeScript, Python, Ruby, and PHP, each method constructs the child, appends it, and returns the child so its own children can be added. In C# and Go, it appends the child and returns the parent so calls chain (`response.Say(...).Say(...)`). A child method gets an `add` prefix (`addPlant`, `add_plant`, `AddPlant`) when its tag collides with a property or method of the parent, or when the name is a reserved word (`addBreak` in TypeScript, `break_` in Python and Ruby).
+
+<CodeBlocks>
+```ts TypeScript
+const garden = SeedApi.Garden.builder({ climate: "temperate" });
+garden.plant("Fern", { sunlight: "full" });
+const xml = garden.toXml();
+
+const parsed = SeedApi.Garden.fromXml(xml);                // immutable model
+const rebuilt = SeedApi.Garden.Builder.fromXml(xml).build(); // populated builder
+```
+
+```python Python
+garden = Garden(climate="temperate")
+garden.plant("Fern", sunlight="full")
+xml = garden.to_xml()
+
+parsed = Garden.from_xml(xml)
+```
+
+```java Java
+Garden garden = Garden.builder()
+    .climate("temperate")
+    .plant(Plant.builder().name("Fern").sunlight(Sunlight.FULL).build())
+    .build();
+String xml = garden.toXml();
+
+Garden parsed = Garden.fromXml(xml);
+Garden rebuilt = Garden.Builder.fromXml(xml).build();
+```
+
+```csharp C#
+var garden = new Garden { Climate = "temperate" };
+garden.Plant("Fern", sunlight: "full");
+var xml = garden.ToXml();
+
+var parsed = Garden.FromXml(xml);
+```
+
+```go Go
+garden := &Garden{Climate: "temperate"}
+garden.Plant(&Plant{Name: "Fern", Sunlight: SunlightFull})
+xml := garden.ToXml()
+
+parsed, err := GardenFromXml(xml)
+```
+
+```ruby Ruby
+garden = Seed::Types::Garden.new(climate: "temperate")
+garden.plant("Fern", sunlight: "full")
+xml = garden.to_xml
+
+parsed = Seed::Types::Garden.from_xml(xml)
+```
+
+```php PHP
+$garden = new Garden(['climate' => 'temperate']);
+$garden->plant('Fern', ['sunlight' => 'full']);
+$xml = $garden->toXml();
+
+$parsed = Garden::fromXml($xml);
+```
+</CodeBlocks>
+
+In Ruby, constructors and child methods also yield the new element to a block for nesting (`Garden.new(climate: "temperate") { |g| g.plant("Fern", sunlight: "full") }`), and child methods accept the text as a keyword as well as positionally (`garden.plant(name: "Fern")`). List-valued attributes accept a space-separated string as well as a list in Python, Ruby, and PHP (for example, `input="speech dtmf"`).
+
+C#, Go, Ruby, and PHP also expose element-level variants (`ToXElement()`/`FromXElement()`, `ToXmlElement()`/`<Type>FromXmlElement()`, `to_xml_element`/`from_xml_element`, `toXmlElement()`/`fromXmlElement()`) for composing documents without re-parsing strings.
+
+## Mixed content
+
+Text and child elements are kept in a single ordered sequence, so an element can interleave text with children, as in `<Say>Hi <break strength="weak"/> world</Say>`. Serialization emits text, typed children, and undeclared children in the order they were added, and parsing preserves their document order. The element's text property holds the leading text. To append a text segment after the content added so far, call `addText(text)` (`add_text` in Python and Ruby, `AddText` in C# and Go):
+
+<CodeBlocks>
+```ts TypeScript
+const say = SeedApi.Say.builder({ message: "Hi " });
+say.addBreak({ strength: "weak" });
+say.addText(" world");
+```
+
+```python Python
+say = Say("Hi ")
+say.break_(strength="weak")
+say.add_text(" world")
+```
+
+```java Java
+Say say = Say.builder()
+    .message("Hi ")
+    .break_(Break.builder().strength(BreakStrength.WEAK).build())
+    .addText(" world")
+    .build();
+```
+
+```csharp C#
+var say = new Say { Message = "Hi " }
+    .Break(strength: BreakStrength.Weak)
+    .AddText(" world");
+```
+
+```go Go
+strength := BreakStrengthWeak
+say := &Say{Message: String("Hi ")}
+say.Break(&Break{Strength: &strength}).AddText(" world")
+```
+
+```ruby Ruby
+say = Seed::Types::Say.new(message: "Hi ")
+say.break_(strength: "weak")
+say.add_text(" world")
+```
+
+```php PHP
+$say = new Say(['message' => 'Hi ']);
+$say->break(['strength' => 'weak']);
+$say->addText(' world');
+```
+</CodeBlocks>
+
+## Round-tripping unknown content
+
+Attributes and child elements that the schema doesn't declare aren't dropped. Parsing preserves them (`additionalAttributes`/`additionalChildren` in TypeScript, C#, Ruby, and PHP; `ExtraAttributes`/`ExtraChildren` in Go; `getAdditionalChildren()` in Java; extra attributes and `XmlElement` children in Python) and serialization re-emits them, so `fromXml(model.toXml())` reproduces the original document. An `addChild` method (`add_child` in Python and Ruby, `AddChild` in C# and Go) appends an arbitrary element when building, in place after the content added so far. In Ruby, `add_child` also accepts an element name with text and attributes: `add_child("Custom", "value", status_callback: "https://example.com")`, with snake_case attribute keys written in lowerCamelCase.

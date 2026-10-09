@@ -1,0 +1,76 @@
+## 5.148.2
+**`(fix):`** Decouple SDK Config initialization from SDK Gen API generation routing so each can be rolled out independently.
+
+
+**`(fix):`** `fern docs md generate` now prefixes generated Python library page slugs with the slug of the
+navigation tab the pages are listed under in `docs.yml`. Generated pages previously skipped the tab
+(e.g. `/prismo/prismo/floorplan_editor_signals` instead of
+`/api-reference/prismo/prismo/floorplan_editor_signals`). File paths and page IDs are unchanged.
+
+
+## 5.148.1
+**`(fix):`** `fern generate --docs` no longer re-parses every OpenAPI spec of an API reference that sets
+`tag-description-pages: true`. Tag descriptions are now read straight from the specs' `tags`,
+which saves about 0.4s per spec on a large (4.8 MB) spec.
+
+
+**`(fix):`** OpenAPI specs with external `$ref`s to remote files convert faster. Each remote file is now
+fetched once per conversion instead of once per `$ref` (for example 114 fetches down to 2 on a
+large spec), and a failed fetch is retried by the next `$ref` instead of being remembered.
+
+
+**`(fix):`** The OpenAPI parser no longer rebuilds a throwaway parser context for every endpoint with a
+request body. It reuses the one it already has, which cuts about 9% off parsing a large spec.
+
+
+## 5.148.0
+**`(feat):`** Add an experimental `fern docs dev --astro` flag that renders the docs to the ledger read model, serves it from a
+local mirror, and runs the prebuilt Astro docs preview server (downloaded and cached like the Next bundle) against
+it with live reload. Next.js remains the default.
+
+
+## 5.147.9
+**`(fix):`** `fern generate --local` now generates SDK Config targets after `fern sdk migrate`, instead of
+failing with "SDK Config v1 generation is only supported with remote sdk-gen-api generation"
+(`--target`) or silently generating nothing (no selectors). Each target runs on the on-prem
+generator for its language, at its `generatorVersion` or, when unpinned, the SDK Config cutover
+release. Targets with `zip` or `github` delivery generate into `generated/<language>` beside
+`sdk-config.yml`. Targets with no on-prem generator, a pre-cutover `generatorVersion`, or a
+repeated language, and an `--sdk-config` file other than the one the local runner reads
+(`sdk-config.yml`, else `sdk-config.yaml`), are rejected with an explanation.
+
+
+## 5.147.8
+**`(fix):`** `fern check` now reads and validates each markdown page once, even when several
+navigation items or version files reference it. A page shared by 36 versions is no longer
+parsed and link-checked 36 times, and its errors are reported once instead of once per reference.
+
+
+## 5.147.7
+**`(fix):`** `fern generate --docs` uses less memory on large multi-version API references. Worker threads
+return their dynamic snippet IRs gzipped, the IRs cached for validation are released once the
+docs navigation is built, and each worker's heap is capped at 1.5 GB (a job that runs out of
+memory is regenerated in-process). Machines with less than about 9.5 GB of RAM, such as the
+2-core / 7 GB GitHub Actions runner, keep generating dynamic snippet IRs in-process.
+
+
+## 5.147.6
+**`(fix):`** `fern generate --docs` is faster on large multi-version API references. OpenAPI parsing
+no longer rescans the whole spec for every operation's request body, type resolution no
+longer rebuilds the map of definition files on every lookup while generating dynamic snippet
+IRs, and external `$ref` resolution no longer re-shifts its work queue. Dynamic snippet IRs
+are now generated on worker threads (bounded by CPU cores, available memory and
+`FERN_DOCS_API_REGISTRATION_CONCURRENCY`; runners with less than about 10 GB of RAM, such as
+the 2-core GitHub Actions runner, stay in-process), starting as soon as each API's IR is built so they
+overlap the navigation build. Set `FERN_DOCS_API_REGISTRATION_CONCURRENCY=1` to generate them
+serially in-process.
+
+
+## 5.147.5
+**`(fix):`** Fix translated navigation labels getting out of order after a top-level page, link, or
+`collapsed` section. The CLI wraps those items in an internal sidebar group, and the
+translation overlay now matches the group's items as siblings of the items around it, so
+labels like API reference sections and endpoint titles no longer stay in English or pick up
+another item's translation.
+
+
