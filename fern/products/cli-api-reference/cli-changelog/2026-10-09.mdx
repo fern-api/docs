@@ -1,3 +1,36 @@
+## 5.152.0
+**`(feat):`** Add `--skip-api` to `fern docs dev`. API specs are not parsed, so large sites preview in seconds. API reference sections keep their overview page and hand-written pages and links, but endpoint and schema pages are left out. Broken-link checks and checks that read API spec files (such as OpenAPI example validation) are skipped in this mode; `fern check` still runs them.
+
+
+**`(feat):`** Add `--skip-validation` to `fern docs dev`. Skips docs validation, which on large sites competes with the docs build and delays the preview. Docs errors are not reported in this mode.
+
+
+**`(fix):`** Recognize `x-fern-availability: generally-available` in the OpenAPI v3 parser. Previously this value was
+dropped, so those endpoints were treated as having no availability.
+
+
+**`(feat):`** Route generation through sdk-gen-api based on the `use-sdk-gen-api` PostHog feature flag instead of the
+`FERN_USE_SDK_GEN_API` environment variable and the `DEFAULT_USE_SDK_GEN_API` build default. The flag is
+evaluated per organization and generator, with the organization, the generator name, the generator's language,
+and the CLI release environment (`prod`, `pre-prod`, `beta`, `dev`, `local`) as targeting properties. This lets
+one generator or language be routed or kept on Fiddle for every organization or for a single organization, and
+lets an organization be kept off sdk-gen-api entirely. The flag is off when PostHog is unreachable or the flag is
+not configured.
+
+
+**`(chore):`** Tag every CLI telemetry event with `cliReleaseEnvironment` (`prod`, `pre-prod`, `beta`, `dev`, `local`) so
+events from different CLI distributions can be told apart. On the `fern generate` event, `sdkGenApiEnabled` now
+reflects the `use-sdk-gen-api` flag (true when at least one requested generator is routed), each
+`requestedGenerators` entry carries its own `sdkGenApiEnabled`, and `fernUseSdkGenApiEnv` is removed.
+
+
+**`(feat):`** Add a `sort-by-availability` option to API reference entries in `docs.yml`. Endpoints are ordered by
+their `x-fern-availability`: listed values come first in the given order, followed by the rest in the
+default order (`unset`, `generally-available`, `alpha`, `beta`, `preview`, `legacy`, `deprecated`).
+Use `unset` to position endpoints that have no availability.
+Endpoints with the same availability keep their order, or are alphabetized when `alphabetized` is true.
+
+
 ## 5.151.5
 **`(chore):`** Enrich the `fern generate` telemetry event with the generators selected to run (including SDK Config targets)
 and whether `FERN_USE_SDK_GEN_API` was set to `true` alongside the effective sdk-gen-api state.
