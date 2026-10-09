@@ -11,7 +11,7 @@ Your MCP server is available at `your-documentation-site.com/_mcp/server`. For e
 
 ## How it works
 
-The server exposes a single tool that answers questions about your documentation site using the same Retrieval Augmented Generation (RAG) pipeline as [Ask Fern](/learn/docs/ai-features/ask-fern/overview). Queries are semantic rather than keyword-based — the tool searches indexed content and synthesizes an answer, not a list of raw results.
+The server's main tool answers questions about your documentation site using the same Retrieval Augmented Generation (RAG) pipeline as [Ask Fern](/learn/docs/ai-features/ask-fern/overview). Queries are semantic rather than keyword-based — the tool searches indexed content and synthesizes an answer, not a list of raw results.
 
 Each message sent through the MCP server runs Ask Fern under the hood and consumes 2 [AI credits](/learn/docs/ai-features/overview#ai-credits), the same as an Ask Fern query.
 
@@ -107,6 +107,29 @@ claude mcp add --transport http \
   --header "x-fern-skip-save-query: true" \
   fern_mcp_docs.example.com https://docs.example.com/_mcp/server
 ```
+
+## Report a docs problem
+
+The MCP server can also expose a `reportIssue` tool that lets an agent log a problem it hit while following your documentation. Reports appear in the **Agent reports** view of the **Feedback** tab in the [Fern Dashboard](https://dashboard.buildwithfern.com/), separate from [reader feedback](/learn/docs/user-feedback#viewing-feedback-in-the-dashboard).
+
+The tool is off by default and gated behind the `mcp-report-issue` feature flag. Contact Fern via your dedicated Slack channel or [email](mailto:support@buildwithfern.com) to enable it. Once enabled, the tool is only offered on production deployments (not previews) and only on sites with [PostHog analytics](/learn/docs/integrations/analytics/posthog) configured.
+
+`reportIssue` covers problems with the docs, not with the agent's own setup such as missing credentials, network errors, or bugs in the agent's own code. The `kind` parameter identifies the type of problem:
+
+| `kind` | Meaning |
+|--------|---------|
+| `code_example_failed` | A code sample from the docs didn't work. |
+| `api_behaves_differently` | The API didn't do what the docs say. |
+| `docs_incorrect` | The docs are wrong or outdated. |
+| `docs_missing_information` | Something the agent needed isn't in the docs. |
+
+Each report requires `page` (the docs page URL or path), `kind`, and `summary` (one sentence on what went wrong). Agents can add detail with the optional `expected`, `actual`, `code`, `language`, `endpoint`, `statusCode`, and `sdk` parameters.
+
+Fern processes each report before logging it:
+
+- **Redaction:** Secrets, API keys, tokens, passwords, and personal data are redacted automatically. The tool response states how many values were replaced.
+- **Deduplication:** Each distinct problem is logged once. If the same problem is reported again within 24 hours, the tool acknowledges it without logging a duplicate.
+- **Rate limits:** Each caller can submit 10 reports per site per hour, and each site accepts 60 reports per hour across all callers.
 
 ## Disable the MCP server
 
