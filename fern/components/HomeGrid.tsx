@@ -754,7 +754,7 @@ export function QuickNav({ items, links = [] }: { items: QuickNavItem[]; links?:
     <nav ref={navRef} aria-label="Page sections" className="hg-quicknav">
       <div className="hg-quicknav-inner">
         <ul className="hg-quicknav-list">
-          {items.map((item) => (
+          {items.map((item, index) => (
             <li key={item.id}>
               <a
                 href={`#${item.id}`}
@@ -763,6 +763,9 @@ export function QuickNav({ items, links = [] }: { items: QuickNavItem[]; links?:
                 aria-current={active === item.id ? "location" : undefined}
                 onClick={(e: MouseEvent) => jump(e, item.id)}
               >
+                <span className="hg-quicknav-num" aria-hidden="true">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
                 {item.label}
               </a>
             </li>
