@@ -111,6 +111,52 @@ Choose from custom headers (API keys), HTTP Basic, Bearer token, or OAuth 2.0 au
 
 <Markdown src="/products/sdks/snippets/oauth-refresh-token.mdx" />
 </Accordion>
+<Accordion title="Refresh token exchange">
+
+For APIs that issue a long-lived refresh token and exchange it for short-lived access tokens, define a `bearer` scheme with a `get-token` endpoint and `type: refresh-token`. The user passes their refresh token to the SDK client, and the SDK calls the `get-token` endpoint to get the access token it sends with requests. This is separate from the OAuth [`refresh-token`](#refresh-token) endpoint, which renews tokens issued by the client credentials flow.
+
+```yaml title="generators.yml"
+auth-schemes:
+  RefreshTokenAuth: # User-defined scheme name
+    scheme: bearer
+    get-token: POST /oauth/token
+    type: refresh-token
+```
+
+<ParamField path="scheme" type="'bearer'" required={true}>
+  Must be set to `"bearer"`.
+</ParamField>
+<ParamField path="get-token" type="string" required={true}>
+  The endpoint that issues access tokens, such as `'POST /oauth/token'`.
+</ParamField>
+<ParamField path="type" type="'api-key' | 'refresh-token'" required={false} default="api-key">
+  The kind of credential the user passes to the SDK to call the `get-token` endpoint.
+
+  With `refresh-token`, the SDK:
+
+  - Always sends `grant_type=refresh_token` to the `get-token` endpoint and doesn't expose `grant_type` as a client option.
+  - Exposes only the refresh token grant's parameters (`refresh_token`, `scope`, `client_id`, `client_secret`) plus any other required parameters of the endpoint as client options.
+  - Rotates the refresh token. When the token response includes a new `refresh_token`, the SDK uses it for the next refresh and passes it to an optional callback (`on_refresh_token_rotated` in Python, `onRefreshTokenRotated` in TypeScript and Java) for persisting.
+
+  The `get-token` endpoint must have a `grant_type` request property that accepts `refresh_token`. `fern check` fails if the property is missing or is a literal other than `refresh_token`.
+
+  `type: refresh-token` requires Fern CLI 5.150.0 or later and is supported in the [Python](/learn/sdks/generators/python/quickstart) (5.40.0+), [TypeScript](/learn/sdks/generators/typescript/quickstart) (3.105.0+), and [Java](/learn/sdks/generators/java/quickstart) (4.32.0+) SDK generators. In Python, the scheme can sit next to other schemes in [`auth: any`](#auth) or `endpoint-security`, and the client uses whichever credentials are passed.
+</ParamField>
+
+```python title="Python SDK usage"
+client = Client(
+    refresh_token=load_refresh_token(),
+    on_refresh_token_rotated=save_refresh_token,
+)
+```
+
+```typescript title="TypeScript SDK usage"
+const client = new Client({
+    refreshToken: loadRefreshToken(),
+    onRefreshTokenRotated: (refreshToken) => saveRefreshToken(refreshToken),
+});
+```
+</Accordion>
 </AccordionGroup>
 
 ## `api`
