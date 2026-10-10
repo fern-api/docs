@@ -121,6 +121,38 @@ Name of the top-level subcommand group. Must start with a lowercase letter and c
 <ParamField path="profiles.revokeOperation" type="string" required={false}>
 Dotted command path of an operation that revokes a profile's remote credential, such as `iam.keys.remove`. When set, `profiles remove` gains a `--revoke` flag that calls the operation before deleting the profile locally. The operation is invoked with the profile's stored parameters as its arguments, so any parameter it requires must be set on the profile. When omitted, the flag isn't registered.
 </ParamField>
+
+<ParamField path="profiles.provisionOperation" type="object" required={false}>
+An operation that mints a profile's remote credential (an API key), and how its response maps onto that credential. When set, `profiles create` gains a `--provision` flag that calls the operation with the credentials already in the caller's environment and stores the mapped response fields in the OS keychain without printing the secret. Paired with `revokeOperation`, a profile owns its API key end to end: minted by `profiles create --provision`, revoked by `profiles remove --revoke`. When omitted, the flag isn't registered.
+
+```yaml title="generators.yml"
+config:
+  binaryName: acme
+  profiles:
+    enabled: true
+    revokeOperation: iam.keys.remove
+    provisionOperation:
+      operation: iam.keys.create
+      credential:
+        username: sid
+        password: secret
+      revokeParameters:
+        Sid: sid
+```
+</ParamField>
+<Indent>
+<ParamField path="profiles.provisionOperation.operation" type="string" required={true}>
+Dotted command path of the operation that creates the credential, in the form `<resource>.<method>` (for example, `iam.keys.create`). Like `revokeOperation`, it's invoked with the profile's stored parameters as its arguments.
+</ParamField>
+
+<ParamField path="profiles.provisionOperation.credential" type="map<string, string>" required={true}>
+Maps each credential field to the top-level response field that supplies it. The keys are the halves the auth scheme stores: `username` and `password` for basic auth, `client_id` and `client_secret` for OAuth2 client credentials, and `token` for a single-value scheme. At least one field must be mapped, and keys and values may contain only `[A-Za-z0-9_.-]`.
+</ParamField>
+
+<ParamField path="profiles.provisionOperation.revokeParameters" type="map<string, string>" required={false}>
+Maps each parameter the `revokeOperation` takes to the response field it's read from, such as `Sid: sid` to record the new key's ID. The values are stored on the profile as `credential_parameters` and used only by `profiles remove --revoke`, never as request defaults. They're kept in plaintext profile metadata and shown by `profiles show`, so map identifiers here, never secrets. Without `revokeParameters`, the profile has no record of which key it owns, and `--revoke` can only pass the profile's own parameters.
+</ParamField>
+</Indent>
 </Indent>
 
 <ParamField path="packageIdentity" type="object" toc={true} required={false}>
