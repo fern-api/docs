@@ -61,6 +61,40 @@ When the changelog has more than 20 entries, a trailing note in the document poi
 
 Interactive components such as [`<EndpointRequestSnippet>`](/learn/docs/writing-content/components/request-snippet), [`<EndpointResponseSnippet>`](/learn/docs/writing-content/components/response-snippet), and [`<EndpointSchemaSnippet>`](/learn/docs/writing-content/components/endpoint-schema-snippet) render as fenced code blocks and structured content in the Markdown output, so agents receive the full request and response examples without parsing HTML.
 
+## Custom component Markdown output
+
+Custom React components registered via [`experimental.mdx-components`](/learn/docs/customization/custom-react-components) render rich HTML in the browser, but their content is invisible to `.md` twins, `llms.txt`, and `llms-full.txt` by default: self-closing tags are dropped entirely, and wrapping tags are unwrapped to expose only their children.
+
+A component module can opt in by exporting a `toMarkdown(props): string` function alongside the React component. Fern calls this function when generating the Markdown twin and splices the returned string in place of the JSX tag.
+
+**Pattern 1 — module-level export.** Use this when the module exports a single component or a shared serializer:
+
+```tsx components/FeatureAccess.tsx
+export function FeatureAccess({ access }: Props) {
+  // React component — renders rich HTML
+}
+
+export function toMarkdown({ access }: Props): string {
+  // Returns Markdown — used in .md twins and llms.txt
+  return `**Access:** ${access}`;
+}
+```
+
+**Pattern 2 — static method on the component.** Use this for multi-component modules where each component needs its own serializer:
+
+```tsx components/Price.tsx
+export function Price({ amount }: { amount: number }) {
+  return <span>${amount.toFixed(2)}</span>;
+}
+
+Price.toMarkdown = ({ amount }: { amount: number }) =>
+  `**$${amount.toFixed(2)}**`;
+```
+
+`toMarkdown` must be synchronous and return a `string`. Async functions (returning a `Promise`) are ignored and the tag falls back to default behavior. Any failure — compile error, thrown exception, or non-string return — is logged and leaves the tag untouched; the `.md` request never fails because of a broken `toMarkdown`.
+
+The returned Markdown is processed by the same LLM cleanup pass as the rest of the page, so tables, lists, and headings work normally. Children of the component tag are passed to `toMarkdown` as the raw MDX source string under the `children` prop. Components without `toMarkdown` keep today's behavior: self-closing tags are dropped and wrapping tags are unwrapped.
+
 ## Redirects
 
 The [`redirects` configured in `docs.yml`](/learn/docs/seo/redirects) apply to Markdown URLs. A redirected page's `.md` or `.mdx` twin returns a `308` to the destination's twin, preserving the requested extension: `/old/page.md` redirects to `/new/page.md`, and `/old/page.mdx` to `/new/page.mdx`.
