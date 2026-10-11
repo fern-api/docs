@@ -224,6 +224,24 @@ In path segments, `;` is escaped where it previously wasn't. The change matters 
 
 **To fix:** If you sign requests over the raw URL or route on exact string matches, test those rules against a request from the new SDK before you roll it out.
 
+## Some endpoints take a request object
+
+An endpoint that took its arguments positionally, or took no arguments, might take a single request object instead:
+
+```csharp
+// Before
+await client.Plants.GetAsync(plantId);
+
+// After
+await client.Plants.GetAsync(new PlantsGetRequest { Id = plantId });
+```
+
+Unlike most changes on this page, this one is a compile error, so your build points to every affected call. It usually affects only a few endpoints.
+
+Don't assume the request object is empty. Most carry a value, such as a path parameter, a request body, or a required header like an account token (see [Pass credentials by name](#pass-credentials-by-name)). Only a few are empty and take `new PlantsGetRequest()`. Your IDE lists the required members.
+
+**To fix:** Move each call's arguments into the request object that the compiler names. Behavior doesn't change; the same values reach the same endpoint.
+
 ## Other changes
 
 - **Union accessors and type names may change.** For example, `value.AsText()` may become `value.AsContentText()`, and a flat record may become a union. Check each regenerated type instead of assuming its shape is unchanged.
