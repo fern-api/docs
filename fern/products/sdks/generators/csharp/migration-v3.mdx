@@ -181,6 +181,49 @@ The generated project is organized by kind (`Clients/`, `Models/`, `Services/`, 
 
 **To fix:** Update `using` directives that reference a moved client type, and update tooling that references generated files by path, such as file lists, per-file lint or coverage rules, and solution filters.
 
+## Failed `POST` and `PATCH` requests aren't retried by default
+
+Retries on `5xx`, `408`, and `429` responses are unchanged for `GET`, `PUT`, `DELETE`, `HEAD`, and `OPTIONS`. `POST` and `PATCH` requests are no longer retried unless you mark them as safe to repeat. A `POST` that times out might already have succeeded on the server, and retrying it could, for example, place the same order twice. The compiler doesn't flag this, so a call that used to recover from a transient failure throws on the first failure instead.
+
+```text
+// Before: 3 attempts against the same 503, about 1s and then 2s apart
+// After: 1 attempt, then the SDK throws
+```
+
+To make a request retryable, send an idempotency key. The server uses it to recognize a repeated request and return the original result instead of acting twice:
+
+```csharp
+await client.Orders.CreateAsync(request, new RequestOptions
+{
+    AdditionalHeaders = new Dictionary<string, string?>
+    {
+        ["Idempotency-Key"] = Guid.NewGuid().ToString(),
+    },
+});
+```
+
+<Warning>
+Generate a new key for each request. If you set one key on `ClientOptions` or through `SetConfig(...)`, the server treats two different requests as the same one and discards the second.
+</Warning>
+
+**To fix:** Nothing, unless you relied on a `POST` or `PATCH` recovering from a transient `5xx`. For those calls, send a new idempotency key per request, and confirm that your API supports the header.
+
+## Some URL characters are escaped differently
+
+Path and query values are URL-encoded slightly differently. Both forms are valid, and servers decode them to the same value. For a query value of `a;b&c=d+e f/g?h#i`:
+
+```text
+// Before
+?name=a%3Bb%26c=d%2Be%20f/g?h%23i
+
+// After: '=', '/', and '?' are escaped inside the value
+?name=a%3Bb%26c%3Dd%2Be%20f%2Fg%3Fh%23i
+```
+
+In path segments, `;` is escaped where it previously wasn't. The change matters only when something compares the raw URL instead of the decoded value, such as a gateway rule that matches an exact string or a signing scheme that computes an HMAC over the raw query string.
+
+**To fix:** If you sign requests over the raw URL or route on exact string matches, test those rules against a request from the new SDK before you roll it out.
+
 ## Other changes
 
 - **Union accessors and type names may change.** For example, `value.AsText()` may become `value.AsContentText()`, and a flat record may become a union. Check each regenerated type instead of assuming its shape is unchanged.
