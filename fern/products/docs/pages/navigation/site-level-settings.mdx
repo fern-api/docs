@@ -594,6 +594,7 @@ layout:
   changelog-layout: timeline
   api-reference-layout: indented
   show-nav-availability-badges: true
+  breadcrumbs.current-page: true
 ```
 
 <ParamField path="layout.header-height" type="string" required={false} toc={true}>
@@ -680,6 +681,10 @@ layout:
 
 <ParamField path="layout.show-nav-availability-badges" type="boolean" required={false} default="false" toc={true}>
   If set to true, availability badges (Beta, Deprecated, etc.) are rendered inline next to navigation items in the sidebar (in addition to the badge rendered automatically in the page header).
+</ParamField>
+
+<ParamField path="layout.breadcrumbs.current-page" type="boolean" required={false} default="false" toc={true}>
+  When set to `true`, the current page's title is appended to the page-header breadcrumb trail as a non-clickable item (rendered as a `<span>` with `aria-current="page"`). Ancestor breadcrumb items remain clickable links. Defaults to `false` — no change for existing sites.
 </ParamField>
 
 ## Theme configuration
@@ -1167,8 +1172,8 @@ metadata:
   The Twitter Card type. Options are `summary`, `summary_large_image`, `app`, or `player`.
 </ParamField>
 
-<ParamField path="metadata.og:dynamic" type="boolean" required={false}>
-  When `true`, enables dynamic OG image generation for pages that don't have a custom `og:image` set.
+<ParamField path="metadata.og:dynamic" type="boolean" required={false} default="true when no site-wide og:image or twitter:image is set">
+  When `true`, enables dynamic OG image generation for pages that don't have a custom `og:image` set. When `false`, no dynamic images are generated.
 </ParamField>
 
 <ParamField path="metadata.og:dynamic:background-image" type="string" required={false}>
@@ -1318,7 +1323,7 @@ ai-examples:
 
 ## Check configuration
 
-Configure the severity of validation rules run by [`fern check`](/learn/cli-api-reference/cli-reference/general-commands#fern-check). Each rule can be set to `"warn"` (non-blocking) or `"error"` (blocking).
+Configure the severity of validation rules run by [`fern check`](/learn/cli-api-reference/cli-reference/general-commands#fern-check) and [`fern generate --docs`](/learn/cli-api-reference/cli-reference/docs-commands#fern-generate---docs). Each rule can be set to `"warn"` (non-blocking) or `"error"` (blocking). A violation of a rule set to `"error"` in `check.rules` fails both commands, so `fern generate --docs` exits before publishing. Violations of `"warn"` rules don't block either command.
 
 ```yaml docs.yml
 check:
@@ -1366,12 +1371,22 @@ experimental:
   dynamic-snippets: false  # Set to false to disable
   external-sitemaps:
     - https://example.com/sitemap.xml
+    - url: https://help.example.com/sitemap.xml
+      locale: en
 ```
 
 <ParamField path="experimental.dynamic-snippets" type="boolean" required={false} default="true" toc={true}>
   Controls dynamic SDK snippets that allow users to modify parameters and see code examples update in real time. Dynamic snippets are enabled by default and supported across all languages. Follow the [SDK snippets setup instructions](/learn/docs/api-references/sdk-snippets) to configure. Set to false to use static SDK snippets instead.
 </ParamField>
 
-<ParamField path="experimental.external-sitemaps" type="list of strings" required={false} toc={true}>
-  A list of absolute URLs pointing to external `sitemap.xml` files or sitemap indexes. Fern fetches each sitemap and indexes its pages into search alongside your documentation, tagged to your docs domain but flagged as third-party so they rank below all first-party pages. See [Index external sitemaps](/learn/docs/customization/search#index-external-sitemaps).
+<ParamField path="experimental.external-sitemaps" type="list of strings or objects" required={false} toc={true}>
+  A list of external `sitemap.xml` files or sitemap indexes. Fern fetches each sitemap and indexes its pages into search alongside your documentation, tagged to your docs domain but flagged as third-party so they rank below all first-party pages. Each entry is either an absolute URL string or an object with `url` and an optional `locale`. On [localized sites](/learn/docs/localization/overview), each URL is indexed only into the search index of its matching locale. See [Index external sitemaps](/learn/docs/customization/search#index-external-sitemaps).
+</ParamField>
+
+<ParamField path="experimental.external-sitemaps[].url" type="string" required={true} toc={true}>
+  Absolute URL of the sitemap or sitemap index. Required when the entry is an object.
+</ParamField>
+
+<ParamField path="experimental.external-sitemaps[].locale" type="string" required={false} toc={true}>
+  Site locale to index every URL in this sitemap into, overriding per-URL language detection. Must match one of the languages under `translations`; `fern check` warns when it doesn't, since the sitemap would never be indexed.
 </ParamField>

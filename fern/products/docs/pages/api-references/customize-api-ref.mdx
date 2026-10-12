@@ -24,6 +24,50 @@ navigation:
     alphabetized: true
 ```
 
+### Sorting endpoints by availability
+
+To order endpoints by their [availability](/learn/api-definitions/openapi/extensions/availability), unless explicitly ordered in `layout`, set `sort-by-availability` to a list of availability values. Endpoints are sorted within each section.
+
+Listed values come first, in the order you provide. Any values you leave out follow in the default order:
+
+1. `unset` (no availability set)
+1. `generally-available`
+1. `alpha`
+1. `beta`
+1. `preview`
+1. `legacy`
+1. `deprecated`
+
+#### Example:
+```yaml title="docs.yml"
+navigation:
+  - api: API Reference
+    sort-by-availability:
+      - beta
+      - deprecated
+```
+
+In the example above, endpoints appear in this order: `beta`, `deprecated`, `unset`, `generally-available`, `alpha`, `preview`, `legacy`. Endpoints with the same availability keep their existing order. To sort them alphabetically, also set `alphabetized: true`.
+
+For example, take a section with these endpoints, using `alphabetized: true` and `sort-by-availability: [beta, deprecated]`:
+
+| Final position | Endpoint | Availability |
+| --- | --- | --- |
+| 1 | Graft plant | `beta` |
+| 2 | Repot plant | `beta` |
+| 3 | Compost plant | `deprecated` |
+| 4 | Water plant | `deprecated` |
+| 5 | Harvest plant | `unset` |
+| 6 | List plants | `unset` |
+| 7 | Create plant | `generally-available` |
+| 8 | Prune plant | `alpha` |
+| 9 | Mist plant | `preview` |
+| 10 | Fertilize plant | `legacy` |
+
+The two listed values, `beta` and `deprecated`, come first. The rest follow in the default order, without `beta` and `deprecated`. Within each availability, endpoints are alphabetical.
+
+To control where endpoints without an availability appear, include `unset` in the list. For example, `[beta, unset]` puts beta endpoints first, then endpoints with no availability.
+
 ### Ordering top-level sections
 
 The `layout` option allows you to specify the order of sub-packages, sections, endpoints, and pages at the top level of your API Reference.
@@ -425,6 +469,11 @@ The following properties can be set on the `- api` entry in your `docs.yml` navi
 
 <ParamField path="slug" toc={true} type="string">
   Customize the slug for the API section. By default, the slug is generated from the API title.
+
+</ParamField>
+
+<ParamField path="sort-by-availability" toc={true} type="list<string>">
+  Orders endpoints within each section by [availability](#sorting-endpoints-by-availability). Listed values come first, in the order provided, followed by the remaining values in the default order. Use `unset` for endpoints with no availability.
 
 </ParamField>
 
