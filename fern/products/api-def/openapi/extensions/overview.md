@@ -20,6 +20,7 @@ The table below shows all available extensions and links to detailed documentati
 | [`x-fern-bearer`](/api-definitions/openapi/authentication#bearer-security-scheme) | Customize bearer authentication parameter names and environment variables |
 | [`x-fern-availability`](./availability) | Mark availability status (beta, generally-available, deprecated) |
 | [`x-fern-base-path`](./base-path) | Set base path prepended to all endpoints |
+| [`x-fern-base-url-env`](./server-names-and-url-templating#x-fern-base-url-env) | Read the SDK base URL from an environment variable |
 | [`x-fern-default`](./default-values) | Set client-side default values for path, header, and query parameters |
 | [`x-fern-discriminator-context`](./discriminator-context) | Distinguish protocol-level discriminators (e.g., SSE event types) from data-level discriminators |
 | [`x-displayName`](./tag-display-names) | Specify how tag names display in your API Reference |
@@ -36,7 +37,7 @@ The table below shows all available extensions and links to detailed documentati
 | [`x-fern-sdk-method-name`](./method-names) | Customize SDK method names |
 | [`x-fern-sdk-group-name`](./method-names) | Organize methods into SDK groups |
 | [`x-fern-sdk-namespace`](./sdk-namespaces) | Place a schema or shared error response in a namespace |
-| [`x-fern-sdk-variables`](./sdk-variables) | Set common path parameters across all requests |
+| [`x-fern-sdk-variables`](./sdk-variables) | Set common path parameters across all requests, with optional environment variable fallback |
 | [`x-fern-playground-description`](/learn/api-definitions/openapi/authentication#playground-only-descriptions) | Add auth instructions that appear only in the API Explorer |
 | [`x-fern-parameter-name`](./parameter-names) | Customize parameter variable names |
 | [`x-fern-property-name`](./property-names) | Customize object property variable names |

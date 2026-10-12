@@ -1,0 +1,61 @@
+---
+title: Preview and publish workflow
+description: The recommended path for taking a docs change from local development through preview and staging to production.
+---
+
+Fern gives you four ways to see a docs change, each trading build time for site performance and audience. The recommended path is to move through them in order: iterate locally, share a preview link for review, publish to a staging instance for a production-faithful check, then publish to production.
+
+| Step | Command | Build time | Site speed | Audience |
+|------|---------|------------|------------|----------|
+| [Local development](#local-development) | `fern docs dev` | Instant (hot reload) | Fast | You |
+| [Preview link](#preview-links) | `fern generate --docs --preview` | Fast | Slower navigation | Contributors |
+| [Staging instance](#staging-instance) | `fern generate --docs --instance <staging-url>` | Slower | Fast | Team and stakeholders |
+| [Production](#production) | `fern generate --docs` | Slower | Fast | Public |
+
+## Local development
+
+Run [`fern docs dev`](/learn/docs/preview-publish/preview-changes#local-development) while you write. The server renders your docs at `http://localhost:3000` with hot reload, so edits appear as you save. Some features (search, SEO metadata, authentication) are disabled locally, so use the later steps to verify them.
+
+```bash
+fern docs dev
+```
+
+## Preview links
+
+Run [`fern generate --docs --preview`](/learn/docs/preview-publish/preview-changes#preview-links) to get a URL you can share with reviewers. Preview links aren't indexed by search engines and don't expire.
+
+```bash
+fern generate --docs --preview
+# Or a stable URL that updates in place on each run
+fern generate --docs --preview --id plants-api-refresh
+```
+
+Previews skip the static build that production and staging sites get: pages render on demand when a visitor requests them. This makes the preview link fast to generate, but navigating between pages is slower than on a published site. Preview links are for checking content and layout, not for judging site performance.
+
+## Staging instance
+
+Publish to a staging instance when you want to see the change exactly as production will serve it. This requires [multiple instances](/learn/docs/configuration/site-level-settings#instances-configuration) in `docs.yml`, for example a `staging.` prefix on your production domain:
+
+```yaml docs.yml
+instances:
+  - url: plantstore.docs.buildwithfern.com
+  - url: staging.plantstore.docs.buildwithfern.com
+```
+
+```bash
+fern generate --docs --instance staging.plantstore.docs.buildwithfern.com
+```
+
+A staging publish runs the full static build, so it takes longer than a preview link, but the resulting site loads and navigates as fast as production. Use it to check search, authentication, performance, and anything else previews don't cover before going live.
+
+## Production
+
+Publish to production when the change is ready for the public. Run [`fern generate --docs`](/learn/docs/preview-publish/publishing-your-docs), or pass `--instance` with your production URL if `docs.yml` defines more than one instance.
+
+```bash
+fern generate --docs
+# With multiple instances
+fern generate --docs --instance plantstore.docs.buildwithfern.com
+```
+
+Most teams automate the last three steps in CI: [preview links on every pull request](/learn/docs/preview-publish/preview-changes#automate-with-github-actions), [staging on every merge, and production on a manual trigger](/learn/docs/preview-publish/publishing-your-docs#publish-to-staging-and-production).

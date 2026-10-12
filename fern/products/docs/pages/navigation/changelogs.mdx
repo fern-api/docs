@@ -102,6 +102,24 @@ Section-level changelogs **can't** be nested within an `api` entry.
 </Step>
 </Steps>
 
+## Site-level changelog for multi-product sites
+
+On a site that uses [products](/learn/docs/navigation/products), a top-level `changelog` key in `docs.yml` adds a single changelog shared by every product. It's served at `/changelog`, with no product slug prefix, and doesn't appear in the product switcher.
+
+<CodeBlock title="docs.yml">
+```yaml {6-7}
+products:
+  - display-name: Ferns
+    path: ./products/ferns.yml
+  - display-name: Cacti
+    path: ./products/cacti.yml
+changelog:
+  changelog: ./changelog
+```
+</CodeBlock>
+
+The top-level `changelog` key accepts the same options as a changelog inside `navigation`, such as `title`, `slug`, and `icon`. It requires `products`; `fern check` rejects it on a site without them.
+
 ## Write a changelog entry
 
 Each entry is a single Markdown file in your `changelog` folder.
@@ -198,7 +216,7 @@ Changelogs support three layouts:
 
 ### Site-wide setting
 
-Set the default layout for all changelogs [in `docs.yml`](/learn/docs/configuration/site-level-settings#changelog-layout):
+Set the default layout for all changelogs [in `docs.yml`](/learn/docs/configuration/site-level-settings#layoutchangelog-layout):
 
 <CodeBlock title="docs.yml">
 ```yaml
@@ -300,3 +318,10 @@ Search queries sync to the `?q=` URL parameter, so a search result is shareable 
 Changelogs automatically come with an RSS feed so users can subscribe to updates. Navigate to the RSS feed by appending `.rss` to the changelog path. For example, `https://elevenlabs.io/docs/changelog.rss`. Atom and JSON feeds are available at `.atom` and `.json`.
 
 Feeds require a recognized segment in the changelog's URL path: `blog`, `blogs`, `posts`, `changelog`, `changelogs`, `release-notes`, `releasenotes`, `whats-new`, or `whatsnew`. `fern check` reports an error for a changelog that resolves elsewhere.
+
+## Agent access
+
+Fern exposes two machine-readable endpoints for every changelog:
+
+- `/changelog.md` — returns an aggregated Markdown document of the 20 most recent public entries, opened by the overview page (or a `# <title>` heading when none is configured). See [Changelog pages](/learn/docs/ai-features/markdown#changelog-pages) in the Markdown access guide for the full format.
+- `/changelog/llms.txt` — lists every public entry under an `## Entries` heading without inlining entry bodies, giving agents a complete index to fetch entries on demand.

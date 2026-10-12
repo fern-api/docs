@@ -181,12 +181,16 @@ Reference pages always link *to* canonical. Linking back from canonical to a ref
 
 ### Anchor links
 
-Internal anchors only resolve for `##` / `###` headings. Things that look like headings but aren't:
+The rendered site generates an `id` for:
 
-- `<Step title="...">` inside `<Steps>` — JSX prop, no anchor generated.
-- `<Tab title="...">`, `<Accordion title="...">`, `<Card title="...">` — same.
+- Markdown headings (`##` through `######`), or the explicit id when written as `## Heading [#custom-id]`.
+- `<Step title="...">`, `<Tab title="...">`, `<Accordion title="...">` — the title becomes the id.
+- `<ParamField path="..." toc={true}>` — the path becomes the id. Without `toc={true}` the field renders no id (it still counts toward duplicate suffixes on later ids).
+- `<Anchor id="...">` — the id as written.
 
-If you want to deep-link to a step or tab, add a real `##` heading nearby, or link to the page without an anchor and let the reader scroll.
+Ids are the text lowercased with punctuation removed and spaces turned into hyphens: `## Page actions (options.mcp)` becomes `#page-actionsoptionsmcp`, `path="extraDependencies"` becomes `#extradependencies`, `## "Edit this page" configuration` becomes `#edit-this-page-configuration`. A repeated id gets a numeric suffix (`#usage`, `#usage-1`).
+
+`<Card title="...">` and other components generate no anchor. Headings inside an included snippet resolve on every page that includes it.
 
 ### Sweep checklist
 

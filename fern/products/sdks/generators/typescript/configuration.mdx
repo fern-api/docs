@@ -28,6 +28,20 @@ See [TypeScript serde layer](/learn/sdks/generators/typescript/serde-layer) for 
 Overrides the API-wide [`api.settings.auto-generate-idempotency-key`](/learn/sdks/reference/generators-yml#settings) for this SDK. Set `true` to attach an [idempotency-key header](/learn/sdks/deep-dives/idempotency#auto-generate-idempotency-keys) to eligible requests (`POST` and `PUT` by default) unless the caller provides one, or `false` to opt this SDK out when auto-generation is enabled API-wide. Pass an object to customize `header-name` and `methods`.
 </ParamField>
 
+<ParamField path="deepObjectMapQueryParameters" type="boolean" default="false" toc={true}>
+When enabled, map-typed query parameters (an OpenAPI `type: object` schema with `additionalProperties`) are encoded in OpenAPI `deepObject` style, with one key per map entry, instead of being JSON-stringified into a single value. Enable this when the server declares the parameter with `style: deepObject`.
+
+```text
+# deepObjectMapQueryParameters: false
+?metadata=%7B%22env%22%3A%22prod%22%7D
+
+# deepObjectMapQueryParameters: true
+?metadata[env]=prod
+```
+
+Maps with primitive values are passed through as-is. Maps with object, nested map, list, or date values are serialized through the [serde layer](/learn/sdks/generators/typescript/serde-layer) first when `noSerdeLayer: false`, so nested keys use their wire names and dates become ISO strings (`?metadata[env][display_name]=prod&metadata[env][created_at]=2026-09-04T00:00:00.000Z`). With `noSerdeLayer: true`, these values are passed through unchanged.
+</ParamField>
+
 <ParamField path="defaultTimeout" type="number | 'infinity'" toc={true}>
 The default timeout for network requests, in milliseconds. Set to `'infinity'` to disable the timeout. In the generated client, this can be overridden at the request level.
 </ParamField>
@@ -214,7 +228,7 @@ Subpackage exports are also documented in the generated `README.md` when this op
 </ParamField>
 
 <ParamField path="guardProcessEnvAccess" type="boolean" default="false" toc={true}>
-Wraps credential environment variable reads in the generated auth providers (API key, bearer, basic, and OAuth) in a `typeof process !== "undefined"` check. Enable this when the SDK runs in browsers, Cloudflare Workers, Deno, or other runtimes without a Node `process` global; otherwise `process.env` reads throw a `ReferenceError` when a credential isn't passed to the client. Node.js behavior is unchanged.
+Wraps environment variable reads for credentials in the generated auth providers (API key, bearer, basic, and OAuth) and for the [base URL](/learn/api-definitions/ferndef/api-yml/environments#base-url-from-an-environment-variable) (`base-url-env`) in a `typeof process !== "undefined"` check. Enable this when the SDK runs in browsers, Cloudflare Workers, Deno, or other runtimes without a Node `process` global; otherwise `process.env` reads throw a `ReferenceError` when a credential isn't passed to the client. Node.js behavior is unchanged.
 
 ```yml title="generators.yml"
 groups:
@@ -546,6 +560,8 @@ const client = new AcmeClient({ baseUrl: "https://api.acme.com" });
 ```
 
 Enable this for APIs with no named environments, or when callers point the SDK at an arbitrary host. The option is ignored for APIs with [multiple base URLs](/learn/sdks/deep-dives/server-url-templating), whose clients resolve each URL from `environment`.
+
+When `baseUrl` is optional, the client (and any sub-client constructed standalone) resolves the base URL in this order: `baseUrl`, `environment`, the environment variable named by [`base-url-env`](/learn/api-definitions/ferndef/api-yml/environments#base-url-from-an-environment-variable) in your API definition, then the default environment.
 </ParamField>
 
 <ParamField path="respectOptionalRequestBody" type="boolean" default="false" toc={true}>
@@ -599,6 +615,22 @@ Only applies to request bodies declared as a single named type. Required bodies 
 	Generate [WebSocket clients](/learn/sdks/deep-dives/websocket-clients) from your AsyncAPI channel definitions.
 
 	Previously named `shouldGenerateWebsocketClients`, which is still accepted as a deprecated alias.
+</ParamField>
+
+<ParamField path="websocketHandlerMode" type="'replace' | 'accumulate'" default="replace" toc={true}>
+  Controls what happens when you register more than one handler for the same event on a generated WebSocket socket. Requires `generateWebSocketClients: true`.
+
+  * `replace`: registering a second handler for an event replaces the first.
+  * `accumulate`: handlers for the same event accumulate and fire in registration order, like an `EventEmitter`.
+
+  In both modes, `socket.off(event, handler)` detaches a handler.
+
+  ```yaml title="generators.yml"
+  - name: fernapi/fern-typescript-sdk
+    config:
+      generateWebSocketClients: true
+      websocketHandlerMode: accumulate
+  ```
 </ParamField>
 
 <ParamField path="skipResponseValidation" type="boolean" default="false" toc={true}>

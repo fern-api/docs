@@ -77,7 +77,7 @@ contoso plants list --via "partner-app/3.1"
 <ParamField path="generateWireTests" type="boolean" default="false" toc={true}>
 Generates a wiremock-based integration test suite alongside the CLI. When enabled, generation emits a `wire_test.rs` harness and a `wire-test-cases.json` manifest with one case per endpoint example. Each test starts an in-process mock server, drives the compiled binary, and asserts the command hit the expected method and path and rendered the mocked response. The generated CI runs the suite with `cargo test`.
 
-Only commands derived from the API spec are covered; [custom commands](/learn/cli-generator/get-started/customization) aren't.
+Only commands derived from the API spec are covered; [custom commands](/learn/cli-generator/get-started/custom-commands) aren't.
 
 ```yaml title="generators.yml"
 config:
@@ -88,7 +88,7 @@ config:
 <ParamField path="splitTypeCrates" type="boolean" default="false" toc={true}>
 Splits the generated types into one crate per API, plus a shared `core` crate for types that more than one API references, nested inside `<binaryName>-types/crates/`. By default, every generated model lands in a single `<binaryName>-types` crate.
 
-Enable it for workspaces with many specs, where that single crate is one `rustc` compilation unit large enough to exhaust the memory of a standard CI runner and get `cargo build` killed. Splitting also shortens builds, because the per-API crates compile in parallel and cache independently. `<binaryName>-types` remains as a facade that re-exports everything, so imports such as `use plant_types::Plant;` keep resolving and [custom command](/learn/cli-generator/get-started/customization) handlers need no changes. The shipped artifact is the same either way: one binary with every spec embedded.
+Enable it for workspaces with many specs, where that single crate is one `rustc` compilation unit large enough to exhaust the memory of a standard CI runner and get `cargo build` killed. Splitting also shortens builds, because the per-API crates compile in parallel and cache independently. `<binaryName>-types` remains as a facade that re-exports everything, so imports such as `use plant_types::Plant;` keep resolving and [custom command](/learn/cli-generator/get-started/custom-commands) handlers need no changes. The shipped artifact is the same either way: one binary with every spec embedded.
 
 ```yaml title="generators.yml"
 config:
@@ -96,6 +96,32 @@ config:
   splitTypeCrates: true
 ```
 </ParamField>
+
+<ParamField path="profiles" type="object" toc={true} required={false}>
+Adds [named profiles](/learn/cli-generator/get-started/authentication#named-profiles) to the generated CLI: a top-level `profiles` subcommand group, a global `--profile` / `-p` flag, and a `<binaryName>_PROFILE` environment variable. A profile stores a tenant's credential, parameter defaults, server URL variables, base URL, retry limit, and default output format once, so users of multi-tenant APIs don't pass an account identifier on every command.
+
+Off by default. A CLI generated without this block is byte-identical to one generated before the option existed, and a `profiles` block with `enabled` unset or `false` is a no-op.
+
+```yaml title="generators.yml"
+config:
+  binaryName: acme
+  profiles:
+    enabled: true
+```
+</ParamField>
+<Indent>
+<ParamField path="profiles.enabled" type="boolean" default="false" required={false}>
+Emits the profiles surface. Enabling it adds a top-level subcommand group and a global flag to an existing CLI, which is a surface change for its users.
+</ParamField>
+
+<ParamField path="profiles.commandName" type="string" default="profiles" required={false}>
+Name of the top-level subcommand group. Must start with a lowercase letter and contain only `[a-z0-9-]`, and can't be one of the built-in groups (`auth`, `completion`, `man`, `errors`, `generate-skills`, `help`). Rename it (for example, to `tenants` or `accounts`) when that reads better for your API. If your spec already declares a `profiles` resource, the built-in subcommands are folded into that group rather than colliding with it, so renaming is optional.
+</ParamField>
+
+<ParamField path="profiles.revokeOperation" type="string" required={false}>
+Dotted command path of an operation that revokes a profile's remote credential, such as `iam.keys.remove`. When set, `profiles remove` gains a `--revoke` flag that calls the operation before deleting the profile locally. The operation is invoked with the profile's stored parameters as its arguments, so any parameter it requires must be set on the profile. When omitted, the flag isn't registered.
+</ParamField>
+</Indent>
 
 <ParamField path="packageIdentity" type="object" toc={true} required={false}>
 Sets the Cargo `[package]` metadata of the generated crate. Use `packageIdentity` to publish the crate under your own name, license, repository, and authors instead of Fern's.
@@ -113,6 +139,7 @@ config:
     keywords: ["plants", "cli"]
 ```
 </ParamField>
+
 <Indent>
 <ParamField path="packageIdentity.name" type="string" required={false}>
 Crate name. Must be a valid cargo crate name: it starts with a letter and contains only letters, digits, `-`, and `_`. Invalid values fail at generation time with a config error instead of surfacing later as a manifest error during `cargo build`. The generator renames the matching `Cargo.lock` entry in the same pass, so `cargo build --locked` still resolves the workspace member.
@@ -142,6 +169,32 @@ Crate authors, in Cargo's `Name <email>` form.
 Keywords for crates.io search.
 </ParamField>
 </Indent>
+
+<ParamField path="extraDependencies" type="object" toc={true} required={false}>
+Adds crates to the `[dependencies]` table of the generated root `Cargo.toml`. Use it when code you keep in `.fernignore`, such as [custom command](/learn/cli-generator/get-started/custom-commands) handlers or custom authentication, imports crates the generated CLI doesn't already depend on. Each value is a version requirement string or a dependency table with any of `version`, `features`, `optional`, `defaultFeatures`, `package`, `path`, `git`, `branch`, `rev`, and `registry`. Crates the generated CLI already depends on can't be redeclared.
+
+```yaml title="generators.yml"
+config:
+  binaryName: plant
+  extraDependencies:
+    google-cloud-auth: "1.16"
+    google-cloud-iam-credentials-v1:
+      version: "1.12"
+      defaultFeatures: false
+```
+
+Generation writes the dependencies to `Cargo.toml` only. The first `cargo build` after generation resolves them into `Cargo.lock`.
+</ParamField>
+
+<ParamField path="extraDevDependencies" type="object" required={false}>
+Same as `extraDependencies`, for the `[dev-dependencies]` table.
+
+```yaml title="generators.yml"
+config:
+  extraDevDependencies:
+    mockall: "0.11"
+```
+</ParamField>
 
 <ParamField path="distribution" type="object" toc={true} required={false}>
 Adds Homebrew and Scoop publishing on top of the GitHub Release archives every generated CLI already ships. Both channels install from a tagged release, so `distribution` is honored only when the generator delivers to a GitHub repository through the `github` block. Enabling a channel adds a publish job to the release workflow and the matching install command to the generated README. Each job pushes to a public [tap or bucket repository](/learn/cli-generator/get-started/publishing#configure-distribution-channels) you create, authenticating with either a personal access token per channel or a GitHub App whose credentials you store as repository secrets.

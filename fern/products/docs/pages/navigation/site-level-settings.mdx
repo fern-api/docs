@@ -149,7 +149,7 @@ instances:
 </ParamField>
 
 <ParamField path="instances.edit-this-page" type="object" required={false} toc={true}>
-  If specified, adds an "Edit this page" link to the bottom of each page that links to the given public GitHub repository. You can optionally set a `launch` target to control where the link directs users. Learn more about the [`edit-this-page` configuration](#github-configuration).
+  If specified, adds an "Edit this page" link to the bottom of each page that links to the given public GitHub repository. You can optionally set a `launch` target to control where the link directs users. Learn more about the [`edit-this-page` configuration](#edit-this-page-configuration).
 </ParamField>
 
 <ParamField path="instances.audiences" type="list of strings" required={false} toc={true}>
@@ -588,10 +588,13 @@ layout:
   switcher-placement: sidebar
   content-alignment: left
   hide-nav-links: true
+  breadcrumbs:
+    current-page: true
   hide-feedback: true
   changelog-layout: timeline
   api-reference-layout: indented
   show-nav-availability-badges: true
+  breadcrumbs.current-page: true
 ```
 
 <ParamField path="layout.header-height" type="string" required={false} toc={true}>
@@ -644,6 +647,10 @@ layout:
   If set to true, the navigation links (previous, next) at the bottom of the page won't be rendered. This can be overridden on a per-page basis using the [frontmatter](/learn/docs/configuration/page-level-settings#navigation-links).
 </ParamField>
 
+<ParamField path="layout.breadcrumbs.current-page" type="boolean" required={false} default="false" toc={true}>
+  When `true`, appends the current page title as a non-clickable final breadcrumb above the page title. Defaults to `false`.
+</ParamField>
+
 <ParamField path="layout.hide-feedback" type="boolean" required={false} default="false" toc={true}>
   If set to true, the feedback form won't be rendered. This can be overridden on a per-page basis using the [frontmatter](/learn/docs/configuration/page-level-settings#on-page-feedback).
 </ParamField>
@@ -674,6 +681,10 @@ layout:
 
 <ParamField path="layout.show-nav-availability-badges" type="boolean" required={false} default="false" toc={true}>
   If set to true, availability badges (Beta, Deprecated, etc.) are rendered inline next to navigation items in the sidebar (in addition to the badge rendered automatically in the page header).
+</ParamField>
+
+<ParamField path="layout.breadcrumbs.current-page" type="boolean" required={false} default="false" toc={true}>
+  When set to `true`, the current page's title is appended to the page-header breadcrumb trail as a non-clickable item (rendered as a `<span>` with `aria-current="page"`). Ancestor breadcrumb items remain clickable links. Defaults to `false` — no change for existing sites.
 </ParamField>
 
 ## Theme configuration
@@ -748,6 +759,7 @@ settings:
     prioritize-current-product: true
     default-filter-by-current-product: true
   http-snippets: false
+  show-headers-in-examples: false
   hide-404-page: true
   use-javascript-as-typescript: false
   folder-title-source: frontmatter
@@ -807,6 +819,10 @@ settings:
     - python
     - ruby
 ```
+</ParamField>
+
+<ParamField path="settings.show-headers-in-examples" type="boolean" required={false} default="false" toc={true}>
+  If set to true, response examples in the API Reference include a raw HTTP block listing the response's declared headers — the status line plus one `Name: value` line per header — above the response body. Responses whose spec declares no headers render unchanged.
 </ParamField>
 
 <ParamField path="settings.hide-404-page" type="boolean" required={false} default="false" toc={true}>
@@ -1156,8 +1172,8 @@ metadata:
   The Twitter Card type. Options are `summary`, `summary_large_image`, `app`, or `player`.
 </ParamField>
 
-<ParamField path="metadata.og:dynamic" type="boolean" required={false}>
-  When `true`, enables dynamic OG image generation for pages that don't have a custom `og:image` set.
+<ParamField path="metadata.og:dynamic" type="boolean" required={false} default="true when no site-wide og:image or twitter:image is set">
+  When `true`, enables dynamic OG image generation for pages that don't have a custom `og:image` set. When `false`, no dynamic images are generated.
 </ParamField>
 
 <ParamField path="metadata.og:dynamic:background-image" type="string" required={false}>
@@ -1307,7 +1323,7 @@ ai-examples:
 
 ## Check configuration
 
-Configure the severity of validation rules run by [`fern check`](/learn/cli-api-reference/cli-reference/general-commands#fern-check). Each rule can be set to `"warn"` (non-blocking) or `"error"` (blocking).
+Configure the severity of validation rules run by [`fern check`](/learn/cli-api-reference/cli-reference/general-commands#fern-check) and [`fern generate --docs`](/learn/cli-api-reference/cli-reference/docs-commands#fern-generate---docs). Each rule can be set to `"warn"` (non-blocking) or `"error"` (blocking). A violation of a rule set to `"error"` in `check.rules` fails both commands, so `fern generate --docs` exits before publishing. Violations of `"warn"` rules don't block either command.
 
 ```yaml docs.yml
 check:
