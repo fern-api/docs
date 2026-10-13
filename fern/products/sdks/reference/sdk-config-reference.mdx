@@ -1,0 +1,491 @@
+---
+title: sdk-config.yml configuration schema
+description: Complete sdk-config.yml reference for Fern SDK generation. Configure API sources, client behavior, package metadata, output, publishing, and language targets.
+max-toc-depth: 3
+---
+
+The `sdk-config.yml` file configures SDK generation. It declares the API source, the settings shared by every SDK, and one target per language. Settings at the top level apply to every target; each target can override them.
+
+Projects that still generate from `generators.yml` can move to `sdk-config.yml` with `fern sdk migrate`. The [legacy `generators.yml` reference](/learn/sdks/legacy/reference/generators-yml) documents the previous format.
+
+```yaml title="sdk-config.yml" maxLines=10
+schemaVersion: sdk-config/v1
+sdkName: Plant Store
+sdkVersion: 1.0.0
+
+source:
+  specs:
+    - id: plant-store
+      type: openapi
+      path: ./openapi.yml
+
+api:
+  auth:
+    schemes:
+      - id: bearer
+        type: bearer
+        environmentVariable: PLANT_STORE_API_KEY
+
+client:
+  retry:
+    maxAttempts: 3
+  timeoutMs: 60000
+
+package:
+  description: Official SDK for the Plant Store API
+  authors:
+    - name: SDK Team
+      email: sdk@example.com
+
+targets:
+  - language: typescript
+    package:
+      packageName: "@plant-store/sdk"
+    output:
+      delivery: github
+      github:
+        repository: your-organization/plant-store-typescript
+      publish:
+        registry: npm
+        token: ${NPM_TOKEN}
+
+  - language: python
+    package:
+      packageName: plant-store
+    output:
+      delivery: files
+      path: ../sdks/python
+```
+
+## Credentials
+
+Credential fields such as `output.publish.token` and `output.github.credentials` don't accept literal secrets. Use an environment expression such as `${NPM_TOKEN}`, which Fern resolves when it generates the SDK.
+
+## Paths
+
+Paths in `sdk-config.yml` are relative to the file. Absolute paths and paths that contain `..` segments are rejected.
+
+## Override settings per target
+
+A target inherits the top-level `sdkName`, `sdkVersion`, `client`, `docs`, `package`, and `generation` settings and overrides only the fields it sets. A target's `output` replaces the top-level `output` entirely. Every target needs an effective `output`, either from the top level or from its own block.
+
+```yaml title="sdk-config.yml"
+client:
+  timeoutMs: 60000
+
+targets:
+  - language: typescript
+    output:
+      delivery: files
+      path: ../sdks/typescript
+  - language: python
+    client:
+      timeoutMs: 30000 # overrides the top-level value for Python only
+    output:
+      delivery: files
+      path: ../sdks/python
+```
+
+## `schemaVersion`
+
+<ParamField path="schemaVersion" type="&quot;sdk-config/v1&quot;" required={true} toc={true}>
+  The version of the SDK Config schema. Set to `sdk-config/v1`.
+</ParamField>
+
+## `sdkName`, `sdkVersion`, and `apiVersion`
+
+<ParamField path="sdkName" type="string" required={false} toc={true}>
+  The default name used for generated SDKs.
+</ParamField>
+<ParamField path="sdkVersion" type="string" required={false} default="1.0.0" toc={true}>
+  The default version assigned to generated SDKs.
+</ParamField>
+<ParamField path="apiVersion" type="string" required={false} toc={true}>
+  The version of the API represented by the generated SDKs.
+</ParamField>
+
+## `source`
+
+The API descriptions used to generate the SDKs. Each entry in `specs` sets exactly one of `path` (a local file) or `url` (an HTTP(S) resource).
+
+```yaml title="sdk-config.yml"
+source:
+  specs:
+    - id: plant-store
+      type: openapi
+      path: ./openapi.yml
+      overrides:
+        - ./openapi-overrides.yml
+```
+
+<ParamField path="source.specs[].id" type="string" required={true} toc={true}>
+  A unique identifier for this API source.
+</ParamField>
+<ParamField path="source.specs[].type" type="&quot;openapi&quot; | &quot;swagger&quot; | &quot;postman&quot; | &quot;asyncapi&quot; | &quot;graphql&quot;" required={true} toc={true}>
+  The API description format of this source.
+</ParamField>
+<ParamField path="source.specs[].name" type="string" required={false} toc={true}>
+  A human-readable name for this API source.
+</ParamField>
+<ParamField path="source.specs[].namespace" type="string" required={false} toc={true}>
+  A namespace used to isolate this source in a multi-source SDK.
+</ParamField>
+<ParamField path="source.specs[].apiImportSettings" type="object" required={false} toc={true}>
+  Import behavior that overrides the source-level defaults for this spec.
+</ParamField>
+<ParamField path="source.specs[].overlays" type="list<string>" required={false} toc={true}>
+  Relative paths to overlays applied to this source in order.
+</ParamField>
+<ParamField path="source.specs[].overrides" type="list<string>" required={false} toc={true}>
+  Relative paths to source override files applied in order.
+</ParamField>
+<ParamField path="source.specs[].path" type="string" required={false} toc={true}>
+  The relative path to the API source file.
+</ParamField>
+<ParamField path="source.specs[].url" type="string" required={false} toc={true}>
+  The HTTP or HTTPS URL of the API source file.
+</ParamField>
+<ParamField path="source.apiImportSettings" type="object" required={false} toc={true}>
+  API import settings applied to every spec. A spec's own `apiImportSettings` override these values.
+</ParamField>
+
+## `api`
+
+<ParamField path="api.baseUrl" type="string" required={false} toc={true}>
+  The default base URL used by the generated client.
+</ParamField>
+<ParamField path="api.environments" type="list<object>" required={false} toc={true}>
+  Named API environments and their base URLs.
+</ParamField>
+<ParamField path="api.environmentVariables" type="list<object>" required={false} toc={true}>
+  Environment variables exposed through generated client configuration.
+</ParamField>
+<ParamField path="api.defaultEnvironment" type="string" required={false} toc={true}>
+  The environment selected when a caller does not choose one.
+</ParamField>
+<ParamField path="api.auth" type="object" required={false} toc={true}>
+  Authentication supported by the API.
+</ParamField>
+<ParamField path="api.headers" type="list<object>" required={false} toc={true}>
+  Headers added to generated API requests.
+</ParamField>
+<ParamField path="api.audiences" type="list<string>" required={false} toc={true}>
+  Named API audiences included in the generated SDK.
+</ParamField>
+<ParamField path="api.webhookSignature" type="object" required={false} toc={true}>
+  How generated helpers verify webhook signatures from the API.
+</ParamField>
+
+## `client`
+
+<ParamField path="client.retry" type="object" required={false} toc={true}>
+  Retry behavior for generated API requests.
+</ParamField>
+<ParamField path="client.responseHeaders" type="boolean" required={false} default="false" toc={true}>
+  Whether generated operations expose HTTP response headers.
+</ParamField>
+<ParamField path="client.responseValidation" type="boolean" required={false} toc={true}>
+  Whether the client validates API responses against the schema.
+</ParamField>
+<ParamField path="client.multiTenant" type="boolean" required={false} default="false" toc={true}>
+  Whether the client exposes configuration for tenant-specific API access.
+</ParamField>
+<ParamField path="client.additionalConstructorParameters" type="list<object>" required={false} toc={true}>
+  Additional parameters added to the generated client constructor.
+</ParamField>
+<ParamField path="client.timeoutMs" type="union" required={false} toc={true}>
+  The default request timeout in milliseconds, or "infinity" for no timeout.
+</ParamField>
+<ParamField path="client.requestParameterStyle" type="&quot;wrapped&quot; | &quot;inline&quot; | &quot;language-default&quot;" required={false} toc={true}>
+  Whether generated operation parameters are wrapped or passed inline.
+</ParamField>
+<ParamField path="client.pathParameterStyle" type="&quot;wrapped&quot; | &quot;inline&quot; | &quot;language-default&quot;" required={false} toc={true}>
+  Whether generated path parameters are wrapped or passed inline.
+</ParamField>
+<ParamField path="client.filePropertyStyle" type="&quot;wrapped&quot; | &quot;inline&quot; | &quot;language-default&quot;" required={false} toc={true}>
+  Whether generated file properties are wrapped or passed inline.
+</ParamField>
+<ParamField path="client.useDefaultRequestParameterValues" type="boolean" required={false} toc={true}>
+  Whether schema defaults are applied to omitted request parameters.
+</ParamField>
+<ParamField path="client.respectOptionalRequestBody" type="boolean" required={false} toc={true}>
+  Whether an optional request body remains optional in generated methods.
+</ParamField>
+<ParamField path="client.tokenRefresh" type="object" required={false} toc={true}>
+  Refresh-token behavior for the generated client.
+</ParamField>
+<ParamField path="client.idempotencyKeyGeneration" type="object" required={false} toc={true}>
+  Automatic idempotency keys on eligible requests.
+</ParamField>
+<ParamField path="client.userAgent" type="object" required={false} toc={true}>
+  The User-Agent header the generated client sends.
+</ParamField>
+<ParamField path="client.offsetSemantics" type="&quot;item-index&quot; | &quot;page-index&quot;" required={false} toc={true}>
+  How an offset-paginated endpoint advances: by the number of items returned, or by one page.
+</ParamField>
+
+## `package`
+
+Package metadata inherited by every target. Package identity fields such as `packageName` usually belong on each target.
+
+<ParamField path="package.packageName" type="string" required={false} toc={true}>
+  The package name used by the target language registry.
+</ParamField>
+<ParamField path="package.moduleName" type="string" required={false} toc={true}>
+  The generated module or import name when it differs from the package name.
+</ParamField>
+<ParamField path="package.modulePath" type="string" required={false} toc={true}>
+  The Go module path used for imports and publishing.
+</ParamField>
+<ParamField path="package.namespace" type="string" required={false} toc={true}>
+  The namespace or package prefix for generated code.
+</ParamField>
+<ParamField path="package.groupId" type="string" required={false} toc={true}>
+  The Maven group identifier.
+</ParamField>
+<ParamField path="package.artifactId" type="string" required={false} toc={true}>
+  The Maven artifact identifier.
+</ParamField>
+<ParamField path="package.description" type="string" required={false} toc={true}>
+  The package description used in generated metadata.
+</ParamField>
+<ParamField path="package.repository" type="string" required={false} toc={true}>
+  The source repository for the generated SDK.
+</ParamField>
+<ParamField path="package.homepage" type="string" required={false} toc={true}>
+  The package homepage URL.
+</ParamField>
+<ParamField path="package.documentationUrl" type="string" required={false} toc={true}>
+  The package documentation URL.
+</ParamField>
+<ParamField path="package.authors" type="list<object>" required={false} toc={true}>
+  Authors credited in package metadata.
+</ParamField>
+<ParamField path="package.developers" type="list<object>" required={false} toc={true}>
+  Developers credited in package metadata.
+</ParamField>
+<ParamField path="package.license" type="object" required={false} toc={true}>
+  License metadata for the generated package.
+</ParamField>
+<ParamField path="package.keywords" type="list<string>" required={false} toc={true}>
+  Search keywords for package metadata.
+</ParamField>
+<ParamField path="package.classifiers" type="list<string>" required={false} toc={true}>
+  Package classifiers used by registries such as PyPI.
+</ParamField>
+<ParamField path="package.projectUrls" type="list<object>" required={false} toc={true}>
+  Labeled project links for package metadata.
+</ParamField>
+<ParamField path="package.extraDependencies" type="list<object>" required={false} toc={true}>
+  Additional runtime dependencies added to the generated package.
+</ParamField>
+<ParamField path="package.extraDevDependencies" type="list<object>" required={false} toc={true}>
+  Additional development dependencies added to the generated package.
+</ParamField>
+<ParamField path="package.extraPeerDependencies" type="list<object>" required={false} toc={true}>
+  Additional peer dependencies added to the generated package.
+</ParamField>
+<ParamField path="package.extraPeerDependenciesMeta" type="object" required={false} toc={true}>
+  npm peerDependenciesMeta entries keyed by peer dependency name, such as \{ optional: true \}.
+</ParamField>
+
+## `output`
+
+The default output delivery and publication configuration. A target's `output` replaces this block for that target.
+
+```yaml title="sdk-config.yml"
+targets:
+  - language: typescript
+    output:
+      delivery: github
+      github:
+        repository: your-organization/plant-store-typescript
+        mode: pull-request
+      publish:
+        registry: npm
+        trustedPublishing: true
+```
+
+<ParamField path="output.delivery" type="&quot;files&quot; | &quot;zip&quot; | &quot;github&quot;" required={true} toc={true}>
+  Where Fern delivers the generated SDK. `files` writes it to a directory, `zip` packages it as a ZIP archive, and `github` delivers it to a GitHub repository.
+</ParamField>
+<ParamField path="output.path" type="string" required={false} toc={true}>
+  The destination directory for generated files. Applies to `delivery: files`.
+</ParamField>
+<ParamField path="output.fileName" type="string" required={false} toc={true}>
+  The generated ZIP archive file name. Applies to `delivery: zip`.
+</ParamField>
+<ParamField path="output.github" type="object" required={false} toc={true}>
+  GitHub repository delivery settings. Required for `delivery: github`.
+</ParamField>
+
+### `github`
+
+<ParamField path="output.github.repository" type="string" required={true} toc={true}>
+  The GitHub repository that receives generated files.
+</ParamField>
+<ParamField path="output.github.host" type="string" required={false} toc={true}>
+  The GitHub host for enterprise installations.
+</ParamField>
+<ParamField path="output.github.branch" type="string" required={false} toc={true}>
+  The target branch for generated changes.
+</ParamField>
+<ParamField path="output.github.mode" type="&quot;release&quot; | &quot;pull-request&quot; | &quot;push&quot; | &quot;commit&quot; | &quot;commit-and-release&quot;" required={false} toc={true}>
+  How generated changes are delivered to the repository.
+</ParamField>
+<ParamField path="output.github.reviewers" type="object" required={false} toc={true}>
+  Reviewers requested for generated pull requests.
+</ParamField>
+<ParamField path="output.github.credentials" type="object" required={false} toc={true}>
+  Credentials used to authenticate GitHub delivery.
+</ParamField>
+<ParamField path="output.github.privateRepository" type="boolean" required={false} toc={true}>
+  Whether the destination repository is private.
+</ParamField>
+
+### `publish`
+
+Optional package registry publication. `registry` selects the registry, and the remaining fields depend on it.
+
+<ParamField path="output.publish.registry" type="&quot;npm&quot; | &quot;pypi&quot; | &quot;maven&quot; | &quot;nuget&quot; | &quot;rubygems&quot; | &quot;crates&quot; | &quot;go&quot; | &quot;composer&quot;" required={true} toc={true}>
+  The package registry to publish to.
+</ParamField>
+<ParamField path="output.publish.token" type="string" required={false} toc={true}>
+  The registry token, or an environment expression that resolves to it. Applies to `npm` and `crates`.
+</ParamField>
+<ParamField path="output.publish.trustedPublishing" type="boolean" required={false} toc={true}>
+  Whether npm publication uses trusted publishing (OIDC) instead of a token. Applies to `npm`.
+</ParamField>
+<ParamField path="output.publish.username" type="string" required={false} toc={true}>
+  The registry username, or an environment expression that resolves to it. Applies to `pypi` and `maven`.
+</ParamField>
+<ParamField path="output.publish.password" type="string" required={false} toc={true}>
+  The registry password or token, or an environment expression that resolves to it. Applies to `pypi` and `maven`.
+</ParamField>
+<ParamField path="output.publish.signature" type="object" required={false} toc={true}>
+  Credentials used to sign Maven artifacts. Applies to `maven`.
+</ParamField>
+<ParamField path="output.publish.url" type="string" required={false} toc={true}>
+  A custom package registry URL.
+</ParamField>
+<ParamField path="output.publish.releaseBranch" type="string" required={false} toc={true}>
+  The branch used by generated package release workflows.
+</ParamField>
+<ParamField path="output.publish.tolerateRepublish" type="boolean" required={false} toc={true}>
+  Whether an already-published package version is treated as non-fatal.
+</ParamField>
+
+## `replay`
+
+<ParamField path="replay.enabled" type="boolean" required={true} toc={true}>
+  Whether regeneration reapplies customer-authored repository changes.
+</ParamField>
+
+## `docs`
+
+<ParamField path="docs.readme" type="object" required={false} toc={true}>
+  README content and example configuration.
+</ParamField>
+<ParamField path="docs.snippets" type="object" required={false} toc={true}>
+  Standalone usage snippet generation.
+</ParamField>
+<ParamField path="docs.referenceBaseUrl" type="string" required={false} toc={true}>
+  The base URL used for links to generated API reference files.
+</ParamField>
+<ParamField path="docs.includeApiReference" type="boolean" required={false} toc={true}>
+  Whether API reference documentation is included in the SDK output.
+</ParamField>
+
+## `generation`
+
+Generation settings inherited by every target. Each target's `generation` block also accepts language-specific settings, documented on each language's configuration page.
+
+<ParamField path="generation.includeOptionalSnippetParameters" type="boolean" required={false} toc={true}>
+  Whether usage snippets include optional request parameters.
+</ParamField>
+<ParamField path="generation.buildAllModels" type="boolean" required={false} default="false" toc={true}>
+  Whether models not referenced by operations are also generated.
+</ParamField>
+<ParamField path="generation.inferServiceNames" type="boolean" required={false} default="false" toc={true}>
+  Whether service names are inferred from API structure.
+</ParamField>
+<ParamField path="generation.includeDeprecatedOperations" type="boolean" required={false} default="true" toc={true}>
+  Whether deprecated API operations are generated.
+</ParamField>
+<ParamField path="generation.multipleResponses" type="boolean" required={false} default="false" toc={true}>
+  Whether operations model multiple successful response types.
+</ParamField>
+<ParamField path="generation.devContainer" type="boolean" required={false} default="false" toc={true}>
+  Whether development-container configuration is generated.
+</ParamField>
+<ParamField path="generation.allowMockClient" type="boolean" required={false} default="false" toc={true}>
+  Whether a mock API client is included in the generated SDK.
+</ParamField>
+<ParamField path="generation.ignoreFiles" type="list<string>" required={false} toc={true}>
+  Generated paths excluded from the final output.
+</ParamField>
+<ParamField path="generation.reservedKeywords" type="list<string>" required={false} toc={true}>
+  Additional identifiers treated as reserved words.
+</ParamField>
+<ParamField path="generation.customCode" type="object" required={false} toc={true}>
+  Customer-authored code merge configuration.
+</ParamField>
+<ParamField path="generation.customQueryPaths" type="list<string>" required={false} toc={true}>
+  Relative paths to custom query definitions.
+</ParamField>
+<ParamField path="generation.analytics" type="object" required={false} toc={true}>
+  Generated client telemetry configuration.
+</ParamField>
+<ParamField path="generation.wireTests" type="object" required={false} toc={true}>
+  Wire-level request and response test generation.
+</ParamField>
+<ParamField path="generation.unitTests" type="object" required={false} toc={true}>
+  SDK unit-test generation.
+</ParamField>
+<ParamField path="generation.webSockets" type="boolean" required={false} toc={true}>
+  Whether WebSocket clients are generated for supported channels.
+</ParamField>
+<ParamField path="generation.streams" type="object" required={false} toc={true}>
+  Streaming response generation behavior.
+</ParamField>
+<ParamField path="generation.naming" type="object" required={false} toc={true}>
+  Names and casing used by generated code.
+</ParamField>
+<ParamField path="generation.layout" type="object" required={false} toc={true}>
+  Generated project and source layout.
+</ParamField>
+<ParamField path="generation.serialization" type="object" required={false} toc={true}>
+  Generated model serialization behavior.
+</ParamField>
+
+## `targets`
+
+Language targets to generate. Each language may appear once per file. Generate a single target with `fern generate --target <language>`.
+
+<ParamField path="targets[].language" type="&quot;typescript&quot; | &quot;python&quot; | &quot;java&quot; | &quot;kotlin&quot; | &quot;go&quot; | &quot;csharp&quot; | &quot;php&quot; | &quot;ruby&quot; | &quot;rust&quot; | &quot;swift&quot; | &quot;cli&quot; | &quot;mcp&quot; | &quot;terraform&quot;" required={true} toc={true}>
+  The language to generate. The value determines which language-specific settings `generation` accepts.
+</ParamField>
+<ParamField path="targets[].generation" type="object" required={false} toc={true}>
+  Common and TypeScript-specific generation settings for this target.
+</ParamField>
+<ParamField path="targets[].generatorVersion" type="string" required={false} toc={true}>
+  The exact generator version used for this target.
+</ParamField>
+<ParamField path="targets[].sdkName" type="string" required={false} toc={true}>
+  An SDK name that overrides the root value for this target.
+</ParamField>
+<ParamField path="targets[].sdkVersion" type="string" required={false} toc={true}>
+  An SDK version that overrides the root value for this target.
+</ParamField>
+<ParamField path="targets[].client" type="object" required={false} toc={true}>
+  Client settings that override root client configuration for this target.
+</ParamField>
+<ParamField path="targets[].docs" type="object" required={false} toc={true}>
+  Documentation settings that override root documentation for this target.
+</ParamField>
+<ParamField path="targets[].package" type="object" required={false} toc={true}>
+  Package metadata that overrides root package configuration for this target.
+</ParamField>
+<ParamField path="targets[].output" type="object" required={false} toc={true}>
+  Output configuration that replaces the root output for this target.
+</ParamField>

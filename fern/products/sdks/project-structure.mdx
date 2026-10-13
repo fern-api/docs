@@ -1,6 +1,6 @@
 ---
 title: Project structure
-description: Learn how to structure your SDK project with Fern. Set up multi-repo architecture, configure generators.yml, and organize API definitions.
+description: Learn how to structure your SDK project with Fern. Set up multi-repo architecture, configure sdk-config.yml, and organize API definitions.
 ---
 
 
@@ -20,10 +20,10 @@ Fern recommends a multi-repository structure containing:
     </Folder>
     <Folder name="fern" defaultOpen>
       <File name="fern.config.json" comment="Root-level config" />
-      <File name="generators.yml" comment="References SDK repos" />
-      <Folder name="definition">
+      <File name="sdk-config.yml" comment="References SDK repos" />
+      <Folder name="openapi">
+        <File name="openapi.yml" comment="Your API definition" />
         <File name="overrides.yml" comment="Optional overrides file" />
-        <File name="api.yml" comment="Your API definition" />
       </Folder>
     </Folder>
   </Folder>
@@ -48,7 +48,7 @@ This separation allows you to manage API definitions centrally while keeping eac
 
 ## Core configuration files
 
-The source repository contains a `fern/` folder  that is initialized with your API definitions and a top-level `generators.yml` file.
+The source repository contains a `fern/` folder  that is initialized with your API definitions and a top-level `sdk-config.yml` file.
 
 ### `fern.config.json`
 
@@ -65,38 +65,43 @@ The `fern.config.json` file stores your organization name and the Fern CLI versi
   When working with a locally installed CLI, set `version` to `"*"`. See [Install Fern CLI locally](/learn/cli-api-reference/cli-reference/overview#installation) for details.
 </Info>
 
-### `generators.yml`
+### `sdk-config.yml`
 
-The `generators.yml` file declares your API spec location in the `api.specs` section and configures SDK generation in the `groups` section.
+The `sdk-config.yml` file declares your API spec location in `source.specs` and lists one target per SDK language in `targets`. Settings at the top level apply to every target, and each target can override them.
 
-```yaml title="generators.yml"
+```yaml title="sdk-config.yml"
+schemaVersion: sdk-config/v1
+sdkName: Plant Store
+
 # API declaration
-api:
+source:
   specs:
-    - openapi: ./openapi/openapi.yml
+    - id: plant-store
+      type: openapi
+      path: ./openapi/openapi.yml
 
 # SDK generation
-groups:
-  ts-sdk:
-    generators:
-      - name: fern-typescript-sdk
-        version: <Markdown src="/snippets/version-number-ts.mdx"/>
-        github:
-          repository: your-organization/typescript-sdk-repo
+targets:
+  - language: typescript
+    package:
+      packageName: "@plant-store/sdk"
+    output:
+      delivery: github
+      github:
+        repository: your-organization/typescript-sdk-repo
 
-  python-sdk:
-    generators:
-      - name: fern-python-sdk
-        version: <Markdown src="/snippets/version-number-python.mdx"/>
-        github:
-          repository: your-organization/python-sdk-repo
+  - language: python
+    package:
+      packageName: plant-store
+    output:
+      delivery: github
+      github:
+        repository: your-organization/python-sdk-repo
 ```
 
-<Info title="Examples">
-  See Cohere's [`generators.yml` file](https://github.com/cohere-ai/cohere-developer-experience/blob/23d6c541a01eb6b54dd9bb3588c805bb0e307713/fern/apis/sdks/generators.yml) and Vapi's [`generators.yml` file](https://github.com/VapiAI/docs/blob/9c674c2b16ba03e864e26673c5290c88048c9a7a/fern/apis/api/generators.yml).
-</Info>
+Each language can appear once per file. Generate one target with `fern generate --target typescript`, or every target with `fern generate`.
 
-The `github` property targets GitHub repositories only — Fern doesn't push SDKs to GitLab or other providers. The [`generators.yml` reference page](/learn/sdks/reference/generators-yml) covers complete configuration options, including self-hosted generation for other targets.
+`delivery: github` targets GitHub repositories only — Fern doesn't push SDKs to GitLab or other providers. The [`sdk-config.yml` reference](/learn/sdks/reference/sdk-config) covers every configuration option.
 
 ### API definition file
 
