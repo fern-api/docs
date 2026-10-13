@@ -4,7 +4,7 @@ description: Learn how to structure your SDK project with Fern. Set up multi-rep
 ---
 
 
-Before generating SDKs with Fern, set up the proper GitHub repository structure to house your API definitions and SDK code so it's intuitive for you and your users to access, maintain, and update code.
+Fern SDK projects use one source repository for your API definition and generation configuration, plus one repository per generated SDK. This page describes what goes in each repository, the files Fern requires, and how to connect them.
 
 ## Repository architecture
 
@@ -16,14 +16,14 @@ Fern recommends a multi-repository structure containing:
 <Files>
   <Folder name="company-repo" defaultOpen comment="Source repository">
     <Folder name=".github" defaultOpen>
-      <Folder name="workflows" comment="Publishing workflows for all SDKs" />
+      <Folder name="workflows" comment="Optional: runs fern generate in CI" />
     </Folder>
     <Folder name="fern" defaultOpen>
-      <File name="fern.config.json" comment="Root-level config" />
-      <File name="generators.yml" comment="References SDK repos" />
-      <Folder name="definition">
+      <File name="fern.config.json" comment="Organization name and CLI version" />
+      <File name="generators.yml" comment="Declares your API spec and SDK repos" />
+      <Folder name="openapi" defaultOpen>
+        <File name="openapi.yml" comment="Your API definition" />
         <File name="overrides.yml" comment="Optional overrides file" />
-        <File name="api.yml" comment="Your API definition" />
       </Folder>
     </Folder>
   </Folder>
@@ -40,7 +40,7 @@ Fern recommends a multi-repository structure containing:
   <Folder name="go-sdk-repo" comment="SDK repository" />
 </Files>
 
-This separation allows you to manage API definitions centrally while keeping each SDK in its own repository for independent versioning and distribution.
+This separation allows you to manage API definitions centrally while keeping each SDK in its own repository for independent versioning and distribution. Fern commits generated code to the SDK repositories on each run. To keep hand-written changes in an SDK repository across regenerations, see [Adding custom code](/learn/sdks/overview/custom-code).
 
 <Info title="Examples">
   See Cohere's [fern folder](https://github.com/cohere-ai/cohere-developer-experience/tree/23d6c541a01eb6b54dd9bb3588c805bb0e307713/fern) and [TypeScript](https://github.com/cohere-ai/cohere-typescript) and [Python](https://github.com/cohere-ai/cohere-python) SDK repositories.
@@ -48,7 +48,7 @@ This separation allows you to manage API definitions centrally while keeping eac
 
 ## Core configuration files
 
-The source repository contains a `fern/` folder  that is initialized with your API definitions and a top-level `generators.yml` file.
+The source repository contains a `fern/` folder with `fern.config.json`, `generators.yml`, and your API definition. Running [`fern init`](/learn/cli-api-reference/cli-reference/general-commands#fern-init) creates this folder for you.
 
 ### `fern.config.json`
 
@@ -61,13 +61,16 @@ The `fern.config.json` file stores your organization name and the Fern CLI versi
 }
 ```
 
-<Info> 
+<Info>
   When working with a locally installed CLI, set `version` to `"*"`. See [Install Fern CLI locally](/learn/cli-api-reference/cli-reference/overview#installation) for details.
 </Info>
 
 ### `generators.yml`
 
-The `generators.yml` file declares your API spec location in the `api.specs` section and configures SDK generation in the `groups` section.
+The `generators.yml` file has two sections:
+
+- `api.specs` declares where your API definition lives. Paths are relative to `generators.yml`.
+- `groups` configures SDK generation. Each group contains one or more generators, and you run a group with `fern generate --group <group-name>`.
 
 ```yaml title="generators.yml"
 # API declaration
@@ -92,12 +95,30 @@ groups:
           repository: your-organization/python-sdk-repo
 ```
 
+Each generator's `github.repository` points to the SDK repository Fern commits generated code to. This requires the [Fern GitHub App](https://github.com/apps/fern-api) installed on that repository. By default, Fern commits to the default branch and tags a release; set [`mode`](/learn/sdks/reference/generators-yml#github) to `pull-request` or `push` to change this. Publishing to a package registry such as npm or PyPI is configured separately with `output`, as described in each language's publishing guide (for example, [Publishing to npm](/learn/sdks/generators/typescript/publishing)).
+
+The `github` property targets GitHub repositories only — Fern doesn't push SDKs to GitLab or other providers. The [`generators.yml` reference page](/learn/sdks/reference/generators-yml) covers complete configuration options, including self-hosted generation for other targets.
+
 <Info title="Examples">
   See Cohere's [`generators.yml` file](https://github.com/cohere-ai/cohere-developer-experience/blob/23d6c541a01eb6b54dd9bb3588c805bb0e307713/fern/apis/sdks/generators.yml) and Vapi's [`generators.yml` file](https://github.com/VapiAI/docs/blob/9c674c2b16ba03e864e26673c5290c88048c9a7a/fern/apis/api/generators.yml).
 </Info>
 
-The `github` property targets GitHub repositories only — Fern doesn't push SDKs to GitLab or other providers. The [`generators.yml` reference page](/learn/sdks/reference/generators-yml) covers complete configuration options, including self-hosted generation for other targets.
-
 ### API definition file
 
-See [Project structure (API Definitions)](/learn/api-definitions/overview/project-structure) for details on organizing your API definition files and working with multiple APIs.
+Your API definition (OpenAPI, AsyncAPI, gRPC, or another supported format) is the input Fern generates SDKs from. Commit it to the `fern/` folder, or reference it from a URL or another repository. [Project structure (API Definitions)](/learn/api-definitions/overview/project-structure) covers where to store your definition and how to work with multiple APIs.
+
+## Set up your repositories
+
+1. Create the source repository and run `fern init --openapi path/to/openapi.yml` in it to create the `fern/` folder.
+2. Create an empty repository for each SDK, such as `your-organization/typescript-sdk-repo`.
+3. Install the [Fern GitHub App](https://github.com/apps/fern-api) on the source repository and each SDK repository.
+4. Add a group for each SDK to `generators.yml` with `github.repository` set to its SDK repository.
+5. Run `fern check` to validate your configuration, then run [`fern generate`](/learn/cli-api-reference/cli-reference/sdk-commands#fern-generate) for each group:
+
+   ```bash
+   fern generate --group ts-sdk
+   ```
+
+   Fern generates the SDK and commits it to the SDK repository. The first run prompts you to log in; in CI, set a `FERN_TOKEN` instead (run `fern token` to create one).
+
+For a step-by-step walkthrough in a specific language, see the [TypeScript quickstart](/learn/sdks/generators/typescript/quickstart) or the guide for [your SDK's language](/learn/sdks/overview/introduction).
