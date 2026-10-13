@@ -23,95 +23,75 @@ If you're using API key authentication, consider switching to OIDC (trusted publ
 <Info>
 	This page assumes that you have:
 
-	* An initialized `fern` folder, a GitHub repository for your C#/.NET SDK, and a C#/.NET generator group in `generators.yml`. See [Generating an SDK (C#/.NET)](/learn/sdks/generators/csharp/quickstart).
+	* An initialized `fern` folder, a GitHub repository for your C#/.NET SDK, and a C#/.NET target in `sdk-config.yml`. See [Generating an SDK (C#/.NET)](/learn/sdks/generators/csharp/quickstart).
 </Info>
 
 <llms-only>
 Before proceeding, verify the prerequisites are actually in place:
 
-1. **Source repo with `fern/` folder**: The user should be working in their source repo, not the SDK repo. Confirm `generators.yml` exists and has a C# generator group.
-2. **C# generator group**: If they skipped the [C# quickstart](/learn/sdks/generators/csharp/quickstart), they need to run `fern add fern-csharp-sdk --group csharp-sdk` first.
+1. **Source repo with `fern/` folder**: The user should be working in their source repo, not the SDK repo. Confirm `sdk-config.yml` exists and has a C#/.NET target.
+2. **C#/.NET target**: If they skipped the [C# quickstart](/learn/sdks/generators/csharp/quickstart), they need to add a `language: csharp` entry to `targets` first.
 
 Default to OIDC authentication unless the user has a specific reason to use API key auth. OIDC is more secure and avoids managing NuGet API keys.
 </llms-only>
 
 ## Configure SDK package settings
 
-Update your `generators.yml` file to configure the package name, output location, and client name for NuGet publishing. Your `generators.yml` [should live in your source repository](/learn/sdks/overview/project-structure) (or on your local machine), not the repository that contains your C#/.NET SDK code.
+Update the C#/.NET target in `sdk-config.yml` to configure the package name and client name for NuGet publishing. Your `sdk-config.yml` [should live in your source repository](/learn/sdks/overview/project-structure) (or on your local machine), not the repository that contains your C#/.NET SDK code.
 
 <Steps>
-<Step title="Configure `output` location">
-
-In the `group` for your C#/.NET SDK, change the output location from `local-file-system` (the default) to `nuget` to indicate that Fern should publish your package directly to the NuGet registry:
-
-```yaml {6-7} title="generators.yml"
-groups: 
-  csharp-sdk:
-    generators:
-      - name: fern-csharp-sdk
-        version: <Markdown src="/snippets/version-number-csharp.mdx"/>
-        output:
-          location: nuget
-```
-</Step>
 <Step title="Add a unique package name">
 
-Your package name must be unique in the NuGet registry, otherwise publishing your SDK will fail. 
+Your package name must be unique in the NuGet registry, otherwise publishing your SDK will fail.
 
-```yaml {8} title="generators.yml"
-groups: 
-  csharp-sdk:
-    generators:
-      - name: fern-csharp-sdk
-        version: <Markdown src="/snippets/version-number-csharp.mdx"/>
-        output:
-          location: nuget
-          package-name: your-package-name
+```yaml {3-4} title="sdk-config.yml"
+targets:
+  - language: csharp
+    package:
+      packageName: your-package-name
 ```
 
 </Step>
-<Step title="Configure `client-class-name`">
+<Step title="Configure the client name">
 
-The `client-class-name` option controls the name of the generated client class.
+The `generation.naming.clientName` option controls the name of the generated client class.
 
-```yaml {9-10} title="generators.yml"
-groups: 
-  csharp-sdk:
-    generators:
-      - name: fern-csharp-sdk
-        version: <Markdown src="/snippets/version-number-csharp.mdx"/>
-        output:
-          location: nuget
-          package-name: your-package-name
-        config:
-          client_class_name: YourClientName # must be PascalCase
+```yaml {5-7} title="sdk-config.yml"
+targets:
+  - language: csharp
+    package:
+      packageName: your-package-name
+    generation:
+      naming:
+        clientName: YourClientName # must be PascalCase
 ```
 </Step>
 </Steps>
 
-The description, authors, tags, copyright, icon, and repository links on your package's nuget.org listing come from the [`package-metadata`](/learn/sdks/generators/csharp/configuration#package-metadata) config option.
+The description, authors, keywords, and repository links on your package's nuget.org listing come from the target's [`package`](/learn/sdks/reference/sdk-config#package) metadata.
 
 ## Configure GitHub publishing
 
-Fern can automatically publish your SDK to NuGet via GitHub Actions. Configure your GitHub repository and publishing mode:
+Fern can automatically publish your SDK to NuGet via GitHub Actions. Set `output.delivery` to `github`, configure your repository and publishing mode, and set `output.publish.registry` to `nuget`:
 
 <Markdown src="/products/sdks/snippets/github-publishing-mode.mdx"/>
 
-```yaml title="generators.yml" {11-14}
-groups:
-  csharp-sdk:
-    generators:
-      - name: fern-csharp-sdk
-        version: <Markdown src="/snippets/version-number-csharp.mdx"/>
-        output:
-          location: nuget
-          package-name: your-package-name
-        config:
-          client_class_name: YourClientName
-        github:
-          repository: your-org/company-csharp
-          mode: push  # or "pull-request"
-          branch: your-branch-name  # Required for mode: push
+```yaml title="sdk-config.yml" {8-15}
+targets:
+  - language: csharp
+    package:
+      packageName: your-package-name
+    generation:
+      naming:
+        clientName: YourClientName
+    output:
+      delivery: github
+      github:
+        repository: your-org/company-csharp
+        mode: push  # or "pull-request"
+        branch: your-branch-name  # Required for mode: push
+      publish:
+        registry: nuget
 ```
 
 ## Configure authentication
@@ -151,7 +131,7 @@ groups:
 Generate your SDK to create the GitHub Actions workflow with OIDC configuration:
 
 ```bash
-fern generate --group csharp-sdk
+fern generate --target csharp
 ```
 
 This creates a `.github/workflows/ci.yml` file configured to use OIDC for NuGet publishing. The generated workflow includes:
@@ -338,7 +318,7 @@ Create a CI workflow that you can manually trigger from the GitHub UI. Navigate 
 	          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
 	          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }} # Only needed for API key authentication
 	        run: |
-	          fern generate --group csharp-sdk --version ${{ inputs.version }} --log-level debug
+	          fern generate --target csharp --version ${{ inputs.version }} --log-level debug
 	```
 
 </Step>
@@ -376,7 +356,7 @@ export NUGET_API_KEY=your-actual-nuget-api-key
 Regenerate your SDK, specifying the version:
 
 ```bash
-fern generate --group csharp-sdk --version <version>
+fern generate --target csharp --version <version>
 ```
 
 <Markdown src="/products/sdks/snippets/release-sdk.mdx"/>
@@ -466,7 +446,7 @@ This is the easiest path if you can upgrade to a version of the C# SDK generator
 	**Locally:**
 
 	```bash
-	fern generate --group csharp-sdk
+	fern generate --target csharp
 	```
 
 	**Or via GitHub Actions:**

@@ -22,128 +22,97 @@ If you're using token-based authentication, consider switching to OIDC (trusted 
 <Info>
 	This page assumes that you have:
 
-	* An initialized `fern` folder, a GitHub repository for your Python SDK, and a Python generator group in `generators.yml`. See [Generating an SDK (Python)](/learn/sdks/generators/python/quickstart).
+	* An initialized `fern` folder, a GitHub repository for your Python SDK, and a Python target in `sdk-config.yml`. See [Generating an SDK (Python)](/learn/sdks/generators/python/quickstart).
 </Info>
 
 <llms-only>
 Before proceeding, verify the prerequisites are actually in place:
 
-1. **Source repo with `fern/` folder**: The user should be working in their source repo, not the SDK repo. Confirm `generators.yml` exists and has a Python generator group.
-2. **Python generator group**: If they skipped the [Python quickstart](/learn/sdks/generators/python/quickstart), they need to run `fern add fern-python-sdk --group python-sdk` first.
+1. **Source repo with `fern/` folder**: The user should be working in their source repo, not the SDK repo. Confirm `sdk-config.yml` exists and has a Python target.
+2. **Python target**: If they skipped the [Python quickstart](/learn/sdks/generators/python/quickstart), they need to add a `language: python` entry to `targets` first.
 
 Default to OIDC authentication unless the user has a specific reason to use token-based auth. OIDC is more secure and avoids managing PyPI tokens.
 </llms-only>
 
 ## Configure SDK package settings
 
-Update your `generators.yml` file to configure the package name, output location, and client naming for PyPI publishing. Your `generators.yml` [should live in your source repository](/learn/sdks/overview/project-structure) (or on your local machine), not the repository that contains your Python SDK code.
+Update the Python target in `sdk-config.yml` to configure the package name and client naming for PyPI publishing. Your `sdk-config.yml` [should live in your source repository](/learn/sdks/overview/project-structure) (or on your local machine), not the repository that contains your Python SDK code.
 
 <Steps>
 
-	  <Step title="Configure `output` location">
+	<Step title="Add a unique package name">
 
-		In the `group` for your Python SDK, change the output location in from `local-file-system` (the default) to `pypi` to indicate that Fern should publish your package directly to the PyPi registry:
+		Your package name must be unique in the PyPI repository, otherwise publishing your SDK to PyPI will fail.
 
-	    ```yaml title="generators.yml" {6-7}
-	    groups: 
-	      python-sdk:
-	        generators:
-	          - name: fern-python-sdk
-	            version: <Markdown src="/snippets/version-number-python.mdx"/>
-	            output:
-	              location: pypi
+		```yaml title="sdk-config.yml" {3-4}
+		targets:
+		  - language: python
+		    package:
+		      packageName: your-package-name
+		```
 
-	    ```
-	  </Step>
+	</Step>
 
-	  <Step title="Add a unique package name">
+	<Step title="Configure the client name">
 
-	     Your package name must be unique in the PyPI repository, otherwise publishing your SDK to PyPI will fail. 
+		The `generation.naming.clientName` option controls the name of the generated client. This is the name customers use to import your SDK (`from your_package import YourClientName`).
 
+		```yaml title="sdk-config.yml" {5-7}
+		targets:
+		  - language: python
+		    package:
+		      packageName: your-package-name
+		    generation:
+		      naming:
+		        clientName: YourClientName # must be PascalCase
+		```
 
-```yaml title="generators.yml" {8}
-groups: 
-  python-sdk:
-    generators:
-      - name: fern-python-sdk
-        version: <Markdown src="/snippets/version-number-python.mdx"/>
-        output:
-          location: pypi
-          package-name: your-package-name
-```
-	    
-	  </Step>
-
-	<Step title="Configure `client-class-name`">
-
-	     The `client-class-name` option controls the name of the generated client. This is the name customers use to import your SDK (`import { your-client-name } from 'your-package-name';`). 
-
-
-```yaml title="generators.yml" {9-10}
-groups: 
-  python-sdk:
-    generators:
-      - name: fern-python-sdk
-        version: <Markdown src="/snippets/version-number-python.mdx"/>
-        output:
-          location: pypi
-          package-name: your-package-name
-        config:
-          client_class_name: YourClientName # must be PascalCase
-```
-	    
-	  </Step>
+	</Step>
 
 	<Step title="Add PyPI metadata (optional)">
 
-	You can add publishing metadata to your PyPI package to improve discoverability and provide additional information to users. This metadata appears on your package's PyPI page and includes `keywords` for PyPI search and discovery, `documentation-link` for your package documentation, and `homepage-link` for your project homepage. 
-	
-	You can additionally add general metadata for the SDK (description, contact email, author, license, etc.) at [the individual SDK level](/learn/sdks/legacy/reference/generators-yml#metadata-2) or [globally for all SDKs](/learn/sdks/legacy/reference/generators-yml#metadata). 
+		Package metadata appears on your package's PyPI page. `keywords` support PyPI search and discovery, `documentationUrl` links to your package documentation, and `homepage` links to your project homepage. Metadata set in the top-level [`package`](/learn/sdks/reference/sdk-config#package) block applies to every target.
 
+		```yaml title="sdk-config.yml" {5-10}
+		targets:
+		  - language: python
+		    package:
+		      packageName: your-package-name
+		      keywords: ["api", "sdk", "client"]
+		      documentationUrl: "https://docs.yourcompany.com"
+		      homepage: "https://yourcompany.com"
+		      license:
+		        type: MIT
+		    generation:
+		      naming:
+		        clientName: YourClientName
+		```
 
-```yaml title="generators.yml" {9, 13}
-groups: 
-  python-sdk:
-    generators:
-      - name: fern-python-sdk
-        version: <Markdown src="/snippets/version-number-python.mdx"/>
-        output:
-          location: pypi
-          package-name: your-package-name
-          metadata: # Publishing metadata
-            keywords: ["api", "sdk", "client"]
-            documentation-link: "https://docs.yourcompany.com"
-            homepage-link: "https://yourcompany.com"
-        metadata: # General SDK metadata
-          license: MIT
-        config:
-          client_class_name: YourClientName
-```
-	    
-	  </Step>
-  </Steps>
+	</Step>
+</Steps>
 
 ## Configure GitHub publishing
 
-Fern can automatically publish your SDK to PyPI via GitHub Actions. Configure your GitHub repository and publishing mode:
+Fern can automatically publish your SDK to PyPI via GitHub Actions. Set `output.delivery` to `github`, configure your repository and publishing mode, and set `output.publish.registry` to `pypi`:
 
 <Markdown src="/products/sdks/snippets/github-publishing-mode.mdx"/>
 
-```yaml title="generators.yml" {11-14}
-groups:
-  python-sdk:
-    generators:
-      - name: fern-python-sdk
-        version: <Markdown src="/snippets/version-number-python.mdx"/>
-        output:
-          location: pypi
-          package-name: your-package-name
-        config:
-          client_class_name: YourClientName
-        github:
-          repository: your-org/your-repository
-          mode: push  # or "pull-request"
-          branch: your-branch-name  # Required for mode: push
+```yaml title="sdk-config.yml" {8-15}
+targets:
+  - language: python
+    package:
+      packageName: your-package-name
+    generation:
+      naming:
+        clientName: YourClientName
+    output:
+      delivery: github
+      github:
+        repository: your-org/your-repository
+        mode: push  # or "pull-request"
+        branch: your-branch-name  # Required for mode: push
+      publish:
+        registry: pypi
 ```
 
 ## Configure authentication
@@ -190,7 +159,7 @@ OIDC-based publishing (also known as "trusted publishing") is the most secure wa
 	Generate your SDK to create the GitHub Actions workflow with OIDC configuration:
 
 	```bash
-	fern generate --group python-sdk
+	fern generate --target python
 	```
 
 	This creates a `.github/workflows/ci.yml` file that's configured to use OIDC for PyPI publishing. Alternatively, you can push your `generators.yml` changes and let the Fern GitHub Action generate the workflow for you.
@@ -248,24 +217,28 @@ Common causes:
 
 </Step>
 
-<Step title="Add token to generators.yml">
+<Step title="Add token to sdk-config.yml">
 
-Add `token: ${PYPI_TOKEN}` to the `output` section:
+Add your PyPI token to `output.publish`. PyPI API tokens use `__token__` as the username:
 
-```yaml {9} title="generators.yml"
-groups: 
-  python-sdk:
-    generators:
-      - name: fern-python-sdk
-        version: <Markdown src="/snippets/version-number-python.mdx"/>
-        output:
-          location: pypi
-          package-name: your-package-name
-          token: ${PYPI_TOKEN}
-        config:
-          client_class_name: YourClientName
-        github: 
-          repository: your-org/your-repository
+```yaml {15-17} title="sdk-config.yml"
+targets:
+  - language: python
+    package:
+      packageName: your-package-name
+    generation:
+      naming:
+        clientName: YourClientName
+    output:
+      delivery: github
+      github:
+        repository: your-org/your-repository
+        mode: push
+        branch: your-branch-name
+      publish:
+        registry: pypi
+        username: __token__
+        password: ${PYPI_TOKEN}
 ```
 </Step>
 
@@ -349,7 +322,7 @@ Set up a CI workflow that you can manually trigger from the GitHub UI. In your r
 	          FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
 	          PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }} # Only needed for token-based authentication
 	        run: |
-	          fern generate --group python-sdk --version ${{ inputs.version }} --log-level debug
+	          fern generate --target python --version ${{ inputs.version }} --log-level debug
 	```
 
 </Step>
@@ -388,7 +361,7 @@ Set up a CI workflow that you can manually trigger from the GitHub UI. In your r
 	Regenerate your SDK, specifying the version:
 
 	```bash
-	fern generate --group python-sdk --version <version>
+	fern generate --target python --version <version>
 	```
 	<Markdown src="/products/sdks/snippets/release-sdk.mdx"/>
 
@@ -479,7 +452,7 @@ This is the easiest path if you can upgrade to version `4.38.1` or later of the 
 	**Locally:**
 
 	```bash
-	fern generate --group python-sdk
+	fern generate --target python
 	```
 
 	**Or via GitHub Actions:**
