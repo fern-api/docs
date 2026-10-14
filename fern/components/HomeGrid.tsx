@@ -703,8 +703,10 @@ export function QuickNav({ items, links = [] }: { items: QuickNavItem[]; links?:
       const link = nav?.querySelector(".hg-quicknav-link") as HTMLElement | null;
       if (!nav || !inner || !title || !link || nav.offsetParent === null) return;
       const t = title.getBoundingClientRect();
-      // The inner column is sticky, so measure from where it actually sits.
-      const offset = t.top + t.height / 2 - inner.getBoundingClientRect().top - link.offsetHeight / 2;
+      const l = link.getBoundingClientRect();
+      // The inner column is sticky, so measure from where the link actually sits.
+      const padding = parseFloat(getComputedStyle(inner).paddingTop) || 0;
+      const offset = padding + t.top + t.height / 2 - (l.top + l.height / 2);
       nav.style.setProperty("--hg-quicknav-offset", `${Math.max(0, Math.round(offset))}px`);
     };
     const onResize = () => {
@@ -753,24 +755,24 @@ export function QuickNav({ items, links = [] }: { items: QuickNavItem[]; links?:
   return (
     <nav ref={navRef} aria-label="Page sections" className="hg-quicknav">
       <div className="hg-quicknav-inner">
-        <ul className="hg-quicknav-list">
-          {items.map((item, index) => (
-            <li key={item.id}>
-              <a
-                href={`#${item.id}`}
-                className="hg-quicknav-link"
-                data-active={active === item.id ? "true" : undefined}
-                aria-current={active === item.id ? "location" : undefined}
-                onClick={(e: MouseEvent) => jump(e, item.id)}
-              >
-                <span className="hg-quicknav-num" aria-hidden="true">
-                  {String(index + 1).padStart(2, "0")}
-                </span>
-                {item.label}
-              </a>
-            </li>
-          ))}
-        </ul>
+        <div>
+          <p className="hg-quicknav-label">On this page</p>
+          <ul className="hg-quicknav-list">
+            {items.map((item) => (
+              <li key={item.id}>
+                <a
+                  href={`#${item.id}`}
+                  className="hg-quicknav-link"
+                  data-active={active === item.id ? "true" : undefined}
+                  aria-current={active === item.id ? "location" : undefined}
+                  onClick={(e: MouseEvent) => jump(e, item.id)}
+                >
+                  {item.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
         {links.length > 0 && (
           <ul className="hg-quicknav-list hg-quicknav-ctas">
             {links.map((link) => (
