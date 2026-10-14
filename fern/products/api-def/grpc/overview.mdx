@@ -15,41 +15,66 @@ Fern is compatible with gRPC services and can generate SDKs and documentation fr
 
 For a working example, see the [gRPC demo docs](https://grpc-demo.docs.buildwithfern.com/) and its [GitHub repository](https://github.com/fern-demo/grpc-demo).
 
-Below is an example of a gRPC service definition:
+The sample service created by `fern init --grpc`:
 
 ```protobuf user_service.proto
 syntax = "proto3";
 
 package userservice.v1;
 
-// User service for managing user accounts
-service UserService {
+import "google/api/annotations.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+option csharp_namespace = "UserService.V1";
+
+// Manages user accounts
+service UserDirectory {
   // Create a new user account
-  rpc CreateUser(CreateUserRequest) returns (User);
-  
-  // Get user by ID
-  rpc GetUser(GetUserRequest) returns (User);
-  
+  rpc CreateUser(CreateUserRequest) returns (User) {
+    option (google.api.http) = {
+      post: "/v1/users"
+      body: "*"
+    };
+  }
+
+  // Get a user by ID
+  rpc GetUser(GetUserRequest) returns (User) {
+    option (google.api.http) = {
+      get: "/v1/users/{id}"
+    };
+  }
+
   // List users with pagination
-  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
-  
-  // Update user information
-  rpc UpdateUser(UpdateUserRequest) returns (User);
-  
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse) {
+    option (google.api.http) = {
+      get: "/v1/users"
+    };
+  }
+
+  // Update a user
+  rpc UpdateUser(UpdateUserRequest) returns (User) {
+    option (google.api.http) = {
+      patch: "/v1/users/{id}"
+      body: "*"
+    };
+  }
+
   // Delete a user account
-  rpc DeleteUser(DeleteUserRequest) returns (google.protobuf.Empty);
-  
-  // Stream user events (server streaming)
-  rpc StreamUserEvents(StreamUserEventsRequest) returns (stream UserEvent);
-  
-  // Upload user data (client streaming)
-  rpc UploadUserData(stream UploadUserDataRequest) returns (UploadUserDataResponse);
-  
-  // Real-time chat (bidirectional streaming)
-  rpc Chat(stream ChatMessage) returns (stream ChatMessage);
+  rpc DeleteUser(DeleteUserRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      delete: "/v1/users/{id}"
+    };
+  }
 }
 
-// Messages for user operations
+enum UserStatus {
+  USER_STATUS_UNSPECIFIED = 0;
+  USER_STATUS_ACTIVE = 1;
+  USER_STATUS_INACTIVE = 2;
+  USER_STATUS_SUSPENDED = 3;
+}
+
 message User {
   string id = 1;
   string email = 2;
@@ -72,7 +97,6 @@ message GetUserRequest {
 message ListUsersRequest {
   int32 page_size = 1;
   string page_token = 2;
-  string filter = 3;
 }
 
 message ListUsersResponse {
@@ -83,82 +107,14 @@ message ListUsersResponse {
 
 message UpdateUserRequest {
   string id = 1;
-  User user = 2;
-  google.protobuf.FieldMask update_mask = 3;
+  string email = 2;
+  string name = 3;
+  int32 age = 4;
+  UserStatus status = 5;
 }
 
 message DeleteUserRequest {
   string id = 1;
-}
-
-message StreamUserEventsRequest {
-  string user_id = 1;
-  repeated UserEventType event_types = 2;
-}
-
-message UserEvent {
-  string id = 1;
-  string user_id = 2;
-  UserEventType type = 3;
-  google.protobuf.Timestamp timestamp = 4;
-  google.protobuf.Any data = 5;
-}
-
-message UploadUserDataRequest {
-  oneof data {
-    UserDataChunk chunk = 1;
-    UserDataMetadata metadata = 2;
-  }
-}
-
-message UserDataChunk {
-  bytes data = 1;
-  int64 offset = 2;
-}
-
-message UserDataMetadata {
-  string filename = 1;
-  int64 total_size = 2;
-  string content_type = 3;
-}
-
-message UploadUserDataResponse {
-  string file_id = 1;
-  int64 bytes_uploaded = 2;
-}
-
-message ChatMessage {
-  string id = 1;
-  string user_id = 2;
-  string room_id = 3;
-  string content = 4;
-  google.protobuf.Timestamp timestamp = 5;
-  ChatMessageType type = 6;
-}
-
-// Enums
-enum UserStatus {
-  USER_STATUS_UNSPECIFIED = 0;
-  USER_STATUS_ACTIVE = 1;
-  USER_STATUS_INACTIVE = 2;
-  USER_STATUS_SUSPENDED = 3;
-}
-
-enum UserEventType {
-  USER_EVENT_TYPE_UNSPECIFIED = 0;
-  USER_EVENT_TYPE_CREATED = 1;
-  USER_EVENT_TYPE_UPDATED = 2;
-  USER_EVENT_TYPE_DELETED = 3;
-  USER_EVENT_TYPE_LOGIN = 4;
-  USER_EVENT_TYPE_LOGOUT = 5;
-}
-
-enum ChatMessageType {
-  CHAT_MESSAGE_TYPE_UNSPECIFIED = 0;
-  CHAT_MESSAGE_TYPE_TEXT = 1;
-  CHAT_MESSAGE_TYPE_IMAGE = 2;
-  CHAT_MESSAGE_TYPE_FILE = 3;
-  CHAT_MESSAGE_TYPE_SYSTEM = 4;
 }
 ```
 
