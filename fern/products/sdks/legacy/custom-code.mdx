@@ -1,0 +1,104 @@
+---
+title: Adding custom code
+headline: Adding custom code (overview)
+description: Extend Fern-generated SDKs with custom methods, logic, and dependencies. Use Fern Replay for line-level edits and .fernignore for files you own end-to-end.
+---
+
+
+Fern-generated SDKs are designed to be extended with custom logic, methods, and dependencies. If you want your SDK to do more than just make basic API calls (like combining multiple calls, processing data, adding utilities), you can add custom code that lives in harmony with the generated code. 
+
+Fern provides two complementary tools for keeping your customizations safe across regenerations:
+
+- **`.fernignore`** — Full-file ownership. The generator stops touching listed files entirely. Use for fully hand-written modules, READMEs, or custom workflows. Trade-off: you also stop receiving generator updates to those files.
+- **Replay** — Line-level edits. Keep generated files under generator control, and reapply your edits via 3-way merge on every regeneration.
+
+## Full-file ownership with `.fernignore` [#fernignore]
+
+<Note>`.fernignore` applies only to SDK generation. It has no effect on [Fern Docs](/learn/docs/getting-started/overview) builds.</Note>
+
+Use `.fernignore` to protect files you own end-to-end from being overwritten during SDK regeneration.
+
+Add your custom files to the SDK repository and list them in `.fernignore`. A `.fernignore` file is automatically created in your SDK repository when you use GitHub publishing.
+
+Your `.fernignore` file might look something like this:
+
+```gitignore title=".fernignore"
+# Documentation and licensing
+README.md
+LICENSE
+
+# Custom workflows
+.github/workflows/test.yml
+.github/workflows/ci.yml
+
+# Custom code
+src/CustomClient.ts
+```
+
+For another real-world example, see Cohere's [`.fernignore` file for their TypeScript SDK](https://github.com/cohere-ai/cohere-typescript/blob/ad583e3003bd51e80a82317f9e16beec85881b86/.fernignore).
+
+You'll have a separate `.fernignore` file for each of your SDKs:
+
+<Files>
+  <Folder name="company-repo" defaultOpen comment="Top-level repo for all SDKs">
+    <Folder name="fern">
+      <Folder name="apis">
+        <Folder name="sdks">
+          <File name="generators.yml" comment="Contains settings for all SDKs" />
+        </Folder>
+      </Folder>
+    </Folder>
+  </Folder>
+  <Folder name="typescript-sdk-repo" defaultOpen comment="Repository for a TypeScript SDK">
+    <File name=".fernignore" highlighted />
+    <Folder name=".github">
+      <Folder name="workflows" />
+    </Folder>
+    <Folder name="src" />
+  </Folder>
+  <Folder name="python-sdk-repo" defaultOpen>
+    <File name=".fernignore" highlighted />
+    <Folder name=".github">
+      <Folder name="workflows" />
+    </Folder>
+    <Folder name="src" />
+  </Folder>
+</Files>
+
+## Line-level edits with Replay [#replay]
+
+Replay automatically preserves the edits you make to your generated SDK across regenerations. When you commit a change to generated code, Replay scans your repo's history since the last `[fern-generated]` commit and stores each customer commit as a tracked patch in `.fern/replay.lock`. On the next `fern generate`, those patches are reapplied to the freshly generated SDK via 3-way merge, and the result lands as a `[fern-replay]` commit on top of `[fern-generated]` in the regeneration PR:
+
+```text title="Regeneration PR"
+* abc123 (HEAD -> main) [fern-replay] Apply customizations
+* 789abc [fern-generated] Update SDK to spec rev 0451
+* 234bcd Add helpers on top of User type
+* ...
+```
+
+If the generator and your customization changed the same lines, Replay reports the conflict in the PR body. Run [`fern replay resolve`](/learn/cli-api-reference/cli-reference/sdk-commands#fern-replay-resolve) locally to walk through it.
+
+### Enable Replay
+
+For SDKs on `pull-request` output mode, run `fern generate` to turn Replay on globally. You'll see that `.fern/replay.lock` is committed to your SDK repo. From that point on, edits you make to generated files are tracked automatically.
+
+To enable Replay on an SDK that's currently on `release` or `push` mode, switch to `pull-request` mode via the [migration guide](/learn/sdks/legacy/overview/replay-migration).
+
+
+### Disable Replay
+
+To disable Replay, set `replay.enabled: false` at the top level of `generators.yml`. See the [`replay` reference](/learn/sdks/legacy/reference/generators-yml#replay).
+
+## Customization patterns by language
+
+Each SDK generator has its own conventions for adding custom code: how to extend the generated client, where helpers go, how to declare dependencies. See the guide for your language:
+
+<CardGroup cols={4}>
+  <Card title="TypeScript" icon={<img src="./images/icons/ts-light.svg" alt="TypeScript logo" className="h-6 w-6" noZoom />} href="/learn/sdks/legacy/generators/typescript/custom-code" />
+  <Card title="Python" icon={<img src="./images/icons/python-light.svg" className="h-6 w-6" noZoom />} href="/learn/sdks/legacy/generators/python/custom-code" />
+  <Card title="Go" icon={<img src="./images/icons/go-light.svg" className="h-6 w-6" noZoom />} href="/learn/sdks/legacy/generators/go/custom-code" />
+  <Card title="Java" icon={<img src="./images/icons/java-light.svg" className="h-6 w-6" noZoom />} href="/learn/sdks/legacy/generators/java/custom-code" />
+  <Card title=".NET" icon={<img src="./images/icons/csharp-light.svg" className="h-6 w-6" noZoom />} href="/learn/sdks/legacy/generators/csharp/custom-code" />
+  <Card title="PHP" icon={<img src="./images/icons/php-light.svg" className="h-6 w-6" noZoom />} href="/learn/sdks/legacy/generators/php/custom-code" />
+  <Card title="Ruby" icon={<img src="./images/icons/ruby-light.svg" className="h-6 w-6" noZoom />} href="/learn/sdks/legacy/generators/ruby/custom-code" />
+</CardGroup>
