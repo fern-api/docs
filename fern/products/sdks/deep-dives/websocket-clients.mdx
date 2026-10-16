@@ -161,7 +161,7 @@ socket.on("message", logStatus);
 socket.off("message", logStatus);
 ```
 
-The connection call accepts `reconnectAttempts` (default `30`, `0` disables reconnection) and a `shouldReconnect` predicate that receives the `CloseEvent` and decides whether to reconnect. The default reconnects on every close code except `1000`. Return `false` to treat a close as terminal, for example after the client has sent an end-of-stream message:
+The connection call accepts `reconnectAttempts` (default `30`, `0` disables reconnection) and a `shouldReconnect` predicate that receives the `CloseEvent` when the server closes the connection and decides whether to reconnect. The default reconnects on every server close code except `1000`. Return `false` to treat a server close as terminal, for example after the client has sent an end-of-stream message:
 
 ```typescript
 let streamEnded = false;
@@ -176,7 +176,7 @@ streamEnded = true;
 socket.sendSendReading({ temperature: 22.5, humidity: 65 });
 ```
 
-`shouldReconnect` isn't consulted after `socket.close()` or when the `abortSignal` aborts, and a predicate that throws is treated as terminal.
+`shouldReconnect` applies only to server-initiated closes. Connection errors and connection timeouts still fire `close` handlers but always retry up to `reconnectAttempts`, regardless of the predicate. `shouldReconnect` also isn't consulted after `socket.close()` or when the `abortSignal` aborts, and a predicate that throws is treated as terminal. Calling `socket.reconnect()` after retries are exhausted starts a new connection attempt.
 
 </Tab>
 <Tab title="Python" language="python">
