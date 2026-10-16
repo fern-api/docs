@@ -124,7 +124,7 @@ Dotted command path of an operation that revokes a profile's remote credential, 
 </Indent>
 
 <ParamField path="packageIdentity" type="object" toc={true} required={false}>
-Sets the Cargo `[package]` metadata of the generated crate. Use `packageIdentity` to publish the crate under your own name, license, repository, and authors instead of Fern's.
+Sets the Cargo `[package]` metadata of the generated crate. cargo-dist names the GitHub Release archives and the shell and PowerShell installers after `name`, and the installers download archives from the releases of `repository`. When the generator delivers to a GitHub repository through the [`github`](#github) block, unset `name`, `repository`, and `homepage` default from that repository, so the installers work without any `packageIdentity` config. Without the `github` block, the crate keeps Fern's template identity (`fern-cli-sdk`, `https://github.com/fern-api/cli-sdk`), and `authors` and `keywords` keep Fern's values in every mode. Explicit values always take precedence over these defaults.
 
 ```yaml title="generators.yml"
 config:
@@ -143,10 +143,12 @@ config:
 <Indent>
 <ParamField path="packageIdentity.name" type="string" required={false}>
 Crate name. Must be a valid cargo crate name: it starts with a letter and contains only letters, digits, `-`, and `_`. Invalid values fail at generation time with a config error instead of surfacing later as a manifest error during `cargo build`. The generator renames the matching `Cargo.lock` entry in the same pass, so `cargo build --locked` still resolves the workspace member.
+
+For GitHub output, defaults to `binaryName` when that's a valid crate name of at most 64 characters and doesn't collide with a crate already in the generated `Cargo.lock`; otherwise defaults to `fern-cli-sdk`. Release assets and installers are named after it, such as `<binaryName>-installer.sh`. Set `name: fern-cli-sdk` to keep the `fern-cli-sdk-*` asset names.
 </ParamField>
 
 <ParamField path="packageIdentity.description" type="string" required={false}>
-Short crate description shown on crates.io.
+Short crate description shown on crates.io. When [`distribution.homebrew`](#distribution) is configured, defaults to a description derived from the API's display name, which also becomes the formula's `desc`.
 </ParamField>
 
 <ParamField path="packageIdentity.license" type="string" required={false}>
@@ -154,11 +156,11 @@ SPDX license expression, such as `Apache-2.0`.
 </ParamField>
 
 <ParamField path="packageIdentity.repository" type="string" required={false}>
-URL of the crate's source repository.
+URL of the crate's source repository. For GitHub output, defaults to the URL of the `github` repository. The installers and Homebrew formula download release archives from this repository.
 </ParamField>
 
 <ParamField path="packageIdentity.homepage" type="string" required={false}>
-URL of the project homepage.
+URL of the project homepage. For GitHub output, defaults to the URL of the `github` repository.
 </ParamField>
 
 <ParamField path="packageIdentity.authors" type="array of strings" required={false}>
