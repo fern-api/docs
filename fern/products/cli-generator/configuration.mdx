@@ -97,6 +97,52 @@ config:
 ```
 </ParamField>
 
+<ParamField path="banner" type="string | object" toc={true} required={false}>
+Prints a logo or wordmark above the root `--help` output. The banner is plain text, so any text art or Unicode block art works, including a logo converted from an image into block characters.
+
+Store the art as an asset in your Fern config repository and reference it with `file`. Put brand colours in `colors`:
+
+```yaml title="generators.yml"
+config:
+  binaryName: acme
+  banner:
+    file: ./assets/cli-banner.txt
+    colors: ["#2929CC", "#4949F2", "#30F2B1"]
+```
+
+For short text, set `banner` to a string (`banner: "Acme CLI"`) or use `text` instead of `file`.
+
+The banner shows only on root `--help` in an interactive terminal. It's printed without colour when `NO_COLOR` is set or `TERM=dumb`, and omitted when output is piped. Subcommand help never shows it.
+</ParamField>
+<Indent>
+<ParamField path="banner.file" type="string" required={false}>
+Path to a text file containing the banner, relative to `generators.yml` (for example, `fern/assets/cli-banner.txt` next to `fern/generators.yml`). Fern reads the file at generation time and bakes its contents into the CLI, so edit the asset and regenerate to change the banner. Can't be combined with `text`.
+</ParamField>
+
+<ParamField path="banner.text" type="string" required={false}>
+The banner inline, typically as a YAML block scalar (`text: |`). Can't be combined with `file`.
+</ParamField>
+
+<ParamField path="banner.colors" type="string[]" required={false}>
+Six-digit hex colours such as `"#4949F2"`. One colour renders the banner solid; two or more render a gradient through each colour in order, along `direction`. Ignored when the art already contains terminal colour escape codes, which are printed as given, so you can colour a logo character by character.
+</ParamField>
+
+<ParamField path="banner.direction" type="string" default="horizontal" required={false}>
+Axis the `colors` gradient runs along: `horizontal` (left to right), `vertical` (top to bottom), or `diagonal` (top-left to bottom-right).
+</ParamField>
+
+<ParamField path="banner.lineColors" type="string[]" required={false}>
+One solid hex colour per line of the banner, in order. Lines past the end of the list reuse its last colour. Use this for striped or two-tone wordmarks instead of a gradient. Can't be combined with `colors`.
+
+```yaml title="generators.yml"
+config:
+  banner:
+    file: ./assets/cli-banner.txt
+    lineColors: ["#2929CC", "#2929CC", "#4949F2", "#4949F2", "#30F2B1", "#30F2B1"]
+```
+</ParamField>
+</Indent>
+
 <ParamField path="profiles" type="object" toc={true} required={false}>
 Adds [named profiles](/learn/cli-generator/get-started/authentication#named-profiles) to the generated CLI: a top-level `profiles` subcommand group, a global `--profile` / `-p` flag, and a `<binaryName>_PROFILE` environment variable. A profile stores a tenant's credential, parameter defaults, server URL variables, base URL, retry limit, and default output format once, so users of multi-tenant APIs don't pass an account identifier on every command.
 
