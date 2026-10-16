@@ -244,7 +244,7 @@ for tenant in prod sub; do acme messages list -p "$tenant" --format json; done
 
 ### Precedence
 
-Each value resolves as `explicit flag → environment variable → profile → spec default`. Environment variables sit above the active profile, so a CI pipeline that exports `ACME_API_KEY` or `ACME_BASE_URL` is never overridden by a profile a developer stored on the same machine. A profile named explicitly with `-p` is itself an explicit choice for that invocation, so its values outrank the environment. Retries resolve as `--retries` → `<PREFIX>_RETRIES` → profile → `x-fern-retries`, and `--retries 0` is equivalent to `--no-retry`. `profiles current` reports when an environment variable is overriding a stored credential.
+With a profile selected, each value resolves as `explicit flag → selected profile → environment variable → spec default`. The order is the same however the profile was selected: `-p`, `<PREFIX>_PROFILE`, or `profiles use`. The profile's stored values win, and environment variables fill only the values the profile leaves unset. With no profile selected, values resolve as `explicit flag → environment variable → spec default`. A CI pipeline that exports `ACME_API_KEY` or `ACME_BASE_URL` should therefore select no profile; if one is selected, its stored values take effect over the exported variables. Retries resolve as `--retries` → profile → `<PREFIX>_RETRIES` → `x-fern-retries`, and `--retries 0` is equivalent to `--no-retry`. `profiles current` reports when an environment variable is supplying a credential the selected profile doesn't store, and `auth status` lists the profile's keyring credential before the environment variable.
 
 ### Storage and inheritance
 
