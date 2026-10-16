@@ -1,0 +1,59 @@
+
+<Note>
+  For OpenAPI, [OAuth must be configured in `generators.yml`](/learn/api-definitions/openapi/authentication#oauth-client-credentials).
+</Note>
+
+Configure OAuth 2.0 client credentials authentication. Optionally configure a `refresh-token` endpoint for token renewal without re-authentication. 
+
+```yaml title="generators.yml" maxLines=10
+auth-schemes:
+  my-oauth: # User-defined scheme name
+    scheme: oauth
+    type: client-credentials
+    scopes:
+      - "read:users"
+      - "write:users"
+    client-id-env: "OAUTH_CLIENT_ID" # SDK will auto-scan this environment variable
+    client-secret-env: "OAUTH_CLIENT_SECRET" # SDK will auto-scan this environment variable
+    token-prefix: "Bearer"
+    token-header: "Authorization"
+    get-token:
+      endpoint: "auth.get_token"
+      request-properties:
+        client-id: "$request.clientId"
+        client-secret: "$request.clientSecret"
+        scopes: "$request.scope"
+      response-properties:
+        access-token: "$response.access_token"
+        expires-in: "$response.expires_in"
+        refresh-token: "$response.refresh_token"
+    refresh-token:
+      endpoint: "auth.refresh_token"
+      request-properties:
+        refresh-token: "$request.refreshToken"
+      response-properties:
+        access-token: "$response.access_token"
+        expires-in: "$response.expires_in"
+        refresh-token: "$response.refresh_token"
+```
+<ParamField path="scheme" type="'oauth'" required={true}>
+  Must be set to `"oauth"` for OAuth authentication schemes.
+</ParamField>
+<ParamField path="type" type="'client-credentials'" required={true}>
+  The OAuth 2.0 grant type. Currently only `"client-credentials"` is supported.
+</ParamField>
+<ParamField path="scopes" type="list of strings" required={false}>
+  OAuth scopes to request when obtaining access tokens (e.g., `"read:users"`, `"write:orders"`).
+</ParamField>
+<ParamField path="client-id-env" type="string" required={false}>
+  Environment variable name containing the OAuth client ID. When specified, the generated SDK will automatically scan for this environment variable at initialization.
+</ParamField>
+<ParamField path="client-secret-env" type="string" required={false}>
+  Environment variable name containing the OAuth client secret. When specified, the generated SDK will automatically scan for this environment variable at initialization.
+</ParamField>
+<ParamField path="token-prefix" type="string" default="Bearer">
+  Prefix added to the access token in the Authorization header (e.g., `"Bearer"` results in `"Authorization: Bearer <token>"`). Useful when your API expects a custom format.
+</ParamField>
+<ParamField path="token-header" type="string" default="Authorization">
+  HTTP header name used to send the access token. Defaults to `"Authorization"` but can be customized if your API uses a different header (e.g., `"X-API-Token"`).
+</ParamField>
