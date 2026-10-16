@@ -208,3 +208,54 @@ paths:
 ```
 
 See [Pagination](/learn/api-definitions/openapi/extensions/pagination) for all supported pagination schemes (offset, cursor, URI, and path).
+
+## Table output
+
+### `x-fern-cli-table`
+
+Sets the columns that `--format table` shows for one command. Without it, table output has one column per field, with nested objects flattened to `parent.child` names, which gets wide for rich list responses.
+
+```yaml title="openapi.yml" {5-14}
+paths:
+  /datasets:
+    get:
+      operationId: list_datasets
+      x-fern-cli-table:
+        columns:
+          - { header: NAME, path: name }
+          - { header: V, path: version, align: right }
+          - { header: TYPE, path: type }
+          - { header: STAGE, path: stage }
+          - { header: ROWS, path: stats.rows, align: right }
+          - { header: CREATED, path: createdAt, format: date }
+          - { header: DESCRIPTION, path: description, maxWidth: 40, default: false }
+```
+
+```text
+NAME          V  TYPE  STAGE     ROWS  CREATED
+───────────  ──  ────  ────────  ────  ──────────
+aa_lcr       10  sft   approved  3870  2026-06-30
+aa_lcr_128k   1  sft   draft     3872  2026-06-17
+```
+
+Each column takes these fields:
+
+| Field | Description |
+| --- | --- |
+| `header` | Required. Column heading. |
+| `path` | Required. Dot path to the field in each row, for example `stats.rows`. Paths are relative to the rows left after `x-fern-sdk-return-value` extraction; list envelopes such as `{ "datasets": [...] }` are unwrapped automatically. |
+| `align` | `left` (default) or `right`. |
+| `maxWidth` | Longer values are cut off with `…`. Defaults to 60 characters. |
+| `format` | `date` shortens timestamps such as `2026-06-30T12:00:00Z` to `2026-06-30`. |
+| `default` | `false` hides the column unless the user adds it with `--columns`. Defaults to `true`. |
+
+Commands with the extension get a `--columns` flag for picking columns without writing a `--query` expression. The flag is named `--table-columns` when the operation already has a `columns` parameter. Columns are matched by header or path, case-insensitively, and the flag's help text lists them.
+
+```bash
+contoso datasets list --columns name,stage,rows     # only these columns, in this order
+contoso datasets list --columns +description,-v     # add to or remove from the default set
+contoso datasets list --columns name,datasetId      # an undeclared field path also works
+contoso datasets list --columns all                 # one column per field, as without the extension
+```
+
+`--columns` selects table output when `--format` isn't set, and can't be combined with `--query` or a non-table `--format`. The extension only changes `--format table`: an explicit `--query` replaces the declared columns, and JSON, YAML, CSV, JSONL, and raw output keep the full response. With `--page-all`, the header prints once for all pages.
