@@ -37,7 +37,34 @@ These fields apply to both HMAC and asymmetric verification.
 These fields apply when `type` is set to `hmac`.
 
 <ParamField path="algorithm" type="'sha256' | 'sha1' | 'sha384' | 'sha512'" required={false} default="sha256" toc={true}>
-  The HMAC hash algorithm for signature computation. `sha256` is recommended. `sha1` is deprecated and should only be used for legacy compatibility.
+  The HMAC hash algorithm for signature computation. `sha256` is recommended. `sha1` is deprecated and should only be used for legacy compatibility. When `algorithm-header` is set, this is the default used for requests that don't carry the algorithm header.
+</ParamField>
+
+<ParamField path="algorithm-header.header" type="string" required={true} toc={true}>
+  HTTP header that selects the HMAC algorithm per request, for providers that send the algorithm (and optionally a key ID) alongside each webhook instead of using one fixed algorithm. Generated SDKs add a [request-level `verifyRequest` helper](/learn/sdks/deep-dives/webhook-signature-verification#verify-a-request-with-a-per-request-algorithm) that reads this header.
+
+  `algorithm-header` is accepted in `generators.yml` under `api.settings.webhook-signature` and in a Fern Definition `webhook-signature` or webhook `signature` block. The OpenAPI `x-fern-webhook-signature` extension doesn't support it yet.
+
+  ```yaml
+  webhook-signature:
+    type: hmac
+    header: X-Signature
+    algorithm: sha1
+    algorithm-header:
+      header: X-Signature-Settings
+      key-id-delimiter: ";"
+      algorithms:
+        HMAC_SHA1: sha1
+        HMAC_SHA256: sha256
+  ```
+</ParamField>
+
+<ParamField path="algorithm-header.key-id-delimiter" type="string" required={false} toc={true}>
+  Separator between a key ID and the algorithm in the header value, which then takes the form `<key-id><delimiter><algorithm>` (for example, `key_123;HMAC_SHA256`). The value is split on the last occurrence of the delimiter, and the key ID is passed to the caller to resolve the matching signing secret. When omitted, the whole header value is the algorithm.
+</ParamField>
+
+<ParamField path="algorithm-header.algorithms" type="map of string to 'sha256' | 'sha1' | 'sha384' | 'sha512'" required={true} toc={true}>
+  Allowed header values mapped to the HMAC algorithm each one selects, such as `HMAC_SHA256: sha256`. Header values are matched exactly, and a request with a value not listed here fails verification. Requires at least one entry.
 </ParamField>
 
 <ParamField path="payload-format.components" type="list of strings" required={false} toc={true}>
