@@ -1,0 +1,102 @@
+---
+title: Configure idempotency headers
+description: Configure idempotency headers for SDKs that support retrying requests
+---
+
+
+For endpoints you've configured as idempotent, Fern's SDKs allow users to
+specify idempotency headers for safe request retries. Typically the headers include `Idempotency-Key`,
+but you can also specify additional headers.
+
+## Generated SDK behavior
+
+The generated SDKs expose idempotency headers as parameters only for endpoints marked as idempotent, ensuring users know exactly which invocations are idempotent.
+
+<CodeBlocks>
+  <CodeBlock title="TypeScript">
+    ```ts {5}
+    const response = await client.transactions.send({
+      amount: 100,
+      currency: "usd",
+    }, {
+      idempotencyKey: "64099353-b48b-4dcd-98b7-74df1cc57933"
+    });
+    ```
+  </CodeBlock>
+  <CodeBlock title="Python">
+    ```python {4}
+    response = client.transactions.send(
+      amount=100, 
+      currency="USD", {
+      idempotency_key="64099353-b48b-4dcd-98b7-74df1cc57933"
+    })
+    ```
+  </CodeBlock>
+  <CodeBlock title="Java">
+    ```java {7}
+    var response = client.transactions().send(
+      SendTransactionsRequest.builder()
+        .amount(100)
+        .currency(Currency.USD)
+        .build(),
+      IdempotentRequestOptions.builder()
+        .idempotencyKey("64099353-b48b-4dcd-98b7-74df1cc57933")
+        .build()
+    );
+    ```
+  </CodeBlock>
+  <CodeBlock title="Go">
+    ```go {7}
+    response, err := client.Transactions.Send(
+      ctx,
+      &SendTransactionsRequest{
+        Amount: 100,
+        Currency: Currency.USD,
+      },
+      option.WithIdempotencyKey("64099353-b48b-4dcd-98b7-74df1cc57933"),
+    )
+    ```
+  </CodeBlock>
+</CodeBlocks>
+
+## Auto-generate idempotency keys
+
+Generated SDKs can attach an idempotency-key header automatically, generating a UUIDv4 value for each request unless the caller supplies one. Enable it once for every generator under [`api.settings`](/learn/sdks/legacy/reference/generators-yml#settings):
+
+```yaml title="generators.yml"
+api:
+  settings:
+    auto-generate-idempotency-key: true
+```
+
+By default the SDK sends an `Idempotency-Key` header on `POST` and `PUT` requests. Pass an object to change the header name or the eligible methods:
+
+```yaml title="generators.yml"
+api:
+  settings:
+    auto-generate-idempotency-key:
+      header-name: X-Idempotency-Key
+      methods:
+        - POST
+        - PUT
+        - PATCH
+```
+
+To override the API-level value for a single SDK, set `auto-generate-idempotency-key` under that generator's `config`. Auto-generation is supported by the [TypeScript](/learn/sdks/legacy/generators/typescript/configuration), [Python](/learn/sdks/legacy/generators/python/configuration), [Java](/learn/sdks/legacy/generators/java/configuration), [Go](/learn/sdks/legacy/generators/go/configuration), [C#](/learn/sdks/legacy/generators/csharp/configuration), [PHP](/learn/sdks/legacy/generators/php/configuration), and [Ruby](/learn/sdks/legacy/generators/ruby/configuration) SDKs.
+
+## Setting up idempotency headers
+
+Configure the idempotency headers your API uses, then mark individual endpoints as idempotent:
+
+```yaml title="openapi.yml" {2-4,10}
+x-fern-idempotency-headers:
+  - header: IDEMPOTENCY-KEY
+    name: idempotency_key
+
+paths:
+  /plants:
+    post:
+      x-fern-idempotent: true
+```
+
+For full configuration details, see [Idempotency in OpenAPI](/learn/api-definitions/openapi/extensions/idempotency).
