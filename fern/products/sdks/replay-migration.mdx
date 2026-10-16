@@ -17,7 +17,7 @@ This guide migrates an SDK from `release` or `push` output mode to `pull-request
 
 - Install the [Fern GitHub App](https://github.com/apps/fern-api) on your SDK repositories.
 - Update to the latest Fern CLI: `fern upgrade`.
-- Update to the latest SDK generator versions: `fern generator upgrade`.
+- If a target pins [`generatorVersion`](/learn/sdks/reference/sdk-config#targets), update it to the latest version.
 
 ## Phase 1: Move publishing secrets to the SDK repo
 
@@ -28,7 +28,7 @@ For each SDK repo:
 <Steps>
 <Step title="Identify the publishing secrets">
 
-Find which secrets your `generators.yml` references for publishing:
+Find which secrets your `sdk-config.yml` references in `output.publish`:
 
 - Python: `PYPI_USERNAME`, `PYPI_PASSWORD`
 - TypeScript / npm: `NPM_TOKEN`
@@ -45,34 +45,34 @@ Add the real publish credentials directly to the SDK repo: **Settings → Secret
 
 </Step>
 
-<Step title="Remove credentials from `generators.yml`">
+<Step title="Remove credentials from `sdk-config.yml`">
 
-Remove the publish credential values from the config repo's `generators.yml`:
+Remove the publish credential values from the config repo's `sdk-config.yml`:
 
-```yaml title="generators.yml"
+```yaml title="sdk-config.yml"
 # BEFORE
-groups:
-  python-sdk:
-    generators:
-      - name: fern-python-sdk
-        version: "..."
-        github:
-          repository: customer/python-sdk
-          mode: pull-request
-        output:
-          pypi:
-            username: $PYPI_USERNAME
-            password: $PYPI_PASSWORD
+targets:
+  - language: python
+    output:
+      delivery: github
+      github:
+        repository: customer/python-sdk
+        mode: pull-request
+      publish:
+        registry: pypi
+        username: ${PYPI_USERNAME}
+        password: ${PYPI_PASSWORD}
 
-# AFTER (remove the output/pypi block entirely)
-groups:
-  python-sdk:
-    generators:
-      - name: fern-python-sdk
-        version: "..."
-        github:
-          repository: customer/python-sdk
-          mode: pull-request
+# AFTER (remove the credential values from output.publish)
+targets:
+  - language: python
+    output:
+      delivery: github
+      github:
+        repository: customer/python-sdk
+        mode: pull-request
+      publish:
+        registry: pypi
 ```
 
 </Step>
@@ -86,9 +86,9 @@ Run a generation. Confirm the SDK repo's secrets weren't overwritten by checking
 
 ## Phase 2: Switch output mode
 
-In `generators.yml`:
+In `sdk-config.yml`, set the target's `output.github.mode`:
 
-```yaml title="generators.yml" {3}
+```yaml title="sdk-config.yml" {3}
 github:
   repository: customer/python-sdk
   mode: pull-request   # was: mode: release   (or: mode: push)
@@ -140,7 +140,7 @@ Update any secret references if you renamed credentials in Phase 1.
 <Steps>
 <Step title="Run fern generate">
 
-Run `fern generate --group <group-name>` from the config repo (or trigger via your existing CI).
+Run `fern generate --target <language>` from the config repo (or trigger via your existing CI).
 
 </Step>
 
@@ -188,14 +188,14 @@ After your first real customization, verify Replay's behavior end-to-end:
 
 Replay never modifies files destructively. Your `main` branch always has correct code, so rolling back is straightforward.
 
-**Quick disable.** To stop Replay while staying in `pull-request` mode, set `replay.enabled: false` in your `generators.yml` (see the [`replay` reference](/learn/sdks/legacy/reference/generators-yml#replay)). The next `fern generate` skips the patch detection and application phase; PRs land in the same shape as before, just without the `[fern-replay]` commit.
+**Quick disable.** To stop Replay while staying in `pull-request` mode, set `replay.enabled: false` in your `sdk-config.yml` (see the [`replay` reference](/learn/sdks/reference/sdk-config#replay)). The next `fern generate` skips the patch detection and application phase; PRs land in the same shape as before, just without the `[fern-replay]` commit.
 
 **Full revert to `release` or `push` mode:**
 
 <Steps>
-<Step title="Switch mode back in generators.yml">
+<Step title="Switch mode back in sdk-config.yml">
 
-```yaml title="generators.yml" {3}
+```yaml title="sdk-config.yml" {3}
 github:
   repository: customer/python-sdk
   mode: release   # or mode: push

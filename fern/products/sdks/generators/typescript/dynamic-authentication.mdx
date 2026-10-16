@@ -22,31 +22,30 @@ Here's how to implement JWT signing with token memoization:
 
 ### Enable custom fetcher in generator configuration
 
-Add `allowCustomFetcher: true` to your `generators.yml`:
+Add `allowCustomFetcher: true` to the TypeScript target's `generation` block in `sdk-config.yml`:
 
-```yaml title="generators.yml"
-# inside your TypeScript SDK generator
-- name: fern-typescript-sdk
-  config:
-    allowCustomFetcher: true
+```yaml title="sdk-config.yml"
+targets:
+  - language: typescript
+    generation:
+      allowCustomFetcher: true
 ```
 
-### Add runtime dependency via packageJson
+### Add runtime dependency
 
-Add the `jsonwebtoken` dependency using the `packageJson` config option so it gets merged into the generated package.json:
+Add the `jsonwebtoken` dependency with `package.extraDependencies` so it gets added to the generated `package.json`:
 
-```yaml title="generators.yml"
-# inside your TypeScript SDK generator
-- name: fern-typescript-sdk
-  config:
-    packageJson:
-      dependencies:
-        jsonwebtoken: "^9.0.0"
-      devDependencies:
-        "@types/jsonwebtoken": "^9.0.0"
+```yaml title="sdk-config.yml"
+targets:
+  - language: typescript
+    package:
+      extraDependencies:
+        - name: jsonwebtoken
+          version: "^9.0.0"
+      extraDevDependencies:
+        - name: "@types/jsonwebtoken"
+          version: "^9.0.0"
 ```
-
-See the [TypeScript configuration page](/learn/sdks/legacy/generators/typescript/configuration#packagejson) for all available packageJson options.
 
 ### Create a custom fetcher with JWT signing
 
@@ -132,7 +131,7 @@ Protect your custom code from being overwritten:
 + src/index.ts
 ```
 
-<Note>Use `.fernignore` to preserve your custom wrapper files, not to manage package.json. Add dependencies via the `packageJson` config option in generators.yml instead.</Note>
+<Note>Use `.fernignore` to preserve your custom wrapper files, not to manage package.json. Add dependencies with `package.extraDependencies` in `sdk-config.yml` instead.</Note>
 
 ### Use the client
 
@@ -169,7 +168,7 @@ This same pattern works for other dynamic authentication scenarios:
 
 ### Custom fetcher requirements
 
-- **Generator configuration**: The `allowCustomFetcher` option must be enabled in your `generators.yml` for the `fetcher` parameter to be available in `BaseClientOptions`
+- **Generator configuration**: The `allowCustomFetcher` option must be enabled in your `sdk-config.yml` for the `fetcher` parameter to be available in `BaseClientOptions`
 - **Import path**: Import the default fetcher from `../core/fetcher` (or the appropriate path in your generated SDK) to wrap it with your custom logic
 - **Preserve all arguments**: When wrapping the default fetcher, ensure you pass through all arguments to maintain compatibility with the SDK's internal behavior
 

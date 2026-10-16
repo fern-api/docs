@@ -46,23 +46,7 @@ To get started adding custom code:
 
 <Accordion title="Advanced: Custom import paths" toc={true}>
 
-By default, the TypeScript generator only auto-generates `exports` entries in `package.json` for your API definition. If you want consumers to import your custom file via a dedicated subpath (e.g. `import { myHelper } from "@acme/sdk/helper"`), you must register it manually using [`packageJson.exports`](/learn/sdks/legacy/generators/typescript/configuration#packagejson) in `generators.yml`:
-
-```yaml {5-14} title="generators.yml"
-- name: fern-typescript-sdk
-  version: <Markdown src="/snippets/version-number-ts.mdx"/>
-  config:
-    packageJson:
-      exports:
-        "./helper": # consumer import path — not the source file path
-          types: "./dist/cjs/helper.d.ts"
-          import:
-            types: "./dist/esm/helper.d.mts"
-            default: "./dist/esm/helper.mjs"
-          require:
-            types: "./dist/cjs/helper.d.ts"
-            default: "./dist/cjs/helper.js"
-```
+By default, the TypeScript generator only auto-generates `exports` entries in `package.json` for your API definition. If you want consumers to import your custom file via a dedicated subpath (e.g. `import { myHelper } from "@acme/sdk/helper"`), you must register it manually. `sdk-config.yml` doesn't have the `packageJson` option yet, so use [`packageJson.exports`](/learn/sdks/legacy/generators/typescript/configuration#packagejson) in a Legacy `generators.yml`.
 
 The export key (e.g., `"./helper"`) determines the import path your users will use and doesn't need to match the source file path. These entries are merged into the generated `exports`, so they persist across regenerations. Since Node.js [enforces the `exports` map](https://nodejs.org/api/packages.html#package-entry-points), custom files aren't importable via a subpath until you add them here.
 
@@ -136,14 +120,16 @@ The export key (e.g., `"./helper"`) determines the import path your users will u
 
 ## Custom dependencies
 
-To add packages that your custom code requires, use the [`extraDependencies`](/learn/sdks/legacy/generators/typescript/configuration#extradependencies) and [`extraDevDependencies`](/learn/sdks/legacy/generators/typescript/configuration#extradevdependencies) options in your `generators.yml`.
+To add packages that your custom code requires, list them in the target's [`package.extraDependencies` and `package.extraDevDependencies`](/learn/sdks/reference/sdk-config#package) in `sdk-config.yml`.
 
-      ```yaml {4-7} title="generators.yml"
-      - name: fern-typescript-sdk
-        version: <Markdown src="/snippets/version-number-ts.mdx"/>
-        config:
-          extraDependencies:
-            lodash-es: '1.0.0'
-          extraDevDependencies:
-            "@types/lodash-es": '1.0.0'
-      ```
+```yaml {4-10} title="sdk-config.yml"
+targets:
+  - language: typescript
+    package:
+      extraDependencies:
+        - name: lodash-es
+          version: "1.0.0"
+      extraDevDependencies:
+        - name: "@types/lodash-es"
+          version: "1.0.0"
+```

@@ -121,17 +121,7 @@ Common use cases include:
 
 ### Enable extensible builders
 
-Add the flag to your `generators.yml`:
-
-```yaml {7} title="generators.yml"
-groups:
-  local:
-    generators:
-      - name: fern-java-sdk
-        version: 2.39.6
-        config:
-          enable-extensible-builders: true
-```
+`sdk-config.yml` doesn't have an extensible builders option yet. To turn on `enable-extensible-builders` in `generators.yml`, see the [Legacy Java custom code](/learn/sdks/legacy/generators/java/custom-code) page.
 
 ### How it works
 
@@ -289,21 +279,13 @@ protected void setAdditional(ClientOptions.Builder builder) {
 ### Requirements
 
 - **Fern Java SDK version**: 2.39.6 or later
-- **Configuration**: `enable-extensible-builders: true` in `generators.yml`
+- **Configuration**: `enable-extensible-builders: true` in a [Legacy `generators.yml`](/learn/sdks/legacy/generators/java/custom-code)
 
 ## Adding custom interceptors
 
 [OkHttp interceptors](https://square.github.io/okhttp/features/interceptors/) observe and rewrite every request and response an SDK sends, which covers request signing, public key client validation, and custom logging or tracing. Setting [`custom-interceptors`](/learn/sdks/legacy/generators/java/configuration#custom-interceptors) to `true` adds an `addInterceptor(okhttp3.Interceptor)` method to your generated client builder, giving the developers who install your SDK a supported extension point for those customizations:
 
-```yaml {7} title="generators.yml"
-groups:
-  java-sdk:
-    generators:
-      - name: fern-java-sdk
-        version: <Markdown src="/snippets/version-number-java.mdx"/>
-        config:
-          custom-interceptors: true
-```
+`sdk-config.yml` doesn't have the `custom-interceptors` option yet. To set it in `generators.yml`, see the [Legacy Java configuration](/learn/sdks/legacy/generators/java/configuration#custom-interceptors).
 
 Developers using your SDK register interceptors as they construct the client. Each call to `addInterceptor` appends to the chain, and all are applied to the underlying `OkHttpClient` at build time:
 
@@ -345,14 +327,15 @@ client.close();
 
 ## Adding custom dependencies
 
-To add packages that your custom code requires, update your `generators.yml`.
+To add packages that your custom code requires, list them in the target's `package.extraDependencies` in `sdk-config.yml`.
 
-      ```yaml {4-7} title="generators.yml"
-      - name: fern-java-sdk
-        version: "..."
-        config:
-          custom-dependencies:
-            - org.apache.commons:commons-lang3:3.12.0
-            - org.slf4j:slf4j-api:2.0.7
-
-      ```
+```yaml {4-8} title="sdk-config.yml"
+targets:
+  - language: java
+    package:
+      extraDependencies:
+        - name: org.apache.commons:commons-lang3
+          version: "3.12.0"
+        - name: org.slf4j:slf4j-api
+          version: "2.0.7"
+```

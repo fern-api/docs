@@ -34,7 +34,7 @@ Each machine that runs `fern generate --local` needs:
 This page assumes that you have:
 
 * An initialized `fern` folder. See [Set up the `fern` folder](/learn/sdks/overview/quickstart).
-* SDK generators configured in `generators.yml`. See language-specific quickstarts: [TypeScript](/learn/sdks/generators/typescript/quickstart), [Python](/learn/sdks/generators/python/quickstart), [Go](/learn/sdks/generators/go/quickstart), [Java](/learn/sdks/generators/java/quickstart), etc.
+* SDK targets configured in `sdk-config.yml`. See language-specific quickstarts: [TypeScript](/learn/sdks/generators/typescript/quickstart), [Python](/learn/sdks/generators/python/quickstart), [Go](/learn/sdks/generators/go/quickstart), [Java](/learn/sdks/generators/java/quickstart), etc.
 </Info>
 
 Self-hosted SDK generation allows you to output to your local file system or push directly to a GitHub repository you control. Follow these steps to set up and run local generation:
@@ -64,40 +64,37 @@ The API key is specific to your organization defined in `fern.config.json` and d
 
 <Step title="Configure output location">
 
-Configure your `generators.yml` to output SDKs to your local file system or a GitHub repository you control.
+Configure your target's `output` in `sdk-config.yml` to write SDKs to your local file system or a GitHub repository you control.
 
 <Tabs>
 <Tab title="Local file system" language="local">
 
 Output generated SDKs directly to a local directory:
 
-```yaml title="generators.yml" {7-8}
-groups:
-  python-sdk:
-    generators:
-      - name: fern-python-sdk
-        version: 4.0.0
-        output:
-          location: local-file-system
-          path: ../sdks/python
+```yaml title="sdk-config.yml" {4-5}
+targets:
+  - language: python
+    output:
+      delivery: files
+      path: ../sdks/python
 ```
 
 </Tab>
 <Tab title="GitHub repository" language="github">
 
-To push generated SDKs to your GitHub repository, configure the `github` property with `uri` and `token`. Set the [publishing `mode`](/learn/sdks/legacy/reference/generators-yml#github) to `push` for direct commits or `pull-request` to create PRs.
+To push generated SDKs to your GitHub repository, set `output.delivery: github` and configure `output.github` with `repository` and `credentials.token`. Set the [publishing `mode`](/learn/sdks/reference/sdk-config#github) to `push` for direct commits or `pull-request` to create PRs.
 
-```yaml title="generators.yml" {4-8}
-groups:
-  python-sdk:
-    generators:
-      - name: fern-python-sdk
-        version: 4.0.0
-        github:
-          uri: https://github.com/your-org/python-sdk
+```yaml title="sdk-config.yml" {4-11}
+targets:
+  - language: python
+    output:
+      delivery: github
+      github:
+        repository: your-org/python-sdk
+        credentials:
           token: ${GITHUB_TOKEN}
-          mode: push
-          branch: main
+        mode: push
+        branch: main
 ```
 
 </Tab>
@@ -155,54 +152,7 @@ To share a locally generated SDK internally without publishing it to a registry,
 
 ## Private registry setup
 
-By default, `fern generate --local` pulls generator Docker images from Docker Hub. Organizations that restrict outbound traffic or require vetted images can mirror Fern's generator images into a private registry and point the CLI at it. Remote (cloud) generation doesn't support custom registries.
-
-<Steps>
-<Step title="Mirror the generator image">
-
-Pull each generator image at the version you intend to use, retag it for your registry, and push. The CLI resolves the full reference as `{registry}/{name}:{version}`.
-
-```bash
-docker pull fernapi/fern-python-sdk:4.0.0
-docker tag fernapi/fern-python-sdk:4.0.0 ghcr.io/your-org/fern-python-sdk:4.0.0
-docker push ghcr.io/your-org/fern-python-sdk:4.0.0
-```
-
-</Step>
-<Step title="Reference the registry in generators.yml">
-
-Replace the generator's `name` field with an [`image`](/learn/sdks/legacy/reference/generators-yml#image) object containing `name` and `registry`:
-
-```yaml title="generators.yml" {4-6}
-groups:
-  python-sdk:
-    generators:
-      - image:
-          name: fern-python-sdk
-          registry: ghcr.io/your-org
-        version: <Markdown src="/snippets/version-number-python.mdx"/>
-        output:
-          location: local-file-system
-          path: ../sdks/python
-```
-
-The `image.name` must be a recognized Fern generator name (for example, `fern-python-sdk` or `fern-typescript-sdk`) so the CLI can resolve the correct IR version, and `version` must match a published Fern generator version. Generators configured with an `image` are skipped during `fern generator upgrade`, so bump their versions manually and re-mirror the matching image when you upgrade.
-
-</Step>
-<Step title="Authenticate to the registry">
-
-If the registry requires authentication, log in before running `fern generate --local`. The CLI uses the credentials stored by Docker.
-
-```bash
-# Example: authenticate with GitHub Container Registry
-echo $CR_PAT | docker login ghcr.io -u USERNAME --password-stdin
-
-# Then run local generation as usual
-fern generate --local
-```
-
-</Step>
-</Steps>
+`fern generate --local` runs `sdk-config.yml` targets on Fern's on-prem generator, and `sdk-config.yml` doesn't have a custom registry setting yet. To mirror legacy generator images into a private registry with `generators.yml`, see [Legacy private registry setup](/learn/sdks/legacy/deep-dives/self-hosted#private-registry-setup).
 
 ## Trust a corporate CA bundle
 
@@ -232,7 +182,7 @@ The self-hosted process works as follows:
 
 1. **Organization verification** (network call) - The CLI verifies your organization registration with Fern
 1. **Download generator image** (network call if not cached) - The CLI downloads the generator's Docker image if not already available locally
-1. **Generate SDK** (local) - The CLI runs the generator container locally to produce SDK files based on your API definition and `generators.yml` configuration
+1. **Generate SDK** (local) - The CLI runs the generator container locally to produce SDK files based on your API definition and `sdk-config.yml` configuration
 1. **Output SDK** (local) - Generated SDK files are saved to your configured output location (local file system or GitHub repository)
 
 Steps 1 and 2 are the only network calls the CLI makes when using the `--local` flag. No API definition or specification data is sent over the network: all SDK generation happens locally on your machine. The Java generator additionally reaches Gradle's distribution and plugin hosts to format its output, which [`FERN_JAVA_SKIP_FORMATTING`](#skip-java-code-formatting) turns off.
