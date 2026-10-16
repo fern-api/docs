@@ -1,0 +1,1366 @@
+---
+title: generators.yml configuration schema
+description: Complete generators.yml configuration reference for Fern SDK generation. Configure authentication, publishing, GitHub integration, and language-specific settings.
+max-toc-depth: 3
+---
+
+
+The `generators.yml` file serves two purposes: it declares your API definition (required for OpenAPI/AsyncAPI), and configures SDK generation, including which languages to generate, where to publish them, and how to customize each SDK.
+
+A `# yaml-language-server` directive at the top of `generators.yml` enables validation and autocompletion in editors that use the [YAML Language Server](https://github.com/redhat-developer/yaml-language-server), such as VS Code with the [YAML extension](https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml), Neovim, and Emacs. IntelliJ ignores the directive; map `https://schema.buildwithfern.dev/generators-yml.json` to `generators.yml` under **Settings → Languages & Frameworks → Schemas and DTDs → JSON Schema Mappings** instead.
+
+```yaml title="generators.yml" maxLines=10
+# yaml-language-server: $schema=https://schema.buildwithfern.dev/generators-yml.json
+api:
+  specs:
+    - openapi: "./openapi.yml"
+      namespace: "v1"
+      settings:
+        title-as-schema-name: true
+        inline-path-parameters: false
+        respect-forward-compatible-enums: true
+
+whitelabel:
+  github:
+    username: "my-org"
+    email: "sdk@mycompany.com"
+    token: "ghp_xxxxxxxxxxxx"
+
+metadata:
+  description: "Official SDK for MyAPI"
+  authors:
+    - name: "SDK Team"
+      email: "sdk@mycompany.com"
+
+readme:
+  introduction: "Welcome to the MyAPI SDK"
+  apiReferenceLink: "https://docs.myapi.com"
+  defaultEndpoint:
+    method: "GET"
+    path: "/users"
+  features:
+    authentication:
+      - "POST /auth/login"
+      - "GET /auth/profile"
+    users:
+      - "GET /users"
+      - "POST /users"
+
+default-group: "production"
+
+groups:
+  production:
+    generators:
+      - name: fern-typescript-sdk
+        version: 0.9.0
+      - name: fern-python-sdk
+        version: 2.0.0
+```
+
+## `auth-schemes`
+
+Define authentication methods for your SDKs and the [API Explorer](/learn/docs/api-references/api-explorer) that your endpoints can reference. Authentication schemes defined in `generators.yml` take precedence over authentication schemes [defined in your spec](/learn/api-definitions/openapi/authentication).
+
+After defining an authentication scheme, you must use [`api.auth`](#auth) to apply it as the default across all endpoints. Alternatively, you can [define authentication for individual SDKs](#override-api-authentication-settings) if you need different auth behavior per language.
+
+```yaml title="generators.yml" maxLines=10
+auth-schemes:
+  # User-defined scheme name - OAuth with minimal configuration
+  simple-oauth:
+    scheme: oauth
+    type: client-credentials
+    get-token:
+      endpoint: "auth.token"
+    
+  # User-defined scheme name - Header auth with custom configuration
+  custom-header:
+    name: "Custom Auth"
+    header: "X-Custom-Auth"
+    prefix: "Custom "
+    env: "CUSTOM_TOKEN"
+    
+  # User-defined scheme name - Basic auth
+  http-basic:
+    scheme: basic
+    
+  # User-defined scheme name - Bearer token
+  jwt-bearer:
+    scheme: bearer
+```
+
+Choose from custom headers (API keys), HTTP Basic, Bearer token, or OAuth 2.0 authentication:
+
+<AccordionGroup>
+<Accordion title="Header">
+<Markdown src="/products/sdks/legacy/snippets/header-auth-params.mdx" />
+</Accordion>
+<Accordion title="Basic">
+<Markdown src="/products/sdks/legacy/snippets/basic-auth-params.mdx" />
+</Accordion>
+<Accordion title="Bearer token">
+<Markdown src="/products/sdks/legacy/snippets/bearer-auth-params.mdx" />
+</Accordion>
+<Accordion title="OAuth client credentials">
+<Markdown src="/products/sdks/legacy/snippets/oauth-params.mdx" />
+
+#### `get-token`
+
+<Markdown src="/products/sdks/legacy/snippets/oauth-get-token.mdx" />
+
+#### `refresh-token`
+
+<Markdown src="/products/sdks/legacy/snippets/oauth-refresh-token.mdx" />
+</Accordion>
+</AccordionGroup>
+
+## `api`
+
+Defines the API specification (OpenAPI, AsyncAPI, etc.) and how to parse it.
+
+```yaml title="generators.yml" maxLines=10
+api:
+  settings:
+    inline-path-parameters: true # Applies to all OpenAPI specs
+  specs:
+    - openapi: "./openapi.yml"
+      namespace: "v1"
+      settings:
+        title-as-schema-name: true # Applies only to this OpenAPI spec
+    - asyncapi: "./events.yml"
+      namespace: "events"
+  headers:
+    Authorization: "Bearer ${API_TOKEN}"
+  environments:
+    production: "https://api.prod.com"
+    staging: "https://api.staging.com"
+```
+
+<ParamField path="auth" type="string | object" toc={true}>
+  Sets the default authentication scheme for all endpoints. Scheme names must reference entries defined in [`auth-schemes`](#auth-schemes). This overrides any security schemes [defined in your OpenAPI spec](/learn/api-definitions/openapi/authentication).
+
+  Pass a string for a single scheme, or an object with `any` or `all` to compose multiple schemes. Pass the string `endpoint-security` to route auth per endpoint instead of applying one default scheme everywhere.
+
+  <AccordionGroup>
+  <Accordion title="Single scheme">
+
+  ```yaml title="generators.yml"
+  api:
+    auth: BearerAuth
+    specs:
+      - openapi: ./openapi.yml
+  ```
+
+  </Accordion>
+  <Accordion title="Multiple schemes (any)">
+
+  Accept any one of several schemes. The first scheme with a credential wins.
+
+  ```yaml title="generators.yml"
+  auth-schemes:
+    BearerAuth:
+      scheme: bearer
+      token:
+        name: apiKey
+        env: MY_API_KEY
+    TokenAuth:
+      scheme: bearer
+      token:
+        name: token
+        env: MY_TOKEN
+
+  api:
+    auth:
+      any:
+        - BearerAuth
+        - TokenAuth
+    specs:
+      - openapi: ./openapi.yml
+        overrides: ./openapi-overrides.yml
+  ```
+
+  Both schemes must also be declared in the OpenAPI spec's [`securitySchemes` and `security` array](/learn/api-definitions/openapi/authentication#multiple-auth-schemes). A scheme that's missing from the spec is silently ignored, even when its credential is set.
+
+  </Accordion>
+  <Accordion title="Multiple schemes (all)">
+
+  Require every scheme simultaneously (for example, HMAC signature plus API key).
+
+  ```yaml title="generators.yml"
+  api:
+    auth:
+      all:
+        - HmacAuth
+        - ApiKeyAuth
+    specs:
+      - openapi: ./openapi.yml
+  ```
+
+  </Accordion>
+  <Accordion title="Per-endpoint routing (endpoint-security)">
+
+  Instead of applying one default scheme to every endpoint, `endpoint-security` routes auth per endpoint using each operation's declared `security`: `OR` across the requirement list, `AND` within a single requirement. An operation with `security: []` sends no credentials, and an operation with no satisfiable requirement raises an error naming the missing scheme(s). This is supported across all SDK languages.
+
+  ```yaml title="generators.yml"
+  api:
+    auth: endpoint-security
+    specs:
+      - openapi: ./openapi.yml
+  ```
+
+  For example, if `POST /plants/{plantId}` declares OAuth Bearer `OR` an API key header, the SDK sends whichever credential is set; a token endpoint with `security: []` is called anonymously.
+
+  </Accordion>
+  </AccordionGroup>
+
+  <Tip>
+    You can also override authentication for individual generators using the [generator-level `api.auth`](#override-api-authentication-settings) setting.
+  </Tip>
+</ParamField>
+
+<ParamField path="headers" type="string or list of objects" toc={true}>
+  Global headers to include with all API requests. This is an alternative to configuring [global headers in your OpenAPI spec](/learn/api-definitions/openapi/extensions/global-headers). You can specify headers as simple string values or as objects with additional configuration for code generation.
+
+  The object form supports these keys:
+
+  - `name`: the parameter name used in generated SDK code. Defaults to the header name.
+  - `type`: the header type for code generation, such as `string`, `optional<string>`, or `literal<"1234">`.
+  - `env`: the environment variable the generated SDK reads when the caller doesn't supply the header.
+  - `client-default`: the value the generated SDK sends when neither an explicit value nor `env` supplies one. This is the equivalent of [`x-fern-default`](/learn/api-definitions/openapi/extensions/default-values) on an OpenAPI global header.
+  - `default`: a documentation-only value displayed in the API Reference. It has no effect on generated SDKs.
+
+  Generated SDKs resolve a [global header](/learn/sdks/legacy/deep-dives/global-headers) value in a fixed order: an option set on a single request, then the value passed to the client constructor, then the `env` environment variable, then `client-default`.
+
+  <AccordionGroup>
+  <Accordion title="Simple string values">
+
+  ```yaml title="generators.yml"
+  api:
+    headers:
+      Authorization: "Bearer ${API_TOKEN}"
+      X-App-Version: "1.0.0"
+  ```
+  </Accordion>
+  <Accordion title="Object configuration">
+
+  ```yaml title="generators.yml"
+  api:
+    specs:
+      - openapi: ./path/to/openapi
+    headers:
+      X-API-Version:
+        name: version
+        type: optional<string>
+        env: MY_API_VERSION
+        client-default: "2024-01-01"
+  ```
+  </Accordion>
+  </AccordionGroup>
+</ParamField>
+
+<ParamField path="environments" type="object" toc={true}>
+  Environment configurations for different deployment targets.
+
+  Set `base-url-env` to the name of an environment variable that generated SDKs read for their [base URL](/learn/api-definitions/ferndef/api-yml/environments#base-url-from-an-environment-variable) when no base URL or environment is passed to the client. This value takes precedence over `x-fern-base-url-env` in the OpenAPI spec; overriding `environments` without setting `base-url-env` keeps the spec's value. Only the TypeScript SDK generator supports this setting.
+
+  ```yaml title="generators.yml"
+  api:
+    environments:
+      Production: "https://api.plants.com"
+      Staging: "https://api.staging.plants.com"
+      base-url-env: PLANTS_API_BASE_URL
+  ```
+</ParamField>
+
+<ParamField path="settings" type="object" toc={true}>
+  Settings that apply to all specs of a given type (e.g., all OpenAPI specs). Can be overridden at the spec or generator level. Precedence: generator-level settings override spec-level settings, which override global settings.
+
+  For example, use this to ensure consistent parsing behavior across all your OpenAPI specs. For available settings, see the [specification type](#specification-types) documentation below.
+</ParamField>
+
+<ParamField path="settings.error-responses" type="object" toc={true}>
+  Applies one typed body schema to OpenAPI 4xx/5xx responses during import, for generated SDKs and API References. Set it under `api.settings` for all OpenAPI specs, or under `api.specs[].settings` to override it for one spec. Without this setting, error responses are imported as declared.
+
+  ```yaml title="generators.yml"
+  api:
+    settings:
+      error-responses:
+        schema: errors/plant_problem.yml
+        name: PlantProblem
+        apply-to: all
+        ensure:
+          - status-code: 422
+            methods: [post, put, patch]
+    specs:
+      - openapi: ./plants.yml
+  ```
+</ParamField>
+
+<ParamField path="settings.error-responses.schema" type="string | object" required={true} toc={true}>
+  OpenAPI schema for error bodies: a YAML/JSON file path relative to the API workspace (the directory containing `generators.yml`), or an inline schema object. The schema is registered in `components.schemas` under `name`. Any `$ref` inside it must be a local `#/...` pointer into the OpenAPI spec.
+</ParamField>
+
+<ParamField path="settings.error-responses.name" type="string" toc={true}>
+  Generated error body type name. Defaults to the schema's `title`, then `ProblemDetails`. A different existing schema with this name is replaced if nothing still references it after the error responses are rewritten. Otherwise, `fern check` reports the remaining JSON Pointers; references from 2xx responses, other schemas, or typed errors retained by `apply-to: untyped` prevent replacement.
+</ParamField>
+
+<ParamField path="settings.error-responses.apply-to" type="all | untyped" default="all" toc={true}>
+  `all` replaces the body schema of every 400–599 response, including `4XX` and `5XX` wildcards, and drops examples attached to replaced schemas. `untyped` adds the shared schema only to responses without a body schema; existing typed errors remain unchanged. Response descriptions and headers are preserved, as are examples on previously schemaless responses. Responses with no content receive `application/json`.
+</ParamField>
+
+<ParamField path="settings.error-responses.ensure" type="list of objects" toc={true}>
+  Adds each listed status code to operations without that response, using the shared schema.
+</ParamField>
+
+<ParamField path="settings.error-responses.ensure[].status-code" type="integer" required={true} toc={true}>
+  Error status code to add, from 400 to 599.
+</ParamField>
+
+<ParamField path="settings.error-responses.ensure[].methods" type="list of HTTP methods" toc={true}>
+  Restricts the added response to the listed methods (`get`, `post`, `put`, `patch`, `delete`, `head`, `options`, or `trace`). Defaults to all methods.
+</ParamField>
+
+<ParamField path="settings.auto-generate-idempotency-key" type="boolean | object" default="false" toc={true}>
+  Enables [idempotency-key auto-generation](/learn/sdks/legacy/deep-dives/idempotency#auto-generate-idempotency-keys) for every generator in the API, instead of setting it under each generator's `config`. When enabled, generated SDKs attach a UUIDv4 idempotency-key header on eligible methods unless the caller supplies one.
+
+  Pass `true` for the defaults, or an object to set `header-name` (default `Idempotency-Key`) and `methods` (default `["POST", "PUT"]`). A generator's own `config.auto-generate-idempotency-key` overrides this value, including an explicit `false` to opt out.
+
+  ```yaml title="generators.yml"
+  api:
+    settings:
+      auto-generate-idempotency-key: true
+  ```
+
+  Or pass an object to customize the header and methods:
+
+  ```yaml title="generators.yml"
+  api:
+    settings:
+      auto-generate-idempotency-key:
+        header-name: X-Idempotency-Key
+        methods:
+          - POST
+          - PUT
+          - PATCH
+  ```
+</ParamField>
+
+<ParamField path="settings.webhook-signature" type="object" toc={true}>
+  Declares the [webhook signing scheme](/learn/sdks/legacy/deep-dives/webhook-signature-verification#configure-api-wide-in-generatorsyml) once for the whole API, instead of in the API definition (`x-fern-webhook-signature` in OpenAPI or `webhook-signature` in a Fern Definition). Every generator in the API emits the shared `WebhooksHelper` class from this scheme, even when the spec models no webhooks.
+
+  Accepts the same [configuration options](/learn/api-definitions/openapi/endpoints/webhooks#sdk-signature-verification) as a webhook signature block in the API definition. A malformed block fails generation with `Invalid api.settings.webhook-signature in generators.yml`.
+
+  Modeled webhooks that declare no scheme of their own fall back to this value. A webhook's own `signature`, or a definition-level `webhook-signature` / `x-fern-webhook-signature`, takes precedence.
+
+  ```yaml title="generators.yml"
+  api:
+    specs:
+      - openapi: ./openapi.yml
+    settings:
+      webhook-signature:
+        type: hmac
+        header: X-Twilio-Signature
+        algorithm: sha1
+        encoding: base64
+        payload-format:
+          components: [notification-url, body]
+          delimiter: ""
+          body-sort: alphabetical
+  ```
+</ParamField>
+
+### Specification types
+
+Each specification type (OpenAPI, AsyncAPI, etc.) supports various configuration options including the spec file location, namespace, overrides, and type-specific settings.
+
+<AccordionGroup>
+<Accordion title="OpenAPI">
+<Markdown src="/snippets/openapi-specs.mdx" />
+</Accordion>
+<Accordion title="AsyncAPI">
+
+```yaml
+api:
+  specs:
+    - asyncapi: "./asyncapi.yml"
+      origin: "https://api.example.com/asyncapi.json"
+      overrides: "./asyncapi-overrides.yml" # or a list of paths
+      namespace: "events"
+      settings:
+        message-naming: "v2"
+        title-as-schema-name: false
+        respect-nullable-schemas: true
+    - asyncapi:
+        git:
+          repo: https://github.com/org/event-specs.git
+          ref: main
+          path: asyncapi/events.yml
+```
+
+<ParamField path="asyncapi" type="string | git" required={true} toc={true}>
+  Location of the AsyncAPI specification file. Accepts a local file path or a remote git reference.
+
+  ```yaml
+  # Local file
+  asyncapi: ./asyncapi.yml
+
+  # Remote git repository
+  asyncapi:
+    git:
+      repo: https://github.com/org/event-specs.git
+      ref: main
+      path: asyncapi/events.yml
+  ```
+</ParamField>
+
+<ParamField path="asyncapi.git.repo" type="string" required={true} toc={true}>
+  The git repository URL (e.g., `https://github.com/org/repo.git`). The CLI shallow-clones this repository at generation time using your system's git credential configuration (credential helpers, SSH keys, `GIT_ASKPASS`).
+</ParamField>
+
+<ParamField path="asyncapi.git.ref" type="string" toc={true}>
+  Branch, tag, or commit SHA to check out. Defaults to the repository's default branch when omitted.
+</ParamField>
+
+<ParamField path="asyncapi.git.path" type="string" required={true} toc={true}>
+  Path to the spec file within the repository.
+</ParamField>
+
+<ParamField path="origin" type="string" toc={true}>
+  URL of the API definition origin for pulling updates.
+</ParamField>
+
+<ParamField path="overrides" type="string | list of strings" toc={true}>
+  Path to an AsyncAPI [overrides](/learn/api-definitions/asyncapi/overrides) file, or a list of paths to multiple override files applied sequentially.
+
+  ```yaml
+  # Single override file
+  overrides: ./asyncapi-overrides.yml
+
+  # Multiple override files (applied in order)
+  overrides:
+    - ./base-overrides.yml
+    - ./sdk-overrides.yml
+  ```
+</ParamField>
+
+<ParamField path="namespace" type="string" toc={true}>
+  Namespace for the specification. Useful for configuring a [single package with multiple API versions](/learn/api-definitions/overview/project-structure#combined-sdks-from-multiple-apis).  
+</ParamField>
+
+<ParamField path="settings" type="object" toc={true}>
+  AsyncAPI-specific generation settings for this individual spec. To apply the same settings across all AsyncAPI specs, use global [`api.settings`](/learn/sdks/legacy/reference/generators-yml#settings) instead.
+</ParamField>
+
+<ParamField path="settings.message-naming" type="object" default="v1" toc={true}>
+  What version of message naming to use for AsyncAPI messages. Options: `v1`, `v2`.
+</ParamField>
+
+<ParamField path="settings.title-as-schema-name" type="boolean" default="false" toc={true}>
+  Whether to use the titles of schemas within an AsyncAPI definition as the names of types within Fern.
+</ParamField>
+
+<ParamField path="settings.respect-nullable-schemas" type="boolean" default="true" toc={true}>
+  Preserves nullable schemas in API definition settings. When false, nullable schemas are treated as optional.
+</ParamField>
+
+<ParamField path="settings.idiomatic-request-names" type="boolean" default="true" toc={true}>
+  Controls the naming convention for autogenerated request names. When enabled, places the verb before the noun in request names (e.g., `UsersListRequest` becomes `ListUsersRequest`), following more idiomatic naming patterns.
+</ParamField>
+
+<ParamField path="settings.wrap-references-to-nullable-in-optional" type="boolean" default="false" toc={true}>
+  Controls whether references to nullable schemas are wrapped in optional types. When false, nullable references are treated as required fields that can be null.
+</ParamField>
+
+<ParamField path="settings.coerce-optional-schemas-to-nullable" type="boolean" default="false" toc={true}>
+  Controls whether optional schemas are coerced to nullable types during code generation. When false, optional and nullable are treated as distinct concepts.
+</ParamField>
+
+<ParamField path="settings.group-environments-by-host" type="boolean" default="false" toc={true}>
+  When enabled, groups servers by host into unified environments, enabling APIs with multiple protocols (REST, WebSocket, etc.) to share environment configuration. Environment URL IDs use the server name, with path or protocol suffixes added only when needed to resolve collisions.
+
+</ParamField>
+</Accordion>
+<Accordion title="gRPC/proto buffers">
+<Markdown src="/snippets/grpc-specs.mdx" />
+</Accordion>
+<Accordion title="OpenRPC">
+
+<ParamField path=".openrpc" type="string" required={true} toc={true}>
+  Path to the OpenRPC specification file.
+</ParamField>
+
+<ParamField path="overrides" type="string | list of strings" toc={true}>
+  Path to an OpenRPC [overrides](/learn/api-definitions/openrpc/overrides) file, or a list of paths to multiple override files applied sequentially.
+
+  ```yaml
+  # Single override file
+  overrides: ./overrides.yml
+
+  # Multiple override files (applied in order)
+  overrides:
+    - ./base-overrides.yml
+    - ./sdk-overrides.yml
+  ```
+</ParamField>
+
+<ParamField path="namespace" type="string" toc={true}>
+  Namespace for the specification.
+</ParamField>
+</Accordion>
+<Accordion title="Conjure">
+
+```yaml title="generators.yml"
+api:
+  specs:
+    conjure: "./conjure-api.yml"
+```
+
+<ParamField path="conjure" type="string" toc={true}>
+  Path to Conjure specification file.
+</ParamField>
+</Accordion>
+</AccordionGroup>
+
+## `whitelabel`
+
+Configuration for publishing generated SDKs without Fern branding. When enabled, removes all mentions of Fern from the generated code and allows publishing under your own brand.
+
+```yaml title="generators.yml"
+whitelabel:
+  github:
+    username: "company-github-username"
+    email: "my-email@example.com"
+    token: "ghp_xxxxxxxxxxxx"
+```
+<ParamField path="username" type="string" required={true} toc={true}>
+  The GitHub username that will be used for committing and publishing the whitelabeled SDK code to GitHub repositories. This should be the username of the account that has write access to your target repositories.
+</ParamField>
+<ParamField path="email" type="string" required={true} toc={true}>
+  The email address associated with the GitHub account. This email will be used in Git commits when publishing the whitelabeled SDK code and should match the email configured in your GitHub account settings.
+</ParamField>
+<ParamField path="token" type="string" required={true} toc={true}>
+  A GitHub Personal Access Token (PAT) with appropriate permissions for repository access. The token should have `repo` scope permissions to allow reading from and writing to your repositories for publishing whitelabeled SDKs.
+</ParamField>
+
+
+## `metadata`
+Package metadata like description and authors that gets included in all generated SDKs. Alternatively, you can [define metadata for individual SDKs](#metadata-2). 
+
+```yaml title="generators.yml"
+metadata:
+  description: "My API SDK"
+  authors:
+    - name: "John Doe"
+      email: "john@example.com"
+    - name: "Jane Smith"
+      email: "jane@example.com"
+```
+
+<ParamField path="description" type="string" required={false} toc={true}>
+  A brief description of the SDK that will be included in package metadata. This description helps users understand what your SDK does when they discover it in package repositories.
+</ParamField>
+
+### `authors`
+  A list of authors who will be credited in the generated SDK's package metadata.
+
+<ParamField path="name" type="string" required={true} toc={true}>
+  The full name of the author to be credited in the SDK package metadata.
+</ParamField>
+
+<ParamField path="email" type="string" required={true} toc={true}>
+  The email address of the author. This will be included in package metadata and may be used by package managers for contact information.
+</ParamField>
+
+## `readme`
+
+Controls what goes into the generated README files across all SDKs, allowing you to customize the content and structure of your SDK documentation.
+
+<Markdown src="/products/sdks/legacy/snippets/readme-options.mdx" />
+
+## `default-group`
+Which generator group to use when none is specified.
+
+```yaml
+default-group: "production"
+```
+
+<ParamField path="default-group" type="string" required={false} toc={true}>
+</ParamField>
+
+## `autorelease`
+
+Enable or disable [Fern Autorelease](/learn/sdks/legacy/overview/autorelease) globally for automated SDK releases. Alternatively, you can [configure autorelease for individual SDKs](#autorelease-2).
+
+```yaml title="generators.yml"
+autorelease: true
+```
+
+<ParamField path="autorelease" type="boolean" default={false} required={false} toc={true}>
+  Set to `true` to enable Autorelease, `false` to disable it. [Per-generator settings](#autorelease-2) override this global configuration.
+</ParamField>
+
+## `replay`
+
+Override [Fern Replay](/learn/sdks/legacy/overview/custom-code#replay) behavior. Replay runs based on your organization's configuration; use this setting to disable it for all generators in this `generators.yml`.
+
+```yaml title="generators.yml"
+replay:
+  enabled: false
+```
+
+<ParamField path="replay.enabled" type="boolean" required={false} toc={true}>
+  Set to `false` to skip Replay for all SDK generations in this `generators.yml`, even if Replay is enabled for your organization.
+</ParamField>
+
+## `aliases`
+
+Define shortcuts that map to multiple generator groups, allowing you to run several groups with a single command. When you run `fern generate --group <alias>`, all groups in the alias run in parallel. You can also set an alias as your `default-group`.
+
+```yaml title="generators.yml" {1-4}
+aliases:
+  all: ["php-sdk", "ts-sdk", "go-sdk"]
+  frontend: ["ts-sdk"]
+  backend: ["php-sdk", "go-sdk"]
+
+groups:
+  php-sdk:
+    generators:
+      - name: fern-php-sdk
+        version: 1.0.0
+  ts-sdk:
+    generators:
+      - name: fern-typescript-sdk
+        version: 1.0.0
+  go-sdk:
+    generators:
+      - name: fern-go-sdk
+        version: 1.0.0
+```
+
+<ParamField path="aliases" type="map<string, list<string>>" required={false} toc={true}>
+  A map where each key is an alias name and the value is a list of group names. Each group name must reference a group defined in the `groups` section.
+</ParamField>
+
+## `groups`
+
+Organizes user-defined sets of generators, typically grouped by environment (like "production", "staging") or language (like "typescript", "python"). You can also create [aliases](#aliases) to run multiple groups with a single command.
+
+```yaml title="generators.yml" maxLines=10
+groups:
+  typescript-sdk: # User-defined name
+    audiences: ["external"]
+    generators:
+      - name: fern-typescript-sdk
+        version: 0.9.0
+        output:
+          location: npm
+          package-name: "@myorg/api-sdk"
+          token: "${NPM_TOKEN}"
+        github:
+          repository: your-organization/company-typescript
+          mode: "pull-request"
+    metadata:
+      description: "TypeScript SDK for MyAPI"
+      authors:
+        - name: "SDK Team"
+          email: "sdk@myorg.com"
+    reviewers:
+      teams:
+        - name: "sdk-team"
+```
+
+<ParamField path="audiences" type="list of strings" required={false} toc={true}>
+  Filter which API elements are included in generated SDKs on audience tags. Only endpoints, schemas, and properties tagged with the specified audiences in your API spec will be included. Without this filter, all endpoints are included regardless of their audience tags.
+
+  [Filtering your SDKs by audience](/learn/sdks/legacy/deep-dives/audiences) takes two steps: [tag your API elements](/learn/api-definitions/openapi/extensions/audiences) in your spec, then list the audiences to include here.
+
+  For OpenAPI, you can also configure path-based filtering at the spec level using [`settings.filter`](#settingsfilter).
+</ParamField>
+
+### `reviewers`
+
+Set code reviewers for an individual SDK. Alternatively, you can [configure reviewers globally for all SDKs](#reviewers-4). 
+
+<Markdown src="/products/sdks/legacy/snippets/reviewers-params.mdx" />
+
+### `generators`
+
+Generator settings for a specific group. 
+
+```yaml title="generators.yml"
+groups:
+  typescript-sdk:
+    audiences: ["external"]
+    generators:
+      - name: fern-typescript-sdk
+        version: <Markdown src="/snippets/version-number-ts.mdx"/>
+        smart-casing: true
+  python-sdk: # Self-hosted with custom registry
+    generators:
+      - image:
+          name: fern-python-sdk
+          registry: ghcr.io/your-org
+        version: <Markdown src="/snippets/version-number-python.mdx"/>
+```
+
+<ParamField path="name" type="string" required={true}>
+The Fern generator package name (e.g., `fern-typescript-sdk`). Mutually exclusive with `image`.
+</ParamField>
+
+<ParamField path="version" type="string" required={true}>
+Specific version of the generator to use
+</ParamField>
+
+<ParamField path="smart-casing" type="boolean" default="false">
+Enables intelligent case conversion that preserves numbers and common programming patterns:
+- Numbers stay intact (e.g., `v2` instead of `v_2`, `getUsersV2` instead of `getUsersV_2`)
+- Initialisms are preserved (e.g., `CustomerID` instead of `CustomerId`)
+- Acronyms remain correct (e.g., `HTTPSConnection` stays `HTTPSConnection`)
+</ParamField>
+
+<ParamField path="image" type="object" required={false} toc={true}>
+Use `image` instead of `name` to pull the generator from a [custom container registry](/learn/sdks/legacy/deep-dives/self-hosted#private-registry-setup) during [self-hosted generation](/learn/sdks/legacy/deep-dives/self-hosted) (remote generation doesn't support custom registries). Mutually exclusive with `name`.
+
+The CLI constructs the full image reference as `{registry}/{name}:{version}` when pulling. For example, with `registry: ghcr.io/your-org`, `name: fern-python-sdk`, and `version: 4.0.0`, the CLI pulls `ghcr.io/your-org/fern-python-sdk:4.0.0`.
+</ParamField>
+
+<ParamField path="image.name" type="string" required={true}>
+A recognized Fern generator name (e.g., `fern-python-sdk`). Required for IR version resolution.
+</ParamField>
+
+<ParamField path="image.registry" type="string" required={true}>
+The container registry hostname and optional namespace (e.g., `ghcr.io/your-org`). The CLI constructs the full image reference as `{registry}/{name}:{version}` when pulling. For example, with `registry: ghcr.io/your-org`, `name: fern-python-sdk`, and `version: 4.0.0`, the CLI pulls `ghcr.io/your-org/fern-python-sdk:4.0.0`.
+</ParamField>
+
+#### `config`
+
+Language-specific configuration options.
+
+```yaml title="generators.yml"
+groups:
+  ts-sdk: # Typescript SDK group
+    generators:
+      - name: fern-typescript-sdk
+        version: <Markdown src="/snippets/version-number-ts.mdx"/>
+        config: # TypeScript-specific config options
+          namespaceExport: AcmePayments
+          noSerdeLayer: false
+```
+
+<CardGroup cols={3}>
+<Card title="TypeScript" icon={<img src="../images/icons/ts-light.svg" alt="TypeScript" className="h-6 w-6" noZoom />} href="/learn/sdks/legacy/generators/typescript/configuration">
+</Card>
+<Card title="Python" icon={<img src="../images/icons/python-light.svg" alt="Python" className="h-6 w-6" noZoom />} href="/learn/sdks/legacy/generators/python/configuration">
+</Card>
+<Card title="Go" icon={<img src="../images/icons/go-light.svg" alt="Go" className="h-6 w-6" noZoom />} href="/learn/sdks/legacy/generators/go/configuration">
+</Card>
+<Card title="Java" icon={<img src="../images/icons/java-light.svg" alt="Java" className="h-6 w-6" noZoom />} href="/learn/sdks/legacy/generators/java/configuration">
+</Card>
+<Card title=".NET" icon={<img src="../images/icons/csharp-light.svg" alt=".NET" className="h-6 w-6" noZoom />} href="/learn/sdks/legacy/generators/csharp/configuration">
+</Card>
+<Card title="PHP" icon={<img src="../images/icons/php-light.svg" alt="PHP" className="h-6 w-6" noZoom />} href="/learn/sdks/legacy/generators/php/configuration">
+</Card>
+<Card title="Ruby" icon={<img src="../images/icons/ruby-light.svg" alt="Ruby" className="h-6 w-6" noZoom />} href="/learn/sdks/legacy/generators/ruby/configuration">
+</Card>
+<Card title="Swift" icon={<img src="../images/icons/swift-light.svg" alt="Swift" className="h-6 w-6" noZoom />} href="/learn/sdks/legacy/generators/swift/configuration">
+</Card>
+<Card title="Rust" icon={<img src="../images/icons/rust-light.svg" alt="Rust" className="h-6 w-6" noZoom />} href="/learn/sdks/legacy/generators/rust/configuration">
+</Card>
+</CardGroup>
+
+
+#### `output`
+
+Where to publish the generated SDK.
+
+```yaml title="generators.yml"
+groups:
+  typescript-sdk: # User-defined name
+    audiences: ["external"]
+    generators:
+      - name: fern-typescript-sdk
+        version: 0.9.0
+        output:
+          location: npm
+          package-name: "@myorg/api-sdk"
+          token: "${NPM_TOKEN}"
+```
+
+<AccordionGroup>
+<Accordion title="npm">
+
+Publish TypeScript SDKs to the npm registry.
+
+```yaml title="generators.yml"
+output:
+  location: npm
+  package-name: "@myorg/api-sdk"
+  token: "${NPM_TOKEN}"
+```
+
+<ParamField path="location" type="'npm'" required={true}>
+Set to "npm" for NPM publishing
+</ParamField>
+
+<ParamField path="url" type="string" required={false} default="npmjs.com">
+Custom NPM registry URL 
+</ParamField>
+
+<ParamField path="package-name" type="string" required={true}>
+NPM package name (e.g., "@myorg/api-sdk")
+</ParamField>
+
+<ParamField path="token" type="string" required={false}>
+NPM authentication token for publishing
+</ParamField>
+</Accordion>
+<Accordion title="Maven">
+
+Publish Java SDKs to Maven repository.
+
+```yaml title="generators.yml"
+output:
+  location: maven
+  coordinate: "com.myorg:api-sdk"
+  username: "${MAVEN_USERNAME}"
+  password: "${MAVEN_PASSWORD}"
+  signature:
+    keyId: "ABC123"
+    password: "${GPG_PASSWORD}"
+    secretKey: "${GPG_SECRET_KEY}"
+```
+
+<ParamField path="location" type="'maven'" required={true}>
+Set to "maven" for Maven publishing
+</ParamField>
+
+<ParamField path="url" type="string" required={false} default="npmjs.com">
+Maven repository URL (optional, defaults to Maven Central)
+</ParamField>
+
+<ParamField path="coordinate" type="string" required={true}>
+Maven artifact coordinate in "groupId:artifactId" format
+</ParamField>
+
+<ParamField path="username" type="string" required={false}>
+Repository authentication username
+</ParamField>
+
+<ParamField path="password" type="string" required={false}>
+Repository authentication password
+</ParamField>
+
+<ParamField path="signature" type="object" required={false}>
+GPG signature configuration for package signing
+</ParamField>
+
+<ParamField path="signature.keyId" type="string" required={true}>
+GPG key ID for package signing
+</ParamField>
+
+<ParamField path="signature.password" type="string" required={true}>
+GPG key password
+</ParamField>
+
+<ParamField path="signature.secretKey" type="string" required={true}>
+GPG secret key content
+</ParamField>
+</Accordion>
+<Accordion title="PyPI">
+
+Publish Python SDKs to Python Package Index.
+
+```yaml title="generators.yml"
+output:
+  location: pypi
+  package-name: "myorg-api-sdk"
+  token: OIDC  # or "${PYPI_TOKEN}" for token-based auth
+  metadata:
+    keywords: ["api", "sdk", "client"]
+    documentation-link: "https://docs.myorg.com"
+    homepage-link: "https://myorg.com"
+```
+
+<ParamField path="location" type="'pypi'" required={true}>
+Set to "pypi" for PyPI publishing
+</ParamField>
+
+<ParamField path="url" type="string" required={false}>
+Custom PyPI registry URL (optional, defaults to PyPI)
+</ParamField>
+
+<ParamField path="package-name" type="string" required={true}>
+Python package name (e.g., "myorg-api-sdk")
+</ParamField>
+
+<ParamField path="token" type="string" required={false}>
+PyPI authentication token. Set to `OIDC` for [trusted publishing](/learn/sdks/legacy/generators/python/publishing#configure-authentication) (recommended) or use an environment variable reference (e.g., `${PYPI_TOKEN}`) for token-based auth.
+</ParamField>
+
+<ParamField path="username" type="string" required={false}>
+PyPI username (alternative to token authentication)
+</ParamField>
+
+<ParamField path="password" type="string" required={false}>
+PyPI password (alternative to token authentication)
+</ParamField>
+
+<ParamField path="metadata" type="objecta" required={false}>
+Additional PyPI-specific metadata for the package
+</ParamField>
+
+<ParamField path="metadata.keywords" type="list of string" required={false}>
+Package keywords for PyPI search and discovery
+</ParamField>
+
+<ParamField path="metadata.documentation-link" type="string" required={false}>
+Link to package documentation
+</ParamField>
+
+<ParamField path="metadata.homepage-link" type="string" required={false}>
+Link to project homepage
+</ParamField>
+</Accordion>
+
+<Accordion title="NuGet">
+
+Publish .NET SDKs to NuGet repository.
+
+```yaml title="generators.yml"
+output:
+  location: nuget
+  package-name: "MyOrg.ApiSdk"
+  api-key: "${NUGET_API_KEY}"
+```
+
+<ParamField path="location" type="'nuget'" required={true}>
+Set to "nuget" for NuGet publishing
+</ParamField>
+
+<ParamField path="url" type="string" required={false}>
+Custom NuGet feed URL (optional, defaults to nuget.org)
+</ParamField>
+
+<ParamField path="package-name" type="string" required={true}>
+NuGet package name (e.g., "MyOrg.ApiSdk")
+</ParamField>
+
+<ParamField path="api-key" type="string" required={false}>
+NuGet API key for publishing to the feed
+</ParamField>
+</Accordion>
+<Accordion title="RubyGems">
+
+Publish Ruby SDKs to RubyGems registry.
+
+```yaml title="generators.yml"
+output:
+  location: rubygems
+  package-name: "myorg_api_sdk"
+  api-key: "${RUBYGEMS_API_KEY}"
+```
+
+<ParamField path="location" type="'rubygems'" required={true}>
+Set to "rubygems" for RubyGems publishing
+</ParamField>
+
+<ParamField path="url" type="string" required={false}>
+Custom RubyGems registry URL (optional, defaults to rubygems.org)
+</ParamField>
+
+<ParamField path="package-name" type="string" required={true}>
+Ruby gem package name (e.g., "myorg_api_sdk")
+</ParamField>
+
+<ParamField path="api-key" type="string" required={false}>
+RubyGems API key for publishing (requires "Push rubygem" permission)
+</ParamField>
+
+> **Note**: RubyGems API keys need "Push rubygem" permission and ideally "index" and "yank rubygem" permissions. If MFA is enabled, ensure MFA settings don't require MFA for API key usage.
+</Accordion>
+<Accordion title="Postman">
+
+Publish API collections to Postman workspace.
+
+```yaml title="generators.yml"
+output:
+  location: postman
+  api-key: "${POSTMAN_API_KEY}"
+  workspace-id: "12345678-1234-1234-1234-123456789abc"
+  collection-id: "87654321-4321-4321-4321-cba987654321"
+```
+
+<ParamField path="location" type="'postman'" required={true}>
+Set to "postman" for Postman publishing
+</ParamField>
+
+<ParamField path="api-key" type="string" required={true}>
+Postman API key for workspace access
+</ParamField>
+
+<ParamField path="workspace-id" type="string" required={true}>
+Target Postman workspace ID where collection will be published
+</ParamField>
+
+<ParamField path="collection-id" type="string" required={false}>
+Existing collection ID to update (creates new collection if not specified)
+</ParamField>
+</Accordion>
+<Accordion title="Local file system">
+
+Save generated SDKs to local file system instead of publishing.
+
+```yaml title="generators.yml"
+output:
+  location: local-file-system
+  path: "./generated-sdks/typescript"
+```
+
+<ParamField path="location" type="'local-file-system'" required={true}>
+Set to "local-file-system" for local output
+</ParamField>
+
+<ParamField path="path" type="string" required={true}>
+Local directory path where generated files will be saved
+</ParamField>
+</Accordion>
+</AccordionGroup>
+
+#### `github`
+
+Specify how your SDKs are generated in GitHub using the `github` configuration.
+Designate the `mode` to specify how Fern handles your code changes. For cloud generation, specify the GitHub repository using `repository`. For [self-hosted generation](/learn/sdks/legacy/deep-dives/self-hosted), use `uri` and `token` instead. Fern doesn't push SDKs to GitLab or other providers; to host elsewhere, generate to your local file system and commit the output from your own pipeline.
+
+<Note>Make sure the [Fern GitHub app](https://github.com/apps/fern-api) is installed on your destination repository (not required for self-hosted generation)</Note>
+
+<AccordionGroup>
+<Accordion title="Release (default)">
+
+Fern generates your code, commits it to the default branch (or the `branch` you specify), and tags a new release.
+
+```yml {6-17}
+groups: 
+  ts-sdk:
+    generators:
+      - name: fern-typescript-sdk
+      ...
+        github: 
+          repository: "your-org/your-repo-name"
+          mode: "release"
+```
+
+<ParamField path="repository" type="string" required={true} toc={true}>
+Name of your repository in GitHub.
+</ParamField>
+
+<ParamField path="mode" type="'release'" required={false} toc={true}>
+</ParamField>
+
+<ParamField path="branch" type="string" required={false} toc={true}>
+If specified, Fern commits and tags the release on this branch instead of the default branch. The branch must already exist. Use this to publish versioned SDKs (e.g., `v1` and `v2`) from a single repo.
+</ParamField>
+
+<ParamField path="license" type="'MIT' | 'Apache-2.0' | 'Custom License Name'" required={false} toc={true}>
+Software license for the generated SDK.
+</ParamField>
+
+<ParamField path="reviewers" type="{ teams: list<string>, users: list<string> }" required={false} toc={true}>
+Specify which teams and users should review generated code. See [reviewers configuration](#reviewers-1).
+</ParamField>
+</Accordion>
+<Accordion title="Pull request (recommended)">
+
+Fern generates your code, commits to a new branch, and opens a PR for review. To publish, you must merge the PR and tag a GitHub release. 
+
+```yml {6-8}
+groups: 
+  ts-sdk:
+    generators:
+      - name: fern-typescript-sdk
+      ...
+        github: 
+          repository: "your-org/your-repo-name"
+          mode: "pull-request"
+```
+
+<ParamField path="repository" type="string" required={true} toc={true}>
+Name of your repository in GitHub.
+</ParamField>
+
+<ParamField path="mode" type="'pull-request'" required={false} toc={true}>
+</ParamField>
+
+<ParamField path="branch" type="string" required={false} toc={true}>
+Name of your branch in GitHub.
+</ParamField>
+
+<ParamField path="license" type="'MIT' | 'Apache-2.0' | 'Custom License Name'" required={false} toc={true}>
+Software license for the generated SDK.
+</ParamField>
+
+<ParamField path="reviewers" type="list of objects" required={false} toc={true}>
+Specify which teams and users should review generated code. See [reviewers configuration](#reviewers-1).
+</ParamField>
+</Accordion>
+<Accordion title="Push">
+
+Fern generates your code and pushes it to the branch you specify. 
+
+```yml {6-8}
+groups: 
+  ts-sdk:
+    generators:
+      - name: fern-typescript-sdk
+      ...
+        github: 
+          repository: "your-org/your-repo-name"
+          mode: "push"
+          branch: "your-branch-name" # required for `mode: push`
+```
+<ParamField path="repository" type="string" required={true} toc={true}>
+Name of your repository in GitHub.
+</ParamField>
+
+<ParamField path="mode" type="'push'" required={false} toc={true}>
+</ParamField>
+
+<ParamField path="branch" type="string" required={true} toc={true}>
+Name of your branch in GitHub.
+</ParamField>
+
+<ParamField path="license" type="'MIT' | 'Apache-2.0' | 'Custom License Name'" required={false} toc={true}>
+Software license for the generated SDK.
+</ParamField>
+
+<ParamField path="reviewers" type="{ teams: list<string>, users: list<string> }" required={false} toc={true}>
+Specify which teams and users should review generated code. See [reviewers configuration](#reviewers-1).
+</ParamField>
+</Accordion>
+<Accordion title="Self-hosted">
+
+For [self-hosted SDK generation](/learn/sdks/legacy/deep-dives/self-hosted), configure the `github` property with `uri` and `token` instead of `repository`.
+
+```yml {6-10}
+groups: 
+  ts-sdk:
+    generators:
+      - name: fern-typescript-sdk
+      ...
+        github: 
+          uri: "https://github.com/your-org/your-repo-name"
+          token: "${GITHUB_TOKEN}"
+          mode: "push"
+          branch: "main"
+```
+
+<ParamField path="uri" type="string" required={true} toc={true}>
+Full URL to your GitHub repository (e.g., `https://github.com/your-org/your-repo`).
+</ParamField>
+
+<ParamField path="token" type="string" required={true} toc={true}>
+GitHub Personal Access Token with repository write permissions. Use an environment variable reference (e.g., `${GITHUB_TOKEN}`).
+</ParamField>
+
+<ParamField path="mode" type="'push' | 'pull-request'" required={false} toc={true}>
+How to publish changes: `push` commits directly to the branch, `pull-request` opens a PR for review.
+</ParamField>
+
+<ParamField path="branch" type="string" required={false} toc={true}>
+Target branch for commits or pull requests.
+</ParamField>
+</Accordion>
+</AccordionGroup>
+
+The following option applies to every `github` mode, including self-hosted generation.
+
+<ParamField path="workflows" type="boolean" default="true" required={false} toc={true}>
+Whether generated `.github/workflows/*` files are included in the commit. Set to `false` when the GitHub App or token used for generation lacks the `workflows` permission: GitHub rejects any commit from such a token that adds or modifies workflow files, and `.fernignore` doesn't protect files that don't exist yet in the repository. With `workflows: false`, newly generated workflow files are dropped and tracked workflow files keep their current contents. All other generated files are committed as usual.
+
+```yml {6-8}
+groups:
+  ts-sdk:
+    generators:
+      - name: fern-typescript-sdk
+      ...
+        github:
+          repository: "your-org/your-repo-name"
+          workflows: false
+```
+</ParamField>
+
+#### `metadata`
+
+Specify metadata for an individual SDK. Alternatively, you can [configure metadata globally for all SDKs](#metadata).
+
+```yml title="generators.yml" {6-10}
+groups: 
+  ts-sdk:
+    generators:
+      - name: fern-typescript-sdk
+      ...
+        metadata: 
+          package-description: "Description of your SDK"
+          email: "sdk@example.com"
+          reference-url: "https://docs.example.com/sdks"
+          license: "MIT"
+```
+
+<ParamField path="package-description" type="string" required={false} toc={true}>
+A brief description of what your generated SDK does and its key features. This appears in the `package.json` description field and package registry listings.
+</ParamField>
+
+<ParamField path="email" type="string" required={false} toc={true}>
+Contact email for the package maintainer or support team. 
+</ParamField>
+
+<ParamField path="reference-url" type="string" required={false} toc={true}>
+URL pointing to comprehensive documentation, API reference, or getting started guide for the SDK.
+</ParamField>
+
+<ParamField path="author" type="string" required={false} toc={true}>
+Name of the individual developer, team, or organization that created and maintains the SDK.
+</ParamField>
+
+<ParamField path="license" type="'MIT' | 'Apache-2.0' | 'Custom License Name'" required={false} toc={true}>
+Software license for the generated SDK.
+</ParamField>
+
+#### `autorelease`
+
+Enable or disable [Fern Autorelease](/learn/sdks/legacy/overview/autorelease) for an individual SDK. Alternatively, you can [configure autorelease globally for all SDKs](#autorelease-1).
+
+```yml title="generators.yml" {6}
+groups:
+  ts-sdk:
+    generators:
+      - name: fern-typescript-sdk
+      ...
+        autorelease: true
+```
+
+<ParamField path="autorelease" type="boolean" default={false} required={false} toc={true}>
+  Set to `true` to enable Autorelease for this generator, `false` to disable it. Per-generator settings override the global [`autorelease`](#autorelease-1) configuration.
+</ParamField>
+
+#### `snippets`
+
+Configures snippets for a particular generator.
+
+```yml title="generators.yml" {6-8}
+groups: 
+  ts-sdk:
+    generators:
+      - name: fern-typescript-sdk
+      ...
+        snippets: 
+          path: "./snippets"
+```
+
+<ParamField path="path" type="string" required={true} toc={true}>
+The path to the generated snippets file.
+</ParamField>
+
+#### Override API authentication settings
+
+Override authentication settings for a specific SDK using the `api` configuration.
+
+<AccordionGroup>
+<Accordion title="Single authentication scheme">
+
+Reference a [pre-defined authentication scheme](#auth-schemes) by name.
+
+```yml title="generators.yml" {6-7}
+groups: 
+  ts-sdk:
+    generators:
+      - name: fern-typescript-sdk
+      ...
+        api:
+          auth: "bearer-token"
+```
+
+<ParamField path="auth" type="string | { scheme: string }" required={false} toc={true}>
+The authentication scheme to use. Can be either a string reference (`"bearer-token"`) or scheme object (`scheme: "bearer-token"`).
+</ParamField>
+</Accordion>
+<Accordion title="Multiple authentication options">
+
+Allow users to authenticate with any of several methods:
+
+```yml title="generators.yml" {6-12}
+groups: 
+  ts-sdk:
+    generators:
+      - name: fern-typescript-sdk
+      ...
+        api:
+          auth:
+            any:
+              - "api-key"
+              - "bearer-token"
+              - scheme: "oauth-flow"
+```
+
+<ParamField path="any" type="list<string | { scheme: string }>" required={true} toc={true}>
+A list of authentication schemes where users can choose any one method. Each item can be either a string reference (`"api-key"`) or scheme object (`scheme: "api-key"`).
+</ParamField>
+</Accordion>
+
+<Accordion title="Custom authentication schemes">
+
+Define a custom authentication schemes using `auth-schemes`. You define a name for your custom scheme, and then specify the authentication method (`header`, `basic`, `bearer`, or `oauth`).
+
+```yml title="generators.yml" {8-12}
+groups: 
+  ts-sdk:
+    generators:
+      - name: fern-typescript-sdk
+      ...
+        api:
+          auth-schemes:
+            bearer:  # User-defined name for your auth schema
+              scheme: "bearer"
+              token:
+                name: "token"
+                env: "BEARER_TOKEN"
+```
+
+<AccordionGroup>
+<Accordion title="Header authentication">
+
+<Markdown src="/products/sdks/legacy/snippets/header-auth-params.mdx" />
+</Accordion>
+
+<Accordion title="Basic authentication">
+
+<Markdown src="/products/sdks/legacy/snippets/basic-auth-params.mdx" />
+
+</Accordion>
+
+<Accordion title="Bearer Token Authentication">
+
+<Markdown src="/products/sdks/legacy/snippets/bearer-auth-params.mdx" />
+</Accordion>
+
+<Accordion title="OAuth Client Credentials">
+
+<Markdown src="/products/sdks/legacy/snippets/oauth-params.mdx" />
+
+##### `get-token`
+
+<Markdown src="/products/sdks/legacy/snippets/oauth-get-token.mdx" />
+
+##### `refresh-token`
+
+<Markdown src="/products/sdks/legacy/snippets/oauth-refresh-token.mdx" />
+
+</Accordion>
+</AccordionGroup>
+
+</Accordion>
+</AccordionGroup>
+
+### `reviewers`
+
+Set code reviewers globally for all SDKs. Alternatively, you can [configure reviewers for individual SDKs](#reviewers).
+
+<Markdown src="/products/sdks/legacy/snippets/reviewers-params.mdx" />
