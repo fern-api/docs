@@ -1,0 +1,180 @@
+---
+title: Migrating to Ruby generator v2
+headline: Migrating to Ruby SDK generator v2
+description: Breaking changes in version 2.0.0 of the Fern Ruby SDK generator and how to update code that uses your generated Ruby gem.
+---
+
+Version 2.0.0 of the Ruby SDK generator changes error classes, request serialization, retries, and some generated names. It also fixes request and response handling that previously returned `nil` or sent empty bodies. Release the regenerated SDK as a new major version, and share this page with your SDK users so they can update their code.
+
+## Before you upgrade
+
+Generator versions 2.0.0 and later read configuration from `sdk-config.yml` instead of `generators.yml`. Run `fern sdk migrate` to create `sdk-config.yml` from your existing configuration.
+
+## Each error status has its own class with a typed body
+
+Each common status has its own error class, such as `BadRequestError`, `NotFoundError`, `UnprocessableEntityError`, `TooManyRequestsError`, and `InternalServerError`. The classes are subclasses of `ClientError` or `ServerError`, so existing `rescue` clauses for those classes still work. `#body` holds the response body deserialized into the model the spec declares for that status, or `nil` if the body is empty or doesn't match.
+
+```ruby title="Before"
+begin
+  client.plants.get(plant_id: 'plant_42')
+rescue PlantStore::Errors::ClientError => e
+  wait = JSON.parse(e.message)['retryAfterSeconds']
+  sleep(wait)
+end
+```
+
+```ruby title="After"
+begin
+  client.plants.get(plant_id: 'plant_42')
+rescue PlantStore::Errors::TooManyRequestsError => e
+  sleep(e.body.retry_after_seconds)
+rescue PlantStore::Errors::UnprocessableEntityError => e
+  e.body.detail
+rescue PlantStore::Errors::ClientError => e
+  e.code
+end
+```
+
+**To fix:** Replace parsing of `e.message` with `e.body`, and rescue specific classes where you need them.
+
+## Timeouts and connection failures raise SDK errors
+
+A refused connection, DNS failure, closed socket, or TLS failure raises `PlantStore::Errors::ConnectionError`. A request that times out after exhausting its retries raises `PlantStore::Errors::TimeoutError`. Both subclass `PlantStore::Errors::ApiError`, have no status code, and keep the original exception on `#cause`.
+
+```ruby title="Before"
+begin
+  client.plants.list
+rescue Net::ReadTimeout, Net::OpenTimeout
+  logger.warn('plant store slow')
+rescue Errno::ECONNREFUSED, SocketError, OpenSSL::SSL::SSLError
+  logger.warn('plant store unreachable')
+end
+```
+
+```ruby title="After"
+begin
+  client.plants.list
+rescue PlantStore::Errors::TimeoutError => e
+  logger.warn("plant store slow: #{e.cause.class}")
+rescue PlantStore::Errors::ConnectionError => e
+  logger.warn("plant store unreachable: #{e.cause.class}")
+end
+```
+
+**To fix:** Replace `rescue` clauses for transport exceptions with the SDK error classes.
+
+## Text, XML, and binary request bodies use a `body:` keyword
+
+Request bodies for `text/plain`, `application/xml`, and `application/octet-stream` are read from a `body:` keyword and sent as-is with the declared content type. Previously, these bodies were dropped and an empty JSON request was sent. If the spec marks the body as required and you omit it, the method raises `ArgumentError`. Form-encoded bodies are sent as form fields.
+
+```ruby
+client.notes.create(body: 'Water every Tuesday')
+# Content-Type: text/plain
+
+client.photos.upload(body: File.binread('monstera.jpg'))
+# Content-Type: application/octet-stream
+```
+
+**To fix:** Pass the body with `body:`.
+
+## Basic auth works alongside bearer auth
+
+When a spec declares both Basic and bearer auth, `username:`, `password:`, and `token:` are all optional. The client uses the scheme you provide credentials for, and bearer takes precedence if you provide both. An empty `token: ''` counts as no token. Previously, `token:` was required and always overwrote the Basic header.
+
+```ruby
+client = PlantStore::Client.new(username: 'svc', password: ENV.fetch('PLANTSTORE_SECRET'))
+# Authorization: Basic ...
+```
+
+**To fix:** No changes are required. You can remove workarounds for Basic auth.
+
+## `number` fields are `Float`, and nullable fields accept `nil`
+
+A `type: number, format: double` property is a `Float` instead of an `Integer`, so fractional values are no longer truncated. Properties declared `nullable: true` are nullable.
+
+```ruby
+reading.soil_moisture # Before: 2   After: 2.5
+```
+
+**To fix:** Check arithmetic, comparisons, and formatting that assume an `Integer`.
+
+## Resources that collide with gem constants gain a `_1` suffix
+
+A resource whose name matches a constant the gem defines, such as `Config`, `Client`, `Environment`, `Error`, `Validator`, `Serializers`, `Models`, `HTTP`, `Pagination`, `Async`, `VERSION`, or an error class, is exposed with a `_1` suffix. Only the top-level name changes; nested constants and model names don't.
+
+```ruby title="Before"
+client.config.fetch_settings
+```
+
+```ruby title="After"
+client.config_1.fetch_settings # module PlantStore::Config1
+```
+
+**To fix:** Rename the affected accessors and module references.
+
+## The gem's module name and entry point are valid Ruby
+
+The gem's entry-point file and root module name are valid Ruby identifiers, and internal references are fully qualified. Previously, a hyphen in the organization name, or a resource with the same name as the SDK, could produce a gem that couldn't be loaded.
+
+```ruby
+require 'plant_store'
+
+client = PlantStore::Client.new(token: ENV.fetch('PLANTSTORE_TOKEN'))
+```
+
+**To fix:** Update `require` lines and root module references.
+
+## Parameters are serialized in their declared style
+
+Object and array parameters use the style the spec declares: `form`, `spaceDelimited`, `pipeDelimited`, or `deepObject` for query parameters, and `simple`, `label`, or `matrix` for path parameters. Previously, an object query parameter was sent as its `#inspect` output and an array path parameter as a literal array.
+
+```ruby
+client.plants.search(filter: PlantStore::Types::Filter.new(light: 'shade', size: 2))
+# GET /plants/search?filter[light]=shade&filter[size]=2
+
+client.plants.get_many(plant_ids: %w[a b])
+# GET /plants/a,b
+```
+
+**To fix:** Remove any code that serializes parameters manually.
+
+## Unset fields are omitted from request bodies
+
+Fields you don't set are omitted instead of being sent as `{}`. A field set explicitly to `nil` is sent as `null` if the spec declares it nullable, and omitted otherwise. A field set to `false` is sent as `false` instead of being replaced by its default.
+
+```ruby
+client.plants.update(plant_id: 'plant_42', name: 'Monstera')
+# Before: {"name":"Monstera","nickname":{},"notes":{}}
+# After:  {"name":"Monstera"}
+
+client.plants.update(plant_id: 'plant_42', notify: false)
+# Before: {"notify":true}
+# After:  {"notify":false}
+```
+
+**To fix:** Check update calls that relied on the previous body, especially merge-patch requests.
+
+## Retries for POST and PATCH require an idempotency key
+
+GET, HEAD, PUT, DELETE, OPTIONS, and TRACE requests are retried on 408, 429, 500, 502, 503, 504, 521, 522, and 524. POST and PATCH requests are retried only if they include an idempotency key: the API's declared idempotency header, or `Idempotency-Key` if the API doesn't declare one. Previously, every method was retried, which could duplicate writes.
+
+```ruby
+client.orders.create(
+  plant_id: 'plant_42',
+  request_options: {
+    additional_headers: { 'Idempotency-Key' => SecureRandom.uuid }
+  }
+)
+```
+
+**To fix:** Send an idempotency key with POST and PATCH requests that should be retried.
+
+## Fixed response handling
+
+These operations previously returned `nil` or raised an error, and work as documented in version 2.0.0. Remove any workarounds you added for them.
+
+- **Binary downloads** return the response body as a `String`.
+- **Responses that aren't named models**, such as strings, arrays, and maps, are decoded into their declared types.
+- **Multipart uploads** send each file with its filename. An array field sends one part per file, and an optional array field set to `nil` adds no part.
+- **Nested pagination paths**, such as a cursor under `meta` or items under `payload`, paginate correctly. Iterate items directly, or call `#pages` to iterate one page at a time.
+- **Server-sent event endpoints** return an `Enumerator` of the declared event type. The response is read in full before it's decoded, so events aren't yet yielded incrementally.

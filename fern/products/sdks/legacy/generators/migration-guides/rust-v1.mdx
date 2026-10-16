@@ -1,0 +1,128 @@
+---
+title: Migrating to Rust generator v1
+headline: Migrating to Rust SDK generator v1
+description: Breaking changes in version 1.0.0 of the Fern Rust SDK generator and how to update code that uses your generated Rust crate.
+---
+
+Version 1.0.0 of the Rust SDK generator keeps most public symbols and `use` paths, but changes a few pervasive shapes. A small number of root causes can produce many `cargo build` errors. Release the regenerated SDK as a new major version, and share this page with your SDK users so they can update their code.
+
+## Before you upgrade
+
+Generator versions 1.0.0 and later read configuration from `sdk-config.yml` instead of `generators.yml`. Run `fern sdk migrate` to create `sdk-config.yml` from your existing configuration.
+
+## `DateTime<Utc>` becomes `DateTime<FixedOffset>`
+
+Date-time fields and builder setters keep the offset returned by the server instead of normalizing to UTC. Comparisons are unaffected because `chrono` compares instants, but `Display` output and re-serialized values include the original offset instead of `Z`.
+
+```rust title="Before"
+let watered_at: DateTime<Utc> = plant.watered_at;
+let plant = Plant::builder().watered_at(Utc::now()).build()?;
+```
+
+```rust title="After"
+let watered_at: DateTime<FixedOffset> = plant.watered_at; // .with_timezone(&Utc) to convert
+let plant = Plant::builder().watered_at(Utc::now().fixed_offset()).build()?;
+```
+
+**To fix:** Update type annotations to `DateTime<FixedOffset>`, and call `.fixed_offset()` when passing a `DateTime<Utc>` to a setter.
+
+## `Default` is only derived when every field is optional
+
+Model types with required fields no longer derive `Default`, so `..Default::default()` fails with `E0277`.
+
+```rust title="Before"
+let request = CreatePlantRequest { body: plant, ..Default::default() };
+```
+
+```rust title="After"
+let request = CreatePlantRequest::builder().body(plant).build()?;
+```
+
+**To fix:** Use the type's builder instead of struct update syntax with `Default`.
+
+## `ApiError` variants carry the error body
+
+Error variants are tuple variants that hold the error body type, instead of struct variants with a generated `message` field. `NotFoundError` and `ConflictError` aren't generated unless the API declares them; undeclared statuses arrive as `ApiError::Http`.
+
+```rust title="Before"
+Err(ApiError::UnauthorizedError { message, .. }) => log(&message),
+Err(ApiError::NotFoundError { resource_id, .. }) => retry(resource_id),
+```
+
+```rust title="After"
+Err(ApiError::UnauthorizedError(body)) => log(&body.response_text),
+Err(ApiError::Http { status: 404, message }) => retry(message),
+```
+
+`ApiError` also adds `DecodeError` and `WebSocket` variants. Because `ApiError` isn't `#[non_exhaustive]`, an exhaustive `match` without a wildcard arm fails to compile.
+
+**To fix:** Update `match` arms to the new variant shapes, and add arms or a wildcard for the new variants.
+
+## Paginated list methods return a stream
+
+Paginated endpoints keep their original method name, are no longer `async`, and return a `Stream` of typed pages. The separate `*_paginated` method, `AsyncPaginator`, and `core::pagination` module are removed, and the single-page fetch isn't public.
+
+```rust title="Before"
+let page: CursorPage = client.plants.list(&request, None).await?;
+let mut pager = client.plants.list_paginated(&request, None).await?;
+```
+
+```rust title="After"
+let mut pages = client.plants.list(&request, None);
+while let Some(page) = pages.next().await {
+    for plant in page? { process(plant); }
+}
+```
+
+**To fix:** Remove `.await` from the list call and iterate over the stream. Each item is a `Result<Vec<T>>` for one page.
+
+## Header parameters are method arguments
+
+Declared header parameters were previously omitted from method signatures, so those headers were never sent. Each header parameter is an `Option<String>` argument before `options`.
+
+```rust title="Before"
+client.plants.create(&plant, None).await?;
+```
+
+```rust title="After"
+client.plants.create(&plant, Some(idempotency_key), None).await?;
+```
+
+Query parameters may stay in the request struct or move to a separate `{Operation}QueryRequest` argument, depending on the endpoint.
+
+**To fix:** Add the header arguments to affected calls, and check query parameters for each endpoint.
+
+## Union variants hold a data struct
+
+The JSON on the wire is unchanged. Instead of inline fields and per-variant constructors, each union variant holds a single `data` struct, and the union has `is_*`, `as_*`, and `into_*` accessors.
+
+```rust title="Before"
+let care = CarePlan::watering_with_schedule(vec![schedule], Some(true));
+match &care {
+    CarePlan::Watering { schedule, notify } => apply(schedule, *notify),
+    _ => {}
+}
+```
+
+```rust title="After"
+let care = CarePlan::Watering {
+    data: CarePlanWatering { schedule: Some(vec![schedule]), notify: Some(true) },
+};
+if let Some(watering) = care.as_watering() { apply(&watering.schedule, watering.notify); }
+```
+
+**To fix:** Construct variants with a `data` struct, and replace `match` destructuring with the accessor methods.
+
+## Other changes
+
+- Raw binary bodies are taken by value: `&Vec<u8>` becomes `Vec<u8>`.
+- `RequestOptions` isn't in the prelude. Import it with `use <crate>::core::RequestOptions`.
+- The crate name comes from the SDK configuration instead of `<api>_api`. Check `Cargo.toml`.
+- The catch-all field on open models is renamed from `extra` to `additional_properties`.
+- The redundant inner module is removed. `resources::plants::plants::PlantsClient` no longer resolves, but `resources::plants::PlantsClient` does.
+
+## New capabilities
+
+- **Shared configuration:** `set_base_url`, `set_access_token`, `set_api_key`, and `set_timeout` apply to clients that were already created.
+- **Wire formats:** Form-urlencoded bodies, multipart text parts, vendor `+json` media types, and non-default parameter styles (`deepObject`, `pipeDelimited`, `spaceDelimited`, `matrix`, `label`) are serialized according to the spec.
+- **Headers, cookies, and text or XML responses** are supported.
