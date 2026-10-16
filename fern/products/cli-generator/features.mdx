@@ -31,10 +31,31 @@ contoso orders list --format csv > orders.csv
 
 ## Dry-run mode
 
-Pass `--dry-run` to validate arguments and preview the HTTP request without sending it. The CLI prints the method, URL, headers, and body it would send, then exits.
+Pass `--dry-run` to validate arguments and preview the HTTP request without sending it. The CLI prints the method, URL, query parameters, headers, and body it would send, then exits. Credential values never appear in the preview: credential headers and `apiKey` query parameters print as `[REDACTED]`.
+
+The preview also includes an `auth` block that reports whether credentials would be attached, which makes [authentication](/learn/cli-generator/get-started/authentication) setup debuggable before a real request:
+
+| Field | Description |
+| --- | --- |
+| `schemes` | The security schemes the endpoint accepts. Schemes that must be sent together are joined with `+` (for example, `ApiKey + AppId`). |
+| `credentials` | `resolved` (the CLI holds credentials for one of the schemes), `missing`, `supplied` (the credential was passed explicitly as a header or query parameter), or `not_required`. |
+| `satisfied_by` | The scheme that would authenticate the request, when credentials are `resolved` or `supplied`. |
+| `configured_sources` | Where the CLI found credentials, when `resolved` (for example, `CONTOSO_API_KEY environment variable`). |
+| `expected_sources` | Where to set credentials, when `missing`: an environment variable, or a keyring entry populated by `auth login`. |
+
+A dry run never fails because credentials are missing. With `--format table`, the preview renders as one key/value row per field:
 
 ```bash
-contoso plants get --params '{"plantId": "abc"}' --dry-run
+$ contoso plants list --dry-run --format table
+auth.credentials       missing
+auth.expected_sources  CONTOSO_API_KEY environment variable
+auth.schemes           ApiKeyAuth
+body
+dry_run                true
+is_multipart_upload    false
+method                 GET
+query_params.status    available
+url                    https://api.contoso.com/v1/plants
 ```
 
 ## Retries with backoff
