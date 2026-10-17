@@ -35,11 +35,12 @@ Configure package names in your `generators.yml` file:
 *  For **Java**, add `coordinate: com.your-org:your-package-name` to the `output` section.
 *  For **PHP**, add `packageName: YourPackageName` to the `config` section.
 *  For **Go**, add `repository: your-organization/your-repository` to the `github` section.
+*  For a [Fern-generated CLI](/learn/cli-generator/get-started/overview), add `package-name: your-package-name` to the `output` section of the `fern-cli-generator`. Snippets show commands that start with the CLI's `binaryName`.
 
-<Note>Fern supports SDK snippets for TypeScript, Python, Ruby, Go, Java, PHP, and .NET/C#. [File an issue](https://github.com/fern-api/fern/issues) to request additional languages.</Note>
+<Note>Fern supports SDK snippets for TypeScript, Python, Ruby, Go, Java, PHP, .NET/C#, and Fern-generated CLIs. [File an issue](https://github.com/fern-api/fern/issues) to request additional languages.</Note>
 
 <CodeBlock title="generators.yml">
-```yaml {9, 16, 22, 28, 34, 41, 46}
+```yaml {9, 16, 22, 28, 34, 41, 46, 52}
 groups:
   production:
     generators:
@@ -87,6 +88,14 @@ groups:
         github:
           repository: your-organization/your-repository # <--- add this field
         ...     
+      - name: fern-cli-generator
+        version: <Markdown src="/snippets/version-number-cli-generator.mdx" />
+        output:
+          location: npm
+          package-name: your-package-name # <--- add this field
+        config:
+          binaryName: your-cli
+        ...
 ```
 </CodeBlock>
 
@@ -97,9 +106,10 @@ Add the package name for the corresponding SDK to your `docs.yml` file:
   *  **For Java**, `com.your-org:your-package-name` must match the `coordinate` that you configured in your `generators.yml` file.
   *  **For PHP**, `YourPackageName` must match the `packageName` that you configured in your `generators.yml` file.
   *  **For Go**, use the exact URL where the SDK repository is located, including the `https://github.com/`. 
+  *  **For a CLI**, `your-package-name` must match the `package-name` in the `output` section of the `fern-cli-generator`. If the CLI generator has no package name (for example, it outputs to a local directory) and is the only CLI generator in the API's `generators.yml`, Fern uses it for any `cli` value.
 
 <CodeBlock title="docs.yml">
-```yaml {3-10}
+```yaml {3-11}
 navigation:
   - api: API Reference
     snippets:
@@ -110,6 +120,7 @@ navigation:
       java: com.your-org:your-package-name # <--- needs to match the coordinate in generators.yml
       php: YourPackageName # <--- needs to match the packageName in generators.yml
       go: https://github.com/your-organization/your-repository # <--- needs the https://github.com/ prefix
+      cli: your-package-name # <--- needs to match the package-name in generators.yml
 ```
 </CodeBlock>
 
@@ -119,7 +130,7 @@ navigation:
 
 ### Trigger generation
 
-Trigger your docs generation by running `fern generate --docs` locally or in CI/CD (i.e., GitHub Actions). The SDK snippets will appear via a dropdown!
+Trigger your docs generation by running `fern generate --docs` locally or in CI/CD (i.e., GitHub Actions). The SDK snippets appear in a dropdown.
 
 </Steps>
 
