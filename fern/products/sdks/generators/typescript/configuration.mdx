@@ -207,6 +207,35 @@ const bodyUsed = response.bodyUsed;
 ```
 </ParamField>
 
+<ParamField path="flattenAnyAuthOptions" type="boolean" default="false" toc={true}>
+Flattens client auth options for APIs that use [`auth: any`](/learn/sdks/reference/generators-yml#auth). By default, the client nests each scheme's options under the scheme key, so adding a second scheme (such as OAuth) to an SDK that only had an API key changes the constructor for every existing user. With `flattenAnyAuthOptions` enabled, the options are top-level fields, the same shape as a single-scheme SDK and the Python SDK:
+
+```typescript
+// Default: nested under each scheme key
+const client = new AcmeClient({ apiKey: { apiKey: "YOUR_API_KEY" } });
+const client = new AcmeClient({ oauth: { clientId: "YOUR_CLIENT_ID", clientSecret: "YOUR_CLIENT_SECRET" } });
+
+// flattenAnyAuthOptions: true
+const client = new AcmeClient({ apiKey: "YOUR_API_KEY" });
+const client = new AcmeClient({ clientId: "YOUR_CLIENT_ID", clientSecret: "YOUR_CLIENT_SECRET" });
+const client = new AcmeClient({ token: "YOUR_TOKEN" });
+```
+
+Options with the same name are shared between schemes. A single `token` serves as both the bearer token and the OAuth token override, and when `token` is set the SDK skips the OAuth client-credentials flow. Generated code snippets and wire tests use the flattened shape.
+
+Only `auth: any` is flattened. APIs that use `endpoint-security` keep nested options.
+
+```yml title="generators.yml"
+groups:
+  ts-sdk:
+    generators:
+      - name: fern-typescript-sdk
+        version: <Markdown src="/snippets/version-number-ts.mdx"/>
+        config:
+          flattenAnyAuthOptions: true
+```
+</ParamField>
+
 <ParamField path="formDataSupport" type="'Node16' | 'Node18'" toc={true}>
 Choose whether you want to support Node.js 16 and above (`Node16`), or Node.js 18 and above (`Node18`).
 
