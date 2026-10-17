@@ -1,0 +1,71 @@
+---
+title: Migrating to Go generator v2
+headline: Migrating to Go SDK generator v2
+description: Breaking changes in version 2.0.0 of the Fern Go SDK generator and how to update code that uses your generated Go SDK.
+---
+
+Version 2.0.0 of the Go SDK generator changes some generated types and method signatures. Code that uses your SDK may no longer compile after you regenerate, so release the regenerated SDK as a new major version. Share this page with your SDK users so they can update their code.
+
+## Before you upgrade
+
+- Generator versions 2.0.0 and later read configuration from `sdk-config.yml` instead of `generators.yml`. Run `fern sdk migrate` to create `sdk-config.yml` from your existing configuration.
+- Go 1.22 or later is required to build the generated SDK. Update the `go` directive in any module that depends on your SDK.
+
+## Map fields no longer use pointers
+
+Optional fields with a free-form map type, such as metadata or additional properties, are plain maps instead of pointers to maps. A `nil` map already means the field isn't set, so the extra pointer isn't needed. This also resolves linter warnings about `*map` types.
+
+This change applies only to map-typed fields. Other optional fields are unchanged.
+
+**How you'll notice:** Compile errors where code passes `&metadata` to a setter, or dereferences the value returned by a getter.
+
+```go title="Before"
+type CreatePlantRequest struct {
+    Metadata *PlantMetadata `json:"metadata,omitempty"`
+}
+
+metadata := map[string]string{"light": "full-sun"}
+request.SetMetadata(&metadata)
+if m := request.GetMetadata(); m != nil {
+    fmt.Println((*m)["light"])
+}
+```
+
+```go title="After"
+type CreatePlantRequest struct {
+    Metadata PlantMetadata `json:"metadata,omitempty"`
+}
+
+request.SetMetadata(map[string]string{"light": "full-sun"})
+fmt.Println(request.GetMetadata()["light"])
+```
+
+**To fix:** Remove `&` when calling the setter and `*` when reading the getter's result for each map-typed field.
+
+## Inline enum names no longer include random suffixes
+
+When multiple inline types define an enum field with the same name (such as `status`), the previous generator added a short random string to the generated type name to avoid a collision. The new generator derives the name from the enum's position in the schema, so names are readable and stay the same across regenerations. Enum values are unchanged.
+
+**How you'll notice:** Compile errors referencing an enum type or constant whose name contained an unfamiliar alphanumeric fragment.
+
+```go title="Before"
+type PlantQrX9FStatus string
+
+const PlantQrX9FStatusAvailable PlantQrX9FStatus = "AVAILABLE"
+
+if plant.Status == plantstore.PlantQrX9FStatusAvailable {
+    // ...
+}
+```
+
+```go title="After"
+type PlantStatus string
+
+const PlantStatusAvailable PlantStatus = "AVAILABLE"
+
+if plant.Status == plantstore.PlantStatusAvailable {
+    // ...
+}
+```
+
+**To fix:** Rename references to the affected enum types and constants.

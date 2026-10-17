@@ -1,0 +1,298 @@
+---
+title: Migrating to Java generator v5
+headline: Migrating to Java SDK generator v5
+description: Breaking changes in version 5.0.0 of the Fern Java SDK generator and how to update code that uses your generated Java SDK.
+---
+
+Version 5.0.0 of the Java SDK generator renames many generated types, changes pagination and error handling, and generates more precise field types. Release the regenerated SDK as a new major version, and share this page with your SDK users so they can update their code.
+
+The changes below are ordered from most to least likely to affect you. Compile existing code against the regenerated SDK first; the compiler lists most of the changes you need to make.
+
+## Before you upgrade
+
+Generator versions 5.0.0 and later read configuration from `sdk-config.yml` instead of `generators.yml`. Run `fern sdk migrate` to create `sdk-config.yml` from your existing configuration.
+
+## Type names and imports change
+
+This change affects every SDK and causes the most compile errors, so fix it first.
+
+Most request wrapper names are unchanged. The `idiomatic-request-names` option defaults to `true`, which produces the same verb-first names as the previous generator. Set it to `false` to use resource-first names. When the API definition doesn't name a request body, the generated name may leave out the resource name:
+
+```java
+// Before
+GetByV1IdPlantsRequest
+
+// After
+GetByV1IdRequest
+```
+
+Core exception types include the client name:
+
+```java
+// Before              // After
+PlantStoreException    PlantStoreClientException
+PlantStoreApiException PlantStoreClientApiException
+```
+
+Packages below the root package move. Per-resource `types` packages are merged into the resource package, and error classes move to a single `errors` package at the root.
+
+```java
+// Before
+import com.plantstore.api.resources.inventory.plants.types.PlantStatus;
+import com.plantstore.api.resources.orders.errors.NotFoundError;
+
+// After
+import com.plantstore.api.resources.inventory.types.PlantStatus;
+import com.plantstore.api.errors.NotFoundError;
+```
+
+<Warning>
+If you don't set `package-prefix`, the root package can change. Set `package-prefix` to your current root package, such as `com.plantstore.api`, to keep it.
+</Warning>
+
+**To fix:** Rename types, then remove generated-package imports and let your IDE resolve them again. A `cannot find symbol` error for a type you used before usually means the type has a different name.
+
+## Paginated methods return a pager
+
+List endpoints return an iterable pager that fetches the next page as you iterate, instead of a single page. Async methods return a `CompletableFuture` that resolves to a pager.
+
+```java
+// Before
+ListPlantsResponse page = client.plants().list();
+for (Plant plant : page.getPlants()) {
+    process(plant);
+}
+Optional<String> next = page.getNext();
+while (next.isPresent()) {
+    page = client.plants().list(ListPlantsRequest.builder().cursor(next.get()).build());
+    for (Plant plant : page.getPlants()) {
+        process(plant);
+    }
+    next = page.getNext();
+}
+
+// After
+for (Plant plant : client.plants().list()) {
+    process(plant);
+}
+```
+
+**To fix:** Replace cursor loops with iteration. Call `getResponse()` to read the raw response, such as a cursor or total count.
+
+## Responses are validated against the schema
+
+Schema constraints such as `pattern`, `minLength`, `minimum`, `maximum`, `minItems`, and `uniqueItems` are enforced when responses are decoded, including collections and paginated items. A response that violates the schema throws an exception that names the invalid field. Request validation remains off by default.
+
+**To fix:** Run integration tests against the regenerated SDK. If the API returns responses that violate the schema, fix the schema. To unblock yourself in the meantime, set `validateResponses: false`.
+
+## Builders require different fields
+
+Staged builders read required fields from the spec. A field the spec marks as required becomes a required builder stage, even if the previous generator treated it as optional.
+
+```java
+// Before
+CareSchedule.builder()
+    .plantId(plantId)
+    .build();
+
+// After
+CareSchedule.builder()
+    .plantId(plantId)
+    .interval(interval)
+    .build();
+```
+
+**To fix:** Supply the required fields. If a field isn't required by the API, mark it as optional in the spec.
+
+## Exceptions are organized by HTTP status
+
+The SDK generates the standard set of status-named exceptions even if the spec doesn't declare them, plus one SDK exception for unmapped statuses. An exception declared for a nonstandard status gets a generic name, and exception messages change.
+
+```java
+// Before
+try {
+    client.plants().create(request);
+} catch (PlantDormantError e) { // spec-declared name for HTTP 499
+    wakePlant();
+}
+
+// After
+try {
+    client.plants().create(request);
+} catch (Status499Error e) {
+    wakePlant();
+}
+```
+
+**To fix:** Check every `catch` that names a generated exception, and replace checks on exception message text with checks on the status code.
+
+## Dates and integers use specific types
+
+Fields with `format: date` or `format: date-time` are `LocalDate` and `OffsetDateTime` instead of `String`. Integer fields use the width of their format, so `int64` fields are `Long` instead of `Integer`.
+
+```java
+// Before
+OffsetDateTime wateredAt = OffsetDateTime.parse(plant.getWateredAt());
+Integer priceCents = plant.getPriceCents();
+
+// After
+OffsetDateTime wateredAt = plant.getWateredAt();
+Long priceCents = plant.getPriceCents();
+```
+
+**To fix:** Remove date parsing code, and change `Integer` to `Long` where the compiler requires it.
+
+## String fields with a declared enum become enums
+
+A string field whose spec declares an `enum` list is a Java `enum` instead of a `String`.
+
+```java
+// Before
+if ("AVAILABLE".equals(plant.getStatus())) { }
+
+// After
+if (plant.getStatus() == PlantStatus.AVAILABLE) { }
+```
+
+**To fix:** Compare against enum constants. `toString()` returns the wire value.
+
+## File uploads are set on the request object
+
+On file-upload endpoints, the file is a field on the request object instead of a separate method parameter. The file is a `FileStream`, which includes its filename and content type.
+
+```java
+// Before
+client.photos().upload(Optional.of(photoFile));
+client.photos().upload(Optional.of(photoFile), inputStream, "monstera.png");
+
+// After
+client.photos().upload(UploadPhotosRequest.builder()
+    .photoFile(new FileStream(inputStream, "monstera.png", null))
+    .build());
+```
+
+**To fix:** Set the file on the request builder, and pass the input stream and filename to `FileStream`.
+
+## `label` and `matrix` path parameters are encoded
+
+Path parameters that use the OpenAPI `label` or `matrix` style are encoded as the spec defines instead of as plain path segments. The `simple` style is unchanged.
+
+```none
+// Before
+GET /plants/42/shade/indoor
+
+// After
+GET /plants/42/.shade/;location=indoor
+```
+
+**To fix:** Confirm that your API's routing accepts the encoded form.
+
+## Build files and documentation change
+
+The SDK still includes `build.gradle` and `settings.gradle`, but doesn't include the Gradle wrapper or the Spotless plugin. Java compatibility is set in the `java {}` block, which supports Gradle 8 and 9.
+
+```groovy
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+```
+
+The per-resource `documentation/` directory is removed. The SDK root includes `README.md`, `reference.md`, which lists every endpoint with its signature and an example, and `CONTRIBUTING.md`.
+
+Tests for the SDK's runtime helpers aren't generated. To generate tests for your API, turn on `generateTests`. The generated suite includes a serialization round-trip test for each model and a wire test for each endpoint that uses `MockWebServer`. The build file adds `junit-jupiter`, `junit-platform-launcher`, `mockwebserver`, and a `test { useJUnitPlatform() }` task.
+
+**To fix:** Check in your own Gradle wrapper, and update links to `documentation/` to point to `reference.md`. Generated tests don't cover behavior that depends on your server, so add integration tests that cover response validation and exception handling.
+
+## WebSocket channels
+
+The following changes apply to SDKs with WebSocket channels.
+
+### Credentials are required to connect
+
+Credentials declared by the channel's security scheme are sent with the WebSocket handshake. If you don't pass a credential, it's read from the scheme's environment variable. If neither is set, `connect()` throws before opening the socket. An explicit header takes precedence.
+
+```java
+var client = PlantStoreClient.builder().apiKey("abc123").build();
+var fromEnv = PlantStoreClient.builder().build(); // reads PLANTSTORE_API_KEY
+
+PlantStoreClient.builder().build().growth().connect();
+// RuntimeException: Please provide apiKey or set the PLANTSTORE_API_KEY environment variable.
+```
+
+**To fix:** Set the credential if you open sockets without one.
+
+### The two type packages swap contents
+
+Frame models move from the per-channel `resources.<channel>.<version>.types` package to the shared `types` package, and parameter enums move the other way.
+
+```java
+// Before
+import com.plantstore.api.resources.growth.v1.types.GrowthV1Reading;
+import com.plantstore.api.types.GrowthV1Mode;
+
+// After
+import com.plantstore.api.types.GrowthV1Reading;
+import com.plantstore.api.resources.growth.v1.types.GrowthV1Mode;
+```
+
+**To fix:** Move frame model imports to the shared package and parameter enum imports to the per-channel package. Moving every import to one package fixes half the errors and causes the other half.
+
+### The discriminator is a typed field
+
+Frame models declare the `type` field. `getType()` still returns a `String`, as before. What changed: `type` is no longer also collected into the additional-properties map. Code that reads `type` from the additional-properties map gets `null`.
+
+```java
+// Before
+String kind = reading.getType();                                         // "Reading"
+String sameKind = (String) reading.getAdditionalProperties().get("type"); // "Reading"
+
+// After
+String kind = reading.getType();                                 // "Reading"
+Object sameKind = reading.getAdditionalProperties().get("type");  // null
+```
+
+**To fix:** Nothing, if you already read the discriminator from `getType()`. Check any code that iterates the additional-properties map expecting `type` to be there.
+
+### Parameter wrapper types become `String`
+
+Connect parameters that had a wrapper class with an `of(...)` factory are `String`. Enum parameters keep their types. The query string sent is unchanged.
+
+```java
+// Before
+GrowthV1ConnectOptions.builder()
+        .label(GrowthV1Label.of("greenhouse"))
+        .intervalMs(GrowthV1IntervalMs.of(16000))
+        .build();
+
+// After
+GrowthV1ConnectOptions.builder()
+        .label("greenhouse")
+        .intervalMs(String.valueOf(16000))
+        .build();
+```
+
+**To fix:** Replace each `Wrapper.of(value)` call with the value's string form.
+
+### Reconnection reports exhaustion
+
+When the SDK runs out of reconnection attempts, it passes an `IllegalStateException` to your error handler instead of stopping silently. The same `maxRetries` value makes one more attempt than before.
+
+```java
+socket.onError(e -> {
+    if (e instanceof IllegalStateException
+            && String.valueOf(e.getMessage()).contains("reconnection attempts exhausted")) {
+        escalate();
+        return;
+    }
+    log.error("socket error", e);
+});
+```
+
+**To fix:** Handle the exhaustion case in your error handler, and reduce `maxRetries` by one if you depend on the exact number of attempts.
+
+### `disconnect()` before connecting doesn't throw
+
+Calling `disconnect()` on a socket that was never connected returns normally instead of throwing a `NullPointerException`.
+
+**To fix:** No changes are required. You can remove guards around `disconnect()`.
