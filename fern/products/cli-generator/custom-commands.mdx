@@ -89,7 +89,7 @@ Typed models are available from `<binary_name>_sdk::api::*` (for a CLI named `pl
 | Method | Result |
 | --- | --- |
 | `app.command(cmd, handler)` | Top-level command, such as `plant get-plant` |
-| `app.command_under(&["plants"], cmd, handler)` | Nested under an existing command group, such as `plant plants verify` |
+| `app.command_under(&["plants"], cmd, handler)` | Nested under a command group, such as `plant plants verify`. Groups in the path that don't exist yet are created. |
 | `app.command_typed("adopt", "Adopt a plant", handler)` | Top-level command whose arguments come from a `#[derive(clap::Args)]` struct instead of manual `ArgMatches` parsing |
 | `app.command_under_typed(&["plants"], "find", "Find plants by name", handler)` | Typed version of `command_under` |
 
@@ -101,9 +101,26 @@ config:
   rootGroup: api
 ```
 
+### Describe groups and trim global flags
+
+Groups that `command_under` creates have no help text of their own. `app.describe(path, about)` sets the one-line description shown for the group in `--help`. Root-level global flags such as `--dry-run`, `--query`, and `--spec` also appear in the help of every command, including custom ones they don't apply to. `app.hide_global_flags(path, flags)` hides the named flags from the help of the command at `path` and everything beneath it. Hidden flags are still accepted, so scripts that pass them everywhere keep working.
+
+```rust title="cli/plant/custom.rs"
+pub fn register(app: CliApp) -> CliApp {
+    app.command_under(&["garden"], plan_cmd(), OpenApiBinding::handler(plan))
+        .command_under(&["garden", "beds"], list_beds_cmd(), OpenApiBinding::handler(list_beds))
+        .describe(&["garden"], "Plan a garden layout")
+        .describe(&["garden", "beds"], "Manage garden beds")
+        .hide_global_flags(&["garden"], &["dry-run", "query", "spec", "spec-raw"])
+}
+```
+
+Flag names are passed without the leading `--`.
+
 ## Things to know
 
 - **Regeneration doesn't touch `custom.rs`**, but everything it calls is regenerated from your spec. If a spec change renames an endpoint or resource, update `custom.rs` to match. `cargo build` reports every call that no longer exists.
+- **A custom command can define its own `-p`.** With [profiles](/learn/cli-generator/get-started/authentication#named-profiles) enabled, `-p` is the global short form of `--profile`, but a custom command that declares `-p` (such as `-p/--port`) keeps it. Inside that command, select a profile with the long `--profile` flag or place `-p` before the command path: `plant -p prod garden serve -p 9000` selects profile `prod` and passes port `9000` to the command.
 - **Handlers control their own output.** Response transforms and error-recovery hooks configured on the CLI only apply to spec-derived commands, so print results however suits the command.
 - **Extra Rust crates go in `generators.yml`.** If a handler imports a crate the CLI doesn't already depend on, add it with [`extraDependencies`](/learn/cli-generator/get-started/configuration#extradependencies) instead of editing `Cargo.toml`, which is regenerated.
 - **Wire tests don't cover custom commands.** The optional [`generateWireTests`](/learn/cli-generator/get-started/configuration#generatewiretests) suite only tests spec-derived commands, so add your own tests for custom ones.
