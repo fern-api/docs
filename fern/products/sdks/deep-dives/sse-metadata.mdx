@@ -3,7 +3,7 @@ title: SSE metadata access
 description: Access server-sent event metadata (event ID, event type, retry interval) in Fern-generated SDKs for stream resumption and protocol-level control.
 ---
 
-When your API uses [server-sent events](/learn/api-definitions/openapi/endpoints/sse#server-sent-events), iterating the generated SDK's streaming response yields parsed data objects. To also read the SSE protocol fields — event ID, event type, and retry interval — TypeScript, Python, and Go SDKs expose metadata-aware iteration, typically used to [resume a stream](#stream-resumption) by event ID.
+When your API uses [server-sent events](/learn/api-definitions/openapi/endpoints/sse#server-sent-events), iterating the generated SDK's streaming response yields parsed data objects. To also read the SSE protocol fields — event ID, event type, and retry interval — TypeScript, Python, Go, Java, PHP, Ruby, Rust, and Swift SDKs expose metadata-aware iteration, typically used to [resume a stream](#stream-resumption) by event ID.
 
 ## Metadata-aware iteration
 
@@ -35,7 +35,10 @@ Each event exposes the parsed data alongside its protocol fields. Default iterat
   </CodeBlock>
   <CodeBlock title="Go">
     ```go
-    stream := client.Plants.Stream(ctx, &PlantRequest{Query: "fern"})
+    stream, err := client.Plants.Stream(ctx, &PlantRequest{Query: "fern"})
+    if err != nil {
+      return err
+    }
     defer stream.Close()
 
     for {
@@ -58,11 +61,11 @@ Each event exposes the parsed data alongside its protocol fields. Default iterat
 Each stream owns the underlying HTTP response, and releases it differently per language:
 
 *    **TypeScript**: the body is released when iteration ends and cancelled when you break out of the loop. An `abortSignal` in the request options stops the stream from outside.
-*    **Python**: the stream is lazy, issuing the request on first iteration, and releases the response when it's exhausted, when iteration raises, on `close()`, or on exiting a `with` block. `AsyncStream` supports `async with` and is awaitable.
+*    **Python**: with `stream_abstraction` enabled, the stream is lazy, issuing the request on first iteration, and releases the response when it's exhausted, when iteration raises, on `close()`, or on exiting a `with` block. `AsyncStream` supports `async with` and is awaitable.
 *    **Go**: the stream never closes the body on its own, so `defer stream.Close()` is required.
 
 <Note>
-`withMetadata()` requires TypeScript SDK generator version 3.73.0+, and `RecvEvent()` requires Go SDK generator version 1.32.0+. In Python, `with_metadata()` requires generator version 5.29.0+ with [`stream_abstraction`](/learn/sdks/generators/python/configuration#stream_abstraction) enabled.
+`withMetadata()` requires TypeScript SDK generator version 3.73.0+, and `RecvEvent()` requires Go SDK generator version 1.32.0+. In Python, `with_metadata()` requires generator version 5.29.0+ with [`stream_abstraction`](/learn/sdks/legacy/generators/python/configuration#stream_abstraction) enabled.
 </Note>
 
 ## Stream resumption
@@ -73,9 +76,9 @@ The event ID is useful for resuming a stream via the standard `Last-Event-ID` he
 
 Mark an SSE endpoint [`resumable`](/learn/api-definitions/openapi/endpoints/sse#resumable-streams) in your API definition (`x-fern-streaming.resumable: true` in OpenAPI, or `response-stream.resumable: true` in a Fern Definition) to have the SDK handle resumption for you. On a mid-stream drop, the SDK reconnects transparently, resending the last dispatched event ID in the `Last-Event-ID` header so iteration continues without gaps. No manual event-ID tracking is required.
 
-Reconnection honors the server's `retry:` directive for the reconnect delay, falling back to a 1-second default and capped at 30 seconds. The SDK retries up to 5 consecutive times by default; the counter resets whenever an event is received. Configure a [terminator](/learn/api-definitions/openapi/endpoints/sse#terminator-message) on the endpoint so the SDK can tell a completed stream from a dropped connection.
+Reconnection honors the server's `retry:` directive for the reconnect delay, falling back to a 1-second default and capped at 30 seconds. In C#, a `retry:` value applies only to the next reconnect after it arrives. The SDK retries up to 5 consecutive times by default; the counter resets whenever an event is received. Configure a [terminator](/learn/api-definitions/openapi/endpoints/sse#terminator-message) on the endpoint so the SDK can tell a completed stream from a dropped connection.
 
-Both the attempt cap and an on/off toggle are configurable per client and per request:
+Both the attempt cap and an on/off toggle are configurable per request, and in TypeScript and Python also per client:
 
 <CodeBlocks>
   <CodeBlock title="TypeScript">
@@ -86,17 +89,19 @@ Both the attempt cap and an on/off toggle are configurable per client and per re
     ```
   </CodeBlock>
   <CodeBlock title="Python">
-    ```python {3-4}
+    ```python {3-6}
     stream = client.plants.stream(
       query="fern",
-      stream_reconnection_enabled=True,
-      max_stream_reconnection_attempts=3,
+      request_config={
+        "stream_reconnection_enabled": True,
+        "max_stream_reconnection_attempts": 3,
+      },
     )
     ```
   </CodeBlock>
   <CodeBlock title="Go">
     ```go {4}
-    stream := client.Plants.Stream(
+    stream, err := client.Plants.Stream(
       ctx,
       &PlantRequest{Query: "fern"},
       option.WithMaxStreamReconnectAttempts(3), // or option.WithoutStreamReconnection()
@@ -105,12 +110,16 @@ Both the attempt cap and an on/off toggle are configurable per client and per re
   </CodeBlock>
   <CodeBlock title="C#">
     ```csharp {2}
-    var stream = await client.Plants.StreamAsync(new PlantRequest { Query = "fern" }, new RequestOptions {
+    var stream = client.Plants.StreamAsync(new PlantRequest { Query = "fern" }, new RequestOptions {
       MaxStreamReconnectAttempts = 3 // set DisableStreamReconnection = true to turn off
     });
+
+    await foreach (var chunk in stream) { }
     ```
   </CodeBlock>
 </CodeBlocks>
+
+In Python, set the same two keys per client as constructor arguments: `stream_reconnection_enabled=` and `max_stream_reconnection_attempts=`.
 
 <Note>
 Automatic reconnection requires TypeScript SDK generator version 3.77.0+, Python 5.15.0+, Go 1.42.0+, or C# 2.71.0+.

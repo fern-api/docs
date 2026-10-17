@@ -1,6 +1,6 @@
 ---
 title: Publishing as a Go module
-description: Learn how to publish your Fern-generated Go SDK to pkg.go.dev. Configure generators.yml and release versioned Go modules.
+description: Learn how to publish your Fern-generated Go SDK to pkg.go.dev. Configure sdk-config.yml and release versioned Go modules.
 ---
 
 <Markdown src="/snippets/enterprise-plan.mdx"/>
@@ -14,7 +14,7 @@ with [`fern generate --package`](/learn/cli-api-reference/cli-reference/sdk-comm
 <Info>
 	This page assumes that you have:
 
-	* An initialized `fern` folder, a GitHub repository for your Go SDK, and a Go generator group in `generators.yml`. See [Generating an SDK (Go)](/learn/sdks/generators/go/quickstart).
+	* An initialized `fern` folder, a GitHub repository for your Go SDK, and a Go target in `sdk-config.yml`. See [Generating an SDK (Go)](/learn/sdks/generators/go/quickstart).
 </Info>
 
 <Frame>
@@ -31,30 +31,20 @@ Your repository must have:
 - An [approved license](https://pkg.go.dev/license-policy) such as [MIT](https://opensource.org/license/mit) or [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0)
 - A valid module path in `go.mod`, which determines your publish URL. For example, `github.com/your-org/your-sdk` publishes to `https://pkg.go.dev/github.com/your-org/your-sdk`. If your module path includes a major version suffix like `/v2`, your SDK publishes to that versioned URL instead (`https://pkg.go.dev/github.com/your-org/your-sdk/v2`).
 
-## Configure `generators.yml`
+## Configure `sdk-config.yml`
 
-<Steps>
+Go publishes via Git repositories, so the Go target delivers to GitHub. Set `output.delivery` to `github` and add the path to your GitHub repository. `package.modulePath` sets the module path written to `go.mod`:
 
-	  <Step title="Configure `output` location">
-
-        Go publishes via Git repositories, so remove the auto-generated
-        `output` and `config` properties. Instead, add the path to your
-        GitHub repository: 
-
-	    ```yaml {6-7}
-	    groups: 
-	      go-sdk:
-	        generators:
-	          - name: fern-go-sdk
-	            version: <Markdown src="/snippets/version-number-go.mdx"/>
-	            github:
-                  repository: devalog/company-go
-
-	    ```
-	  </Step>
-	    
-  </Steps>
-
+```yaml title="sdk-config.yml" {3-8}
+targets:
+  - language: go
+    package:
+      modulePath: github.com/your-org/company-go
+    output:
+      delivery: github
+      github:
+        repository: your-org/company-go
+```
 
 ## Publish to pkg.go.dev
 
@@ -67,7 +57,7 @@ Your repository must have:
 	Regenerate your SDK and publish it on pkg.go.dev:
 
 	```bash
-	fern generate --group go-sdk --version <version>
+	fern generate --target go --version <version>
 	```
     Local machine output will verify that the release is pushed to your
     repository and tagged with the version you specified. 
