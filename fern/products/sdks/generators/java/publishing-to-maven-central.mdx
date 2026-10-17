@@ -15,75 +15,29 @@ the SDK internally instead, generate to the local file system (optionally
 <Info>
 	This page assumes that you have:
 
-	* An initialized `fern` folder, a GitHub repository for your Java SDK, and a Java generator group in `generators.yml`. See [Generating an SDK (Java)](/learn/sdks/generators/java/quickstart).
+	* An initialized `fern` folder, a GitHub repository for your Java SDK, and a Java target in `sdk-config.yml`. See [Generating an SDK (Java)](/learn/sdks/generators/java/quickstart).
 </Info>
 
 ## Configure Maven Central publication
 
-You'll need to update your `generators.yml` file to configure the output location, target repository, and publishing mode. Your `generators.yml` [should live in your source repository](/learn/sdks/overview/project-structure) (or on your local machine), not the repository that contains your Java SDK code.
-
-<Steps>
-
-  <Step title="Configure `output` location">
-
-  In the `group` for your Java SDK, change the output location in `generators.yml` from `local-file-system` (the default) to `maven` to indicate that Fern should publish your package directly to the Maven Central registry. 
-  
-  Then, add `publish-to: central` to indicate that the publish target is the new Maven Central Portal (Sonatype). To publish to the legacy Nexus Repository, use `publish-to: ossrh`. 
-
-    ```yaml {6-9} title="generators.yml"
-    groups: 
-      java-sdk:
-        generators:
-          - name: fern-java-sdk
-            version: <Markdown src="/snippets/version-number-java.mdx"/>
-            output:
-              location: maven
-            config:
-              publish-to: central
-    ```
-	  </Step>
-    
-	  <Step title="Add repository location">
-
-	  Add the path to the GitHub repository containing your Java SDK:
-
-```yaml {10-11} title="generators.yml"
-groups: 
-  java-sdk:
-    generators:
-      - name: fern-java-sdk
-        version: <Markdown src="/snippets/version-number-java.mdx"/>
-        output:
-          location: maven
-        config:
-          publish-to: central
-        github: 
-          repository: your-org/company-java
-```
-	  
-	  </Step>
-    <Step title="Choose your publishing mode">
+Update the Java target in `sdk-config.yml` to configure the target repository, publishing mode, and registry. Your `sdk-config.yml` [should live in your source repository](/learn/sdks/overview/project-structure) (or on your local machine), not the repository that contains your Java SDK code.
 
 <Markdown src="/products/sdks/snippets/github-publishing-mode.mdx"/>
 
-```yaml title="generators.yml" {12-13}
-groups: 
-  java-sdk:
-	generators:
-	  - name: fern-java-sdk
-		version: <Markdown src="/snippets/version-number-java.mdx"/>
-		output:
-		  location: maven
-		config:
-		  publish-to: central
-		github: 
-		  repository: your-org/company-java
-		  mode: push
-		  branch: your-branch-name # Required for mode: push
-```
+Set `output.delivery` to `github`, add the path to the GitHub repository containing your Java SDK, and set `output.publish.registry` to `maven`:
 
-</Step>
-  </Steps>
+```yaml title="sdk-config.yml"
+targets:
+  - language: java
+    output:
+      delivery: github
+      github:
+        repository: your-org/company-java
+        mode: push  # or "pull-request"
+        branch: your-branch-name  # Required for mode: push
+      publish:
+        registry: maven
+```
 
 ## Set up Maven Central publishing authentication
 
@@ -103,24 +57,22 @@ groups:
 	</Step>
   <Step title="Configure Maven Coordinate">
 
-      Add the namespace you just verified in Maven Central to the `coordinate` field. This specifies how your Java SDK will be
-      published and referenced in the Maven Central respository. 
+      Add the namespace you verified in Maven Central to `package.groupId`, and set `package.artifactId` to your SDK's artifact name. Together these form the Maven coordinate customers use to reference your Java SDK in the Maven Central repository.
 
-      ```yaml {8} title="generators.yml"
-      groups: 
-        java-sdk:
-          generators:
-            - name: fern-java-sdk
-              version: <Markdown src="/snippets/version-number-java.mdx"/>
-              output:
-                location: maven
-                coordinate: com.company:sdk-name # groupId:artifactId
-              config:
-                publish-to: central
-              github: 
-                repository: your-org/company-java
+      ```yaml {3-5} title="sdk-config.yml"
+      targets:
+        - language: java
+          package:
+            groupId: com.company
+            artifactId: sdk-name
+          output:
+            delivery: github
+            github:
+              repository: your-org/company-java
+            publish:
+              registry: maven
       ```
-	    
+
 	  </Step>
 
 	<Step title="Generate user tokens">
@@ -136,23 +88,22 @@ groups:
 
 	<Step title="Configure Maven Central authentication token">
 
-	Add `username: ${MAVEN_USERNAME}` and `password: ${MAVEN_PASSWORD}` to `generators.yml` to tell Fern to use the `MAVEN_USERNAME` and `MAVEN_PASSWORD` environment variable for authentication when publishing to the Maven Central registry.
+	Add `username: ${MAVEN_USERNAME}` and `password: ${MAVEN_PASSWORD}` to `output.publish` to tell Fern to use the `MAVEN_USERNAME` and `MAVEN_PASSWORD` environment variables for authentication when publishing to the Maven Central registry.
 
-```yaml {9-10} title="generators.yml"
-groups: 
-  java-sdk:
-    generators:
-      - name: fern-java-sdk
-        version: <Markdown src="/snippets/version-number-java.mdx"/>
-        output:
-          location: maven
-          coordinate: com.company:sdk-name
-          username: ${MAVEN_USERNAME}
-          password: ${MAVEN_PASSWORD}
-        config:
-          publish-to: central
-        github: 
-          repository: your-org/company-java
+```yaml {12-13} title="sdk-config.yml"
+targets:
+  - language: java
+    package:
+      groupId: com.company
+      artifactId: sdk-name
+    output:
+      delivery: github
+      github:
+        repository: your-org/company-java
+      publish:
+        registry: maven
+        username: ${MAVEN_USERNAME}
+        password: ${MAVEN_PASSWORD}
 ```
 	</Step>
 </Steps>
@@ -192,28 +143,28 @@ Export your key so you can store it in an environment variable later on:
 </Step>
 <Step title="Configure GPG Signature">
 
-Add the `keyId`, `password`, and `secretKey` from the previous step to `generators.yml`:
+Add the `keyId`, `password`, and `secretKey` from the previous step to `output.publish.signature`:
 
-```yaml {11-14} title="generators.yml"
-groups: 
-  java-sdk:
-    generators:
-      - name: fern-java-sdk
-        version: <Markdown src="/snippets/version-number-java.mdx"/>
-        output:
-          location: maven
-          coordinate: com.company:sdk-name
-          username: ${MAVEN_USERNAME}
-          password: ${MAVEN_PASSWORD}
-          signature:
-            keyId: ${MAVEN_SIGNATURE_SECRET_KEY_ID}
-            password: ${MAVEN_SIGNATURE_PASSWORD}
-            secretKey: ${MAVEN_SIGNATURE_SECRET_KEY}
-        config:
-          publish-to: central
-        github: 
-          repository: your-org/company-java
+```yaml {14-17} title="sdk-config.yml"
+targets:
+  - language: java
+    package:
+      groupId: com.company
+      artifactId: sdk-name
+    output:
+      delivery: github
+      github:
+        repository: your-org/company-java
+      publish:
+        registry: maven
+        username: ${MAVEN_USERNAME}
+        password: ${MAVEN_PASSWORD}
+        signature:
+          keyId: ${MAVEN_SIGNATURE_SECRET_KEY_ID}
+          password: ${MAVEN_SIGNATURE_PASSWORD}
+          secretKey: ${MAVEN_SIGNATURE_SECRET_KEY}
 ```
+
 </Step>
 <Step title="Upload your key to public key servers">
 
@@ -300,7 +251,7 @@ Set up a release workflow via [GitHub Actions](https://docs.github.com/en/action
 	          MAVEN_SIGNATURE_PASSWORD: ${{ secrets.MAVEN_SIGNATURE_PASSWORD }}
 	          MAVEN_SIGNATURE_SECRET_KEY: ${{ secrets.MAVEN_SIGNATURE_SECRET_KEY }}
 	        run: |
-	          fern generate --group java-sdk --version ${{ inputs.version }} --log-level debug
+	          fern generate --target java --version ${{ inputs.version }} --log-level debug
 	```
 	<Note>
 		You can alternatively configure your workflow to execute `on: [push]`. 
@@ -342,7 +293,7 @@ export MAVEN_SIGNATURE_SECRET_KEY=your-gpg-secret-key
 Regenerate your SDK, specifying the version:
 
 ```bash
-fern generate --group java-sdk --version <version>
+fern generate --target java --version <version>
 ```
 
 <Markdown src="/products/sdks/snippets/release-sdk.mdx"/>
