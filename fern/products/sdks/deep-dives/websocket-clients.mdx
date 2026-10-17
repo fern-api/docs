@@ -7,18 +7,18 @@ description: Generate typed WebSocket clients in your SDKs for bidirectional com
 
 Fern generates typed WebSocket clients from your [AsyncAPI channel definitions](/learn/api-definitions/asyncapi/channels/pubsub). The generated clients handle connection management, typed send/receive messages, and automatic reconnection.
 
-Fern generates WebSocket clients for TypeScript, Python, Java, C#, and Rust. Go generates types only, and Ruby isn't yet supported.
+Fern generates WebSocket clients for TypeScript, Python, Java, C#, Rust, Go, Ruby, PHP, and Swift.
 
 ## Enable WebSocket client generation
 
-Set `generation.webSockets: true` in `sdk-config.yml`. Set it in the top-level `generation` block to enable WebSocket clients for every target, or in a target's `generation` block for one language:
+Set `generation.webSockets: true` in `sdk-config.yml`. Set it in the top-level `generation` block to enable WebSocket clients for every target, or in a target's `generation` block for one language. A target's value overrides the top-level value:
 
 ```yaml title="sdk-config.yml"
 generation:
   webSockets: true
 ```
 
-Java generates WebSocket clients by default with no additional configuration.
+Java generates WebSocket clients by default with no additional configuration; set `webSockets: false` to turn them off. Every other language generates them only when `webSockets` is `true`. With WebSocket generation off, the SDK still includes the message types.
 
 ## Generated SDK behavior
 
@@ -75,7 +75,7 @@ components:
 
 Fern generates the following client code.
 
-Send methods are named `send` + the operation name from the spec. The `sendReading` operation produces `sendSendReading` in TypeScript, Python, Java, and Rust. C# uses overloaded `Send()` methods instead.
+Send methods are named `send` + the message name from the spec. The `SensorReading` message produces `sendSensorReading` in TypeScript, Java, Go, PHP, and Swift, and `send_sensor_reading` in Python, Ruby, and Rust. C# uses overloaded `Send()` methods instead.
 
 Receive handling varies by language:
 
@@ -84,6 +84,10 @@ Receive handling varies by language:
 - **Java** — per-message-type handlers like `onPlantStatus(handler)`
 - **C#** — typed `Event<T>` properties like `PlantStatus.Subscribe(handler)`
 - **Rust** — a typed enum from `ws.recv()`
+- **Go** — per-message-type handlers like `OnPlantStatus(handler)`, then `Start()`
+- **Ruby** — `recv`, `each`, or `on(...)` handlers with `start_listening`
+- **PHP** — iterate the socket with `foreach`, or call `receive()`
+- **Swift** — `for await event in socket.events`, with `.message(.plantStatus(...))`
 
 <Tabs>
 <Tab title="TypeScript" language="typescript">
@@ -93,8 +97,8 @@ The TypeScript SDK generates a typed socket class with `send` methods, event han
 ```typescript
 const client = new PlantClient({ token: "..." });
 
-const socket = await client.plantUpdates.createPlantUpdatesConnection({
-  plantId: "plant-123",
+const socket = await client.plantUpdates.connect({
+  plant_id: "plant-123",
 });
 
 socket.on("open", () => {
@@ -110,7 +114,8 @@ socket.on("error", (error) => {
   console.error(error);
 });
 
-socket.sendSendReading({ temperature: 22.5, humidity: 65 });
+await socket.waitForOpen();
+socket.sendSensorReading({ temperature: 22.5, humidity: 65 });
 
 socket.close();
 ```
@@ -129,17 +134,18 @@ The connection call accepts `reconnectAttempts` (default `30`, `0` disables reco
 ```typescript
 let streamEnded = false;
 
-const socket = await client.plantUpdates.createPlantUpdatesConnection({
-  plantId: "plant-123",
+const socket = await client.plantUpdates.connect({
+  plant_id: "plant-123",
   reconnectAttempts: 5,
   shouldReconnect: (event) => !streamEnded && event.code !== 1000,
 });
 
 streamEnded = true;
-socket.sendSendReading({ temperature: 22.5, humidity: 65 });
+await socket.waitForOpen();
+socket.sendSensorReading({ temperature: 22.5, humidity: 65 });
 ```
 
-`shouldReconnect` applies only to server-initiated closes. Connection errors and connection timeouts still fire `close` handlers but always retry up to `reconnectAttempts`, regardless of the predicate. `shouldReconnect` also isn't consulted after `socket.close()` or when the `abortSignal` aborts, and a predicate that throws is treated as terminal. Calling `socket.reconnect()` after retries are exhausted starts a new connection attempt.
+`shouldReconnect` applies only to server-initiated closes. Connection errors and connection timeouts still fire `close` handlers but always retry up to `reconnectAttempts`, regardless of the predicate. `shouldReconnect` also isn't consulted after `socket.close()` or when the `abortSignal` aborts, and a predicate that throws is treated as terminal. Calling `socket.connect()` after retries are exhausted starts a new connection attempt.
 
 </Tab>
 <Tab title="Python" language="python">
@@ -148,20 +154,20 @@ The Python SDK generates both sync (`contextmanager`) and async (`asynccontextma
 
 **Sync:**
 ```python
-with client.plant_updates.create_plant_updates_connection(
+with client.plant_updates.connect(
     plant_id="plant-123",
 ) as ws:
-    ws.send_send_reading(SensorReading(temperature=22.5, humidity=65))
+    ws.send_sensor_reading(SensorReading(temperature=22.5, humidity=65))
     response = ws.recv()  # typed as PlantStatus
     print(response)
 ```
 
 **Async:**
 ```python
-async with client.plant_updates.create_plant_updates_connection(
+async with client.plant_updates.connect(
     plant_id="plant-123",
 ) as ws:
-    await ws.send_send_reading(SensorReading(temperature=22.5, humidity=65))
+    await ws.send_sensor_reading(SensorReading(temperature=22.5, humidity=65))
     response = await ws.recv()
     print(response)
 ```
@@ -172,14 +178,14 @@ Both clients also support iteration and event-based listening:
 from my_sdk.core.events import EventType
 
 # Iteration
-with client.plant_updates.create_plant_updates_connection(
+with client.plant_updates.connect(
     plant_id="plant-123",
 ) as ws:
     for message in ws:
         print(message)
 
 # Event-based
-with client.plant_updates.create_plant_updates_connection(
+with client.plant_updates.connect(
     plant_id="plant-123",
 ) as ws:
     ws.on(EventType.MESSAGE, lambda msg: print(msg))
@@ -193,7 +199,7 @@ The Java SDK generates a `PlantUpdatesWebSocketClient` with `CompletableFuture`-
 
 ```java
 PlantClient client = PlantClient.builder()
-    .apiKey("...")
+    .token("...")
     .build();
 
 PlantUpdatesWebSocketClient ws = client.plantUpdates().plantUpdatesWebSocket("plant-123");
@@ -203,9 +209,9 @@ ws.onPlantStatus(status -> System.out.println(status.getHealth()));
 ws.onError(error -> error.printStackTrace());
 
 ws.connect().join();
-ws.sendSendReading(SensorReading.builder()
+ws.sendSensorReading(SensorReading.builder()
     .temperature(22.5)
-    .humidity(65)
+    .humidity(65.0)
     .build()).join();
 
 ws.disconnect();
@@ -214,7 +220,7 @@ ws.disconnect();
 </Tab>
 <Tab title="C#" language="csharp">
 
-The C# SDK generates a `PlantUpdatesApi` class implementing `IAsyncDisposable` with `Event<T>` subscriptions for typed message handling. The WebSocket client is created through the root client's factory method, which requires `BaseUrl` and channel parameters in the `Options` object.
+The C# SDK generates a `PlantUpdatesApi` class implementing `IAsyncDisposable` with `Event<T>` subscriptions for typed message handling. The WebSocket client is created through the root client's factory method, which requires `BaseUrl` and channel parameters in the `Options` object. Reconnection is off by default; set `IsReconnectionEnabled = true` in `Options` to turn it on.
 
 ```csharp
 var client = new PlantClient();
@@ -225,7 +231,7 @@ var api = client.CreatePlantUpdatesApi(new PlantUpdatesApi.Options
     PlantId = "plant-123",
 });
 
-api.Connected.Subscribe(() => Console.WriteLine("Connected"));
+api.Connected.Subscribe(_ => Console.WriteLine("Connected"));
 api.PlantStatus.Subscribe(status => Console.WriteLine(status.Health));
 
 await api.ConnectAsync();
@@ -241,13 +247,10 @@ The Rust SDK generates an async client using `tokio` with typed send/receive met
 
 ```rust
 let mut ws = client.plant_updates
-    .create_plant_updates_connection(
-        "plant-123",
-        &PlantUpdatesConnectOptions::default(),
-    )
+    .connect("plant-123")
     .await?;
 
-ws.send_send_reading(&SensorReading {
+ws.send_sensor_reading(&SensorReading {
     temperature: Some(22.5),
     humidity: Some(65.0),
 }).await?;
@@ -264,7 +267,7 @@ ws.close().await?;
 
 ## Authentication
 
-In TypeScript, Python, Java, and Rust, WebSocket clients automatically inherit the authentication configured on the root client. Headers — including bearer tokens, API keys, and custom headers — are sent with the WebSocket handshake request.
+In TypeScript, Python, Java, and Rust, WebSocket clients automatically inherit the authentication configured on the root client. Headers — including bearer tokens, API keys, and custom headers — are sent with the WebSocket handshake request. In TypeScript, the handshake carries the root client's credentials when the auth scheme is declared under `api.auth` in `sdk-config.yml`.
 
 ```typescript
 const client = new PlantClient({
@@ -272,12 +275,12 @@ const client = new PlantClient({
 });
 
 // Auth headers are forwarded to the WebSocket handshake
-const socket = await client.plantUpdates.createPlantUpdatesConnection({
-  plantId: "plant-123",
+const socket = await client.plantUpdates.connect({
+  plant_id: "plant-123",
 });
 ```
 
-In C#, the WebSocket client is constructed with an `Options` object that includes the connection URL and channel parameters. Configure authentication through the `HttpInvoker` option or by setting headers on the underlying client.
+In C#, the WebSocket client created by the root client's factory method sends the root client's credentials and `ClientOptions.AdditionalHeaders` on the handshake and on every reconnect. Per connection, `Options.AdditionalHeaders` replaces a header of the same name, and a `null` value removes it.
 
 ## Defining WebSocket channels
 
