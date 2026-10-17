@@ -1,0 +1,98 @@
+---
+title: Tool selection
+description: Curate which endpoints become tools, and keep the toolset within a token budget agents can handle.
+availability: beta
+---
+
+An MCP server that exposes 300 tools is worse than one that exposes 30: agents spend context distinguishing similar-sounding tools, take more turns to find the right one, and are more likely to call something destructive by accident. Curating the toolset — not just generating one — is the part of setting up an MCP server that an SDK never needed.
+
+## The budget verdict
+
+`fern mcp init` and `fern mcp tools` score every toolset against two independent thresholds — tool count and estimated token cost — and report the worse of the two:
+
+| Clause | Green | Amber | Red |
+|---|---|---|---|
+| Tool count | ≤ 40 | 41 – 120 | > 120 |
+| Token cost (estimated) | ≤ 60k | 60k – 180k | > 180k |
+
+Token figures are always labeled as estimates; when a cost can't be computed for a given tool, the verdict falls back to scoring tool count alone. The thresholds are configurable per group:
+
+```yaml title="generators.yml"
+config:
+  tools:
+    budget:
+      max-tools: 40
+      max-tokens: 60000
+```
+
+An amber or red verdict doesn't block generation. Interactively, it routes into the [Refine loop](#refining-an-over-budget-toolset); in a script or CI (`--json`, non-interactive `fern mcp init -y`), it prints as a warning instead.
+
+## Presets
+
+`fern mcp init` resolves every preset against your spec up front, so each option's cost is visible before you pick one:
+
+- **Read-only** — every `GET` endpoint, plus read-like `POST` endpoints the wizard detects from naming conventions (`search*`, `list_*`, and similar — common for search or query operations hidden behind `POST`). When detection is ambiguous, the endpoint is excluded and the wizard tells you to review it with `fern mcp tools` rather than guessing.
+- **Main resources** — one `include` entry per primary tag, with administrative and internal tags excluded. Grayed out on specs with no usable tags, where [untagged spec handling](#specs-without-tags) applies instead.
+- **AI-curated** — describe what the MCP should let an agent do, and [Fern Agent](/learn/docs/fern-agent) proposes a ruleset. Requires `fern login`; falls back to the heuristic presets if you're logged out.
+- **Everything** — every endpoint becomes a tool, unfiltered.
+
+Picking a preset writes the same declarative rules you'd write by hand — tags, methods, path prefixes, operation ID globs, or literal endpoints, detailed under [`include`](/learn/mcp-generator/get-started/configuration#include) in the configuration reference — so the toolset survives spec changes instead of freezing a list of endpoint names.
+
+A **dynamic mode** is also available (`tools.mode: dynamic`), which collapses the toolset into three meta-tools — list, describe, and invoke — instead of one tool per endpoint. It isn't offered as a preset: agents do measurably worse against meta-tools than direct, named tools, since tool names and descriptions carry most of the signal an agent uses to pick correctly. Reach for it only as a last resort for a spec too large to narrow any other way, or set it by hand.
+
+## Refining an over-budget toolset
+
+`fern mcp tools --refine` opens the same loop `fern mcp init` routes into automatically on an amber or red verdict. It lists the highest-cost tools with a reason, then offers to narrow the toolset, project down oversized responses, or accept the toolset as-is — re-scoring the verdict after every change:
+
+```txt
+Verdict: 112 tools · 94k tokens — ⚠ ~3x over budget (both clauses)
+
+Highest-cost tools:
+  get_report_bundle        11k tokens   oversized response schema
+  search_transactions       7k tokens   34 parameters
+
+◆ Refine?
+│  ● Narrow rules…                # tags, methods, path prefixes
+│  ○ Filter oversized responses (project fields)…
+│  ○ Switch to dynamic mode (3 list/describe/invoke meta-tools)
+│  ○ Accept as-is
+```
+
+Narrowing writes compound selectors where they express the intent — `{ tag: reports, method: GET }` for "read-only reports" — rather than an enumerated endpoint list. Response-field projection keeps a tool but restricts its response to the fields you name, via `overrides.<endpoint>.response-fields` in the [configuration reference](/learn/mcp-generator/get-started/configuration#overrides). "Switch to dynamic mode" writes `tools.mode: dynamic` as a stated trade-off, not a silent one.
+
+`--refine` mutates an existing group's config in place. `fern mcp init` always adds a new group and never mutates one — the two commands are deliberately disjoint.
+
+## AI-curated rulesets
+
+The AI-curated preset takes one free-text description and proposes a ruleset conversationally:
+
+```txt
+◆ Describe what this MCP should let an agent do (and anything it must never touch)
+│  > Let support agents look up customers and payments, issue refunds under
+│    $100, never touch admin or delete anything
+
+✦ Proposed ruleset (exclusions first — that's the part worth reviewing):
+│  exclude:
+│    - { tag: admin }                          # "never touch admin"
+│    - { method: DELETE }                      # "never delete anything"
+│  include:
+│    - { tag: customers, method: GET }
+│    - { tag: payments, method: GET }
+│    - { endpoint: POST /v1/refunds }
+│  instructions: "Refunds must stay under $100; escalate anything larger."
+│
+│  Verdict: 21 tools · 14k tokens — ✓ within budget
+│
+◆ Accept / Adjust (describe the change) / Start over / Switch to manual
+```
+
+The proposal leads with what it excluded, since a 20-tool include list is hard to eyeball but an exclusion list is easy to verify against what you asked for. Anything the model can't express as a selector — a spending limit, an escalation rule — is written into the server's `instructions` field or a per-tool `overrides` description instead of silently dropped. The output is always the same declarative rules any other preset writes: reviewable, diffable, and safe to hand-edit afterward. Run it non-interactively with `fern mcp init --preset ai --intent "support agents, refunds under $100, no admin"`.
+
+## Specs without tags
+
+Many real specs have no tags, junk operation IDs, and no descriptions — often the specs that need curation the most. When a spec has no usable tags:
+
+- The diagnosis says so up front: `312 endpoints · no tags — grouping by path prefix`.
+- Refine's narrowing offers path prefixes (`/v1/payments/*`) instead of tags.
+- The AI-curated preset is promoted as the primary option, since inferring groupings and writing tool names and descriptions is where it earns its keep on a spec like this.
+- `fern mcp tools` flags tool names derived from junk operation IDs (`post_v1_pmt_x2`) so you know where to add an `overrides` entry.
