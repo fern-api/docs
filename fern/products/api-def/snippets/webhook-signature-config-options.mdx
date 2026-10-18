@@ -60,7 +60,26 @@ These fields apply when `type` is set to `hmac`.
 </ParamField>
 
 <ParamField path="algorithm-header.key-id-delimiter" type="string" required={false} toc={true}>
-  Separator between a key ID and the algorithm in the header value, which then takes the form `<key-id><delimiter><algorithm>` (for example, `key_123;HMAC_SHA256`). The value is split on the last occurrence of the delimiter, and the key ID is passed to the caller to resolve the matching signing secret. When omitted, the whole header value is the algorithm.
+  Separator between a key ID and the algorithm in the header value, which then takes the form `<key-id><delimiter><algorithm>` (for example, `key_123;HMAC_SHA256`). The value is split on the last occurrence of the delimiter, and the key ID is passed to the caller to resolve the matching signing secret. When omitted, the whole header value is the algorithm. When `algorithm-parameter` is set, this instead separates the `<name>=<value>` pairs and defaults to `,`.
+</ParamField>
+
+<ParamField path="algorithm-header.key-id-parameter" type="string" required={false} toc={true}>
+  Name of the parameter that carries the key ID when the header is a list of `<name>=<value>` pairs, such as `key` for Twilio's `key=webhooks_sharedkey_<id>,algorithm=HMAC_SHA256`. Applies only when `algorithm-parameter` is also set. The parameter's value is passed to the caller to resolve the matching signing secret, and a request whose header lacks it fails verification.
+</ParamField>
+
+<ParamField path="algorithm-header.algorithm-parameter" type="string" required={false} toc={true}>
+  Name of the parameter that carries the algorithm when the header is a list of `<name>=<value>` pairs, such as `algorithm`. Setting it switches the header to named-parameter parsing: the value is split on `key-id-delimiter` (default `,`), names and values are trimmed, and parts without `=` are ignored. The algorithm parameter's value is then matched against `algorithms`.
+
+  ```yaml
+  algorithm-header:
+    header: X-Twilio-Webhooks-Signature-Settings
+    key-id-delimiter: ","
+    key-id-parameter: key
+    algorithm-parameter: algorithm
+    algorithms:
+      HMAC_SHA1: sha1
+      HMAC_SHA256: sha256
+  ```
 </ParamField>
 
 <ParamField path="algorithm-header.algorithms" type="map of string to 'sha256' | 'sha1' | 'sha384' | 'sha512'" required={true} toc={true}>
