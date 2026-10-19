@@ -664,131 +664,6 @@ export function CliTerminal() {
   );
 }
 
-// --- Quick nav ----------------------------------------------------------------
-
-type QuickNavItem = { id: string; label: string };
-type QuickNavLink = { label: string; href: string };
-
-/** Sticky left rail that jumps to page sections and tracks the one in view. */
-export function QuickNav({ items, links = [] }: { items: QuickNavItem[]; links?: QuickNavLink[] }) {
-  const [active, setActive] = useState(items[0]?.id);
-  // While a click-triggered smooth scroll runs, hold the clicked item so the
-  // highlight doesn't flash through the sections scrolled past.
-  const navRef = useRef(null);
-  const lockRef = useRef(false);
-
-  useEffect(() => {
-    let raf = 0;
-    const update = () => {
-      raf = 0;
-      const header = document.getElementById("fern-header");
-      const line = (header?.getBoundingClientRect().bottom ?? 0) + 120;
-      let current = items[0]?.id;
-      for (const item of items) {
-        const el = document.getElementById(item.id);
-        if (el && el.getBoundingClientRect().top <= line) current = item.id;
-      }
-      setActive(current);
-    };
-    const onScroll = () => {
-      if (lockRef.current) return;
-      if (!raf) raf = requestAnimationFrame(update);
-    };
-    // Line the first link's text up with the first section's heading.
-    const align = () => {
-      const nav = navRef.current as HTMLElement | null;
-      const first = items[0] && document.getElementById(items[0].id);
-      const title = first?.querySelector(".card-title, h1, h2, h3") ?? first;
-      const inner = nav?.querySelector(".hg-quicknav-inner") as HTMLElement | null;
-      const link = nav?.querySelector(".hg-quicknav-link") as HTMLElement | null;
-      if (!nav || !inner || !title || !link || nav.offsetParent === null) return;
-      const t = title.getBoundingClientRect();
-      const l = link.getBoundingClientRect();
-      // The inner column is sticky, so measure from where the link actually sits.
-      const padding = parseFloat(getComputedStyle(inner).paddingTop) || 0;
-      const offset = padding + t.top + t.height / 2 - (l.top + l.height / 2);
-      nav.style.setProperty("--hg-quicknav-offset", `${Math.max(0, Math.round(offset))}px`);
-    };
-    const onResize = () => {
-      align();
-      onScroll();
-    };
-    // Hold the clicked item until the user scrolls on their own; the target
-    // may sit too low on the page to ever reach the active line.
-    const release = () => {
-      if (!lockRef.current) return;
-      lockRef.current = false;
-      onScroll();
-    };
-    const userInputs = ["wheel", "touchmove", "keydown", "pointerdown"];
-    userInputs.forEach((type) => window.addEventListener(type, release, { passive: true }));
-    align();
-    document.fonts?.ready.then(align);
-    const alignLater = window.setTimeout(align, 1500);
-    update();
-    document.addEventListener("scroll", onScroll, { capture: true, passive: true });
-    window.addEventListener("resize", onResize);
-    return () => {
-      cancelAnimationFrame(raf);
-      window.clearTimeout(alignLater);
-      userInputs.forEach((type) => window.removeEventListener(type, release));
-      document.removeEventListener("scroll", onScroll, { capture: true });
-      window.removeEventListener("resize", onResize);
-    };
-  }, []);
-
-  const jump = (e: MouseEvent, id: string) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    e.preventDefault();
-    lockRef.current = true;
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const headerBottom = document.getElementById("fern-header")?.getBoundingClientRect().bottom ?? 0;
-    window.scrollTo({
-      top: el.getBoundingClientRect().top + window.scrollY - headerBottom - 24,
-      behavior: reduced ? "auto" : "smooth",
-    });
-    history.replaceState(null, "", `#${id}`);
-    setActive(id);
-  };
-
-  return (
-    <nav ref={navRef} aria-label="Page sections" className="hg-quicknav">
-      <div className="hg-quicknav-inner">
-        <div>
-          <p className="hg-quicknav-label">On this page</p>
-          <ul className="hg-quicknav-list">
-            {items.map((item) => (
-              <li key={item.id}>
-                <a
-                  href={`#${item.id}`}
-                  className="hg-quicknav-link"
-                  data-active={active === item.id ? "true" : undefined}
-                  aria-current={active === item.id ? "location" : undefined}
-                  onClick={(e: MouseEvent) => jump(e, item.id)}
-                >
-                  {item.label}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </div>
-        {links.length > 0 && (
-          <ul className="hg-quicknav-list hg-quicknav-ctas">
-            {links.map((link) => (
-              <li key={link.href}>
-                <a href={link.href} className="hg-quicknav-cta">
-                  {link.label}
-                </a>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </nav>
-  );
-}
-
 // --- Draw-in tile graphics (SDKs, Docs) ---------------------------------------
 
 /** Measures the frame and flips `started` once it scrolls into view. */
@@ -833,31 +708,30 @@ function DrawTrace({ size }: { size: { w: number; h: number } }) {
 
 const DRAW_CONTENT_MS = 1900;
 
-const SDK_TABS: { label: string; cmd?: string }[] = [
-  { label: "Typescript", cmd: "npm install your-company" },
-  { label: "Python", cmd: "pip install your-company" },
-  { label: "GO", cmd: "go get github.com/your-company/go-sdk" },
-  { label: "Java", cmd: 'compile "com.your-company:java-sdk:1.0.0"' },
-  { label: ".NET", cmd: "> dotnet add package YourCompany.Net --version 1.0.0" },
-  { label: "PHP", cmd: "composer require your-company/your-company-php" },
-  { label: "Ruby", cmd: "gem install your_company" },
-  { label: "Swift" },
-  { label: "Rust" },
+const SDK_TABS: { label: string; slug: string; cmd?: string }[] = [
+  { label: "Typescript", slug: "typescript", cmd: "npm install your-company" },
+  { label: "Python", slug: "python", cmd: "pip install your-company" },
+  { label: "GO", slug: "go", cmd: "go get github.com/your-company/go-sdk" },
+  { label: "Java", slug: "java", cmd: 'compile "com.your-company:java-sdk:1.0.0"' },
+  { label: ".NET", slug: "csharp", cmd: "> dotnet add package YourCompany.Net --version 1.0.0" },
+  { label: "PHP", slug: "php", cmd: "composer require your-company/your-company-php" },
+  { label: "Ruby", slug: "ruby", cmd: "gem install your_company" },
+  { label: "Swift", slug: "swift" },
+  { label: "Rust", slug: "rust" },
 ];
 
 const elementsOf = (children: any) => React.Children.toArray(children).filter((c: any) => React.isValidElement(c));
 
 /**
  * SDK install picker (recreates the Rive SDK graphic). Children are the
- * language logos, in SDK_TABS order. Hover previews a language, click selects it.
+ * language logos, in SDK_TABS order. Hover previews a language, click opens its SDK docs.
  */
 export function SdkInstall({ children }: { children?: any }) {
   const { ref, started, size } = useDrawIn();
   const logos = elementsOf(children);
-  const [selected, setSelected] = useState(0);
   const [hovered, setHovered] = useState(null as number | null);
   const [copied, setCopied] = useState(false);
-  const active = hovered ?? selected;
+  const active = hovered ?? 0;
   const cmd = SDK_TABS[active]?.cmd ?? "";
 
   const copy = () => {
@@ -872,27 +746,24 @@ export function SdkInstall({ children }: { children?: any }) {
       <DrawTrace size={size} />
       <div className="hg-win hg-sdk" data-started={started ? "true" : "false"}>
         <span className="hg-rv-bar hg-sdk-pill" />
-        <div className="hg-sdk-tabs" role="tablist" aria-label="SDK language" onMouseLeave={() => setHovered(null)}>
+        <nav className="hg-sdk-tabs" aria-label="SDK languages" onMouseLeave={() => setHovered(null)}>
           {SDK_TABS.map((tab, i) => (
-            <button
+            <a
               key={tab.label}
-              type="button"
-              role="tab"
+              href={`/learn/sdks/generators/${tab.slug}/quickstart`}
               className="hg-sdk-tab hg-rv-in"
-              aria-selected={i === active}
-              disabled={!tab.cmd}
               data-active={i === active ? "true" : undefined}
+              data-muted={tab.cmd ? undefined : "true"}
               style={{ animationDelay: `${DRAW_CONTENT_MS + i * 60}ms` }}
               onMouseEnter={() => tab.cmd && setHovered(i)}
               onFocus={() => tab.cmd && setHovered(i)}
               onBlur={() => setHovered(null)}
-              onClick={() => tab.cmd && setSelected(i)}
             >
               <span className="hg-sdk-logo">{logos[i]}</span>
               <span className="hg-sdk-label">{tab.label}</span>
-            </button>
+            </a>
           ))}
-        </div>
+        </nav>
         <div className="hg-sdk-cmd hg-rv-in" style={{ animationDelay: `${DRAW_CONTENT_MS + 600}ms` }}>
           <span key={active} className="hg-sdk-cmd-text">
             {cmd}
