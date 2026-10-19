@@ -24,8 +24,8 @@ Unless you have specific requirements that prevent using Fern's default hosting,
 Each machine that runs `fern generate --local` needs:
 
 - **A Docker runtime.** Generation runs inside a generator container, so a Docker daemon must be available (`docker ps` succeeds). In CI, use a runner with Docker preinstalled or a Docker-in-Docker service.
-- **A `FERN_TOKEN`.** Organization verification requires a Fern API key, injected as the `FERN_TOKEN` environment variable. Store it as a CI secret rather than in the repo.
-- **Outbound network access to two endpoints.** The CLI verifies your organization with Fern and pulls the generator image. No API definition leaves your infrastructure. Air-gapped environments must [mirror generator images into a private registry](#private-registry-setup) reachable from the runner.
+- **A `FERN_TOKEN` for GitHub output.** Pushing to a GitHub repository requires a Fern API key, injected as the `FERN_TOKEN` environment variable. Local file system output runs without one. When a token is set, the CLI verifies your organization and applies its settings, such as white-labeling, to the generated SDK. Store it as a CI secret rather than in the repo.
+- **Outbound network access.** The CLI pulls the generator image and, when a token is set, verifies your organization with Fern. No API definition leaves your infrastructure. Air-gapped environments must [mirror generator images into a private registry](#private-registry-setup) reachable from the runner.
 - **Write access to the output location.** Local-file-system output writes to disk; GitHub output needs a `GITHUB_TOKEN` with write access to the SDK repository.
 
 ## Setup
@@ -52,7 +52,7 @@ docker ps
 
 <Step title="Generate a Fern API key">
 
-Generate a Fern API key, which is required for local generation to verify your organization. Create one from the [API keys](/learn/dashboard/configuration/api-keys) page in the Dashboard, or run `fern token` in your terminal:
+Generate a Fern API key. GitHub output requires one; local file system output doesn't, but with a key the CLI applies your organization's settings to the generated SDK. Create one from the [API keys](/learn/dashboard/configuration/api-keys) page in the Dashboard, or run `fern token` in your terminal:
 
 ```bash
 fern token
@@ -108,7 +108,7 @@ Configure authentication based on your chosen output location.
 <Tabs>
 <Tab title="Local file system" language="local">
 
-Set your Fern API key as an environment variable:
+Local file system output doesn't require authentication. To apply your organization's settings, set your Fern API key as an environment variable:
 
 ```bash
 export FERN_TOKEN=your-generated-token
