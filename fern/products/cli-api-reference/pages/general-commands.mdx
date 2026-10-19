@@ -41,7 +41,7 @@ These commands apply to every Fern project, whether it publishes [docs](/learn/c
     <Files>
       <Folder name="fern" defaultOpen>
         <File name="fern.config.json" />
-        <File name="generators.yml" comment="generators you're using" />
+        <File name="sdk-config.yml" comment="SDK targets and API sources" />
         <Folder name="openapi" defaultOpen>
           <File name="openapi.json" comment="your OpenAPI specification" />
         </Folder>
@@ -136,10 +136,10 @@ These commands apply to every Fern project, whether it publishes [docs](/learn/c
     <CodeBlock title="terminal">
     ```bash
     # Write the exported spec as YAML
-    fern export [--api <api>] path/to/openapi.yml
+    fern export [--api <api>] [--audience <audience>] path/to/openapi.yml
 
     # ...or as JSON
-    fern export [--api <api>] path/to/openapi.json
+    fern export [--api <api>] [--audience <audience>] path/to/openapi.json
     ```
     </CodeBlock>
 
@@ -163,6 +163,24 @@ These commands apply to every Fern project, whether it publishes [docs](/learn/c
     ```
     </CodeBlock>
 
+    ### audience
+
+    Use `--audience` to export only the endpoints, webhooks, and environments tagged for an audience, along with the types they reference. This produces a filtered spec, such as a public-only spec without internal endpoints. Tag API elements with [`audiences` in the Fern Definition](/learn/api-definitions/ferndef/audiences) or [`x-fern-audiences` in OpenAPI](/learn/api-definitions/openapi/extensions/audiences). Without `--audience`, the full API is exported.
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern export --audience public path/to/openapi.yml
+    ```
+    </CodeBlock>
+
+    Repeat the flag to export the union of multiple audiences:
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern export --audience public --audience internal path/to/openapi.yml
+    ```
+    </CodeBlock>
+
   </Accordion>
 
   <Accordion title="fern check">
@@ -171,7 +189,7 @@ These commands apply to every Fern project, whether it publishes [docs](/learn/c
     The `--broken-links` and `--strict-broken-links` flags are deprecated. Use the [`broken-links` validation rule](/learn/docs/configuration/site-level-settings#check-configuration) in `docs.yml` instead.
     </Warning>
 
-    Use `fern check` to validate your API definition and Fern configuration, including [`fern.config.json`](/learn/sdks/overview/project-structure#fernconfigjson), `generators.yml`, and `docs.yml`. It checks for broken links, invalid API examples, configuration errors, and more. When all checks pass, the command produces no output.
+    Use `fern check` to validate your API definition and Fern configuration, including [`fern.config.json`](/learn/sdks/overview/project-structure#fernconfigjson), [`sdk-config.yml`](/learn/sdks/reference/sdk-config), and `docs.yml`. It checks for broken links, invalid API examples, configuration errors, and more. When all checks pass, the command produces no output.
 
      Most `fern check` rules — including [`broken-links`](/learn/docs/configuration/site-level-settings#check-configuration) — validate against the navigation tree built from your **local** config and do not crawl your live deployed site or follow external URLs. The exception is the [`missing-redirects` rule](/learn/docs/seo/redirects#catching-missing-redirects), which compares your local navigation against the previously published state and therefore requires `fern login` or `FERN_TOKEN`.
 
@@ -245,7 +263,7 @@ These commands apply to every Fern project, whether it publishes [docs](/learn/c
   <Accordion title="fern upgrade">
 
     Use `fern upgrade` to upgrade your compiler version in [`fern.config.json`](/learn/sdks/overview/project-structure#fernconfigjson) to the
-    latest version. It will also upgrade generators in `generators.yml` to their minimum-compatible versions.
+    latest version. It also upgrades generators in a [legacy `generators.yml`](/learn/sdks/legacy/reference/generators-yml) to their minimum-compatible versions.
 
     <CodeBlock title="terminal">
     ```bash
@@ -378,6 +396,21 @@ These commands apply to every Fern project, whether it publishes [docs](/learn/c
     fern api update --api public-api
     ```
   </CodeBlock>
+
+  <llms-only>
+  ### "Missing file" error
+
+  `fern api update` downloads the remote spec and overwrites the local file referenced by the `openapi:` path in `generators.yml`. The target file must already exist on disk before the command runs — the command updates an existing file in place and does not create new files.
+
+  If the file doesn't exist yet, create an empty placeholder at that path first, then run `fern api update`:
+
+  ```bash
+  touch fern/openapi/openapi.json
+  fern api update
+  ```
+
+  Replace `fern/openapi/openapi.json` with the path specified in your `generators.yml`.
+  </llms-only>
   </Accordion>
 
   <Accordion title="fern api enrich">
