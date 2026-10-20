@@ -197,7 +197,7 @@ config:
 </ParamField>
 
 <ParamField path="distribution" type="object" toc={true} required={false}>
-Adds Homebrew and Scoop publishing on top of the GitHub Release archives every generated CLI already ships. Both channels install from a tagged release, so `distribution` is honored only when the generator delivers to a GitHub repository through the `github` block. Enabling a channel adds a publish job to the release workflow and the matching install command to the generated README. Each job pushes to a public [tap or bucket repository](/learn/cli-generator/get-started/publishing#configure-distribution-channels) you create, authenticating with either a personal access token per channel or a GitHub App whose credentials you store as repository secrets.
+Configures the release workflow that builds the GitHub Release archives every generated CLI ships, and adds opt-in Homebrew and Scoop publishing on top of them. The release workflow runs from a tagged release, so `distribution` is honored only when the generator delivers to a GitHub repository through the `github` block. Enabling a channel adds a publish job to the release workflow and the matching install command to the generated README. Each job pushes to a public [tap or bucket repository](/learn/cli-generator/get-started/publishing#configure-distribution-channels) you create, authenticating with either a personal access token per channel or a GitHub App whose credentials you store as repository secrets.
 
 ```yaml title="generators.yml"
 config:
@@ -221,6 +221,20 @@ Name of the GitHub Actions secret holding the App's App ID or Client ID.
 
 <ParamField path="distribution.githubApp.privateKeySecret" type="string" required={true}>
 Name of the GitHub Actions secret holding the entire contents of the App's private key `.pem` file, line breaks included.
+</ParamField>
+
+<ParamField path="distribution.githubAttestations" type='"auto" | boolean' default="auto" required={false}>
+Whether the release workflow signs the GitHub Release build artifacts with [GitHub artifact attestations](https://docs.github.com/en/actions/security-for-github-actions/using-artifact-attestations/using-artifact-attestations-to-establish-provenance-for-builds). GitHub supports attestations on private repositories only with GitHub Enterprise Cloud; on any other private repository the attest step fails every build and no release is cut.
+
+- `"auto"`: attests on public repositories and skips the step on private ones.
+- `true`: always attests. Set this for a private repository on GitHub Enterprise Cloud, where `"auto"` would skip attestations that work.
+- `false`: never attests. Removes the attest step and its `attestations: write` permission from the release workflow and sets `github-attestations = false` in `dist-workspace.toml`.
+
+```yaml title="generators.yml"
+config:
+  distribution:
+    githubAttestations: false
+```
 </ParamField>
 
 <ParamField path="distribution.homebrew.tap" type="string" required={true}>
