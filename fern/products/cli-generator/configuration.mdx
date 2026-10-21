@@ -123,7 +123,7 @@ Dotted command path of an operation that revokes a profile's remote credential, 
 </ParamField>
 
 <ParamField path="profiles.provisionOperation" type="object" required={false}>
-An operation that mints a profile's remote credential (an API key), and how its response maps onto that credential. When set, `profiles create` gains a `--provision` flag that calls the operation with the credentials already in the caller's environment and stores the mapped response fields in the OS keychain without printing the secret. Paired with `revokeOperation`, a profile owns its API key end to end: minted by `profiles create --provision`, revoked by `profiles remove --revoke`. When omitted, the flag isn't registered.
+An operation that mints a profile's remote credential (an API key), and how its response maps onto that credential. When set, `profiles create` gains a `--provision` flag that calls the operation with the credentials already in the caller's environment and stores the mapped response fields in the OS keychain without printing the secret. In an interactive terminal, it also turns on the [guided API-key flow](/learn/cli-generator/get-started/authentication#guided-api-key-setup) for `auth login` and `profiles create`. Paired with `revokeOperation`, a profile owns its API key end to end: minted by `profiles create --provision` or the guided flow, revoked by `profiles remove --revoke`. When omitted, the flag isn't registered and the guided flow is off.
 
 ```yaml title="generators.yml"
 config:
@@ -138,6 +138,11 @@ config:
         password: secret
       revokeParameters:
         Sid: sid
+      flag: api-key
+      parameters:
+        FriendlyName: "{cli} for {user} on {host}"
+      profileParameters:
+        AccountSid: username
 ```
 </ParamField>
 <Indent>
@@ -151,6 +156,25 @@ Maps each credential field to the top-level response field that supplies it. The
 
 <ParamField path="profiles.provisionOperation.revokeParameters" type="map<string, string>" required={false}>
 Maps each parameter the `revokeOperation` takes to the response field it's read from, such as `Sid: sid` to record the new key's ID. The values are stored on the profile as `credential_parameters` and used only by `profiles remove --revoke`, never as request defaults. They're kept in plaintext profile metadata and shown by `profiles show`, so map identifiers here, never secrets. Without `revokeParameters`, the profile has no record of which key it owns, and `--revoke` can only pass the profile's own parameters.
+</ParamField>
+
+<ParamField path="profiles.provisionOperation.flag" type="string" default="provision" required={false}>
+Long name of the `profiles create` flag that mints a key, without the leading dashes. Must start with a lowercase letter and contain only `[a-z0-9-]`. Set `api-key` to expose `--api-key`; `--provision` stays accepted as a hidden alias, so existing scripts keep working.
+</ParamField>
+
+<ParamField path="profiles.provisionOperation.parameters" type="map<string, string>" required={false}>
+Extra request values sent with the provisioning operation, such as a label for the new key. Values may contain these placeholders, substituted at request time:
+
+- `{cli}`: the CLI's binary name
+- `{profile}`: the name of the profile being created
+- `{user}`: the local username (`USER`, or `USERNAME` on Windows)
+- `{host}`: the machine's short hostname
+
+A parameter the profile already sets takes precedence over the configured value. Values can't contain quotes, backslashes, or control characters.
+</ParamField>
+
+<ParamField path="profiles.provisionOperation.profileParameters" type="map<string, string>" required={false}>
+Maps each profile parameter to the credential field it's copied from when the credential is typed in the guided flow, such as `AccountSid: username` to save the account ID the user entered. Requests keep targeting that account after the typed credential is replaced by the provisioned key. A value passed with `--set` takes precedence. Keys and values may contain only `[A-Za-z0-9_.-]`.
 </ParamField>
 </Indent>
 </Indent>
