@@ -15,7 +15,7 @@ Cross-links are automatic. When a fully qualified identifier appears in a code b
 
 Add a `libraries` entry to your `docs.yml` file. Each library needs an `input` source, an `output.path` (where generated MDX files are written), and a `lang` (`python` or `cpp`).
 
-The input source can be a `git` URL or a local `path`. A `git` input is parsed on Fern's servers by default, or on your machine with the `--local` flag. A `path` input requires `--local`.
+The input source can be a `git` URL or a local `path`. Both input types are parsed on your machine by default. A `git` input can also be parsed on Fern's servers with the `--remote` flag.
 
 A `git` input reads the repository's default branch. Set `ref` to a branch, tag, or commit SHA to generate from source that hasn't merged yet.
 
@@ -59,6 +59,8 @@ libraries:
 
 Point a [`folder:` entry](/learn/docs/configuration/navigation#add-a-folder) in your navigation at the same directory you set as `output.path`. Fern discovers every MDX file in that folder and mirrors its subfolder structure into sidebar sections.
 
+If your navigation references the generated top-level folders individually instead, `fern check` warns about each one that's missing, since generated cross-links into an unreferenced folder return 404s.
+
 ```yaml docs.yml {8}
 navigation:
   - section: Getting started
@@ -76,19 +78,12 @@ navigation:
 Run the [`fern docs md generate`](/learn/cli-api-reference/cli-reference/docs-commands#fern-docs-md-generate) command to generate MDX files from your library source code:
 
 <Tabs>
-<Tab title="Remote parsing">
+<Tab title="Local parsing">
 ```bash
 fern docs md generate
 ```
 
-The command sends the repository URL to Fern's servers for parsing. Requires a `git` input.
-</Tab>
-<Tab title="Local parsing">
-```bash
-fern docs md generate --local
-```
-
-The `--local` flag parses the source on your machine instead of on Fern's servers, which is useful for iterating on documentation without pushing to a remote repository, and doesn't require you to be logged in to Fern. Both input types work: a `path` input is read in place, and a `git` input is checked out at its `ref` using your local git credential configuration.
+By default, the command parses the source on your machine, which is useful for iterating on documentation without pushing to a remote repository, and doesn't require you to be logged in to Fern. Both input types work: a `path` input is read in place, and a `git` input is checked out at its `ref` using your local git credential configuration.
 
 <Warning>
 Local parsing runs each parser inside a Docker container, so [Docker](https://docs.docker.com/get-docker/) must be running on your machine. Verify with `docker ps`.
@@ -97,6 +92,13 @@ Local parsing runs each parser inside a Docker container, so [Docker](https://do
 <Note>
 For C++ libraries, the parser uses the source root (your `path` directory, or the repository root for a `git` input) as its scope. Input directives in your Doxyfile don't change that scope: Fern honors only [a few Doxyfile settings](#configuration-reference) and ignores the rest.
 </Note>
+</Tab>
+<Tab title="Remote parsing">
+```bash
+fern docs md generate --remote
+```
+
+The `--remote` flag sends the repository URL to Fern's servers for parsing instead. Remote parsing requires a `git` input and requires you to be logged in to Fern.
 </Tab>
 </Tabs>
 
@@ -183,7 +185,7 @@ You can also edit page content by modifying the MDX files directly — generated
 ## Configuration reference
 
 <ParamField path="input.git" type="string">
-  GitHub URL of the repository containing the library source code. Parsed on Fern's servers, or on your machine with `--local`. Mutually exclusive with `input.path`.
+  GitHub URL of the repository containing the library source code. Parsed on your machine by default, or on Fern's servers with `--remote`. Mutually exclusive with `input.path`.
 </ParamField>
 
 <ParamField path="input.subpath" type="string">
@@ -195,7 +197,7 @@ You can also edit page content by modifying the MDX files directly — generated
 </ParamField>
 
 <ParamField path="input.path" type="string">
-  Local filesystem path to the library source, relative to the `fern/` directory. Requires `--local` flag. Mutually exclusive with `input.git`.
+  Local filesystem path to the library source, relative to the `fern/` directory. Parsed on your machine; not supported with `--remote`. Mutually exclusive with `input.git`.
 </ParamField>
 
 <ParamField path="output.path" type="string" required={true}>
