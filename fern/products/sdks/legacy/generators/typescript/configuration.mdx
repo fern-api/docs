@@ -1,0 +1,774 @@
+---
+title: TypeScript configuration
+description: Configure TypeScript SDK generation with Fern. Customize namespaces, enable serde layer, manage dependencies, and control file output.
+---
+
+<Markdown src="/products/sdks/legacy/snippets/legacy-notice.mdx" current="/learn/sdks/generators/typescript/configuration" />
+
+
+You can customize the behavior of the TypeScript SDK generator in `generators.yml`:
+
+```yml {6-9} title="generators.yml"
+groups:
+  ts-sdk:
+    generators:
+      - name: fern-typescript-sdk
+        version: <Markdown src="/snippets/version-number-ts.mdx"/>
+        config:
+          namespaceExport: AcmePayments
+          noSerdeLayer: false
+          generateSubpackageExports: true
+```
+
+<ParamField path="allowExtraFields" type="boolean" toc={true}>
+Allow fields that are not defined in object schemas. This only applies to serde.
+
+See [TypeScript serde layer](/learn/sdks/legacy/generators/typescript/serde-layer) for more information.
+</ParamField>
+
+<ParamField path="auto-generate-idempotency-key" type="boolean | object" default="false" toc={true}>
+Overrides the API-wide [`api.settings.auto-generate-idempotency-key`](/learn/sdks/legacy/reference/generators-yml#settings) for this SDK. Set `true` to attach an [idempotency-key header](/learn/sdks/legacy/deep-dives/idempotency#auto-generate-idempotency-keys) to eligible requests (`POST` and `PUT` by default) unless the caller provides one, or `false` to opt this SDK out when auto-generation is enabled API-wide. Pass an object to customize `header-name` and `methods`.
+</ParamField>
+
+<ParamField path="deepObjectMapQueryParameters" type="boolean" default="false" toc={true}>
+When enabled, map-typed query parameters (an OpenAPI `type: object` schema with `additionalProperties`) are encoded in OpenAPI `deepObject` style, with one key per map entry, instead of being JSON-stringified into a single value. Enable this when the server declares the parameter with `style: deepObject`.
+
+```text
+# deepObjectMapQueryParameters: false
+?metadata=%7B%22env%22%3A%22prod%22%7D
+
+# deepObjectMapQueryParameters: true
+?metadata[env]=prod
+```
+
+Maps with primitive values are passed through as-is. Maps with object, nested map, list, or date values are serialized through the [serde layer](/learn/sdks/legacy/generators/typescript/serde-layer) first when `noSerdeLayer: false`, so nested keys use their wire names and dates become ISO strings (`?metadata[env][display_name]=prod&metadata[env][created_at]=2026-09-04T00:00:00.000Z`). With `noSerdeLayer: true`, these values are passed through unchanged.
+</ParamField>
+
+<ParamField path="defaultTimeout" type="number | 'infinity'" toc={true}>
+The default timeout for network requests, in milliseconds. Set to `'infinity'` to disable the timeout. In the generated client, this can be overridden at the request level.
+</ParamField>
+
+<ParamField path="enableInlineTypes" type="boolean" default="true" toc={true}>
+When enabled, the inline schemas will be generated as nested types in TypeScript.
+This results in cleaner type names and a more intuitive developer experience.
+
+`enableInlineTypes: false`:
+
+```typescript
+// MyRootType.ts
+import * as MySdk from "...";
+
+export interface MyRootType {
+  foo: MySdk.MyRootTypeFoo;
+}
+
+// MyRootTypeFoo.ts
+import * as MySdk from "...";
+
+export interface MyRootTypeFoo {
+  bar: MySdk.MyRootTypeFooBar;
+}
+
+// MyRootTypeFooBar.ts
+import * as MySdk from "...";
+
+export interface MyRootTypeFooBar {}
+```
+`enableInlineTypes: true`:
+
+```typescript
+// MyRootType.ts
+import * as MySdk from "...";
+
+export interface MyRootType {
+  foo: MyRootType.Foo;
+}
+
+export namespace MyRootType {
+  export interface Foo {
+    bar: Foo.Bar;
+  }
+
+  export namespace Foo {
+    export interface Bar {}
+  }
+}
+```
+
+Now users can get the deep nested `Bar` type as follows:
+
+```typescript
+import { MyRootType } from MySdk;
+
+const bar: MyRootType.Foo.Bar = {};
+```
+</ParamField>
+
+<ParamField path="esmOnly" type="boolean" default="false" toc={true}>
+Ships only the ECMAScript module (ESM) build of the generated package. By default, the generator publishes both CommonJS and ESM builds, which exposes consumers to the [dual package hazard](https://github.com/GeoffreyBooth/dual-package-hazard). When enabled, `package.json` sets `"type": "module"`, `main`, `module`, and `types` point at `./dist/esm/index.mjs` and `./dist/esm/index.d.mts`, the `exports` map (including subpackage exports) has no `require` conditions, and no `tsconfig.cjs.json` or `build:cjs` script is generated.
+
+`esmOnly` can't be combined with `useLegacyExports: true` or `bundle: true`; generation fails with an error.
+
+```yml title="generators.yml"
+groups:
+  ts-sdk:
+    generators:
+      - name: fern-typescript-sdk
+        version: <Markdown src="/snippets/version-number-ts.mdx"/>
+        config:
+          esmOnly: true
+```
+</ParamField>
+
+<ParamField path="exactOptionalPropertyTypes" type="boolean" default="false" toc={true}>
+When enabled, every optional property in the generated SDK is emitted as `prop?: T | undefined`, and the generated `tsconfig` files enable TypeScript's [`exactOptionalPropertyTypes`](https://www.typescriptlang.org/tsconfig/#exactOptionalPropertyTypes) compiler option. This covers model types, inlined request types, client options, errors, and the `core/` utilities, so consumers whose own `tsconfig` sets `exactOptionalPropertyTypes: true` can use the SDK without type errors.
+
+This option applies with or without the serde layer, so it can be combined with either value of [`noSerdeLayer`](#noserdelayer).
+
+```yaml
+# generators.yml
+config:
+  exactOptionalPropertyTypes: true
+```
+</ParamField>
+
+<ParamField path="extraDependencies" type="object" default="{}" toc={true}>
+
+<Markdown src="/snippets/enterprise-plan.mdx"/>
+
+  Specify extra dependencies in the generated `package.json`. This is useful
+when you add custom code to your SDK that requires additional dependencies.
+
+```yaml
+# generators.yml
+config:
+  extraDependencies:
+    lodash: "3.0.2"
+```
+
+</ParamField>
+
+<ParamField path="extraDevDependencies" type="object" default="{}" toc={true}>
+
+<Markdown src="/snippets/enterprise-plan.mdx"/>
+
+  Specify extra dev dependencies in the generated `package.json`. 
+
+```yaml
+# generators.yml
+config:
+  extraDevDependencies:
+    jest: "29.0.7"
+```
+
+<Note>Only applies when publishing to Github.</Note>
+</ParamField>
+
+<ParamField path="extraPeerDependencies" type="object" toc={true}>
+Specify extra peer dependencies in the generated `package.json`:
+
+```yaml
+# generators.yml
+config:
+  extraPeerDependencies:
+    react: ">=16.8.0 <19.0.0"
+    "react-dom": ">=16.8.0 <19.0.0"
+```
+</ParamField>
+
+<ParamField path="extraPeerDependenciesMeta" type="object" toc={true}>
+Specify extra peer dependencies meta fields in the generated `package.json`:
+
+```yaml
+# generators.yml
+config:
+  extraPeerDependencies:
+    react: ">=16.8.0 <19.0.0"
+    "react-dom": ">=16.8.0 <19.0.0"
+```
+</ParamField>
+
+<ParamField path="fetchSupport" type="'node-fetch' | 'native'" toc={true}>
+Choose whether you want to include `node-fetch` to support Node.js versions before Node.js 18, or choose `native` to use the native `fetch` API available in Node.js 18 and later.
+</ParamField>
+
+<ParamField path="fileResponseType" type="'stream' | 'binary-response'" toc={true}>
+Change the type of response returned to the user for a binary HTTP response:
+
+*    `stream`: Returns a stream. See `streamType`, which controls the type of stream returned.
+*    `binary-response`: Returns the `BinaryResponse` type, which allows the user to choose how to consume the binary HTTP response.
+Here's how your users can interact with the `BinaryResponse`:
+
+```typescript
+const response = await client.getFile(...);
+const stream = response.stream();
+// const arrayBuffer = await response.arrayBuffer();
+// const blob = await response.blob();
+// const bytes = await response.bytes();
+const bodyUsed = response.bodyUsed;
+```
+</ParamField>
+
+<ParamField path="formDataSupport" type="'Node16' | 'Node18'" toc={true}>
+Choose whether you want to support Node.js 16 and above (`Node16`), or Node.js 18 and above (`Node18`).
+
+*    `Node16` uses multiple dependencies to support multipart forms, including `form-data`, `formdata-node`, and `form-data-encoder`.
+*    `Node18` uses the native FormData API, and accepts a wider range of types for file uploads, such as `Buffer`, `File`, `Blob`, `Readable`, `ReadableStream`, `ArrayBuffer`, and `Uint8Array`
+</ParamField>
+
+<ParamField path="generateSubpackageExports" type="boolean" default="true" toc={true}>
+Generates subpackage exports that allow users to import individual clients directly, rather than importing the entire SDK. This enables JavaScript bundlers to tree-shake unused code, significantly reducing bundle sizes.
+
+```typescript
+import { BarClient } from '@acme/sdk/foo/bar';
+// Imports only the Bar subpackage
+
+const client = new BarClient({...});
+```
+
+Subpackage exports are also documented in the generated `README.md` when this option is enabled.
+</ParamField>
+
+<ParamField path="guardProcessEnvAccess" type="boolean" default="false" toc={true}>
+Wraps environment variable reads for credentials in the generated auth providers (API key, bearer, basic, and OAuth) and for the [base URL](/learn/api-definitions/ferndef/api-yml/environments#base-url-from-an-environment-variable) (`base-url-env`) in a `typeof process !== "undefined"` check. Enable this when the SDK runs in browsers, Cloudflare Workers, Deno, or other runtimes without a Node `process` global; otherwise `process.env` reads throw a `ReferenceError` when a credential isn't passed to the client. Node.js behavior is unchanged.
+
+```yml title="generators.yml"
+groups:
+  ts-sdk:
+    generators:
+      - name: fern-typescript-sdk
+        version: <Markdown src="/snippets/version-number-ts.mdx"/>
+        config:
+          guardProcessEnvAccess: true
+```
+</ParamField>
+
+<ParamField path="includeContentHeadersOnFileDownloadResponse" type="boolean" toc={true}>
+
+Includes the content type and content length from binary responses. The user will receive an object of the following type:
+
+```typescript
+{
+    data: <BINARY_RESPONSE_TYPE>;
+    contentLengthInBytes?: number;
+    contentType?: string;
+}
+```
+
+`<BINARY_RESPONSE_TYPE>` is `core.BinaryResponse` or a stream, depending on `fileResponseType` setting.
+</ParamField>
+
+<ParamField path="includeCredentialsOnCrossOriginRequests" type="boolean" default="false" toc={true}>
+  When enabled, [`withCredentials`](https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/withCredentials) is set to `true` when making network requests.
+</ParamField>
+
+<ParamField path="includeOtherInUnionTypes" type="boolean" toc={true}>
+</ParamField>
+
+<ParamField path="includeUtilsOnUnionMembers" type="boolean" toc={true}>
+</ParamField>
+
+<ParamField path="inlineFileProperties" type="boolean" default="true" toc={true}>
+Generate file upload properties as inline request properties (instead of positional parameters).
+
+`inlineFileProperties: false`:
+
+```typescript
+/**
+  * @param {File | fs.ReadStream} file
+  * @param {File[] | fs.ReadStream[]} fileList
+  * @param {File | fs.ReadStream | undefined} maybeFile
+  * @param {File[] | fs.ReadStream[] | undefined} maybeFileList
+  * @param {Acme.MyRequest} request
+  * @param {Service.RequestOptions} requestOptions - Request-specific configuration.
+  *
+  * @example
+  *     await client.service.post(fs.createReadStream("/path/to/your/file"), [fs.createReadStream("/path/to/your/file")], fs.createReadStream("/path/to/your/file"), [fs.createReadStream("/path/to/your/file")], {})
+  */
+public async post(
+    file: File | fs.ReadStream,
+    fileList: File[] | fs.ReadStream[],
+    maybeFile: File | fs.ReadStream | undefined,
+    maybeFileList: File[] | fs.ReadStream[] | undefined,
+    request: Acme.MyRequest,
+    requestOptions?: Acme.RequestOptions
+): Promise<void> {
+  ...
+}
+```
+
+`inlineFileProperties: true`:
+
+```typescript
+/**
+  * @param {Acme.MyRequest} request
+  * @param {Service.RequestOptions} requestOptions - Request-specific configuration.
+  *
+  * @example
+  *     await client.service.post({
+  *        file: fs.createReadStream("/path/to/your/file"),
+  *        fileList: [fs.createReadStream("/path/to/your/file")]
+  *     })
+  */
+public async post(
+    request: Acme.MyRequest,
+    requestOptions?: Service.RequestOptions
+): Promise<void> {
+  ...
+}
+```
+
+</ParamField>
+
+<ParamField path="inlinePathParameters" type="boolean" default="true" toc={true}>
+Inline path parameters into request types.
+
+`inlinePathParameters: false`:
+
+```typescript
+await service.getFoo("pathParamValue", { id: "SOME_ID" });
+```
+
+`inlinePathParameters: true`:
+```typescript
+await service.getFoo({ pathParamName: "pathParamValue", id: "SOME_ID" });
+```
+
+</ParamField>
+
+<ParamField path="namespaceExport" type="string" toc={true}>
+Customizes the exported namespace and client class names in the generated SDK. Must be in PascalCase.
+
+By default, names are derived from the organization and API names defined in your API definition:
+	
+```typescript
+import { AcmeApi, AcmeApiClient } from "@acme/node";
+```
+
+Setting namespaceExport overrides these default names:
+
+```yaml title="generators.yml"
+config:
+  namespaceExport: AcmePayments
+```
+
+```typescript
+import { AcmePayments, AcmePaymentsClient } from "@acme/node";
+```
+
+</ParamField>
+
+<ParamField path="maxRetries" type="number" required={false} toc={true}>
+The default number of retries for failed requests. When not set, the generated SDK uses its own built-in default. SDK users can still override this per-request via request options.
+</ParamField>
+
+<ParamField path="naming" type="string | object" toc={true}>
+Customize the namespace export and class/type names. Accepts a string shorthand or a full object.
+
+**String shorthand** — sets the namespace and derives all class names via PascalCase:
+
+```yaml title="generators.yml"
+config:
+  naming: acme
+```
+
+```typescript
+import { acme, AcmeClient } from "acme";
+```
+
+**Object form** — override individual names:
+
+```yaml title="generators.yml"
+config:
+  naming:
+    namespace: acme
+    client: AcmeSdkClient
+    error: AcmeSdkError
+    environment: AcmeSdkEnvironment
+```
+
+```typescript
+import { acme, AcmeSdkClient } from "acme";
+```
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `namespace` | `string` | Namespace export name. Equivalent to `namespaceExport`. |
+| `client` | `string` | Client class name (default: `${PascalCase(namespace)}Client`). |
+| `error` | `string` | Generic API error class name (default: `${PascalCase(namespace)}Error`). |
+| `timeoutError` | `string` | Timeout error class name (default: `${PascalCase(namespace)}TimeoutError`). |
+| `environment` | `string` | Environment enum name (default: `${PascalCase(namespace)}Environment`). |
+| `environmentUrls` | `string` | Environment URLs type name (default: `${PascalCase(namespace)}EnvironmentUrls`). |
+| `version` | `string` | Version enum name (default: `${PascalCase(namespace)}Version`). |
+
+`namespaceExport` is still supported for backwards compatibility but `naming.namespace` takes precedence.
+</ParamField>
+
+<ParamField path="neverThrowErrors" type="boolean" default="false" toc={true}>
+  When enabled, the client doesn't throw errors when a non-200 response is received from the server. Instead, the response is wrapped in an [`ApiResponse`](https://github.com/fern-api/fern/blob/main/seed/ts-sdk/alias/src/core/fetcher/APIResponse.ts).
+
+  ```typescript
+  const response = await client.callEndpoint(...);
+  if (response.ok) {
+    console.log(response.body)
+  } else {
+    console.error(respons.error)
+  }
+  ```
+</ParamField>
+
+<ParamField path="noOptionalProperties" type="boolean" default="false" toc={true}>
+  By default, Fern's `optional<>` properties will translate to optional TypeScript properties:
+
+	```yaml {4}
+	Person:
+	  properties:
+	    name: string
+	    age: optional<integer>
+	```
+
+	```typescript {3}
+	interface Person {
+	  name: string;
+	  age?: number;
+	}
+	```
+
+	When `noOptionalProperties` is enabled, the generated properties are never optional. Instead, the type is generated with `| undefined`. As a result, users must explicitly set the property to a value or `undefined`.
+
+	```typescript {3}
+	interface Person {
+	  name: string;
+	  age: number | undefined;
+	}
+	```
+</ParamField>
+
+<ParamField path="noSerdeLayer" type="boolean" default="true" toc={true}>
+Controls whether the serde layer is enabled for serialization/deserialization.
+
+When `noSerdeLayer: false`, the generated client includes custom serialization code that transforms property names to camelCase, validates requests/responses at runtime, and supports complex types.
+
+See [TypeScript serde layer](/learn/sdks/legacy/generators/typescript/serde-layer) for detailed guidance on when to enable this option.
+</ParamField>
+
+<ParamField path="offsetSemantics" type="'item-index' | 'page-index'" default="item-index" toc={true}>
+Controls how the offset parameter is interpreted for [auto-paginated](/learn/sdks/legacy/deep-dives/auto-pagination) endpoints.
+
+*    `item-index`: The offset counts individual items (e.g., offset 20 skips the first 20 items).
+*    `page-index`: The offset counts pages (e.g., offset 3 skips to page 3).
+</ParamField>
+
+<ParamField path="omitFernHeaders" type="boolean" default="false" toc={true}>
+When enabled, the generated SDK omits the `X-Fern-Language`, `X-Fern-SDK-Name`, and `X-Fern-SDK-Version` headers from HTTP requests. These headers are included by default to help API providers identify SDK traffic.
+</ParamField>
+
+<ParamField path="includePlatformHeaders" type="boolean" default="false" toc={true}>
+When enabled, the generated SDK sends a single structured `User-Agent` header of the form `{sdkName}/{version} ({os}; {arch}) {runtime}/{runtimeVersion}` (for example, `my-sdk/0.0.1 (linux; x86_64) Node/20.11.0`), carrying SDK, operating system, architecture, and runtime information in place of the default `User-Agent` and discrete platform headers. A configured [`user-agent`](#user-agent) template supplies the leading product token. If `omitFernHeaders` is enabled, no `User-Agent` or platform headers are sent and this option has no effect.
+</ParamField>
+
+<ParamField path="allowUserAgentAppInfo" type="boolean" default="false" toc={true}>
+When enabled, the generated client accepts an optional `appInfo` client option, which appends a `{name}/{version} ({comment})` [product token](https://www.rfc-editor.org/rfc/rfc9110#name-user-agent) to the `User-Agent` header so an application built on the SDK can identify itself to the API. The application passes a required `name` plus an optional `version` and `comment`; omitted or blank values are dropped from the token. A `User-Agent` set explicitly in client or request headers takes precedence.
+
+```typescript
+appInfo: { name: "partner-app", version: "3.1.0", comment: "+https://partner.example" }
+// User-Agent: my-sdk/0.0.1 (linux; x86_64) Node/20.11.0 partner-app/3.1.0 (+https://partner.example)
+```
+</ParamField>
+
+<ParamField path="optional-auth" type="boolean" default="false" toc={true}>
+When enabled, client auth parameters (bearer token, basic auth credentials, header auth) remain optional even when the spec's [security requirements](/learn/api-definitions/openapi/authentication) mandate auth on every endpoint, and requests are sent without an auth header when no credential is provided. By default, the client throws when a mandatory credential is missing.
+
+Enable this when callers authenticate through a mechanism other than the API's own scheme, such as cloud provider credentials, and would otherwise have to pass a placeholder value.
+</ParamField>
+
+<ParamField path="outputSourceFiles" type="boolean" default="true" toc={true}>
+  Controls the output format of generated files:
+  - **When `true` (default)**: Outputs raw TypeScript `.ts` files
+  - **When `false`**: Runs TypeScript compiler and outputs compiled `.js` files with `.d.ts` declaration files
+
+  <Note>This option only applies when using local file system output. This setting is ignored when publishing to GitHub or npm, where files are always compiled.</Note>
+</ParamField>
+
+<ParamField path="packageJson" type="object" toc={true}>
+When you specify an object in `packageJson`, it will be merged into the `package.json` file. This is the recommended way to customize your SDK's package.json.
+
+```yaml
+# generators.yml
+config:
+  packageJson:
+    description: The SDK for Acme Corp's API.
+    author:
+      name: Acme Corp
+      url: https://developer.acmecorp.com
+      email: developers@acmecorp.com
+    bugs:
+      url: https://developer.acmecorp.com
+      email: developers@acmecorp.com
+```
+
+You can also use `packageJson.exports` to register custom subpath exports (e.g. `import { myHelper } from "@acme/sdk/helper"`). The generator only auto-generates export entries for your API definition, so custom files need to be added manually—otherwise Node.js won't resolve subpath imports for them. See [Adding custom code](/learn/sdks/legacy/generators/typescript/custom-code) for details.
+
+How nested objects are combined with the generated values is controlled by [`packageJsonMergeStrategy`](#packagejsonmergestrategy).
+</ParamField>
+
+<ParamField path="packageJsonMergeStrategy" type="'shallow' | 'deep'" default="shallow" toc={true}>
+Controls how nested objects in `packageJson` are merged into the generated `package.json`.
+
+- `shallow` (default): nested objects are replaced wholesale. For example, overriding `exports["."]` replaces the generated `import`/`require`/`default` conditions with exactly what you wrote.
+- `deep`: nested objects are merged recursively. Your keys win and are emitted first, so a custom `exports` condition is matched before the generated ones.
+
+Use `deep` to add a custom export condition without redefining the whole subpath:
+
+```yaml
+# generators.yml
+config:
+  packageJsonMergeStrategy: deep
+  packageJson:
+    exports:
+      ".":
+        "my-dev-condition":
+          types: "./dist/cjs/index.d.ts"
+          default: "./src/index.ts"
+```
+
+Neither strategy can remove a generated key.
+</ParamField>
+
+<ParamField path="package-name" type="string" default="null" required={false} toc={true}>
+
+Specifies the TypeScript package name that users will import your generated client
+from.
+  
+For example, setting `package-name: "my_custom_package"` enables users to use
+`my_custom_package import Client` to import your client.
+
+</ParamField>
+
+<ParamField path="packagePath" type="string" toc={true}>
+Specify the path where the source files for the generated SDK should be placed.
+</ParamField>
+
+<ParamField path="publishToJsr" type="boolean" toc={true}>
+Publish your SDK to [JSR](https://jsr.io/). When enabled, the generator will
+generate a `jsr.json` as well as a GitHub workflow to publish to JSR.
+</ParamField>
+
+<ParamField path="requireBaseUrl" type="boolean" default="false" toc={true}>
+When enabled, `baseUrl` becomes a required client option and `environment` becomes optional. Generated code snippets and the `README.md` construct the client with `baseUrl` and omit the environments section.
+
+```typescript
+const client = new AcmeClient({ baseUrl: "https://api.acme.com" });
+```
+
+Enable this for APIs with no named environments, or when callers point the SDK at an arbitrary host. The option is ignored for APIs with [multiple base URLs](/learn/sdks/legacy/deep-dives/server-url-templating), whose clients resolve each URL from `environment`.
+
+When `baseUrl` is optional, the client (and any sub-client constructed standalone) resolves the base URL in this order: `baseUrl`, `environment`, the environment variable named by [`base-url-env`](/learn/api-definitions/ferndef/api-yml/environments#base-url-from-an-environment-variable) in your API definition, then the default environment.
+</ParamField>
+
+<ParamField path="respectOptionalRequestBody" type="boolean" default="false" toc={true}>
+Lets callers omit the request argument on endpoints with an optional request body. A call that omits it sends no body and no `Content-Type` header, instead of an empty JSON object (`{}`). Enable this when your API treats a missing body differently from an empty one.
+
+Only applies to request bodies declared as a single named type. Required bodies and inlined request properties are unaffected.
+</ParamField>
+
+<ParamField path="retainOriginalCasing" type="boolean" default="false" toc={true}>
+  When enabled, property names in the generated code retain their original casing from the API definition instead of being converted to camelCase.
+
+	```yaml
+	# generators.yml
+	config:
+	  retainOriginalCasing: true
+	```
+
+	**Example with OpenAPI input:**
+	```yaml {7, 9}
+	# OpenAPI schema
+	components:
+	  schemas:
+	    User:
+	      type: object
+	      properties:
+	        user_id:
+	          type: string
+	        display_name:
+	          type: string
+	```
+
+	Generated TypeScript with `retainOriginalCasing: true`:
+	```typescript {2-3}
+	export interface User {
+	  user_id: string;
+	  display_name: string;
+	}
+	```
+
+	Generated TypeScript with default settings (`retainOriginalCasing: false`):
+	```typescript {2-3}
+	export interface User {
+	  userId: string;
+	  displayName: string;
+	}
+	```
+
+</ParamField>
+
+<ParamField path="generateWebSocketClients" type="boolean" toc={true}>
+	Generate [WebSocket clients](/learn/sdks/legacy/deep-dives/websocket-clients) from your AsyncAPI channel definitions.
+
+	Previously named `shouldGenerateWebsocketClients`, which is still accepted as a deprecated alias.
+</ParamField>
+
+<ParamField path="websocketHandlerMode" type="'replace' | 'accumulate'" default="replace" toc={true}>
+  Controls what happens when you register more than one handler for the same event on a generated WebSocket socket. Requires `generateWebSocketClients: true`.
+
+  * `replace`: registering a second handler for an event replaces the first.
+  * `accumulate`: handlers for the same event accumulate and fire in registration order, like an `EventEmitter`.
+
+  In both modes, `socket.off(event, handler)` detaches a handler.
+
+  ```yaml title="generators.yml"
+  - name: fernapi/fern-typescript-sdk
+    config:
+      generateWebSocketClients: true
+      websocketHandlerMode: accumulate
+  ```
+</ParamField>
+
+<ParamField path="skipResponseValidation" type="boolean" default="false" toc={true}>
+ By default, the client will throw an error if the response from the server
+doesn't match the expected type (based on how the response is modeled in your API specification).
+
+If `skipResponseValidation` is set to `true`, the client will never throw if the response is misshapen. Instead, the client will log the issue using `console.warn` and return the data (casted to the expected response type).
+
+<Warning>Response validation only occurs when the Serde layer is enabled (`noSerdeLayer: false`). The Serde layer is disabled by default (`noSerdeLayer: true`).</Warning>
+
+</ParamField>
+
+<ParamField path="streamType" type="'wrapper' | 'web'" toc={true}>
+Change the type of stream that is used in the generated SDK.
+
+*    `wrapper`: The streams use a wrapper with multiple underlying implementations to support versions of Node.js before Node.js 18.
+*    `web`: The streams use the web standard `ReadableStream`.
+
+The default is `web`.
+</ParamField>
+
+<ParamField path="treatUnknownAsAny" type="boolean" default="false" toc={true}>
+  When `treatUnknownAsAny` is enabled, [unknown types from Fern are generated into TypeScript using `any` instead of the `unknown` type](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-0.html#new-unknown-top-type).
+</ParamField>
+
+<ParamField path="user-agent" type="string" default="{packageName}/{version}" required={false} toc={true}>
+Sets a custom `User-Agent` header template for requests sent by the generated SDK. The template is resolved at generation time and supports the `{packageName}`, `{version}`, `{language}`, `{generatorVersion}`, `{organization}`, and `{apiName}` placeholders.
+
+```yaml title="generators.yml"
+config:
+  user-agent: "plantstore-node-sdk/{version}"
+```
+
+This sends `User-Agent: plantstore-node-sdk/0.1.0`. With [`includePlatformHeaders`](#includeplatformheaders) enabled, the resolved value leads the structured header: `User-Agent: plantstore-node-sdk/0.1.0 (linux; x86_64) Node/20.11.0`. A value that doesn't end in a version, such as `@plantstore/sdk`, is used as-is. The [`allowUserAgentAppInfo`](#allowuseragentappinfo) token is appended after either form.
+</ParamField>
+
+<ParamField path="useBigInt" type="boolean" default="false" toc={true}>
+When `useBigInt` is set to `true`, a customized JSON serializer & deserializer is used that will preserve the precision of `bigint`'s, as opposed to the native `JSON.stringify` and `JSON.parse` function which converts `bigint`'s to number's losing precision.
+
+When combining `useBigInt` with our serialization layer (`noSerdeLayer: false`), both the request and response properties that are marked as `long` and `bigint` in OpenAPI/Fern spec, will consistently be `bigint`'s.
+However, when disabling the serialization layer (`noSerdeLayer: true`), they will be typed as `number | bigint`. See [TypeScript serde layer](/learn/sdks/legacy/generators/typescript/serde-layer) for more information.
+
+Here's an overview of what to expect from the generated types when combining `useBigInt` and `noSerdeLayer` with the following Fern definition:
+
+*Fern definition*:
+
+```yaml
+types:
+  ObjectWithOptionalField:
+    properties:
+      longProp: long
+      bigIntProp: bigint
+```
+
+*TypeScript output*:
+
+```typescript
+// useBigInt: true
+// noSerdeLayer: false
+interface ObjectWithLongAndBigInt {
+  longProp: bigint;
+  bigIntProp: bigint;
+}
+
+// useBigInt: true
+// noSerdeLayer: true
+interface ObjectWithLongAndBigInt {
+  longProp: bigint | number;
+  bigIntProp: bigint | number;
+}
+
+// useBigInt: false
+// noSerdeLayer: false
+interface ObjectWithLongAndBigInt {
+  longProp: number;
+  bigIntProp: string;
+}
+
+// useBigInt: false
+// noSerdeLayer: true
+interface ObjectWithLongAndBigInt {
+  longProp: number;
+  bigIntProp: string;
+}
+```
+</ParamField>
+
+<ParamField path="useBrandedStringAliases" type="boolean" default="false" toc={true}>
+
+	When `useBrandedStringAliases` is disabled (the default), string aliases are generated as
+	normal TypeScript aliases:
+
+	```typescript
+	// generated code
+
+	export type MyString = string;
+
+	export type OtherString = string;
+	```
+  When `useBrandedStringAliases` is enabled, string aliases are generated as branded strings. This makes each alias feel like its own type and improves compile-time safety.
+
+	```yaml
+	# fern definition
+
+	types:
+		MyString: string
+		OtherString: string
+	```
+
+	```typescript
+	// generated code
+
+	export type MyString = string & { __MyString: void };
+	export const MyString = (value: string): MyString => value as MyString;
+
+	export type OtherString = string & { __OtherString: void };
+	export const OtherString = (value: string): OtherString => value as OtherString;
+	```
+
+	```typescript
+	// consuming the generated type
+
+	function printMyString(s: MyString): void {
+	  console.log("MyString: " + s);
+	}
+
+	// doesn't compile, "foo" is not assignable to MyString
+	printMyString("foo");
+
+	const otherString = OtherString("other-string");
+	// doesn't compile, otherString is not assignable to MyString
+	printMyString(otherString);
+
+	// compiles
+	const myString = MyString("my-string");
+	printMyString(myString);
+	```
+
+</ParamField>

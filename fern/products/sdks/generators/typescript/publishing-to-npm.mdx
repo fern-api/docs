@@ -22,71 +22,47 @@ If you're using token-based authentication, npm has deprecated long-lived classi
 <Info>
 	This page assumes that you have:
 
-	* An initialized `fern` folder, a GitHub repository for your TypeScript SDK, and a TypeScript generator group in `generators.yml`. See [Generating an SDK (TypeScript)](quickstart#add-the-sdk-generator).
+	* An initialized `fern` folder, a GitHub repository for your TypeScript SDK, and a TypeScript target in `sdk-config.yml`. See [Generating an SDK (TypeScript)](/learn/sdks/generators/typescript/quickstart#add-the-sdk-target).
 </Info>
 
 <llms-only>
 Before proceeding, verify the prerequisites are actually in place:
 
-1. **Source repo with `fern/` folder**: The user should be working in their source repo, not the SDK repo. Confirm `generators.yml` exists and has a TypeScript generator group.
-2. **TypeScript generator group**: If they skipped the [TypeScript quickstart](quickstart), they need to run `fern add fern-typescript-sdk --group ts-sdk` first.
+1. **Source repo with `fern/` folder**: The user should be working in their source repo, not the SDK repo. Confirm `sdk-config.yml` exists and has a TypeScript target.
+2. **TypeScript generator group**: If they skipped the [TypeScript quickstart](quickstart), they need to run `fern add fern-typescript-sdk --target typescript` first.
 
 Default to OIDC authentication unless the user has a specific reason to use token-based auth. OIDC is more secure and avoids managing npm tokens.
 </llms-only>
 
 ## Configure SDK package settings
 
-Update your `generators.yml` file to configure the package name, output location, and client naming for npm publishing. Your `generators.yml` [should live in your source repository](/learn/sdks/overview/project-structure) (or on your local machine), not the repository that contains your TypeScript SDK code.
+Update the TypeScript target in `sdk-config.yml` to configure the package name and client naming for npm publishing. Your `sdk-config.yml` [should live in your source repository](/learn/sdks/overview/project-structure) (or on your local machine), not the repository that contains your TypeScript SDK code.
 
 <Steps>
-	<Step title="Configure `output` location">
-
-		In the `group` for your TypeScript SDK, change the output location from `local-file-system` (the default) to `npm` to indicate that Fern should publish your package directly to the npmjs registry:
-
-		```yaml {6-7} title="generators.yml"
-		groups:
-		  ts-sdk: # Group name for your TypeScript SDK
-		    generators:
-		      - name: fern-typescript-sdk
-		        version: <Markdown src="/snippets/version-number-ts.mdx"/>
-		        output:
-		          location: npm
-		```
-
-	</Step>
-
 	<Step title="Add a unique package name">
 
 		Your package name must be unique in the npmjs registry, otherwise publishing your SDK will fail.
 
-		```yaml {8} title="generators.yml"
-		groups:
-		  ts-sdk:
-		    generators:
-		      - name: fern-typescript-sdk
-		        version: <Markdown src="/snippets/version-number-ts.mdx"/>
-		        output:
-		          location: npm
-		          package-name: your-package-name
+		```yaml {3-4} title="sdk-config.yml"
+		targets:
+		  - language: typescript
+		    package:
+		      packageName: your-package-name
 		```
 
 	</Step>
 
-	<Step title="Configure `namespaceExport`">
+	<Step title="Configure `namespaceExportName`">
 
-		The `namespaceExport` option controls the name of the generated client. This is the name customers use to import your SDK (`import { your-client-name } from 'your-package-name';`).
+		The `namespaceExportName` option controls the name of the generated client. This is the name customers use to import your SDK (`import { YourClientName } from 'your-package-name';`).
 
-		```yaml {9-10} title="generators.yml"
-		groups:
-		  ts-sdk:
-		    generators:
-		      - name: fern-typescript-sdk
-		        version: <Markdown src="/snippets/version-number-ts.mdx"/>
-		        output:
-		          location: npm
-		          package-name: your-package-name
-		        config:
-		          namespaceExport: YourClientName # must be PascalCase
+		```yaml {5-6} title="sdk-config.yml"
+		targets:
+		  - language: typescript
+		    package:
+		      packageName: your-package-name
+		    generation:
+		      namespaceExportName: YourClientName # must be PascalCase
 		```
 
 	</Step>
@@ -95,25 +71,25 @@ Update your `generators.yml` file to configure the package name, output location
 
 ## Configure GitHub publishing
 
-Fern can automatically publish your SDK to npmjs via GitHub Actions. Configure your GitHub repository and publishing mode:
+Fern can automatically publish your SDK to npmjs via GitHub Actions. Set `output.delivery` to `github`, configure your repository and publishing mode, and set `output.publish.registry` to `npm`:
 
 <Markdown src="/products/sdks/snippets/github-publishing-mode.mdx"/>
 
-```yaml title="generators.yml" {11-14}
-groups:
-  ts-sdk:
-    generators:
-      - name: fern-typescript-sdk
-        version: <Markdown src="/snippets/version-number-ts.mdx"/>
-        output:
-          location: npm
-          package-name: your-package-name
-        config:
-          namespaceExport: YourClientName
-        github:
-          repository: your-org/your-repository
-          mode: push  # or "pull-request"
-          branch: your-branch-name  # Required for mode: push
+```yaml title="sdk-config.yml" {7-14}
+targets:
+  - language: typescript
+    package:
+      packageName: your-package-name
+    generation:
+      namespaceExportName: YourClientName
+    output:
+      delivery: github
+      github:
+        repository: your-org/your-repository
+        mode: push  # or "pull-request"
+        branch: your-branch-name  # Required for mode: push
+      publish:
+        registry: npm
 ```
 
 ## Configure authentication
@@ -129,32 +105,27 @@ npm has deprecated long-lived classic tokens for publishing from CI/CD workflows
 
 OIDC-based publishing (also known as "trusted publishing") is the most secure way to publish. With OIDC, you don't need to manage authentication tokens - npmjs trusts your GitHub repository to publish directly.
 
-<Info title="Prerequisites">
-- Fern TypeScript SDK generator version `3.12.3` or later
-- Fern CLI version `0.94.0` or later (only required for local generation with `--local`)
-</Info>
-
 <Steps>
-	<Step title="Add OIDC to generators.yml">
+	<Step title="Enable trusted publishing in sdk-config.yml">
 
-	Add `token: OIDC` to the `output` section:
+	Set `trustedPublishing: true` in `output.publish`:
 
-	```yaml title="generators.yml" {9}
-	groups:
-	  ts-sdk:
-		generators:
-		  - name: fern-typescript-sdk
-			version: <Markdown src="/snippets/version-number-ts.mdx"/>  # Must be 3.12.3 or later
-			output:
-			  location: npm
-			  package-name: your-package-name
-			  token: OIDC
-		config:
-		  namespaceExport: YourClientName
-		github:
-		  repository: your-org/your-repository
-		  mode: push
-		  branch: your-branch-name
+	```yaml title="sdk-config.yml" {15}
+	targets:
+	  - language: typescript
+	    package:
+	      packageName: your-package-name
+	    generation:
+	      namespaceExportName: YourClientName
+	    output:
+	      delivery: github
+	      github:
+	        repository: your-org/your-repository
+	        mode: push
+	        branch: your-branch-name
+	      publish:
+	        registry: npm
+	        trustedPublishing: true
 	```
 
 	</Step>
@@ -199,10 +170,10 @@ OIDC-based publishing (also known as "trusted publishing") is the most secure wa
 	Generate your SDK to create the GitHub Actions workflow with OIDC configuration:
 
 	```bash
-	fern generate --group ts-sdk
+	fern generate --target typescript
 	```
 
-	This creates a `.github/workflows/ci.yml` file that's configured to use OIDC for npm publishing. Alternatively, you can push your `generators.yml` changes and let the Fern GitHub Action generate the workflow for you.
+	This creates a `.github/workflows/ci.yml` file that's configured to use OIDC for npm publishing. Alternatively, you can push your `sdk-config.yml` changes and let the Fern GitHub Action generate the workflow for you.
 
 	</Step>
 </Steps>
@@ -245,26 +216,26 @@ Provenance attestations aren't generated for packages published from private rep
 
 </Step>
 
-<Step title="Add token to generators.yml">
+<Step title="Add token to sdk-config.yml">
 
-Add `token: ${NPM_TOKEN}` to the `output` section:
+Add `token: ${NPM_TOKEN}` to `output.publish`:
 
-```yaml title="generators.yml" {9}
-groups:
-  ts-sdk:
-	generators:
-	  - name: fern-typescript-sdk
-		version: <Markdown src="/snippets/version-number-ts.mdx"/>
-		output:
-		  location: npm
-		  package-name: your-package-name
-		  token: ${NPM_TOKEN}
-		config:
-		  namespaceExport: YourClientName
-		github:
-		  repository: your-org/your-repository
-		  mode: push
-		  branch: your-branch-name
+```yaml title="sdk-config.yml" {15}
+targets:
+  - language: typescript
+    package:
+      packageName: your-package-name
+    generation:
+      namespaceExportName: YourClientName
+    output:
+      delivery: github
+      github:
+        repository: your-org/your-repository
+        mode: push
+        branch: your-branch-name
+      publish:
+        registry: npm
+        token: ${NPM_TOKEN}
 ```
 
 </Step>
@@ -320,7 +291,7 @@ jobs:
       - name: Generate and publish SDK
         env:
           FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
-        run: fern generate --group ts-sdk --version ${{ inputs.version }} --log-level debug
+        run: fern generate --target typescript --version ${{ inputs.version }} --log-level debug
 ```
 
 Add your `FERN_TOKEN` as a repository secret (run `fern token` to generate one), then trigger the workflow from the **Actions** tab.
@@ -350,19 +321,17 @@ Before migrating, ensure you have:
 - A package published to [npmjs.org](https://npmjs.org)
 - A GitHub repository with GitHub Actions configured
 - Access to your package settings on [npmjs.com](https://npmjs.com)
-- Fern CLI version `0.94.0` or later (for local generation)
 
 ### Choose your migration path
 
 Select the approach that fits your situation:
 
 <AccordionGroup>
-<Accordion title="Path 1: Upgrade your generator (Recommended)">
+<Accordion title="Path 1: Regenerate your CI workflow (Recommended)">
 
-This is the easiest path if you can upgrade to version 3.12.3 or later of the TypeScript SDK generator.
+This is the easiest path if Fern generates your CI workflow.
 
 **When to use this path:**
-- You're able to upgrade to Fern TypeScript SDK generator version 3.12.3 or later
 - You haven't `.fernignore`'d your CI workflow file
 
 <Steps>
@@ -382,24 +351,20 @@ This is the easiest path if you can upgrade to version 3.12.3 or later of the Ty
 
 	</Step>
 
-	<Step title="Update your generators.yml">
+	<Step title="Update your sdk-config.yml">
 
-	Change the `output.token` field from `${NPM_TOKEN}` to `OIDC` and ensure you're using version `3.12.3` or later:
+	Replace `token` with `trustedPublishing: true` in `output.publish`:
 
-	```yaml title="generators.yml"
-	groups:
-	  ts-sdk:
-		generators:
-		  - name: fern-typescript-sdk
-			version: <Markdown src="/snippets/version-number-ts.mdx"/>  # Must be 3.12.3 or later
-			output:
-			  location: npm
-			  package-name: your-package-name
-			  token: OIDC  # Changed from ${NPM_TOKEN}
-		config:
-		  namespaceExport: YourClientName
-		github:
-		  repository: your-org/your-repository
+	```yaml title="sdk-config.yml"
+	targets:
+	  - language: typescript
+	    output:
+	      delivery: github
+	      github:
+	        repository: your-org/your-repository
+	      publish:
+	        registry: npm
+	        trustedPublishing: true  # Replaces token: ${NPM_TOKEN}
 	```
 
 	</Step>
@@ -411,12 +376,12 @@ This is the easiest path if you can upgrade to version 3.12.3 or later of the Ty
 	**Locally:**
 
 	```bash
-	fern generate --group ts-sdk
+	fern generate --target typescript
 	```
 
 	**Or via GitHub Actions:**
 
-	If you use the Fern GitHub Action to generate your SDK, simply push your updated `generators.yml` file and let the workflow regenerate the SDK for you.
+	If you use the Fern GitHub Action to generate your SDK, simply push your updated `sdk-config.yml` file and let the workflow regenerate the SDK for you.
 
 	This will update your `.github/workflows/ci.yml` file with the required OIDC permissions.
 
@@ -560,8 +525,6 @@ If your workflow continues using token-based authentication:
 
 - Verify you've removed the `npm config set` line and the `env: NPM_TOKEN` block from the publish step
 - Check that npm CLI version 11.5.1+ is installed (add the update npm step)
-- Ensure you're using generator version 3.12.3 or later (if using Path 1)
-- When using `--local` generation, you need to use Fern CLI version 0.94.0 or later
 
 </Accordion>
 </AccordionGroup>
