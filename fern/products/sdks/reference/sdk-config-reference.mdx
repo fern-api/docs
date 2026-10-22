@@ -661,3 +661,47 @@ Language targets to generate. Each language may appear once per file. Generate a
 <ParamField path="targets[].output" type="object" required={false} toc={true}>
   Output configuration that replaces the root output for this target.
 </ParamField>
+
+## Frequently asked questions
+
+**Where do I put my npm/PyPI/registry tokens — should I use a `.env` file?**
+
+Use environment expressions such as `${NPM_TOKEN}` directly in `sdk-config.yml`. Fern resolves them at generation time from the environment where `fern generate` runs — CI secrets, local shell exports, or any other mechanism that sets environment variables. Do not commit literal token values.
+
+```yaml title="sdk-config.yml"
+targets:
+  - language: typescript
+    output:
+      delivery: github
+      github:
+        repository: your-org/your-sdk
+      publish:
+        registry: npm
+        token: ${NPM_TOKEN}  # resolved from the environment at generation time
+```
+
+**Can SDK generation always open a new pull request instead of updating an existing one?**
+
+Yes. Set `output.github.mode` to `pull-request` and Fern opens a new PR on every run. The default `push` mode commits directly to the target branch.
+
+```yaml title="sdk-config.yml"
+targets:
+  - language: typescript
+    output:
+      delivery: github
+      github:
+        repository: your-org/your-sdk
+        mode: pull-request
+```
+
+**Does my OpenAPI spec need to live in the same repository as my Fern config?**
+
+No. Use `source.specs[].url` to point at any HTTP(S) URL, or `source.specs[].path` for a relative path when the spec is in the same repo. The spec can live anywhere reachable at generation time.
+
+```yaml title="sdk-config.yml"
+source:
+  specs:
+    - id: my-api
+      type: openapi
+      url: https://api.example.com/openapi.json  # fetched at generation time
+```
