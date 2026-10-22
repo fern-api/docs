@@ -102,6 +102,25 @@ contoso plants create \
   --json '{"name": "Monstera", "species": "Monstera deliciosa", "sunlight": "indirect"}'
 ```
 
+Object-valued body flags take a JSON object, including properties wrapped in a one-option `oneOf` or `anyOf` (`oneOf: [$ref: Model]`), which are handled as the wrapped object and get dotted flags for its fields (`--from.name`). When the object, or each element of an array of objects, has exactly one required property and that property is a string, the flag also accepts a plain value for that property, and `--help` shows the value as `<VALUE|JSON_OBJECT>`. List flags accept comma-separated plain values and JSON objects in any mix:
+
+```bash
+# Sends "from": {"email": "me@x.com"}
+# and "to": [{"email": "a@x.com"}, {"email": "b@x.com"}, {"email": "c@x.com", "name": "C"}]
+contoso messages send --from me@x.com \
+  --to a@x.com,b@x.com --to '{"email": "c@x.com", "name": "C"}'
+```
+
+String values inside JSON input (`--json`, an object-valued flag, or a JSON element of a repeated object flag) can reference files: `@<path>` embeds the file as UTF-8 text, or base64 when it isn't valid UTF-8; `@file://<path>` requires UTF-8; and `@data://<path>` always base64-encodes. A leading `\@` sends a literal `@`. A file that can't be read fails before the request is sent. Items of string-list flags are always sent as written, so `--to @handle` stays `"@handle"`.
+
+```bash
+contoso messages send --attachments '{"content": "@data://report.pdf", "filename": "report.pdf"}'
+```
+
+Inputs are checked against the spec before the request is built. String values marked `format: email` must match a loose `local@domain.tld` pattern; a malformed address fails with a validation error naming the field, and no request is sent.
+
+When stdin and stderr are both terminals, the CLI prompts for each required parameter not supplied by a flag, `--params`, `--json`, a [profile](/learn/cli-generator/get-started/authentication#named-profiles), or a [global parameter](/learn/cli-generator/get-started/openapi-extensions#global-parameters). Answers convert the same way as the equivalent flag value. An empty answer leaves the parameter unset and Ctrl-D stops prompting, so the CLI reports the remaining parameters as missing. Piped, scripted, and CI runs never prompt, and neither does an invocation that reads stdin (`--json -` or an `@-` reference).
+
 Headers declared API-wide, through the `headers:` block of a Fern definition or [`x-fern-global-headers`](/learn/api-definitions/openapi/extensions/global-headers) in OpenAPI, are sent on every request, preserving each header's `env` fallback, `client-default`, and optionality. An [`x-fern-global-parameters`](/learn/cli-generator/get-started/openapi-extensions#global-parameters) entry targeting the same header takes precedence.
 
 Run `contoso <command> --help` to list a command's flags, or [`--schema`](#machine-readable-schema) for the same surface as a machine-readable JSON contract. When a flag name differs from the spec, `--help` shows the original name as `(api: <name>)`, which is the key to use in `--params`.
