@@ -57,20 +57,22 @@ This definition describes documents like:
 </Garden>
 ```
 
-Element names, attributes, text bodies, nested and union children, repeated children, wrapped lists, list separators on attributes and text, namespaces, prefixes, and escaping are all honored.
+Element names, attributes, text bodies, nested and union children, repeated children, wrapped lists, list separators on attributes and text, namespaces, prefixes, and escaping are all honored. Element text escapes `&`, `<`, and `>`; attribute values also escape `"`.
 
 ## Generated methods
 
 Every XML-encoded type gets three capabilities, named idiomatically per language:
 
-- **Serialize**: `toXml()` (`to_xml` in Python and Ruby, `ToXml()` in C# and Go) returns the element as an XML document prefixed with the `<?xml version="1.0" encoding="UTF-8"?>` declaration. Pass `false` to omit the declaration: `toXml(false)` in TypeScript, Java, and PHP, `ToXml(false)` in C#, `to_xml(xml_declaration=False)` in Python, and `to_xml(xml_declaration: false)` in Ruby. Go's `ToXml()` always includes it. Nested children are always written without a declaration.
+- **Serialize**: `toXml()` (`to_xml` in Python and Ruby, `ToXml()` in C# and Go) returns the element as an XML document prefixed with the `<?xml version="1.0" encoding="UTF-8"?>` declaration. Pass `false` to omit the declaration: `toXml(false)` in TypeScript, Java, and PHP, `ToXml(false)` in C#, `to_xml(xml_declaration=False)` in Python, and `to_xml(false)` or `to_xml(xml_declaration: false)` in Ruby (`to_s(false)` also works). PHP also exposes `asXML()` as an alias for `toXml()`. In C#, `ToXml(xmlDeclaration, indent)` returns indented XML; the other overloads and `ToString()` return compact XML. Go's `ToXml()` always includes the declaration. Nested children are always written without a declaration.
 - **Parse**: `fromXml(xml)` (`from_xml` in Python and Ruby, `FromXml()` in C#, `<Type>FromXml()` in Go) parses an XML string back into the model. Parsing validates the root element name and scalar values, and rejects malformed input and `DOCTYPE` declarations. Enum values are open in Go, PHP, and Ruby, and in TypeScript with `enableForwardCompatibleEnums: true`: a value the enum doesn't declare (for example, one added to the API after the SDK was generated) is kept and re-emitted by `toXml`.
-- **Build**: one fluent method per child element type, named after the XML tag (for example, `garden.plant(...)`). In TypeScript, Python, Ruby, and PHP, each method constructs the child, appends it, and returns the child so its own children can be added. In C# and Go, it appends the child and returns the parent so calls chain (`response.Say(...).Say(...)`). A child method gets an `add` prefix (`addPlant`, `add_plant`, `AddPlant`) when its tag collides with a property or method of the parent, or when the name is a reserved word (`addBreak` in TypeScript, `break_` in Python and Ruby).
+- **Build**: one fluent method per child element type, named after the XML tag (for example, `garden.plant(...)`). In TypeScript, Python, Ruby, and PHP, each method constructs the child, appends it, and returns the child so its own children can be added. In C# and Go, it appends the child and returns the parent so calls chain (`response.Say(...).Say(...)`). A child method gets an `add` prefix (`addPlant`, `add_plant`, `AddPlant`) when its tag collides with a property or method of the parent, or when the name is a reserved word (`addBreak` in TypeScript, `break_` in Python and Ruby). In Java, the typed overload under the tag name (`number(Number)` on `Dial.Builder`) is generated alongside `addNumber(Number)` even when a text or attribute setter already uses that name, as long as the parameter types differ.
+
+Child methods for elements that carry text take that text first. In TypeScript, pass the text as a string or pass a fields object (`response.say("hi")` or `response.say({ message: "hi", voice: "alice" })`). In C#, the value overload lists the element text first, then required attributes, then optional attributes (`response.Say("hi", voice: "alice")`). In Java, a type whose text is required gets a `builder(text)` factory (`Body.builder("hi")`), and each list-valued attribute setter accepts varargs as well as a `List` (`Gather.builder().input(GatherInputItem.DTMF, GatherInputItem.SPEECH)`).
 
 <CodeBlocks>
 ```ts TypeScript
 const garden = SeedApi.Garden.builder({ climate: "temperate" });
-garden.plant("Fern", { sunlight: "full" });
+garden.plant({ name: "Fern", sunlight: "full" });
 const xml = garden.toXml();
 
 const parsed = SeedApi.Garden.fromXml(xml);                // immutable model
