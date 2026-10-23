@@ -5,7 +5,7 @@ subtitle: 'Commands that apply across SDKs and docs.'
 hideOnThisPage: true
 ---
 
-These commands apply to every Fern project, whether it publishes [docs](/learn/cli-api-reference/cli-reference/docs-commands), [SDKs](/learn/cli-api-reference/cli-reference/sdk-commands), or both. They create and validate a project, authenticate the CLI, update your API definition, and set the CLI version your organization runs. Each one accepts the [global options](/learn/cli-api-reference/cli-reference/options).
+These commands apply to every Fern project, whether it publishes [docs](/learn/cli-api-reference/cli-reference/docs-commands), [SDKs](/learn/cli-api-reference/cli-reference/sdk-commands), or both. They create and validate a project, authenticate the CLI, manage your organization's API keys, update your API definition, and set the CLI version your organization runs. Each one accepts the [global options](/learn/cli-api-reference/cli-reference/options).
 
 | Command | Description |
 |---------|-------------|
@@ -22,6 +22,9 @@ These commands apply to every Fern project, whether it publishes [docs](/learn/c
 | [`fern org get`](#fern-org-get) | View your organization's CLI version policy |
 | [`fern org set cli-version`](#fern-org-set-cli-version) | Set a minimum, maximum, or exact CLI version for your organization |
 | [`fern org unset cli-version`](#fern-org-unset-cli-version) | Clear your organization's CLI version policy |
+| [`fern org token list`](#fern-org-token-list) | List your organization's API keys as a table, JSON, or CSV |
+| [`fern org token create`](#fern-org-token-create) | Create an organization API key |
+| [`fern org token revoke`](#fern-org-token-revoke) | Revoke an organization API key by its token ID |
 
 ## Detailed command documentation
 
@@ -400,7 +403,7 @@ These commands apply to every Fern project, whether it publishes [docs](/learn/c
   <llms-only>
   ### "Missing file" error
 
-  `fern api update` downloads the remote spec and overwrites the local file referenced by the `openapi:` path in `generators.yml`. The target file must already exist on disk before the command runs — the command updates an existing file in place and does not create new files.
+  `fern api update` downloads the remote spec and overwrites the local file referenced by the `openapi:` path in `generators.yml`. The target file must already exist on disk before the command runs — the command updates an existing file in place and doesn't create new files.
 
   If the file doesn't exist yet, create an empty placeholder at that path first, then run `fern api update`:
 
@@ -523,6 +526,90 @@ These commands apply to every Fern project, whether it publishes [docs](/learn/c
     ```bash
     fern org unset cli-version --max
     ```
+
+  </Accordion>
+
+  <Accordion title="fern org token list">
+
+    Use `fern org token list` to list your organization's [API keys](/learn/dashboard/configuration/api-keys), including revoked and expired keys. Each row shows the key's name, token ID, status, creator, creation time, and last use. The secret value isn't included; it's shown only once, at creation.
+
+    The `fern org token` commands require a user session from [`fern login`](#fern-login). They reject an organization API key set as `FERN_TOKEN`, so unset `FERN_TOKEN` before running them. Any member of the organization can list keys.
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern org token list [--json] [--csv] [--org <org>]
+    ```
+    </CodeBlock>
+
+    ### json
+
+    Use `--json` to output the keys as a JSON array with ISO 8601 timestamps.
+
+    ```bash
+    fern org token list --json
+    ```
+
+    ### csv
+
+    Use `--csv` to export the keys as CSV, for example to audit them in a spreadsheet. The columns are `Name`, `Token ID`, `Status`, `Created by`, `Created at`, and `Last used at`.
+
+    ```bash
+    fern org token list --csv > api-keys.csv
+    ```
+
+    ### org
+
+    Use `--org` to override the organization ID from `fern.config.json`.
+
+    ```bash
+    fern org token list --org my-org
+    ```
+
+  </Accordion>
+
+  <Accordion title="fern org token create">
+
+    Use `fern org token create` to create an organization API key for CI/CD. Requires the [Admin](/learn/dashboard/configuration/permissions#admin) role.
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern org token create [--description <description>] [--json] [--org <org>]
+    ```
+    </CodeBlock>
+
+    The CLI prints the token ID and the secret. The secret is shown only once, so store it immediately (for example as a `FERN_TOKEN` secret in your CI/CD provider). Only the secret goes to stdout, so it can be piped:
+
+    ```bash
+    fern org token create --description "GitHub Actions" | gh secret set FERN_TOKEN
+    ```
+
+    ### description
+
+    Use `--description` to name the key. In an interactive terminal, the CLI prompts for an optional description when the flag is omitted.
+
+    ### json
+
+    Use `--json` to output `{ "tokenId": ..., "token": ... }`.
+
+    ### org
+
+    Use `--org` to override the organization ID from `fern.config.json`.
+
+  </Accordion>
+
+  <Accordion title="fern org token revoke">
+
+    Use `fern org token revoke` to revoke an API key by its token ID, which `fern org token list` shows. Revoked keys stop working immediately and can't be restored. Requires the [Admin](/learn/dashboard/configuration/permissions#admin) role.
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern org token revoke <token-id> [--json]
+    ```
+    </CodeBlock>
+
+    ### json
+
+    Use `--json` to output `{ "success": true, "tokenId": ... }`.
 
   </Accordion>
 </AccordionGroup>
