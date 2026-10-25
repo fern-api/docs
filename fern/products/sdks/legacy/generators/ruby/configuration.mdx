@@ -186,6 +186,16 @@ Lets callers omit the request body on endpoints with an optional request body. A
 Only applies to request bodies declared as a single named type. Required bodies, inlined request properties, and form-urlencoded bodies are unaffected.
 </ParamField>
 
+<ParamField path="omitUnsetModelFields" type="boolean" default="false" required={false} toc={true}>
+When enabled, model fields the caller never set (through the constructor or a setter) are left out of request bodies, whether the field is required or optional and including fields on nested models. Without this option, unset required fields are sent as `null`. An explicitly passed `nil` is still sent as `null`, except on optional non-nullable fields, which are always dropped. Enable this for APIs with partial or sparse-update semantics that reject `null` for fields the caller didn't intend to change.
+
+```ruby
+client.orders.update(order_id: "o1", idempotency_key: "k1", order: {})
+# Default: {"order":{"location_id":null},"idempotency_key":"k1"}
+# Enabled: {"order":{},"idempotency_key":"k1"}
+```
+</ParamField>
+
 <ParamField path="wrapInvalidJsonResponses" type="boolean" default="false" required={false} toc={true}>
 When enabled, a 2xx response whose body isn't valid JSON raises `Errors::ResponseError`, carrying the raw body and status code, instead of letting `JSON::ParserError` escape to the caller.
 </ParamField>
