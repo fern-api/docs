@@ -894,3 +894,48 @@ export function DocsPreview({ children }: { children?: any }) {
     </div>
   );
 }
+
+// Fern design-system glyphs (fern-dashboard components/icons): 16px grid, round caps and joins.
+const SPEC_GLYPHS: Record<string, any> = {
+  openapi: (
+    <>
+      <path d="M5.5 2.125L4.75 2.125A1.25 1.25 0 0 0 3.5 3.375L3.5 6.232A1.25 1.25 0 0 1 3.134 7.116L2.25 8L3.134 8.884A1.25 1.25 0 0 1 3.5 9.768L3.5 12.625A1.25 1.25 0 0 0 4.75 13.875L5.5 13.875" />
+      <path d="M10.5 2.125L11.25 2.125A1.25 1.25 0 0 1 12.5 3.375L12.5 6.232A1.25 1.25 0 0 0 12.866 7.116L13.75 8L12.866 8.884A1.25 1.25 0 0 0 12.5 9.768L12.5 12.625A1.25 1.25 0 0 1 11.25 13.875L10.5 13.875" />
+    </>
+  ),
+  asyncapi: (
+    <>
+      <path d="M8.496 2.83L4.203 7.982A0.697 0.697 0 0 0 4.738 9.125L6.636 9.125A1.029 1.029 0 0 1 7.625 10.436L6.931 12.867A0.331 0.331 0 0 0 7.504 13.17L11.797 8.018A0.697 0.697 0 0 0 11.262 6.875L9.364 6.875A1.029 1.029 0 0 1 8.375 5.564L9.069 3.133A0.331 0.331 0 0 0 8.496 2.83Z" />
+    </>
+  ),
+  openrpc: (
+    <>
+      <path d="M2.25 4.75H13.75M10.75 1.75L13.75 4.75L10.75 7.75M13.75 11.25H2.25M5.25 8.25L2.25 11.25L5.25 14.25" />
+    </>
+  ),
+  grpc: (
+    <>
+      <rect x={1.625} y={2.125} width={12.75} height={11.75} rx={1.25} />
+      <path d="M1.625 8H14.375M7 5.0625H11.5M7 10.9375H11.5" />
+      <circle cx={4.5} cy={5.063} r={0.75} fill="currentColor" stroke="none" />
+      <circle cx={4.5} cy={10.938} r={0.75} fill="currentColor" stroke="none" />
+    </>
+  ),
+};
+
+export function SpecIcon({ name }: { name: string }) {
+  return (
+    <svg
+      className="hg-tile-logo hg-spec-icon"
+      viewBox="-2 -2 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={0.9375}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {SPEC_GLYPHS[name]}
+    </svg>
+  );
+}
