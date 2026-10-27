@@ -895,7 +895,7 @@ export function DocsPreview({ children }: { children?: any }) {
   );
 }
 
-// Hairline-style isometric tiles carrying Fern design-system glyphs (fern-dashboard components/icons).
+// Hairline-style flat tiles carrying Fern design-system glyphs (fern-dashboard components/icons).
 const SPEC_GLYPHS: Record<string, any> = {
   openapi: (
     <>
@@ -925,12 +925,11 @@ const SPEC_GLYPHS: Record<string, any> = {
 
 export function SpecIcon({ name }: { name: string }) {
   return (
-    <svg className="hg-spec-iso" viewBox="-11.39 -6.67 22.78 18.42" fill="none" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path className="hg-spec-base" d="M2.69 10.39L1.45 10.81L0 10.95L-1.45 10.81L-2.69 10.39L-9.48 7L-10.3 6.38L-10.59 5.66L-10.3 4.93L-9.48 4.31L-2.69 0.92L-1.45 0.51L0 0.36L1.45 0.51L2.69 0.92L9.48 4.31L10.3 4.93L10.59 5.66L10.3 6.38L9.48 7Z" vectorEffect="non-scaling-stroke" />
+    <svg className="hg-spec-iso" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <g className="hg-spec-card">
-        <path className="hg-spec-sil" d="M-9.99 2.89L-9.74 2.27L-9.05 1.75L-2.26 -1.64L-1.22 -1.99L0 -2.11L1.22 -1.99L2.26 -1.64L9.05 1.75L9.74 2.27L9.99 2.89L9.99 4.79L9.74 5.4L9.05 5.92L2.26 9.32L1.22 9.66L0 9.78L-1.22 9.66L-2.26 9.32L-9.05 5.92L-9.74 5.4L-9.99 4.79Z" vectorEffect="non-scaling-stroke" />
-        <path className="hg-spec-crease" d="M8.89 2.89L8.73 3.29L8.27 3.63L1.48 7.02L0.8 7.25L0 7.33L-0.8 7.25L-1.48 7.02L-8.27 3.63L-8.73 3.29L-8.89 2.89" vectorEffect="non-scaling-stroke" />
-        <g className="hg-spec-glyph" transform="matrix(0.4384 -0.2192 0.4384 0.2192 -7.0145 2.8856)">
+        <rect className="hg-spec-sil" x="1.5" y="1.5" width="21" height="21" rx="5.5" vectorEffect="non-scaling-stroke" />
+        <rect className="hg-spec-crease" x="3" y="3" width="18" height="18" rx="4" vectorEffect="non-scaling-stroke" />
+        <g className="hg-spec-glyph" transform="translate(5.5 5.5) scale(0.8125)">
           {SPEC_GLYPHS[name]}
         </g>
       </g>
