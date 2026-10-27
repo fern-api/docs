@@ -30,28 +30,35 @@ Here's an example of how you can preview a Python SDK.
 
 <Steps>
 ### Generator configuration
-```yaml title="generators.yml" {4}
-api: 
-  path: ./path/to/openapi.yml
-groups:
-  python-sdk:
-    generators:
-      - name: fern-python-sdk
-        version: <Markdown src="/snippets/version-number-python.mdx"/>
-        output:
-          location: pypi
-          package-name: imdb
-          token: ${PYPI_TOKEN}
-        github:
-          repository: imdb/imdb-python
-        config:
-          client_class_name: imdb
+
+```yaml title="sdk-config.yml"
+schemaVersion: sdk-config/v1
+source:
+  specs:
+    - id: imdb
+      type: openapi
+      path: ./openapi/openapi.yml
+targets:
+  - language: python
+    package:
+      packageName: imdb
+    generation:
+      naming:
+        clientName: imdb
+    output:
+      delivery: github
+      github:
+        repository: imdb/imdb-python
+      publish:
+        registry: pypi
+        username: __token__
+        password: ${PYPI_TOKEN}
 ```
 
 ### Invoke the Fern CLI
 
 ```shell
-fern generate --group python-sdk --preview
+fern generate --target python --preview
 ```
 
 ### Preview your SDK
@@ -66,7 +73,7 @@ The resulting folder structure will look like this:
         <File name="..." highlighted />
       </Folder>
     </Folder>
-    <File name="generators.yml" />
+    <File name="sdk-config.yml" />
     <Folder name="openapi" defaultOpen>
       <File name="openapi.yml" />
     </Folder>

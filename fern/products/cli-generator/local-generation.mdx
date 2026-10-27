@@ -8,16 +8,16 @@ availability: beta
 The CLI generator is in early access. [Reach out](https://buildwithfern.com/book-demo?type=cli) to get started.
 </Note>
 
-By default, `fern generate` [runs the CLI generator on Fern's cloud infrastructure](/learn/cli-generator/get-started/quickstart). Pass `--local` to run generation on your own machine instead. No API definition data leaves your machine: the only network calls are organization verification and pulling the Docker image (if not cached). This suits organizations with strict security or compliance requirements that need to keep their spec off Fern's infrastructure.
+By default, `fern generate` [runs the CLI generator on Fern's cloud infrastructure](/learn/cli-generator/get-started/quickstart). Pass `--local` to run generation on your own machine instead. No API definition data leaves your machine: the only network calls are pulling the Docker image (if not cached) and, when a Fern token is available, organization verification. This suits organizations with strict security or compliance requirements that need to keep their spec off Fern's infrastructure.
 
 ## Comparison with cloud generation
 
 | | Cloud (default) | Local (`--local`) |
 | --- | --- | --- |
 | Infrastructure | Fern-managed | Your machine (Docker) |
-| Network calls | Spec + config sent to Fern | Org verification + image pull only |
+| Network calls | Spec + config sent to Fern | Image pull, plus org verification when a token is set |
 | Output options | GitHub repo (release/push mode) | Local file system or GitHub repo |
-| Auth required | `FERN_TOKEN` or interactive login | `FERN_TOKEN` |
+| Auth required | `FERN_TOKEN` or interactive login | None for local file system output; `FERN_TOKEN` or `fern login` for GitHub output |
 | Docker required | No | Yes |
 
 ## Prerequisites
@@ -25,7 +25,7 @@ By default, `fern generate` [runs the CLI generator on Fern's cloud infrastructu
 - [Fern CLI](https://www.npmjs.com/package/fern-api) v5.37.9 or later (`npm install -g fern-api`)
 - [Docker](https://docs.docker.com/get-docker/) running on your machine
 - [Rust toolchain](https://rustup.rs/) (stable) for building the generated output
-- A `FERN_TOKEN` for organization verification (generate one with `fern token` or from the [Dashboard](/learn/dashboard/configuration/api-keys))
+- A `FERN_TOKEN` if you output to a GitHub repository (optional for local file system output; generate one with `fern token` or from the [Dashboard](/learn/dashboard/configuration/api-keys))
 
 ## Setup
 
@@ -35,9 +35,9 @@ This page assumes you've completed the [Quickstart](/learn/cli-generator/get-sta
 
 <Steps>
 
-<Step title="Set your Fern token">
+<Step title="Set your Fern token (optional)">
 
-Self-hosted generation still requires a network call to verify your organization. Generate a token with `fern token` or from the [Fern Dashboard](/learn/dashboard/configuration/api-keys), then export it:
+Local file system output doesn't require a token. When a token is set, the CLI verifies your organization and applies its settings, such as white-labeling, to the generated output. Generate a token with `fern token` or from the [Fern Dashboard](/learn/dashboard/configuration/api-keys), then export it:
 
 ```bash
 export FERN_TOKEN=<your-token>
@@ -69,7 +69,7 @@ cargo build
 
 ## Custom container registry
 
-By default, `--local` pulls generator images from Docker Hub. To pull from a private registry, replace the `name` field with an [`image`](/learn/sdks/reference/generators-yml#image) object:
+By default, `--local` pulls generator images from Docker Hub. To pull from a private registry, replace the `name` field with an [`image`](/learn/sdks/legacy/reference/generators-yml#image) object:
 
 ```yaml title="generators.yml" {4-6}
 groups:

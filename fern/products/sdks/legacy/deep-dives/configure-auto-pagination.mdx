@@ -1,0 +1,182 @@
+---
+title: Configure auto-pagination
+description: Paginate through API responses with offset, cursor, URI, and path-based pagination.
+---
+
+<Markdown src="/products/sdks/legacy/snippets/legacy-notice.mdx" current="/learn/sdks/deep-dives/auto-pagination" />
+
+
+Fern's auto-pagination supports offset, cursor, URI, and path-based
+pagination schemes, providing SDK users with simple iterators to loop through all
+results instead of managing pagination complexity manually.
+
+## Generated SDK behavior
+
+<Tabs>
+<Tab title="TypeScript" language="typescript">
+
+  Once you've configured pagination for an endpoint, Fern generates a TypeScript
+  SDK method that returns a `Page<T>` where `T` is the underlying data type. The
+  `Page<T>` implements the `AsyncIterable` interface, allowing your users to
+  use it in a `for await` loop.
+
+  ```typescript
+  const response = await client.users.list();
+  for await (const user of response) {
+    console.log(user);
+  }
+  ```
+  
+</Tab>
+<Tab title="Python" language="python">
+
+  Once you've configured pagination for an endpoint, Fern generates a Python SDK
+  method that returns a `Pager[T]` where `T` is the underlying data type. The
+  `Pager[T]` implements the `Generator` interface, allowing your users to
+  use it in a `for ... in` loop.
+
+  ```python
+  for user in client.users.list(page=1, page_size=10):
+    print(user)
+  ```
+
+  or with the asynchronous client:
+  ```python
+  async for user in await client.users.list(page=1, page_size=10):
+    print(user)
+  ```
+</Tab>
+<Tab title="Go" language="go">
+
+  Once you've configured pagination for an endpoint, Fern generates a Go SDK
+  method that returns a `*core.Page[T]` where `T` is the underlying data type.
+  `Page.Iterator()` returns an iterator that fetches subsequent pages as needed,
+  and `Page.GetNextPage(ctx)` iterates page by page.
+
+  ```go
+  page, err := client.Users.List(ctx)
+  if err != nil {
+    return err
+  }
+  iter := page.Iterator()
+  for iter.Next(ctx) {
+    fmt.Println(iter.Current())
+  }
+  return iter.Err()
+  ```
+
+  A page property that lives in the request body rather than in a query parameter
+  requires the [`enableRequestBodyPagination`](/learn/sdks/legacy/generators/go/configuration#enablerequestbodypagination)
+  configuration option. If the page property is nested inside another request
+  body object (for example, `$request.options.offset`), also enable
+  [`enableNestedRequestBodyPagination`](/learn/sdks/legacy/generators/go/configuration#enablenestedrequestbodypagination).
+</Tab>
+<Tab title="Java" language="java">
+
+  Once you've configured pagination for an endpoint, Fern generates a Java SDK
+  method that returns a `SyncPagingIterable<T>` where `T` is the underlying data
+  type. The iterable fetches subsequent pages as your users loop over or stream
+  the items, and `nextPage()` paginates manually.
+
+  ```java
+  SyncPagingIterable<User> response = client.users().list();
+  for (User user : response) {
+    System.out.println(user);
+  }
+  ```
+
+  or as a stream:
+  ```java
+  client.users().list().streamItems().forEach(System.out::println);
+  ```
+</Tab>
+<Tab title="C#" language="csharp">
+
+  Once you've configured pagination for an endpoint, Fern generates a C# SDK
+  method that returns a `Pager<T>` where `T` is the underlying data type. The
+  `Pager<T>` implements `IAsyncEnumerable<T>`, allowing your users to use it in
+  an `await foreach` loop.
+
+  ```csharp
+  var users = await client.Users.ListAsync();
+  await foreach (var user in users)
+  {
+    Console.WriteLine(user);
+  }
+  ```
+</Tab>
+<Tab title="Rust" language="rust">
+
+  Once you've configured pagination for an endpoint, Fern generates a Rust SDK
+  method with a `_paginated` suffix alongside the single-page method. It returns
+  an `AsyncPaginator<T>` where `T` is the underlying data type. The
+  `AsyncPaginator<T>` implements the `futures` `Stream` trait and fetches
+  subsequent pages as your users iterate. The generated prelude
+  re-exports `StreamExt`, so `use your_crate::prelude::*;` provides
+  `.next().await` without a direct `futures` dependency.
+
+  ```rust
+  use your_crate::prelude::*;
+
+  let mut users = client.users.list_paginated(None).await?;
+  while let Some(user) = users.next().await {
+      match user {
+          Ok(user) => println!("{:?}", user),
+          Err(e) => eprintln!("Error fetching page: {}", e),
+      }
+  }
+  ```
+</Tab>
+</Tabs>
+
+## Setting up auto-pagination
+
+Define your pagination scheme and specify where your results are located:
+
+<CodeBlocks>
+```yaml Offset {4-6}
+...
+paths:
+  /plants:
+    x-fern-pagination:
+      offset: $request.page_number
+      results: $response.results
+...
+```
+
+```yaml Cursor {5-8}
+...
+paths:
+  /plants:
+    get:
+      x-fern-pagination:
+        cursor: $request.cursor
+        next_cursor: $response.next
+        results: $response.results
+...
+```
+
+```yaml URI {5-7}
+...
+paths:
+  /plants:
+    get:
+      x-fern-pagination:
+        next_uri: $response.next_page_url
+        results: $response.results
+...
+```
+
+```yaml Path {5-7}
+...
+paths:
+  /plants:
+    get:
+      x-fern-pagination:
+        next_path: $response.next_page_path
+        results: $response.results
+...
+```
+</CodeBlocks>
+
+For full configuration details, see [Pagination in OpenAPI](/learn/api-definitions/openapi/extensions/pagination).

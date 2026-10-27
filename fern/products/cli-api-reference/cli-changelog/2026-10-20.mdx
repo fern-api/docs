@@ -1,0 +1,51 @@
+## 5.170.3
+**`(fix):`** `fern check` no longer reports "No API definition found" for docs-only projects that
+reference their API specs inline from `docs.yml` (`api` navigation items with `specs`)
+and keep the spec in an `openapi/` or `asyncapi/` directory without a `generators.yml`.
+A directory that `docs.yml` does not reference still reports the error.
+
+
+## 5.170.2
+**`(fix):`** Wait up to 18 minutes for an sdk-gen-api build so its 15-minute build timeout is reported first.
+When the wait expires, the CLI checks the build status once more and fails with an internal
+error instead of a network error if the build is still running. Failed targets now show the
+sdk-gen-api error code with the message (for example, `FERN_BUILD_TIMEOUT: ...`).
+
+
+## 5.170.1
+**`(fix):`** When `fern generate` cannot resolve an SDK version for an sdk-gen-api generation (for example,
+an MCP server generator with local file output and no package registry), the error now tells
+you to pass one with `--version` instead of only reporting that the version could not be resolved.
+
+
+## 5.170.0
+**`(feat):`** Initialize new SDK projects with sdk-config.yml instead of generators.yml by default. Set FERN_USE_SDK_CONFIG=false to temporarily use the legacy initialization path.
+
+
+## 5.169.0
+**`(feat):`** Docs versions accept `default: true`, so the version that owns the unversioned URLs no
+longer has to be first in the `versions` list. The list order still sets the order in the
+version switcher, so a `Develop` version can be listed first while a release such as
+`3.3.0` serves `/` and every unversioned page, the sitemap, canonical URLs, and `llms.txt`:
+
+```yaml
+versions:
+  - display-name: Develop
+    ref: develop
+    availability: preview
+  - display-name: 3.3.0
+    default: true
+    path: ./versions/latest.yml
+```
+
+The flag works on site-level `versions` and on `products[].versions`, and a default
+version can use either `path` or `ref`. Setting `default: true` on more than one version
+in the same list, or on a version with `hidden: true`, is a configuration error. Without
+the flag, the first version is still the default.
+
+
+**`(feat):`** Add `settings.require-analytics-consent` to docs.yml. When enabled, Fern's built-in
+docs analytics (PostHog) stays off until the page sets `window.fernAnalyticsConsent = true`
+and dispatches a `fern-analytics-consent` event, e.g. from a consent manager callback.
+
+
