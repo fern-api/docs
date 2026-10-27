@@ -35,3 +35,17 @@ JWT and OAuth share the same capabilities — the difference is who manages the 
 JWT, OAuth, and SSO are all powered by a [browser cookie](/learn/docs/security/overview) called `fern_token` that tells Fern who the user is and what they can access. The token can carry user roles for [RBAC](/learn/docs/authentication/features/rbac), API keys for the [API Explorer](/learn/docs/api-references/api-explorer), or simply verify that a user is logged in.
 
 [Password protection](/learn/docs/authentication/setup/password-protection) works differently — it uses a shared password rather than per-user tokens.
+
+## Common patterns
+
+### Transparent SSO from your product
+
+Users already logged into your product can reach your docs without seeing a login prompt. With [JWT](/learn/docs/authentication/setup/jwt), your backend mints a `fern_token` for the signed-in user, sets it as a cookie on the docs domain, and redirects the user to the docs. With [OAuth](/learn/docs/authentication/setup/oauth), Fern runs the flow against your OAuth provider, so users with an active provider session are signed in without re-entering credentials.
+
+### Protecting some products, not others
+
+Public and private content can live on the same domain. Use [RBAC](/learn/docs/authentication/features/rbac) with any authentication method to gate specific tabs, sections, or pages, and mark the rest `viewers: everyone`. Unauthenticated users see only the public content.
+
+### Multi-tenant access
+
+To show each customer only their own docs, use [JWT](/learn/docs/authentication/setup/jwt) with per-user roles. Your backend mints a token that carries the customer's role, and `docs.yml` gates each customer's section behind that role with [RBAC](/learn/docs/authentication/features/rbac). Each customer sees only the content their role unlocks.
