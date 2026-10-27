@@ -5,14 +5,27 @@ const { Children, useState } = React;
 
 type ExplorerItem = { label: string; hint: string; href: string };
 
-export function CodeExplorer({ items, children }: { items: ExplorerItem[]; children?: any }) {
+export function CodeExplorer({
+  items,
+  children,
+}: {
+  items: ExplorerItem[];
+  children?: any;
+}) {
   const [active, setActive] = useState(0);
-  const panels = Children.toArray(children).filter((c: any) => c && typeof c === "object");
+  const panels = Children.toArray(children).filter(
+    (c: any) => c && typeof c === "object",
+  );
   const current = items[active];
 
   return (
     <div className="cv-explorer">
-      <div className="cv-explorer-nav" role="tablist" aria-orientation="vertical" aria-label="Fern products">
+      <div
+        className="cv-explorer-nav"
+        role="tablist"
+        aria-orientation="vertical"
+        aria-label="Fern products"
+      >
         {items.map((item, i) => (
           <button
             key={item.label}
