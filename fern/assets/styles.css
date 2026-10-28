@@ -1146,13 +1146,6 @@ h4, h5, h6 {
 /*** END -- FERN EDITOR STYLING ***/
 
 /* HACK: hide the changelog icon for changelog pages */
-/* Line on the left of the desktop sidebar, under the logo like the home page frame;
-   the aside itself starts at the viewport edge. */
-#fern-sidebar.fern-sidebar-desktop > div {
-  width: calc(100% - 2rem);
-  margin-left: 2rem;
-}
-
 /* Mirror the sidebar on the right: full-height lines on both sides of the TOC,
    the right one under the header's last control. */
 /* 1px "On this page" rail. Connector paths sit on x=1 and x=13 of a 2px rail, so shift them half a pixel to stay centered on the 1px tracks. */
@@ -2806,7 +2799,73 @@ samp,
   font-weight: 100 !important;
 }
 
-/* Canvas home: grid-pattern hero, code explorer, and "Connect your agent" card. */
+/* No divider lines around the canvas: the card's own border separates it from the header and sidebar. */
+#fern-header {
+  border-bottom: 0 !important;
+}
+
+/* Header: search and Ask AI sit at the left edge of the canvas, navbar links on the right.
+   The logo slot is the sidebar width minus the header's 2rem inset and 1rem gap. */
+@media (min-width: 1024px) {
+  #fern-sidebar.fern-sidebar-desktop {
+    border-right-color: transparent !important;
+  }
+
+  #fern-header .fern-header-logo-container {
+    flex: none;
+    width: calc(var(--sidebar-width) - 3rem);
+    min-width: 0;
+  }
+
+  #fern-header .product-item-title {
+    font-size: 1.125rem;
+    white-space: nowrap;
+  }
+
+  #fern-header div:has(> div > #fern-search-button) {
+    flex: 0 1 auto;
+    width: auto;
+    min-width: 0;
+  }
+
+  #fern-search-button {
+    flex-shrink: 1;
+    width: 13rem;
+    min-width: 7rem;
+  }
+
+  #fern-header .fern-header-navbar-links {
+    margin-left: auto;
+  }
+
+  /* Canvas card ends where the header content ends. That margin already takes the page gutter,
+     so the TOC drops the matching right padding Fern gives it and sits at the card's right edge. */
+  :root [data-body-theme="canvas"] .canvas-wrapper.canvas-wrapper {
+    margin-right: max(2rem, calc((100vw - var(--page-width)) / 2));
+  }
+
+  :root [data-body-theme="canvas"] #fern-toc {
+    width: calc(var(--sticky-aside-width) - var(--aside-offset));
+    padding-right: 0;
+  }
+
+  /* Changelog pages render outside the canvas wrapper; give them the same card. Their TOC column is empty. */
+  :root [data-body-theme="canvas"] main:has(> .fern-layout-changelog) > #fern-toc {
+    display: none;
+  }
+
+  :root [data-body-theme="canvas"] .fern-layout-changelog {
+    flex: 1 1 0;
+    min-width: 0;
+    margin: 0 max(2rem, calc((100vw - var(--page-width)) / 2)) 12px 0;
+    padding: 2rem;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: var(--card-background);
+  }
+}
+
+/* Canvas home: hero, code explorer, "Connect your agent" card, and link sections. */
 body:has(.cv-home) .fern-layout-guide > article {
   width: 100%;
   max-width: none;
@@ -2817,213 +2876,557 @@ body:has(.cv-home) .fern-layout-guide > article > header {
 }
 
 .cv-home {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.cv-hero {
-  position: relative;
-  isolation: isolate;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
   width: 100%;
-  padding: 5.5rem 1.5rem 3rem;
-  text-align: center;
-}
-
-.cv-hero-grid {
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background-image:
-    linear-gradient(to right, var(--border) 1px, transparent 1px),
-    linear-gradient(to bottom, var(--border) 1px, transparent 1px);
-  background-size: 48px 48px;
-  background-position: center top;
-  mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 30%, transparent 100%);
-  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 30%, transparent 100%);
-}
-
-.cv-home p.cv-hero-eyebrow {
-  margin: 0 0 1.25rem;
-  padding: 0.25rem 0.75rem;
-  border: 1px solid var(--accent-a6);
-  border-radius: 999px;
-  background: var(--accent-a2);
-  color: var(--accent);
-  font-size: 0.8125rem;
-  line-height: 1.25rem;
+  max-width: 62.5rem;
+  margin: 0 auto;
+  padding: 5rem 0 2rem;
 }
 
 .cv-home p.cv-hero-title {
-  max-width: 44rem;
+  max-width: 40rem;
   margin: 0;
   color: var(--grayscale-12);
-  font-size: clamp(2.25rem, 4.5vw, 3.5rem);
+  font-size: clamp(2.25rem, 4.2vw, 3.5rem);
   font-weight: 400;
   line-height: 1.08;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.035em;
   text-wrap: balance;
 }
 
 .cv-home p.cv-hero-sub {
-  max-width: 36rem;
-  margin: 1.25rem 0 0;
+  max-width: 38rem;
+  margin: 1.5rem 0 0;
   color: var(--grayscale-11);
   font-size: 1.0625rem;
   line-height: 1.6;
-  text-wrap: balance;
 }
 
-.cv-hero-actions {
-  display: flex;
-  flex-wrap: wrap;
+/* Shared controls */
+.cv-select {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.cv-select select {
+  field-sizing: content;
+  appearance: none;
+  -webkit-appearance: none;
+  margin-left: -0.5rem;
+  padding: 0.25rem 1.625rem 0.25rem 0.5rem;
+  border: 0;
+  border-radius: 0.375rem;
+  background: transparent;
+  color: var(--grayscale-12);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.cv-select select:hover {
+  background: var(--grayscale-a3);
+}
+
+.cv-select select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 0;
+}
+
+.cv-select svg {
+  position: absolute;
+  right: 0.375rem;
+  width: 0.875rem;
+  height: 0.875rem;
+  color: var(--grayscale-11);
+  pointer-events: none;
+}
+
+.cv-select-static {
+  color: var(--grayscale-12);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.cv-copy {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
   justify-content: center;
-  gap: 0.75rem;
-  margin-top: 2rem;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 0.375rem;
+  color: var(--grayscale-11);
+  cursor: pointer;
 }
 
+.cv-copy:hover {
+  background: var(--grayscale-a3);
+  color: var(--grayscale-12);
+}
+
+.cv-copy:focus-visible {
+  outline: 2px solid var(--accent);
+}
+
+.cv-copy svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* Code explorer */
 .cv-explorer {
   display: grid;
-  grid-template-columns: 15rem minmax(0, 1fr);
-  width: 100%;
-  max-width: 60rem;
+  grid-template-columns: 13rem minmax(0, 1fr);
+  gap: 1.5rem;
   margin-top: 3.5rem;
-  overflow: hidden;
+  padding: 1.5rem;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 1rem;
   background: var(--card-background);
-  box-shadow: 0 12px 32px -16px rgba(0, 0, 0, 0.12);
-  text-align: left;
 }
 
 .cv-explorer-nav {
   display: flex;
   flex-direction: column;
+  gap: 1.25rem;
+}
+
+.cv-explorer-group {
+  display: flex;
+  flex-direction: column;
   gap: 2px;
-  padding: 0.5rem;
-  border-right: 1px solid var(--border);
+}
+
+.cv-home p.cv-explorer-group-label {
+  margin: 0 0 0.25rem;
+  padding: 0 0.75rem;
+  color: var(--grayscale-11);
+  font-size: 0.75rem;
+  line-height: 1.25rem;
 }
 
 .cv-explorer-tab {
-  display: flex;
-  flex-direction: column;
-  gap: 0.125rem;
-  padding: 0.625rem 0.75rem;
-  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  color: var(--grayscale-12);
+  font-size: 0.9375rem;
   text-align: left;
   cursor: pointer;
   transition: background-color 150ms ease;
 }
 
 .cv-explorer-tab:hover {
+  background: var(--grayscale-a2);
+}
+
+.cv-explorer-tab[aria-pressed="true"] {
   background: var(--grayscale-a3);
 }
 
-.cv-explorer-tab[aria-selected="true"] {
-  background: var(--accent-a3);
-}
-
 .cv-explorer-tab:focus-visible {
-  outline: 1px solid var(--accent);
-  outline-offset: -1px;
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 
-.cv-explorer-label {
-  color: var(--grayscale-12);
+.cv-explorer-link {
+  margin-top: auto;
+  padding: 0 0.75rem;
+  color: var(--grayscale-11) !important;
   font-size: 0.875rem;
-  font-weight: 500;
+  text-decoration: none !important;
 }
 
-.cv-explorer-tab[aria-selected="true"] .cv-explorer-label {
-  color: var(--accent);
+.cv-explorer-link:hover {
+  color: var(--grayscale-12) !important;
 }
 
-.cv-explorer-hint {
-  color: var(--grayscale-11);
-  font-size: 0.75rem;
-  line-height: 1.4;
-}
-
-.cv-explorer-body {
+.cv-explorer-code {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  padding: 1rem;
+  min-height: 25.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+}
+
+.cv-explorer-code-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.75rem 0.75rem 0 1.5rem;
+}
+
+.cv-explorer-panel {
+  padding: 0.25rem 0.75rem 1rem;
 }
 
 .cv-explorer-panel[hidden] {
   display: none;
 }
 
-.cv-explorer-panel > * {
+.cv-explorer-panel :is(.fern-code, .fern-code-block) {
   margin: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
-.cv-explorer-link {
-  align-self: flex-start;
-  margin-top: auto;
-  padding-top: 0.875rem;
-  color: var(--accent) !important;
-  font-size: 0.875rem;
-  text-decoration: none !important;
+.cv-explorer-panel .fern-code-header,
+.cv-explorer-panel button {
+  display: none !important;
 }
 
-.cv-explorer-link:hover {
-  text-decoration: underline !important;
+.cv-explorer-panel pre {
+  background: transparent !important;
 }
 
-.cv-agent {
-  width: calc(100% - 3rem);
-  max-width: 60rem;
-  margin: 1rem 1.5rem 4rem;
-  padding: 2rem;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--card-background);
+/* Sections */
+.cv-section {
+  margin-top: 6rem;
 }
 
-.cv-home p.cv-agent-title {
+.cv-home p.cv-eyebrow {
+  margin: 0 0 0.5rem;
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.cv-home p.cv-h2 {
   margin: 0;
   color: var(--grayscale-12);
-  font-size: 1.5rem;
+  font-size: 2rem;
   font-weight: 400;
-  letter-spacing: -0.02em;
+  line-height: 1.2;
+  letter-spacing: -0.03em;
 }
 
-.cv-home p.cv-agent-sub {
-  margin: 0.5rem 0 1.25rem;
+.cv-home p.cv-section-sub {
+  margin: 0.75rem 0 0;
   color: var(--grayscale-11);
 }
 
+.cv-section-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.cv-section .card-group {
+  margin-top: 1.75rem;
+}
+
+.cv-home .fern-card {
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--card-background);
+  box-shadow: none;
+  text-decoration: none !important;
+}
+
+.cv-home .fern-card:hover {
+  border-color: var(--grayscale-7);
+}
+
+.cv-home .fern-card .external-link-icon,
+.cv-home p.cv-section-sub .external-link-icon {
+  display: none;
+}
+
+.cv-home .fern-card .card-icon {
+  width: 1.375rem !important;
+  height: 1.375rem !important;
+  color: var(--grayscale-12) !important;
+}
+
+.cv-home .fern-card .text-body {
+  font-size: 1.125rem;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+.cv-home .fern-card p {
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+
+/* Connect your agent */
+.cv-agent-wrap {
+  display: flex;
+  flex-direction: column;
+  margin-top: 1.75rem;
+}
+
+.cv-agent-card {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--card-background);
+}
+
+.cv-agent-top {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 2.5rem 1.5rem 2rem;
+  text-align: center;
+}
+
+.cv-pills {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+.cv-pill {
+  padding: 0.375rem 1rem;
+  border-radius: 999px;
+  color: var(--grayscale-11);
+  font-size: 0.875rem;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+.cv-pill:hover {
+  color: var(--grayscale-12);
+}
+
+.cv-pill[aria-selected="true"] {
+  background: var(--grayscale-a3);
+  color: var(--grayscale-12);
+}
+
+.cv-pill:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 0;
+}
+
+.cv-home p.cv-agent-desc {
+  margin: 0;
+  color: var(--grayscale-11);
+  font-size: 0.9375rem;
+}
+
+.cv-agent-cmd {
+  position: relative;
+  display: flex;
+  align-items: center;
+  border-top: 1px solid var(--border);
+  padding-right: 0.75rem;
+}
+
+.cv-agent-select {
+  display: flex;
+  flex: none;
+  align-items: center;
+  align-self: stretch;
+  min-width: 10.5rem;
+  padding: 0 1rem 0 1.25rem;
+  border-right: 1px solid var(--border);
+}
+
+.cv-agent-line {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.375rem;
+  min-width: 0;
+  padding: 0.875rem 1rem;
+  overflow-x: auto;
+}
+
+.cv-agent-file {
+  color: var(--grayscale-11);
+  font-size: 0.75rem;
+}
+
+.cv-home .cv-agent-code {
+  margin: 0;
+  padding: 0;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--grayscale-12);
+  font-family: var(--font-code, ui-monospace, monospace);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  white-space: pre;
+}
+
+.cv-home code.cv-agent-code {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.cv-agent-prompt {
+  margin-right: 0.75ch;
+  color: var(--grayscale-11);
+  user-select: none;
+}
+
+.cv-agent-program {
+  color: var(--accent);
+}
+
+.cv-agent-link {
+  align-self: flex-end;
+  margin-top: 1rem;
+  color: var(--grayscale-12) !important;
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none !important;
+}
+
+.cv-agent-link:hover {
+  color: var(--accent) !important;
+}
+
+/* API definition logos */
+.cv-logo-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 1.75rem;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--card-background);
+}
+
+.cv-home .cv-logo-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 2rem 1rem;
+  color: var(--grayscale-12);
+  font-size: 1.0625rem;
+  text-decoration: none;
+  transition: background-color 150ms ease;
+}
+
+.cv-home .cv-logo-cell + .cv-logo-cell {
+  border-left: 1px solid var(--border);
+}
+
+.cv-home .cv-logo-cell:hover {
+  background: var(--grayscale-a2);
+}
+
+.cv-home .cv-logo-cell .hg-spec-iso {
+  width: 2.25rem;
+  margin: 0;
+}
+
+.cv-home .cv-logo-cell:hover .hg-spec-glyph {
+  stroke: var(--accent);
+}
+
+.cv-home .cv-logo-cell:hover .hg-spec-dot {
+  fill: var(--accent);
+}
+
 @media (max-width: 767px) {
-  .cv-hero {
-    padding-top: 3.5rem;
+  .cv-home {
+    padding-top: 3rem;
   }
 
   .cv-explorer {
     grid-template-columns: minmax(0, 1fr);
+    padding: 1rem;
   }
 
   .cv-explorer-nav {
     flex-direction: row;
+    gap: 0.25rem;
     overflow-x: auto;
     scrollbar-width: none;
+    mask-image: linear-gradient(to right, #000 85%, transparent);
+  }
+
+  .cv-explorer-group {
+    flex: none;
+    flex-direction: row;
+  }
+
+  .cv-home p.cv-explorer-group-label,
+  .cv-explorer-link {
+    display: none;
+  }
+
+  .cv-explorer-tab {
+    flex: none;
+  }
+
+  .cv-explorer-code {
+    min-height: 0;
+  }
+
+  .cv-section {
+    margin-top: 4rem;
+  }
+
+  .cv-section-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .cv-pills {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+    border-radius: 1rem;
+  }
+
+  .cv-pill {
+    border-radius: 0.75rem;
+    white-space: normal;
+  }
+
+  .cv-agent-cmd {
+    flex-direction: column;
+    align-items: stretch;
+    padding-right: 0;
+  }
+
+  .cv-agent-select {
+    padding: 0.625rem 1rem;
     border-right: 0;
     border-bottom: 1px solid var(--border);
   }
 
-  .cv-explorer-tab {
-    flex: 0 0 auto;
+  .cv-agent-cmd .cv-copy {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.75rem;
   }
 
-  .cv-explorer-hint {
-    display: none;
+  .cv-logo-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .cv-agent {
-    padding: 1.25rem;
+  .cv-home .cv-logo-cell + .cv-logo-cell {
+    border-left: 0;
+  }
+
+  .cv-home .cv-logo-cell:nth-child(even) {
+    border-left: 1px solid var(--border);
+  }
+
+  .cv-home .cv-logo-cell:nth-child(n + 3) {
+    border-top: 1px solid var(--border);
   }
 }
