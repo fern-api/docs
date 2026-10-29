@@ -82,6 +82,7 @@ These commands build, preview, and publish a Fern documentation site, and valida
     <CodeBlock title="terminal">
     ```bash
     fern docs dev [--port <port-number>] [--skip-api] [--skip-validation]
+                  [--timeout <duration>] [--idle-timeout <duration>] [--json]
     ```
     </CodeBlock>
 
@@ -120,6 +121,45 @@ These commands build, preview, and publish a Fern documentation site, and valida
     ```bash
     fern docs dev --skip-validation
     ```
+
+    ### timeout
+
+    By default, the server runs until it's stopped. Use `--timeout <duration>` to stop it cleanly this long after it's ready; startup and bundle download don't count toward the limit. It accepts durations such as `30s`, `10m`, or `1h`; a plain number means seconds. When the timeout is reached, the CLI shuts down the server and exits with code `0`.
+
+    ```bash
+    fern docs dev --timeout 10m
+    ```
+
+    ### idle-timeout
+
+    Use `--idle-timeout <duration>` to stop the server cleanly after this long with no HTTP request in flight. It accepts the same durations as `--timeout`. The live-reload connection doesn't count as activity, so a browser tab left open doesn't keep the server running.
+
+    ```bash
+    fern docs dev --idle-timeout 15m
+    ```
+
+    ### json [#docs-dev-json]
+
+    Use `--json` to write lifecycle events to stdout as one JSON object per line, with logs on stderr. Agents and CI jobs can wait for the `ready` event instead of parsing log output.
+
+    ```json
+    {"event":"ready","url":"http://localhost:3000","port":3000,"backendPort":3001,"pid":12345}
+    {"event":"reload","ok":true,"durationMs":412}
+    {"event":"reload","ok":false,"durationMs":380,"error":"..."}
+    {"event":"stopped","reason":"idle-timeout"}
+    ```
+
+    A `reload` event is emitted after each rebuild triggered by a file change, with `error` present when the rebuild fails. The `stopped` event's `reason` is `timeout`, `idle-timeout`, `signal`, or `renderer-exit`.
+
+    Combine `--json` with `--idle-timeout` to run a preview in the background that stops on its own once checks finish:
+
+    ```bash
+    fern docs dev --json --idle-timeout 15m > /tmp/fern-dev.ndjson 2> /tmp/fern-dev.log &
+    # Wait for the "ready" event, then request pages
+    curl -s http://localhost:3000/llms.txt
+    ```
+
+    `--timeout`, `--idle-timeout`, and `--json` aren't supported with `--legacy`.
 
     <llms-only>
     ### "Version redirection is disabled, so it was not upgraded"
