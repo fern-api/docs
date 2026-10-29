@@ -20,7 +20,7 @@ Once configured, SDK snippets replace [HTTP snippets](/learn/docs/api-references
 
 ## Configuration
 
-To configure SDK snippets, first name your SDKs in `generators.yml` and then reference that name in `docs.yml`.
+To configure SDK snippets, first name your SDKs in `generators.yml` and then reference that name in `docs.yml`. If you generate SDKs with `sdk-config.yml`, [enable snippets in `sdk-config.yml`](#use-sdk-snippets-with-sdk-configyml) instead.
 
 <Steps>
 
@@ -131,6 +131,58 @@ navigation:
 ### Trigger generation
 
 Trigger your docs generation by running `fern generate --docs` locally or in CI/CD (i.e., GitHub Actions). The SDK snippets appear in a dropdown.
+
+</Steps>
+
+## Use SDK snippets with `sdk-config.yml`
+
+When you generate SDKs with [`sdk-config.yml`](/learn/sdks/reference/sdk-config), SDK generation saves a snippets file with each build. `fern generate --docs` reads that file and adds the snippets to your API Reference endpoints. This works for TypeScript, Python, Java, Go, Ruby, C#, and PHP SDKs.
+
+<Steps>
+
+### Enable snippets in `sdk-config.yml`
+
+Set `docs.snippets.enabled` to `true` at the top level, where every target inherits it, or in a single target's `docs` block. Fern finds each SDK's build by its `sdkName`, so the target needs an `sdkName` of its own or the top-level one.
+
+<CodeBlock title="sdk-config.yml">
+```yaml {1, 3-5}
+sdkName: plant-store
+docs:
+  snippets:
+    enabled: true
+targets:
+  - language: python
+  - language: typescript
+```
+</CodeBlock>
+
+### Generate the SDK
+
+Run `fern generate` to build the SDK. Fern reads snippets only from a successful build, and only from builds made after snippets were enabled.
+
+### Reference the SDK version in `docs.yml`
+
+Add a `snippets` entry for each language with the `version` of the SDK build to show. Fern uses the newest successful build of that language with a matching `sdkName` and version.
+
+<CodeBlock title="docs.yml">
+```yaml {4-9}
+navigation:
+  - api: API Reference
+    snippets:
+      python:
+        package: your-package-name
+        version: 1.2.0
+      typescript:
+        package: your-package-name
+        version: 1.2.0
+```
+</CodeBlock>
+
+### Trigger generation
+
+Run `fern generate --docs`. Snippets appear in the language dropdown on each endpoint. A [code sample you wrote](/learn/api-definitions/openapi/extensions/request-response-examples#code-samples) for an endpoint in the same language takes precedence over the generated snippet.
+
+If Fern can't find or read the snippets for a language, the CLI logs a warning and publishes the docs without them.
 
 </Steps>
 
