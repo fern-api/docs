@@ -15,6 +15,7 @@ These commands apply to every Fern project, whether it publishes [docs](/learn/c
 | [`fern downgrade`](#fern-downgrade) | Move the Fern CLI version in `fern.config.json` back to an older version |
 | [`fern login`](#fern-login) | Login to Fern CLI via GitHub, Google, Postman, or enterprise SSO |
 | [`fern logout`](#fern-logout) | Log out of the Fern CLI |
+| [`fern whoami`](#fern-whoami) | Show which login or `FERN_TOKEN` the CLI is using |
 | [`fern token`](#fern-token) | Generate an organization-scoped API key for CI/CD |
 | [`fern export`](#fern-export) | Export an OpenAPI spec for your API |
 | [`fern api update`](#fern-api-update) | Manually update your OpenAPI spec |
@@ -369,6 +370,46 @@ These commands apply to every Fern project, whether it publishes [docs](/learn/c
     </CodeBlock>
 
     After logging out, you'll need to run [`fern login`](#fern-login) again to access protected features.
+
+  </Accordion>
+
+  <Accordion title="fern whoami">
+
+    Use `fern whoami` to see which credential the CLI acts as in the current directory. Running it before generating or publishing confirms which account or API key a permission error applies to.
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern whoami
+    fern whoami --json
+    ```
+    </CodeBlock>
+
+    The report shows one of the following:
+
+    - **Organization token**: a `FERN_TOKEN` environment variable is set. It takes precedence over a saved login.
+    - **User login**: a credential saved by [`fern login`](#fern-login), shown with the account's email (or username) and user ID. If Fern can't verify the saved login, for example because it expired, the report says so and suggests running `fern login` again.
+    - **Not logged in**: neither a `FERN_TOKEN` nor a saved login is present.
+
+    `fern whoami` always runs on the installed CLI, even in projects whose `fern.config.json` pins an older CLI version.
+
+    ### json
+
+    Use `--json` to print the report as a JSON object, for scripts and CI checks. The `login.kind` field is `user`, `user-unverified`, `organization-token`, or `none`.
+
+    ```bash
+    fern whoami --json
+    ```
+
+    ```json
+    {
+      "login": {
+        "kind": "user",
+        "userId": "<user-id>",
+        "username": "<username>",
+        "email": "user@example.com"
+      }
+    }
+    ```
 
   </Accordion>
 
