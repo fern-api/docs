@@ -28,11 +28,11 @@ These commands build, preview, and publish a Fern documentation site, and valida
 <AccordionGroup>
   <Accordion title="fern generate --docs">
 
-    Use `fern generate --docs` to create a documentation site for your API. 
+    Use `fern generate --docs` to create a documentation site for your API. The command validates your docs before publishing and fails if any rule set to `"error"` in [`check.rules`](/learn/docs/configuration/site-level-settings#check-configuration) reports a violation.
 
     <CodeBlock title="terminal">
     ```bash
-    fern generate --docs [--instance <instance-url>] [--preview] [--id <name>] [--force]
+    fern generate --docs [--instance <instance-url>] [--preview] [--id <name>] [--force] [--no-prompt]
     ```
     </CodeBlock>
 
@@ -65,21 +65,23 @@ These commands build, preview, and publish a Fern documentation site, and valida
 
     ### force
 
-    When reusing an `--id` that already exists, Fern prompts you to confirm the overwrite. Use `--force` to skip the confirmation. This is detected automatically in GitHub Actions, but is needed for other CI environments like Azure Pipelines.
+    When reusing an `--id` that already exists, Fern prompts you to confirm the overwrite. Use `--force` or `--no-prompt` to skip the confirmation. This is detected automatically in GitHub Actions, but is needed for other CI environments like Azure Pipelines.
 
     ```bash
     fern generate --docs --preview --id my-feature --force
+    # or
+    fern generate --docs --preview --id my-feature --no-prompt
     ```
 
   </Accordion>
 
   <Accordion title="fern docs dev">
 
-    Use `fern docs dev` to run a local development server to preview your docs.
+    Use `fern docs dev` to run a local development server to preview your docs. The server includes the [role selector and password login](/learn/docs/preview-publish/preview-changes#local-development) for sites that use role-based access control or password protection.
 
     <CodeBlock title="terminal">
     ```bash
-    fern docs dev [--port <port-number>]
+    fern docs dev [--port <port-number>] [--skip-api] [--skip-validation]
     ```
     </CodeBlock>
 
@@ -102,6 +104,30 @@ These commands build, preview, and publish a Fern documentation site, and valida
     ```bash
     fern docs dev --port 57908
     ```
+
+    ### skip-api
+
+    Use `--skip-api` to preview without parsing your API specs, which makes startup much faster on sites with large or many API definitions. API Reference sections keep their overview page and hand-written pages and links, but generated endpoint and schema pages are left out of the preview. Validation checks that depend on API specs, including broken-link and OpenAPI example checks, are also skipped; [`fern check`](/learn/cli-api-reference/cli-reference/general-commands#fern-check) still runs them.
+
+    ```bash
+    fern docs dev --skip-api
+    ```
+
+    ### skip-validation
+
+    Use `--skip-validation` to skip docs validation while previewing, so the preview is ready sooner on large sites. The CLI logs a warning, and docs errors aren't reported. Run [`fern check`](/learn/cli-api-reference/cli-reference/general-commands#fern-check) before publishing to catch them.
+
+    ```bash
+    fern docs dev --skip-validation
+    ```
+
+    <llms-only>
+    ### "Version redirection is disabled, so it was not upgraded"
+
+    This message is informational. It appears when the CLI cannot redirect to a different version — for example, because the organization's version policy cannot be reached, or because the CLI is running in an environment where version redirection is suppressed. The command still runs using the locally pinned version from `fern.config.json`. It is safe to ignore during local development.
+
+    To verify which version is running, check `fern.config.json`. To inspect or change your organization's CLI version policy, use [`fern org get`](/learn/cli-api-reference/cli-reference/general-commands#fern-org-get) or update `fern.config.json` directly.
+    </llms-only>
 
   </Accordion>
 

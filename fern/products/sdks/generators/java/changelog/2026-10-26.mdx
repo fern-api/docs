@@ -1,0 +1,16 @@
+## 4.35.0
+**`(feat):`** Expose `maxConcurrentRequests(int)` on the generated root client builders (`<Client>Builder`,
+`Async<Client>Builder`, and the multi-auth builder stages) so the in-flight request cap added in
+4.34.0 can be set without constructing `ClientOptions` by hand, matching `timeout` and `maxRetries`.
+Subclasses can override the new `setConcurrencyLimit(ClientOptions.Builder)` hook.
+
+
+## 4.34.0
+**`(feat):`** Add `ClientOptions.Builder.maxConcurrentRequests(int)`, an opt-in cap on how many requests the SDK has in
+flight at once. It applies to both the sync and the async client (OkHttp's dispatcher limits only bound async
+calls, and its connection pool only bounds idle connections) and also to an OkHttpClient supplied via
+`httpClient(...)`. A request holds a slot until its response body is closed; callers waiting for a slot are
+bounded by the call timeout, and retries do not hold a slot during their backoff delay. Implemented by the new
+generated `core/ConcurrencyLimitingInterceptor`.
+
+

@@ -15,91 +15,70 @@ internally instead, generate to the local file system (optionally
 <Info>
 	This page assumes that you have:
 
-	* An initialized `fern` folder, a GitHub repository for your Rust SDK, and a Rust generator group in `generators.yml`. See [Generating an SDK (Rust)](/learn/sdks/generators/rust/quickstart).
+	* An initialized `fern` folder, a GitHub repository for your Rust SDK, and a Rust target in `sdk-config.yml`. See [Generating an SDK (Rust)](/learn/sdks/generators/rust/quickstart).
 </Info>
 
 <Frame>
   <img src="assets/published-crate.png" alt="Versioned package published on crates.io" />
 </Frame>
 
-## Configure `generators.yml`
+## Configure `sdk-config.yml`
+
+Update the Rust target in `sdk-config.yml` to configure the crate name, client name, and publishing destination. Your `sdk-config.yml` [should live in your source repository](/learn/sdks/overview/project-structure) (or on your local machine), not the repository that contains your Rust SDK code.
 
 <Steps>
 
-  <Step title="Configure `output` location">
-
-  Change the output location in `generators.yml` from `local-file-system` (the default) to `crates` to indicate that Fern should publish your crate directly to the crates.io registry:
-
-    ```yaml title="generators.yml" {6-7}
-    groups: 
-      rust-sdk:
-        generators:
-          - name: fern-rust-sdk
-            version: <Markdown src="/snippets/version-number-rust.mdx"/>
-            output:
-              location: crates
-
-    ```
-  </Step>
-
   <Step title="Add a unique crate name">
 
-     Your crate name must be unique in the crates.io registry, otherwise publishing your SDK will fail. Update your crate name if you haven't done so already:
+     Your crate name must be unique in the crates.io registry, otherwise publishing your SDK will fail.
 
-
-```yaml title="generators.yml" {8}
-groups: 
-  rust-sdk:
-    generators:
-      - name: fern-rust-sdk
-        version: <Markdown src="/snippets/version-number-rust.mdx"/>
-        output:
-          location: crates
-          package-name: your-crate-name
+```yaml title="sdk-config.yml" {3-4}
+targets:
+  - language: rust
+    package:
+      packageName: your-crate-name
 ```
-    
+
   </Step>
 
-  <Step title="Configure `clientClassName`">
+  <Step title="Configure the client name">
 
-     The `clientClassName` option controls the name of the generated client struct. This is the name users will use when instantiating your SDK client.
+     The `generation.naming.clientName` option controls the name of the generated client struct. This is the name users will use when instantiating your SDK client.
 
-
-```yaml title="generators.yml" {9-10}
-groups: 
-  rust-sdk:
-    generators:
-      - name: fern-rust-sdk
-        version: <Markdown src="/snippets/version-number-rust.mdx"/>
-        output:
-          location: crates
-          package-name: your-crate-name
-        config:
-          clientClassName: YourClientName # must be PascalCase
+```yaml title="sdk-config.yml" {5-7}
+targets:
+  - language: rust
+    package:
+      packageName: your-crate-name
+    generation:
+      naming:
+        clientName: YourClientName
 ```
-    
+
   </Step>
 
-  <Step title="Add repository location">
+  <Step title="Configure GitHub delivery and crates.io publishing">
 
-  Add the path to your GitHub repository to `generators.yml`: 
+  Set `output.delivery` to `github`, add the path to your GitHub repository, and set `output.publish.registry` to `crates`:
 
-```yaml title="generators.yml" {11-12}
-groups: 
-  rust-sdk:
-    generators:
-      - name: fern-rust-sdk
-        version: <Markdown src="/snippets/version-number-rust.mdx"/>
-        output:
-          location: crates
-          package-name: your-crate-name
-        config:
-          clientClassName: YourClientName
-        github: 
-          repository: your-org/your-rust-sdk
+```yaml title="sdk-config.yml" {8-13}
+targets:
+  - language: rust
+    package:
+      packageName: your-crate-name
+    generation:
+      naming:
+        clientName: YourClientName
+    output:
+      delivery: github
+      github:
+        repository: your-org/company-rust
+      publish:
+        registry: crates
 ```
-  
+
   </Step>
+
 </Steps>
 
 ## Set up crates.io publishing authentication
@@ -137,23 +116,25 @@ groups:
 
   <Step title="Configure crates.io authentication token">
 
-  Add `token: ${CRATES_IO_API_KEY}` to `generators.yml` to tell Fern to use the `CRATES_IO_API_KEY` environment variable for authentication when publishing to crates.io.
+  Add `token: ${CRATES_IO_API_KEY}` to `output.publish` to tell Fern to use the `CRATES_IO_API_KEY` environment variable for authentication when publishing to crates.io.
 
-```yaml title="generators.yml" {9}
-groups: 
-  rust-sdk:
-    generators:
-      - name: fern-rust-sdk
-        version: <Markdown src="/snippets/version-number-rust.mdx"/>
-        output:
-          location: crates
-          package-name: your-crate-name
-          token: ${CRATES_IO_API_KEY}
-        config:
-          clientClassName: YourClientName
-        github: 
-          repository: your-org/your-rust-sdk
+```yaml title="sdk-config.yml" {14}
+targets:
+  - language: rust
+    package:
+      packageName: your-crate-name
+    generation:
+      naming:
+        clientName: YourClientName
+    output:
+      delivery: github
+      github:
+        repository: your-org/company-rust
+      publish:
+        registry: crates
+        token: ${CRATES_IO_API_KEY}
 ```
+
   </Step>
 
 </Steps>
@@ -226,7 +207,7 @@ jobs:
           FERN_TOKEN: ${{ secrets.FERN_TOKEN }}
           CRATES_IO_API_KEY: ${{ secrets.CRATES_IO_API_KEY }}
         run: |
-          fern generate --group rust-sdk --version ${{ inputs.version }} --log-level debug
+          fern generate --target rust --version ${{ inputs.version }} --log-level debug
   ```
 
 </Step>
@@ -261,7 +242,7 @@ jobs:
   Regenerate your SDK, specifying the version:
 
   ```bash
-  fern generate --group rust-sdk --version <version>
+  fern generate --target rust --version <version>
   ```
   <Markdown src="/products/sdks/snippets/release-sdk.mdx"/>
 

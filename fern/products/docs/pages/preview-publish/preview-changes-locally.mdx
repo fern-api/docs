@@ -30,6 +30,8 @@ Install the following:
   fern docs dev --port 3002
 ```
 
+On large sites, [`--skip-api`](/learn/cli-api-reference/cli-reference/docs-commands#skip-api) speeds up the preview by leaving out generated API Reference pages, which helps when iterating on prose pages.
+
 <Frame>
   <video
     src="./images/fern-docs-dev.mp4"
@@ -44,7 +46,13 @@ Install the following:
 
 Your documentation will be available at `http://localhost:3000` (default) or the port you specified. If you attempt to run Fern on a port that's already in use, it will use the next available port.
 
-Some features are disabled in local development, including search, SEO (favicon, auto-generated meta tags, etc.), and authentication.
+Some features are disabled in local development, including search and SEO (favicon, auto-generated meta tags, etc.).
+
+If your docs use [role-based access control](/learn/docs/authentication/features/rbac#preview-as-a-role), the local server has the same role selector as a preview link, so you can view the site as a specific viewer and check role-gated pages and navigation. With no role selected, it shows all content. To test password protection locally, set `FERN_AUTH_TYPE=password` and `FERN_AUTH_SECRET` to the password before starting the server:
+
+```bash
+FERN_AUTH_TYPE=password FERN_AUTH_SECRET=<password> fern docs dev
+```
 
 <Warning>
 On Windows, `fern docs dev` requires [long path support](https://learn.microsoft.com/en-us/windows/win32/fileio/maximum-file-path-limitation#enable-long-paths-in-windows-10-version-1607-and-later) to be enabled.
@@ -87,6 +95,12 @@ A Markdown link or `<img src>` uses a value that isn't a valid URL. Check for ty
 #### `Path ./pages/foo.mdx does not exist`
 
 A [`path:`](/learn/docs/configuration/navigation) in `docs.yml` points to a file that isn't on disk. Fix the path or create the missing file. Paths are relative to the YAML file that defines them.
+
+#### "Version redirection is disabled, so it was not upgraded"
+
+This message is informational. It appears when the CLI cannot redirect to a different version — for example, because the organization's version policy cannot be reached, or because the CLI is running in an environment where version redirection is suppressed. The command still runs using the locally pinned version from `fern.config.json`. It is safe to ignore during local development.
+
+To verify which version is running, check `fern.config.json`. To inspect or change your organization's CLI version policy, use [`fern org get`](/learn/cli-api-reference/cli-reference/general-commands#fern-org-get) or update `fern.config.json` directly.
 </llms-only>
 
 ## Preview links
@@ -111,14 +125,14 @@ fern generate --docs --preview --id my-feature
 [docs]: Published docs to https://fern-preview-my-feature.docs.buildwithfern.com/learn
 ```
 <Info>
-  When a preview with the same `--id` already exists, Fern prompts you to confirm the overwrite. This is skipped automatically in GitHub Actions, but for other CI environments (e.g., Azure Pipelines), use `--force` to skip the confirmation.
+  When a preview with the same `--id` already exists, Fern prompts you to confirm the overwrite. This is skipped automatically in GitHub Actions. For other CI environments (e.g., Azure Pipelines) or scripts that run non-interactively, pass [`--force` or `--no-prompt`](/learn/cli-api-reference/cli-reference/docs-commands#force) to skip the confirmation.
 
   ```bash
-  fern generate --docs --preview --id my-feature --force
+  fern generate --docs --preview --id my-feature --no-prompt
   ```
 </Info>
 
-If your docs use [role-based access control](/learn/docs/authentication/features/rbac#preview-as-a-role), a role selector on the preview link lets you view the site as a specific viewer and verify role-gated visibility before publishing.
+If your docs use [role-based access control](/learn/docs/authentication/features/rbac#preview-as-a-role), a role selector on the preview link (and on the [local preview server](#local-development)) lets you view the site as a specific viewer and verify role-gated visibility before publishing.
 
 ### Manage preview links
 

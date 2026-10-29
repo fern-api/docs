@@ -4,23 +4,20 @@ description: Learn how to enable the TypeScript serde layer in Fern SDK generato
 ---
 
 
-Fern's TypeScript SDK generator includes an optional serde layer that determines whether the generated SDK matches your original API naming conventions (snake_case vs. camelCase, case-sensitive fields) or follows TypeScript conventions. This serde layer is controlled by the `noSerdeLayer` option. 
+Fern's TypeScript SDK generator includes an optional serde layer that determines whether the generated SDK matches your original API naming conventions (snake_case vs. camelCase, case-sensitive fields) or follows TypeScript conventions. This serde layer is controlled by the `serdeLayer` option in the TypeScript target's `generation` block in `sdk-config.yml`.
 
-By default, the serde layer is **disabled** (`noSerdeLayer: true`), meaning field names are preserved exactly as they appear in your API specification.
+By default, the serde layer is **disabled**, meaning field names are preserved exactly as they appear in your API specification.
 
 ## When to enable the serde layer
 
-```yaml title="generators.yml" {7}
-groups:
-  ts-sdk:
-    generators:
-    - name: fern-typescript-sdk
-      version: <Markdown src="/snippets/version-number-ts.mdx"/>
-      config:
-        noSerdeLayer: false # Enable serde layer
+```yaml title="sdk-config.yml" {4}
+targets:
+  - language: typescript
+    generation:
+      serdeLayer: true # Enable serde layer
 ```
 
-When you turn on the serde layer, (`noSerdeLayer: false`), the TypeScript SDK generator includes custom serialization code that:
+When you turn on the serde layer (`serdeLayer: true`), the TypeScript SDK generator includes custom serialization code that:
 - Transforms all property names from your API to camelCase
 - Validates requests and responses at runtime
 - Supports complex types like `Date` and `Set`. 
@@ -29,24 +26,16 @@ Enable the serde layer when you want idiomatic TypeScript conventions and don't 
 
 ## Additional configuration options
 
-Several configuration options work alongside an enabled serde layer: 
-- `skipResponseValidation` disables the serde layer's runtime validation while keeping its transformation features
-- `allowExtraFields` permits properties not defined in your schema. 
-- `useBigInt` enables custom JSON handling to preserve large number precision. 
+Set `useBigInt: true` alongside an enabled serde layer to preserve precision for large numbers. It only takes effect when the serde layer is enabled (`serdeLayer: true`), as it requires the custom serialization infrastructure.
 
-These options only take effect when the serde layer is enabled (`noSerdeLayer: false`), as they require the custom serialization infrastructure.
+`sdk-config.yml` doesn't have the `skipResponseValidation` and `allowExtraFields` options yet. To use them with `generators.yml`, see the [Legacy TypeScript serde layer](/learn/sdks/legacy/generators/typescript/serde-layer#additional-configuration-options) page.
 
-```yaml title="generators.yml" {7-10}
-groups:
-  ts-sdk:
-    generators:
-    - name: fern-typescript-sdk
-      version: <Markdown src="/snippets/version-number-ts.mdx"/>
-      config:
-        noSerdeLayer: false           # Enable serde layer
-        skipResponseValidation: true  # Disable runtime validation errors
-        allowExtraFields: true        # Allow undefined fields in responses
-        useBigInt: true               # Preserve precision for large numbers
+```yaml title="sdk-config.yml" {4-5}
+targets:
+  - language: typescript
+    generation:
+      serdeLayer: true # Enable serde layer
+      useBigInt: true  # Preserve precision for large numbers
 ```
 
 For the complete list of all TypeScript configuration options, go to [TypeScript configuration](/learn/sdks/generators/typescript/configuration).

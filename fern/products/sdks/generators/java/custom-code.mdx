@@ -60,14 +60,15 @@ To get started adding custom code:
     <Markdown src="/products/sdks/snippets/custom-sdk-methods-intro.mdx"/>
 
     <Steps>
-      ### Update `generators.yml` configuration
+      ### Update `sdk-config.yml` configuration
       Name your Fern-generated client something like `BaseClient` to reflect that this client will be extended.
 
-      ```yml {4} title="generators.yml"
-      - name: fern-java-sdk
-          version: "..."
-          config:
-            client-class-name: BaseClient
+      ```yaml {5} title="sdk-config.yml"
+      targets:
+        - language: java
+          generation:
+            naming:
+              clientName: BaseClient
       ```
 
       ### Import and extend the generated client
@@ -120,17 +121,7 @@ Common use cases include:
 
 ### Enable extensible builders
 
-Add the flag to your `generators.yml`:
-
-```yaml {7} title="generators.yml"
-groups:
-  local:
-    generators:
-      - name: fern-java-sdk
-        version: 2.39.6
-        config:
-          enable-extensible-builders: true
-```
+`sdk-config.yml` doesn't have an extensible builders option yet. To turn on `enable-extensible-builders` in `generators.yml`, see the [Legacy Java custom code](/learn/sdks/legacy/generators/java/custom-code) page.
 
 ### How it works
 
@@ -218,7 +209,7 @@ Each method serves a specific purpose and is only generated when needed:
 | `setCustomHeaders(builder)` | Add custom headers defined in API spec | Only if API defines headers |
 | `setVariables(builder)` | Configure API variables | Only if API has variables |
 | `setHttpClient(builder)` | Customize OkHttp client | Always |
-| `setInterceptors(builder)` | Attach custom OkHttp interceptors | Only if [`custom-interceptors`](/learn/sdks/generators/java/configuration#custom-interceptors) is enabled |
+| `setInterceptors(builder)` | Attach custom OkHttp interceptors | Only if [`custom-interceptors`](/learn/sdks/legacy/generators/java/configuration#custom-interceptors) is enabled |
 | `setTimeouts(builder)` | Modify timeout settings | Always |
 | `setRetries(builder)` | Modify retry settings | Always |
 | `setAdditional(builder)` | Final extension point for any custom configuration | Always |
@@ -288,21 +279,13 @@ protected void setAdditional(ClientOptions.Builder builder) {
 ### Requirements
 
 - **Fern Java SDK version**: 2.39.6 or later
-- **Configuration**: `enable-extensible-builders: true` in `generators.yml`
+- **Configuration**: `enable-extensible-builders: true` in a [Legacy `generators.yml`](/learn/sdks/legacy/generators/java/custom-code)
 
 ## Adding custom interceptors
 
-[OkHttp interceptors](https://square.github.io/okhttp/features/interceptors/) observe and rewrite every request and response an SDK sends, which covers request signing, public key client validation, and custom logging or tracing. Setting [`custom-interceptors`](/learn/sdks/generators/java/configuration#custom-interceptors) to `true` adds an `addInterceptor(okhttp3.Interceptor)` method to your generated client builder, giving the developers who install your SDK a supported extension point for those customizations:
+[OkHttp interceptors](https://square.github.io/okhttp/features/interceptors/) observe and rewrite every request and response an SDK sends, which covers request signing, public key client validation, and custom logging or tracing. Setting [`custom-interceptors`](/learn/sdks/legacy/generators/java/configuration#custom-interceptors) to `true` adds an `addInterceptor(okhttp3.Interceptor)` method to your generated client builder, giving the developers who install your SDK a supported extension point for those customizations:
 
-```yaml {7} title="generators.yml"
-groups:
-  java-sdk:
-    generators:
-      - name: fern-java-sdk
-        version: <Markdown src="/snippets/version-number-java.mdx"/>
-        config:
-          custom-interceptors: true
-```
+`sdk-config.yml` doesn't have the `custom-interceptors` option yet. To set it in `generators.yml`, see the [Legacy Java configuration](/learn/sdks/legacy/generators/java/configuration#custom-interceptors).
 
 Developers using your SDK register interceptors as they construct the client. Each call to `addInterceptor` appends to the chain, and all are applied to the underlying `OkHttpClient` at build time:
 
@@ -320,16 +303,45 @@ Custom interceptors run in registration order, inside Fern's retry interceptor, 
 
 To attach an interceptor yourself rather than requiring every caller to register one, override the protected `setInterceptors(ClientOptions.Builder)` method on a [custom builder](#adding-custom-client-configuration), and add that builder to `.fernignore` so regeneration doesn't overwrite it.
 
+## Closing the client
+
+Generated root clients, both sync (`PlantsClient`) and async (`AsyncPlantsClient`), implement `AutoCloseable`. Calling `close()` shuts down the dispatcher executor of the underlying `OkHttpClient` and evicts its connection pool. Without this, the default `OkHttpClient`'s threads can keep a short-lived Java process (a CLI tool, batch job, or test) alive after the work is done.
+
+Use `try-with-resources` to release resources when the block exits:
+
+```java
+try (PlantsClient client = PlantsClient.builder().token("<token>").build()) {
+    client.plants().get("plant_123");
+}
+```
+
+Or call `close()` explicitly:
+
+```java
+AsyncPlantsClient client = AsyncPlantsClient.builder().token("<token>").build();
+client.plants().get("plant_123").join();
+client.close();
+```
+
+`close()` only tears down an `OkHttpClient` that the SDK created. A client passed to the builder's `httpClient(...)` method is left running: the caller owns it and is responsible for closing it. Subpackage clients such as `client.plants()` aren't `AutoCloseable`; close the root client instead.
+
 ## Adding custom dependencies
 
-To add packages that your custom code requires, update your `generators.yml`.
+To add packages that your custom code requires, list them in the target's `package.extraDependencies` in `sdk-config.yml`.
 
-      ```yaml {4-7} title="generators.yml"
-      - name: fern-java-sdk
-        version: "..."
-        config:
-          custom-dependencies:
-            - org.apache.commons:commons-lang3:3.12.0
-            - org.slf4j:slf4j-api:2.0.7
+```yaml {4-8} title="sdk-config.yml"
+targets:
+  - language: java
+    package:
+      extraDependencies:
+        - name: org.apache.commons:commons-lang3
+          version: "3.12.0"
+        - name: org.slf4j:slf4j-api
+          version: "2.0.7"
+```
 
-      ```
+## Jackson compatibility
+
+The generated `build.gradle` declares `com.fasterxml.jackson.core:jackson-databind`, `jackson-datatype-jdk8`, and `jackson-datatype-jsr310` at version 2.18.6, and the SDK is built and tested against that version. The generated code uses only Jackson 2.9+ APIs, so an SDK jar built against the declared version runs on a classpath where dependency management pins Jackson to 2.9.x or later. Jackson 3.x isn't supported.
+
+To change the Jackson version the SDK itself declares, list the Jackson coordinates in `extraDependencies`: a dependency with the same `group:artifact` replaces the generated one.

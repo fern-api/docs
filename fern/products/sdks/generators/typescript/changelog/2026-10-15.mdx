@@ -1,0 +1,24 @@
+## 3.107.2
+**`(fix):`** With `flattenAnyAuthOptions` enabled, dynamic snippets now keep nested auth options for APIs that use
+endpoint-level security, which matches the generated SDK. Only `auth: any` snippets are flattened.
+
+
+## 3.107.1
+**`(fix):`** Reject `.` and `..` as path parameter values. `encodeURIComponent` leaves dots unencoded, so URL resolution
+removed these dot segments and sent the request, with its auth headers, to a different endpoint (for example,
+`/users/{userId}/roles` with `userId: ".."` was sent to `/roles`). The SDK now throws its generic API error
+(e.g. `MyClientError`) before the request is sent. SDKs generated with `neverThrowErrors` throw a plain `Error`.
+
+
+## 3.107.0
+**`(feat):`** Add the `flattenAnyAuthOptions` config option. When it is enabled and the API uses `auth: any`, each scheme's
+client options are flat (e.g. `{ apiKey }`, `{ clientId, clientSecret }`, `{ token }`) instead of nested under the
+scheme key (e.g. `{ apiKey: { apiKey } }`). This matches the Python SDK. Options with the same name, such as the
+bearer `token` and the OAuth `token` override, are shared, and an OAuth `token` skips the client-credentials flow.
+The default is `false`, so existing SDKs keep the nested shape.
+
+
+**`(fix):`** Fix `auth: any` SDKs ignoring an OAuth token override (`oauth: { token }`). Previously the OAuth provider was only
+used when `clientId` and `clientSecret` were set, so a token by itself sent no `Authorization` header.
+
+
