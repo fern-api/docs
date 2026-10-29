@@ -1,0 +1,101 @@
+name: Watch SDK Config schema
+
+# Opens an issue when a new @postman/sdk-config release changes the SDK Config
+# schema or its bundled docs. The package source repo is private; npm is public.
+
+on:
+  schedule:
+    - cron: "0 13 * * *"
+  workflow_dispatch:
+    inputs:
+      from_version:
+        description: "Version to compare from. Defaults to the version in the latest report issue."
+        required: false
+      to_version:
+        description: "Version to compare to. Defaults to the latest version on npm."
+        required: false
+
+permissions: {}
+
+jobs:
+  watch:
+    if: github.repository == 'fern-api/docs'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    env:
+      PACKAGE: "@postman/sdk-config"
+      LABEL: sdk-config-changes
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 24
+
+      - name: Resolve versions
+        id: versions
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_FROM: ${{ inputs.from_version }}
+          INPUT_TO: ${{ inputs.to_version }}
+        run: |
+          set -euo pipefail
+          semver='^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'
+
+          to="${INPUT_TO:-$(npm view "$PACKAGE" version)}"
+          from="${INPUT_FROM:-}"
+          if [ -z "$from" ]; then
+            from=$(gh issue list --repo "$GITHUB_REPOSITORY" --label "$LABEL" --state all --limit 1 \
+              --json title --jq '.[0].title // ""' | sed -n 's/.* to \([^ ]*\)$/\1/p')
+          fi
+          if [ -z "$from" ]; then
+            from=$(npm view "$PACKAGE" versions --json \
+              | jq -r --arg to "$to" 'index($to) as $i | if $i != null and $i > 0 then .[$i - 1] else "" end')
+          fi
+
+          for v in "$from" "$to"; do
+            if ! [[ "$v" =~ $semver ]]; then
+              echo "::error::Invalid version '$v'"
+              exit 1
+            fi
+          done
+
+          title="SDK Config schema changes: $from to $to"
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --label "$LABEL" --state all \
+            --search "\"$title\" in:title" --json title --jq "map(select(.title == \"$title\")) | length")
+
+          if [ "$from" = "$to" ] || [ "$existing" != "0" ]; then
+            echo "No new release to report ($from to $to)."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+          {
+            echo "from=$from"
+            echo "to=$to"
+            echo "title=$title"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Compare schemas
+        id: diff
+        if: steps.versions.outputs.skip == 'false'
+        env:
+          FROM: ${{ steps.versions.outputs.from }}
+          TO: ${{ steps.versions.outputs.to }}
+        run: node .github/scripts/sdk-config-schema-diff.mjs "$FROM" "$TO" "$RUNNER_TEMP/report.md"
+
+      - name: Open issue
+        if: steps.diff.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: ${{ steps.versions.outputs.title }}
+        run: |
+          set -euo pipefail
+          gh label create "$LABEL" --repo "$GITHUB_REPOSITORY" --force \
+            --color 0e8a16 --description "Changes in a @postman/sdk-config release that may need docs updates"
+          gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" \
+            --label "$LABEL" --label documentation --body-file "$RUNNER_TEMP/report.md"
