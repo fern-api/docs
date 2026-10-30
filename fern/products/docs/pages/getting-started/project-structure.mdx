@@ -20,8 +20,7 @@ The configuration files for your docs live in the `fern` folder:
     <Folder name="snippets" comment="Reusable MDX snippets" />
     <File name="docs.yml" comment="Defines navigation, theme, and hosting" />
     <File name="openapi.yml" comment="API definition (OpenAPI, AsyncAPI, etc.)" />
-    <File name="sdk-config.yml" comment="Configures SDKs (optional)" />
-    <File name="generators.yml" comment="References specs (optional)" />
+    <File name="generators.yml" comment="References specs, configures SDKs" />
     <File name="fern.config.json" comment="Organization name and CLI version" />
     <File name="styles.css" comment="Custom CSS styles" />
   </Folder>
@@ -63,7 +62,7 @@ The `assets` folder contains any images or videos used in your documentation. Yo
 The `docs.yml` file is the heart of your Fern documentation site. This configuration file controls your documentation's navigation structure, visual design, site functionality, and hosting settings. Only files referenced in your `docs.yml` navigation (or discovered via a [`folder` configuration](/learn/docs/configuration/navigation#add-a-folder)) are included in builds — any unreferenced files are ignored.
 
 <Note>
-Fern treats `.yml` and `.yaml` extensions identically. This applies to all YAML files in a Fern project, including `docs.yml`, `sdk-config.yml`, `generators.yml`, and API specification files.
+Fern treats `.yml` and `.yaml` extensions identically. This applies to all YAML files in a Fern project, including `docs.yml`, `generators.yml`, and API specification files.
 </Note>
 
 For complete configuration options, see the [`docs.yml` reference](/learn/docs/configuration/site-level-settings).
@@ -122,29 +121,17 @@ css: styles.css
 ```
 </CodeBlock>
 
-## API definitions
+## API definitions and `generators.yml`
 
-To generate [API Reference](/learn/docs/api-references/generate-api-ref) documentation, you need to provide your API definition. List your spec files in the `specs` of an `api` entry in `docs.yml`, or in the `api.specs` section of a `generators.yml` file. When an `api` entry has `specs`, Fern [builds it from those files](/learn/docs/api-references/generate-api-ref#reference-a-spec-directly-from-docsyml) and ignores `generators.yml`.
+To generate [API Reference](/learn/docs/api-references/generate-api-ref) documentation, you need to provide your API definition. OpenAPI and AsyncAPI specs require a `generators.yml` file with an `api.specs` section. You can optionally add a `groups` section for SDK generation.
 
-SDKs are configured in [`sdk-config.yml`](/learn/sdks/reference/sdk-config). Projects that haven't [migrated to `sdk-config.yml`](/learn/sdks/legacy/generators/migration-guides/sdk-config) still configure SDKs in the `groups` section of `generators.yml`.
-
-<Info>Using Fern for both API Reference docs and SDKs? You'll use `docs.yml` for your documentation settings and `sdk-config.yml` or `generators.yml` to configure [SDK code snippets](/learn/docs/api-references/sdk-snippets) in your API Reference.</Info>
+<Info>Using Fern for both API Reference docs and SDKs? You'll use `docs.yml` for your documentation settings and `generators.yml` to configure [SDK code snippets](/learn/docs/api-references/sdk-snippets) in your API Reference.</Info>
 
 <AccordionGroup>
   <Accordion title="OpenAPI">
     Place your OpenAPI specification file in the `fern/` directory (or in a subfolder). Fern supports either YAML or JSON format.
 
-    Reference it in `docs.yml`:
-
-    ```yaml title="docs.yml"
-    navigation:
-      - api: API Reference
-        specs:
-          - type: openapi
-            path: ./openapi.yml
-    ```
-
-    Or reference it in `generators.yml`:
+    Reference it in `generators.yml`:
 
     ```yaml title="generators.yml"
     api:
@@ -156,19 +143,7 @@ SDKs are configured in [`sdk-config.yml`](/learn/sdks/reference/sdk-config). Pro
 
   </Accordion>
   <Accordion title="AsyncAPI">
-    Place your AsyncAPI specification file in the `fern/` directory alongside your OpenAPI spec. Reference it in `docs.yml`:
-
-    ```yaml title="docs.yml"
-    navigation:
-      - api: API Reference
-        specs:
-          - type: openapi
-            path: ./openapi.yml
-          - type: asyncapi
-            path: ./asyncapi.yaml
-    ```
-
-    Or reference it in `generators.yml`:
+    Place your AsyncAPI specification file in the `fern/` directory alongside your OpenAPI spec. Reference it in `generators.yml`:
 
     ```yaml title="generators.yml"
     api:
@@ -198,7 +173,7 @@ SDKs are configured in [`sdk-config.yml`](/learn/sdks/reference/sdk-config). Pro
       </Folder>
     </Files>
 
-    The `apis` folder must use this exact name. Reference each API in `docs.yml` using `api-name` that matches the subfolder name. If you list specs in `docs.yml` instead, add a separate `api` entry with its own `specs` for each API. To see this in practice, check out [Vapi's Fern configuration](https://github.com/VapiAI/docs/tree/main/fern/apis).
+    The `apis` folder must use this exact name. Reference each API in `docs.yml` using `api-name` that matches the subfolder name. To see this in practice, check out [Vapi's Fern configuration](https://github.com/VapiAI/docs/tree/main/fern/apis).
 
   </Accordion>
 </AccordionGroup>
