@@ -20,13 +20,67 @@ Once configured, SDK snippets replace [HTTP snippets](/learn/docs/api-references
 
 ## Configuration
 
-To configure SDK snippets, first name your SDKs in `generators.yml` and then reference that name in `docs.yml`.
+Fern needs to read request examples from your API definition to generate code snippets. For OpenAPI, follow [Swagger's examples documentation](https://swagger.io/docs/specification/adding-examples/).
+
+Then follow the steps for the file you generate SDKs with.
+
+<Tabs>
+<Tab title="sdk-config.yml">
+
+With [`sdk-config.yml`](/learn/sdks/reference/sdk-config), Fern stores the snippets from each SDK build on its servers. `fern generate --docs` fetches them and adds them to your API Reference endpoints. This works for TypeScript, Python, Java, Go, Ruby, C#, and PHP SDKs.
 
 <Steps>
 
-### Add examples to your API definition
+### Enable snippets in `sdk-config.yml`
 
-Fern needs to read request examples from your API definition to generate code snippets. For OpenAPI, follow [Swagger's examples documentation](https://swagger.io/docs/specification/adding-examples/).
+Set `docs.snippets.enabled` to `true` at the top level, where every target inherits it, or in a single target's `docs` block. Fern finds each SDK's build by its `sdkName`, so the target needs an `sdkName` of its own or the top-level one.
+
+<CodeBlock title="sdk-config.yml">
+```yaml {1, 3-5}
+sdkName: plant-store
+docs:
+  snippets:
+    enabled: true
+targets:
+  - language: python
+  - language: typescript
+```
+</CodeBlock>
+
+### Add the SDK version to `docs.yml`
+
+Under your `api:` entry, add a `snippets` entry for each language you build, with the version you're about to build. List only the languages you build.
+
+<CodeBlock title="docs.yml">
+```yaml {3-9}
+navigation:
+  - api: API Reference
+    snippets:
+      python:
+        package: your-package-name
+        version: 1.2.0
+      typescript:
+        package: your-package-name
+        version: 1.2.0
+```
+</CodeBlock>
+
+### Build the SDKs at that version
+
+Run `fern generate` to build the SDKs with a new [version](/learn/sdks/reference/sdk-config#sdkversion) that matches the `version` in `docs.yml`. Fern reads snippets only from a successful build made with snippets enabled, and uses the newest such build of each language with a matching `sdkName` and version.
+
+### Generate the docs
+
+Run `fern generate --docs`. The output includes a line such as `Loaded SDK snippets (python: 12, typescript: 12)` with the number of endpoint snippets read for each language, and the snippets appear in the language dropdown on each endpoint. A [code sample you wrote](/learn/api-definitions/openapi/extensions/request-response-examples#code-samples) for an endpoint in the same language takes precedence over the generated snippet.
+
+If Fern can't find or read the snippets for a language, the CLI logs a warning and publishes the docs without them.
+
+</Steps>
+
+</Tab>
+<Tab title="generators.yml">
+
+<Steps>
 
 ### Define a package name for your SDK(s)
 
@@ -134,9 +188,7 @@ Trigger your docs generation by running `fern generate --docs` locally or in CI/
 
 </Steps>
 
-## Additional options
-
-### Specify SDK versions
+#### Specify SDK versions
 
 You can specify which SDK version to use when generating code snippets.
 
@@ -150,6 +202,11 @@ navigation:
         version: your-version number # SDK version to use for snippets
 ```
 </CodeBlock>
+
+</Tab>
+</Tabs>
+
+## Additional options
 
 ### Set default snippet language
 
