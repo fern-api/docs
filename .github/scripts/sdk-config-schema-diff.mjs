@@ -240,7 +240,8 @@ if (body.length > MAX_BODY) {
     `\n\n_Report truncated. Run \`node .github/scripts/sdk-config-schema-diff.mjs ${fromVersion} ${toVersion} report.md\` for the full report._\n`;
 }
 writeFileSync(outputPath, body);
-console.log(
-  `${fromVersion} -> ${toVersion}: ${added.length} added, ${removed.length} removed, ${renames.length} renamed, ${changed.length} changed, ${docs.length} docs files`,
-);
-if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `changed=${hasChanges}\n`);
+const summary = `${added.length} added, ${removed.length} removed, ${renames.length} renamed, ${changed.length} changed, ${docs.length} docs files`;
+console.log(`${fromVersion} -> ${toVersion}: ${summary}`);
+if (process.env.GITHUB_OUTPUT) {
+  appendFileSync(process.env.GITHUB_OUTPUT, `changed=${hasChanges}\nsummary=${summary}\n`);
+}

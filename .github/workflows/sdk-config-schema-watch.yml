@@ -1,7 +1,8 @@
 name: Watch SDK Config schema
 
 # Opens an issue when a new @postman/sdk-config release changes the SDK Config
-# schema or its bundled docs. The package source repo is private; npm is public.
+# schema or its bundled docs, and posts it to #agent-fern-documentation-updates.
+# The package source repo is private; npm is public.
 
 on:
   schedule:
@@ -27,6 +28,7 @@ jobs:
     env:
       PACKAGE: "@postman/sdk-config"
       LABEL: sdk-config-changes
+      SLACK_CHANNEL: C08T7EHDHMW # agent-fern-documentation-updates
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -89,6 +91,7 @@ jobs:
         run: node .github/scripts/sdk-config-schema-diff.mjs "$FROM" "$TO" "$RUNNER_TEMP/report.md"
 
       - name: Open issue
+        id: issue
         if: steps.diff.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -97,5 +100,30 @@ jobs:
           set -euo pipefail
           gh label create "$LABEL" --repo "$GITHUB_REPOSITORY" --force \
             --color 0e8a16 --description "Changes in a @postman/sdk-config release that may need docs updates"
-          gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" \
-            --label "$LABEL" --label documentation --body-file "$RUNNER_TEMP/report.md"
+          url=$(gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" \
+            --label "$LABEL" --label documentation --body-file "$RUNNER_TEMP/report.md")
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      - name: Post to Slack
+        if: steps.issue.outputs.url != ''
+        env:
+          SLACK_TOKEN: ${{ secrets.FERNIE_SLACK_APP_TOKEN }}
+          TITLE: ${{ steps.versions.outputs.title }}
+          SUMMARY: ${{ steps.diff.outputs.summary }}
+          ISSUE_URL: ${{ steps.issue.outputs.url }}
+        run: |
+          set -euo pipefail
+          if [ -z "$SLACK_TOKEN" ]; then
+            echo "::warning::FERNIE_SLACK_APP_TOKEN is not set; skipping Slack post."
+            exit 0
+          fi
+          payload=$(jq -n --arg channel "$SLACK_CHANNEL" --arg title "$TITLE" --arg summary "$SUMMARY" --arg url "$ISSUE_URL" \
+            '{channel: $channel, unfurl_links: false, text: "*\($title)*\n\($summary)\n<\($url)|View issue>"}')
+          response=$(curl -sS -X POST https://slack.com/api/chat.postMessage \
+            -H "Authorization: Bearer $SLACK_TOKEN" \
+            -H "Content-Type: application/json; charset=utf-8" \
+            --data "$payload")
+          if [ "$(jq -r '.ok' <<< "$response")" != "true" ]; then
+            echo "::error::Slack post failed: $(jq -r '.error' <<< "$response")"
+            exit 1
+          fi
