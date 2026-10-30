@@ -1,0 +1,64 @@
+---
+title: Move your custom domain off Vercel
+description: Fern Docs has moved to new hosting. Point custom domains that still resolve to Vercel at cname.ferndocs.com before December 1, 2026, when publishing to them starts failing.
+noindex: true
+---
+
+Fern Docs has moved to new hosting. Custom domains set up before the move may still point to Vercel, and these domains must point to `cname.ferndocs.com` by **December 1, 2026**. Your docs stay live on the current setup until you change the DNS record, so the switch causes no downtime.
+
+## Who's affected
+
+A domain needs to move if its DNS has either of these records:
+
+- A CNAME record to a `vercel-dns.com` host, such as `cname.vercel-dns.com` or `b7278b3c9357963d.vercel-dns-013.com`.
+- For a root domain, an `A` record to a Vercel IP address, such as `76.76.21.21`.
+
+Subpath domains (`mydomain.com/docs`) and domains served through a [reverse proxy](/learn/docs/preview-publish/reverse-proxy) or your own CDN aren't affected.
+
+To check a domain, look up its DNS records:
+
+```bash
+dig +short CNAME docs.mydomain.com
+dig +short A mydomain.com
+```
+
+## What the CLI shows
+
+`fern generate --docs` (including `--preview`) checks each `custom-domain` in the docs instance being published. When a domain still points to Vercel, the CLI prints a warning that lists each affected domain and its current target:
+
+```
+Action required by December 1, 2026: your custom domain still points to Vercel.
+
+  docs.mydomain.com  →  cname.vercel-dns.com
+```
+
+Until December 1, 2026, this is a warning and publishing continues. From December 1, 2026, the warning becomes an error and `fern generate --docs` fails for that domain until the DNS record points to `cname.ferndocs.com`.
+
+## Make the switch
+
+An [admin](/learn/dashboard/configuration/permissions) of your Fern organization needs to complete these steps.
+
+<Steps>
+<Step title="Start the switch">
+
+Open the [Fern Dashboard](https://dashboard.buildwithfern.com/), select your docs site, and select **Make the switch**. If you started earlier and didn't finish, the button reads **Finish the switch**.
+</Step>
+
+<Step title="Verify domain ownership">
+
+Add the TXT records the Dashboard shows to your DNS provider: one for domain ownership and one for the SSL certificate. The certificate record appears after ownership is verified. Then select **Verify TXT records**.
+</Step>
+
+<Step title="Update your CNAME record">
+
+Change your domain's CNAME record to `cname.ferndocs.com`. For a root domain, use an `ALIAS` record or a flattened CNAME pointing to `cname.ferndocs.com`. Return to the Dashboard to confirm the DNS change.
+
+```
+CNAME   docs    cname.ferndocs.com
+```
+</Step>
+</Steps>
+
+After the DNS change propagates, `fern generate --docs` no longer prints the warning. For general DNS setup, see [Set up a custom domain](/learn/dashboard/configuration/custom-domains).
+
+Questions? Reach out in your Fern Slack channel or email [support@buildwithfern.com](mailto:support@buildwithfern.com).
