@@ -15,8 +15,21 @@ A request is deemed retryable when any of the following HTTP status codes is ret
 - [429](https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429) (Too Many Requests)
 - [5XX](https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500) (Internal Server Errors)
 
-Note that you can configure the list of retryable status codes as well. For example,
-if you want to remove the `429` status code from the list of retryable status codes, you can do so.
+In the Java SDK, `retryOnStatusCodes` on the client builder replaces this default set. The configured codes are the only ones retried, and any other response (including other 5XX codes) is returned as-is. Each code must be between 100 and 599. The retry limit, backoff settings, and `Retry-After` handling are unchanged, and the setting applies to both sync and async clients.
+
+<CodeBlocks>
+  <CodeBlock title="Java">
+    ```java {6}
+    import com.imdb.ImdbClient;
+    import java.util.Set;
+
+    // retries only 429 and 503; other 5XX responses are returned without retrying
+    ImdbClient client = new ImdbClient.Builder()
+      .retryOnStatusCodes(Set.of(429, 503))
+      .build();
+    ```
+  </CodeBlock>
+</CodeBlocks>
 
 ### Overriding the retry limit
 
@@ -177,4 +190,28 @@ The Java SDK exposes client builder options to tune the exponential backoff appl
 | `initialRetryDelayMillis` | Initial delay in milliseconds used for exponential backoff. | `1000` |
 | `maxRetryDelayMillis` | Maximum delay in milliseconds between retries. | `60000` |
 | `retryJitterFactor` | Jitter factor between 0 and 1 applied to retry delays. | `0.2` |
+| `retryDelays` | Explicit list of delays (`List<Duration>`) to wait before each retry. Replaces `maxRetries` and the exponential backoff options. | Not set |
+
+To use a fixed retry schedule instead of exponential backoff, pass `retryDelays`. The n-th retry waits for the n-th duration, and retrying stops once the list is exhausted, so the list size replaces `maxRetries` (a per-request `maxRetries` override can still lower it). Delays are used as-is without jitter, and `initialRetryDelayMillis`, `maxRetryDelayMillis`, and `retryJitterFactor` are ignored. A `Retry-After` or `X-RateLimit-Reset` response header still takes precedence for that attempt. An empty list disables retries.
+
+<CodeBlocks>
+  <CodeBlock title="Java">
+    ```java {8-13}
+    import com.imdb.ImdbClient;
+    import java.time.Duration;
+    import java.util.List;
+    import java.util.Set;
+
+    ImdbClient client = new ImdbClient.Builder()
+      .retryOnStatusCodes(Set.of(429))
+      .retryDelays(List.of(
+        Duration.ofSeconds(1),
+        Duration.ofSeconds(5),
+        Duration.ofSeconds(30),
+        Duration.ofSeconds(60)
+      ))
+      .build();
+    ```
+  </CodeBlock>
+</CodeBlocks>
 
