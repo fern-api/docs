@@ -1,54 +1,59 @@
 ---
 title: Mintlify compatibility
-description: Render pages written for Mintlify without rewriting their components.
+description: Fern renders Mintlify components as-is. Learn which work unchanged and how to move aliased ones to Fern names.
 ---
 
-Fern renders pages written with Mintlify components as-is. Every built-in Mintlify component either renders under its own name or maps to the Fern component that does the same job, so migrated pages need no component rewrites. Mintlify props are handled the same way.
+Fern renders pages written with Mintlify components without changes.
 
-New pages can use the Fern names in the tables on this page, which link to each component's full set of options.
+## Components that work as-is
 
-## Components that map to Fern components
+These components have the same name and props in Fern:
 
-| Mintlify | Renders as |
-|----------|------------|
-| `<ResponseField name="...">` | [`<ParamField path="...">`](/learn/docs/writing-content/components/parameter-fields), including in the page's Markdown and `llms.txt` output |
+`<Accordion>`, `<AccordionGroup>`, `<Badge>`, `<Callout>`, `<Card>`, `<CardGroup>`, `<Check>`, `<CodeGroup>`, `<Color>`, `<Frame>`, `<GitHub.Repo>`, `<Icon>`, `<Info>`, `<Mermaid>`, `<Note>`, `<ParamField>`, `<Prompt>`, `<Step>`, `<Steps>`, `<Tab>`, `<Tabs>`, `<Tile>`, `<Tip>`, `<Tooltip>`, `<Update>`, `<Warning>`
+
+## Aliased components
+
+These render through a Fern component. They work unchanged, but you can switch to the Fern name:
+
+| Mintlify | Fern |
+|----------|------|
+| `<ResponseField name="...">` | [`<ParamField path="...">`](/learn/docs/writing-content/components/parameter-fields) |
 | `<Expandable>` | [`<Accordion>`](/learn/docs/writing-content/components/accordions) |
-| `<Danger>` | [`<Error>` callout](/learn/docs/writing-content/components/callouts) |
-| `<Columns cols={2}>` | `<ColumnGroup cols={2}>` |
-| `<Tree>`, `<FileTree>`, `<Tree.Folder>`, `<Tree.File>` | [`<Files>`, `<Folder>`, `<File>`](/learn/docs/writing-content/components/files). The nested Markdown list form is also supported. |
-| `<RequestExample>`, `<ResponseExample>` | [`<CodeGroup>`](/learn/docs/writing-content/components/code-blocks), rendered inline in the page rather than in a side column |
-| `<View title="...">` | [`<Tabs>`](/learn/docs/writing-content/components/tabs). Adjacent `<View>` elements become one tab group. |
+| `<Danger>` | [`<Error>`](/learn/docs/writing-content/components/callouts) |
+| `<Columns>` | `<ColumnGroup>` |
+| `<Tree>`, `<FileTree>`, `<Tree.Folder>`, `<Tree.File>` | [`<Files>`, `<Folder>`, `<File>`](/learn/docs/writing-content/components/files) |
+| `<RequestExample>`, `<ResponseExample>` | [`<CodeGroup>`](/learn/docs/writing-content/components/code-blocks) |
+| `<View title="...">` | [`<Tabs>` and `<Tab title="...">`](/learn/docs/writing-content/components/tabs) |
 | `<Panel>` | [`<Aside>`](/learn/docs/writing-content/components/aside) |
+| `<Visibility for="humans">` | [`<llms-ignore>`](/learn/docs/ai-features/customize-llm-output) |
+| `<Visibility for="agents">` | [`<llms-only>`](/learn/docs/ai-features/customize-llm-output) |
+| `<Visibility for="signed-in">` | [`<If loggedIn={true}>`](/learn/docs/writing-content/components/if) |
+| `<Visibility for="signed-out">` | [`<If loggedIn={false}>`](/learn/docs/writing-content/components/if) |
+| `<Visibility for={{ groups: [...] }}>` | [`<If roles={[...]}>`](/learn/docs/writing-content/components/if) |
+| Card `img` | Card `src` |
+| Badge `color` | Badge `intent` |
 
-## Visibility
+## Move to Fern components
 
-`<Visibility>` maps to Fern's [conditional content](/learn/docs/writing-content/components/if) and [LLM output](/learn/docs/ai-features/customize-llm-output) controls:
+<Steps>
+<Step title="Rename the tags">
 
-| Mintlify | Renders as |
-|----------|------------|
-| `<Visibility for="humans">` | `<llms-ignore>`: shown on the page, left out of Markdown and `llms.txt` |
-| `<Visibility for="agents">` | `<llms-only>`: left out of the page, included in Markdown and `llms.txt` |
-| `<Visibility for="signed-in">` | `<If loggedIn={true}>` |
-| `<Visibility for="signed-out">` | `<If loggedIn={false}>` |
-| `<Visibility for={{ groups: ["admins"] }}>` | `<If roles={["admins"]}>`. A user in any listed group sees the content. |
+Replace each Mintlify tag in the table above with its Fern equivalent, including the closing tag.
 
-Content gated on sign-in or groups is removed before the page, its Markdown, and `llms.txt` are built, the same as a hand-written `<If>`. A `<Visibility>` condition with no Fern equivalent, such as `excludes`, hides its content from every viewer.
+</Step>
+<Step title="Rename the props">
 
-## Components with Fern pages
+On `<ParamField>`, rename `name` to `path`. On `<Card>`, rename `img` to `src`. On `<Badge>`, replace `color` with an `intent`.
 
-These Mintlify components have no counterpart in Fern's original component set and are documented as Fern components: [Color](/learn/docs/writing-content/components/color), [GitHub repository](/learn/docs/writing-content/components/github-repo), [Tile](/learn/docs/writing-content/components/tile), and [Update](/learn/docs/writing-content/components/update).
+</Step>
+<Step title="Wrap adjacent views in tabs">
 
-## Props
+Wrap each run of adjacent `<View>` elements in one `<Tabs>`, and turn each `<View>` into a `<Tab>`.
 
-Fern components accept these Mintlify props:
+</Step>
+<Step title="Preview the site">
 
-| Component | Mintlify props |
-|-----------|----------------|
-| [Card](/learn/docs/writing-content/components/cards) | `img` (the card's image), `horizontal`, `cta`, `arrow` |
-| [Badge](/learn/docs/writing-content/components/badges) | `color`: `green`, `blue`, `yellow`, `orange`, `red`, `purple`, and `gray` map to the closest `intent` |
-| [Callout](/learn/docs/writing-content/components/callouts) | `color` |
-| [Accordion](/learn/docs/writing-content/components/accordions) | `description` |
-| [Tooltip](/learn/docs/writing-content/components/tooltips) | `headline`, `cta`, `href` |
-| [Frame](/learn/docs/writing-content/components/frames) | `hint` |
-| [Tabs](/learn/docs/writing-content/components/tabs) | `defaultTabIndex` |
-| [ParamField](/learn/docs/writing-content/components/parameter-fields) | `pre`, `post` |
+Run `fern docs dev` and check the converted pages.
+
+</Step>
+</Steps>
