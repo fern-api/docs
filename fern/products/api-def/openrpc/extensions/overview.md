@@ -21,6 +21,7 @@ The table below shows all available extensions and links to detailed documentati
 | [`x-fern-sdk-group-name`](./sdk-group-names) | Group related methods in the SDK |
 | [`x-fern-audiences`](./audiences) | Filter methods by audience |
 | [`x-fern-sdk-method-name`](./method-names) | Customize SDK method names |
+| [`x-fern-explorer`](./api-explorer-control) | Control API Explorer (playground) availability globally or per method |
 
 <Note title="Request a new extension">
     If there's an extension you want that doesn't already exist, file an [issue](https://github.com/fern-api/fern/issues/new) to start a discussion about it.
