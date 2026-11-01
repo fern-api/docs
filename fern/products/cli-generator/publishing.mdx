@@ -347,6 +347,18 @@ The CI workflow then builds binaries for all platforms, attaches the archives an
 
 On public repositories, each build also signs its archives with GitHub build provenance attestations. Private repositories skip that step by default, since GitHub supports attestations on private repositories only with GitHub Enterprise Cloud; set [`distribution.githubAttestations`](/learn/cli-generator/get-started/configuration#config-options) to `true` to attest on Enterprise Cloud or `false` to drop attestations entirely.
 
+### Sign macOS binaries
+
+With CLI generator `0.58.2` or later, the release workflow signs the macOS binaries when the CLI repository has all three of these Actions secrets, under **Settings** > **Secrets and variables** > **Actions**:
+
+| Secret | Value |
+| --- | --- |
+| `CODESIGN_CERTIFICATE` | An Apple Developer ID certificate exported as a `.p12` file, base64-encoded (for example, `base64 -i certificate.p12`) |
+| `CODESIGN_CERTIFICATE_PASSWORD` | The password the `.p12` file was exported with |
+| `CODESIGN_IDENTITY` | The signing identity passed to `codesign`, such as `Developer ID Application: My Org (TEAMID)` |
+
+A binary signed with the same identity on every release keeps the macOS Keychain's **Always Allow** across upgrades of your CLI. If any of the three secrets is missing, the workflow logs that the macOS binaries stay unsigned and releases them unsigned. Signing doesn't include notarization.
+
 ## Build targets
 
 The CI workflow produces statically linked binaries for:
