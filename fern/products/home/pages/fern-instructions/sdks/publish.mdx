@@ -1,0 +1,49 @@
+---
+title: Publish Fern SDKs
+slug: fern-instructions/sdks/publish
+description: Deliver generated SDKs to GitHub repositories and publish them to npm, PyPI, Maven Central, NuGet, RubyGems, crates.io, and other registries.
+---
+
+Use this to move an SDK from local output to a GitHub repo and a package registry.
+
+## Workflow
+
+1. Create one GitHub repository per SDK and install the [Fern GitHub App](https://github.com/apps/fern-api) on it.
+2. Set the target's output to GitHub and add publishing in `sdk-config.yml`:
+
+   ```yaml
+   targets:
+     - language: typescript
+       package:
+         packageName: "@acme/sdk"
+       output:
+         delivery: github
+         github:
+           repository: acme/acme-typescript
+           mode: pull-request
+         publish:
+           registry: npm
+           token: ${NPM_TOKEN}
+   ```
+
+   `mode` is one of `release`, `pull-request`, `push`, `commit` or `commit-and-release`. Legacy `generators.yml` projects configure the same thing under each generator's `output` and `github`.
+3. Add the registry credential as a GitHub Actions secret in the SDK repo (for example `NPM_TOKEN`). npm also supports trusted publishing (OIDC) with `trustedPublishing: true` instead of a token.
+4. Generate with a version: `fern generate --target typescript --version 1.2.0`. Without `--version`, Fern picks one.
+5. Merge the generated pull request (or let `release` mode publish). The SDK repo's workflow publishes the package.
+
+## Rules
+
+- Credentials must be environment expressions such as `${NPM_TOKEN}`, never literal values.
+- Package names must be available on the registry. Ask the user before choosing one.
+- Guest sessions can't publish. Claim the session or log in first. See `new-site`.
+- If a release exists but the package isn't on the registry, debug the publish workflow in the SDK repo.
+
+## Verify
+
+- The SDK repo has the generated commit or pull request, and the package version appears on the registry after the workflow runs.
+
+## Reference
+
+- [Project structure and GitHub setup](https://buildwithfern.com/learn/sdks/overview/project-structure.md)
+- [`sdk-config.yml` output and publish](https://buildwithfern.com/learn/sdks/reference/sdk-config.md)
+- Per-language publishing pages: `fern instructions sdks <language>`

@@ -1,0 +1,67 @@
+---
+title: Generate SDKs with Fern
+slug: fern-instructions/sdks
+description: Add SDK targets in sdk-config.yml, run fern generate, generate one language, and upgrade generators.
+---
+
+Use this to add an SDK, change SDK configuration, or run SDK generation.
+
+## Workflow
+
+1. Find the SDK config. New projects use `fern/sdk-config.yml`. Older projects configure SDKs under `groups` in `fern/generators.yml`. If both exist, ask the user which to change. Don't add `groups` to a project that uses `sdk-config.yml`.
+2. Confirm the spec is listed under `source.specs` (each entry has an `id`, a `type` such as `openapi` or `asyncapi`, and a `path` or `url`).
+3. Add one entry under `targets` per language. Each language appears once:
+
+   ```yaml title="sdk-config.yml"
+   schemaVersion: sdk-config/v1
+   sdkName: Plant Store
+   source:
+     specs:
+       - id: plant-store
+         type: openapi
+         path: ./openapi.yml
+   targets:
+     - language: typescript
+       package:
+         packageName: "@plant-store/sdk"
+       output:
+         delivery: files
+         path: ../sdks/typescript
+     - language: python
+       package:
+         packageName: plant-store
+       output:
+         delivery: files
+         path: ../sdks/python
+   ```
+
+4. Put settings every language shares (`api.auth`, `client.retry`, `client.timeoutMs`, `package`) at the top level. A target inherits them and overrides only the fields it sets. A target's `output` replaces the top-level `output`.
+5. Run `fern check`, then generate:
+   - `fern generate` generates every target.
+   - `fern generate --target python` generates one language. Repeat `--target` for several.
+   - Legacy projects: `fern generate --group <name>`.
+   - `fern generate --preview` writes output locally without publishing.
+6. To move a legacy project to `sdk-config.yml`, run `fern sdk migrate --dry-run`, review the proposed changes, then `fern sdk migrate`.
+
+## Rules
+
+- Never put a literal secret in the config. Credential fields take an environment expression such as `${NPM_TOKEN}`.
+- Paths in `sdk-config.yml` are relative to the file.
+- Pin `targets[].generatorVersion` (or `version` in `generators.yml`) so output is reproducible. Read the generator changelog before a major upgrade.
+- Don't edit generated files unless they're protected. See `sdks custom-code`.
+- Generation needs authentication (`fern login`, `FERN_TOKEN`, or `--guest` for local output). `--local` runs generators with Docker on the user's machine.
+- Fix naming problems such as `postUsers` methods in the spec, not in generated code. See `spec`.
+
+## Verify
+
+- `fern check` passes.
+- The output directory or repository contains the generated SDK, and it builds with the language's normal tooling.
+- New endpoints appear as methods on the client.
+
+## Reference
+
+- [SDKs quickstart](https://buildwithfern.com/learn/sdks/overview/quickstart.md)
+- [`sdk-config.yml` reference](https://buildwithfern.com/learn/sdks/reference/sdk-config.md)
+- [How SDK generation works](https://buildwithfern.com/learn/sdks/overview/how-it-works.md)
+- [Project structure](https://buildwithfern.com/learn/sdks/overview/project-structure.md)
+- Language pages: `fern instructions sdks <language>`

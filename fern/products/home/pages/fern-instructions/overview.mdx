@@ -1,0 +1,54 @@
+---
+title: How a Fern project works
+slug: fern-instructions/overview
+description: Start here. How a Fern project is laid out, which file controls what, and the facts coding agents most often get wrong.
+---
+
+Use this before changing anything in a Fern project.
+
+## Layout
+
+Everything Fern reads lives in a `fern/` folder:
+
+| File | Controls |
+|---|---|
+| `fern.config.json` | `organization` (the Fern organization that owns the project) and `version` (the CLI version). Required. |
+| `docs.yml` | The docs site: `instances` (where it publishes), `navigation`, branding, layout, redirects, integrations, access control, AI settings |
+| `openapi.yml` or another spec | The API definition: OpenAPI, AsyncAPI, OpenRPC, gRPC protos, or a Fern Definition |
+| `sdk-config.yml` | SDK targets (languages, output, publishing) and the specs they use, under `source.specs`. Created by `fern init`. |
+| `generators.yml` | Older projects: lists specs under `api.specs` and configures SDKs under `groups`. Still supported. |
+| `pages/`, `assets/`, `snippets/`, `changelog/` | MDX pages, images, reusable snippets, and changelog entries |
+
+A repo can hold several APIs, each in its own folder under `fern/apis/`. Commands then need `--api <name>`.
+
+## Facts agents get wrong
+
+- A page appears on the site only if `docs.yml` navigation references it. Creating the `.mdx` file isn't enough.
+- Page URLs come from navigation (section and page titles, or `slug` overrides), not from file paths. Derive links from `docs.yml` and frontmatter.
+- `fern` and `changelog` are reserved folder names. Don't rename them.
+- The `instances` URL in `docs.yml` has no `https://` and ends in `docs.buildwithfern.com`. Custom domains go in `custom-domain`.
+- `organization` in `fern.config.json` must match the organization in the [Fern Dashboard](https://dashboard.buildwithfern.com). Never invent one.
+- The CLI runs the version pinned in `fern.config.json`, whatever version is installed globally. Change it with `fern upgrade`.
+- API Reference pages are generated from the spec. Fix the spec (or an overlay or override), not the rendered page.
+- Generated SDK code is overwritten on every run. Protect hand-written files with `.fernignore` or Replay.
+- `.yml` and `.yaml` are treated the same.
+- Pages are MDX: close every tag, and escape `<` and `{` in prose.
+
+## Commands to know
+
+| Command | Does |
+|---|---|
+| `fern check` | Validates the project. Run it before every generate. No login needed. |
+| `fern docs dev` | Local preview with hot reload. No login needed. |
+| `fern generate --docs` | Publishes the docs. `--preview` makes a preview link instead. |
+| `fern generate` | Generates SDKs. `--group <name>` or `--api <name>` to narrow it. |
+| `fern whoami` | Shows the login, `FERN_TOKEN` or guest session in use |
+| `fern generate --guest` | Runs without a Fern account. See `fern instructions new-site`. |
+
+Add `--log-level debug` to any command to see what it's doing.
+
+## Next
+
+- New project or authentication questions: `new-site`.
+- An error: `troubleshoot`.
+- Topic list: `fern instructions` or [the index](https://buildwithfern.com/learn/home/fern-instructions.md).

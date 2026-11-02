@@ -1,0 +1,69 @@
+---
+title: Troubleshoot Fern errors
+slug: fern-instructions/troubleshoot
+description: Diagnose fern check and fern generate failures, failed docs publishes, authentication errors, and CI-only failures.
+---
+
+Use this when a Fern command fails or the output looks wrong.
+
+## Workflow
+
+1. Re-run the failing command with `--log-level debug`. Compare the CLI version printed at the start with `version` in `fern.config.json`.
+2. Run `fern check`. Fix every error before anything else. It reports the file and YAML path of each problem.
+3. Run `fern whoami` if the error mentions a token, login, organization or permission.
+4. Find the symptom below. If it isn't listed, search the docs for the exact error text.
+5. Fix the cause in the source: the spec, `docs.yml`, `sdk-config.yml` or `generators.yml`. Don't patch generated output.
+6. Re-run the original command.
+
+## Authentication and organization
+
+| Symptom | Cause and fix |
+|---|---|
+| `No token found. Please set the FERN_TOKEN environment variable or run fern login.` | Not authenticated. Run `fern login`, set `FERN_TOKEN`, or try `fern generate --guest`. See `new-site`. |
+| `401` or `Unauthorized` in CI | `FERN_TOKEN` is missing from the step's environment, empty on fork or Dependabot runs, or revoked. Create a new one with `fern token`. |
+| Publishing fails with an organization error | `organization` in `fern.config.json` doesn't match the user's organization in the Dashboard, or the user isn't a member. |
+| `--guest` refuses to run | `FERN_TOKEN` is set or a login is saved. Unset it or run `fern logout`, or drop `--guest`. |
+| `--guest` rejects a generator | Guests can only download output. Use `--preview`, switch to local file output, or claim the session with `fern claim`. |
+| Guest session expired, revoked or already claimed | `fern generate --guest --new-session` |
+| `fern claim` finds no session | Run it in the repo where `fern generate --guest` ran, or run that first. |
+
+## Docs
+
+| Symptom | Cause and fix |
+|---|---|
+| Page missing from the site | It isn't referenced in `docs.yml` navigation, or it's `hidden: true` |
+| Link returns 404 | The link was built from the file path. Rebuild it from the navigation titles and `slug` values. |
+| Invalid docs URL | The `instances` URL includes `https://` or doesn't end in `docs.buildwithfern.com` |
+| MDX parse error | Unclosed tag, or a bare `<` or `{` in prose. Escape it or wrap it in backticks. |
+| API Reference is empty or stale | The spec isn't listed in the `api` entry or `generators.yml`, or `fern api update` hasn't pulled the current spec |
+| `fern docs dev` fails on Windows | Long path support is off. Enable it or use WSL. |
+| Change not visible after publishing | Confirm the command printed `Published docs to <url>` for the expected instance, then reload without the cache |
+
+## SDKs
+
+| Symptom | Cause and fix |
+|---|---|
+| `Unrecognized key` in the SDK config | The key doesn't exist for that generator version. Check the language's configuration page or upgrade the generator. |
+| `repository not found` or push fails | The [Fern GitHub App](https://github.com/apps/fern-api) isn't installed on the SDK repo, or the repository name is wrong |
+| `workflows` permission error | The token can't write `.github/workflows`. Grant the `workflow` scope or stop generating workflows. |
+| Hand-written code overwritten | The file isn't in `.fernignore` and Replay isn't on. See `sdks custom-code`. |
+| Endpoint missing from the SDK | Filtered by audiences or `x-fern-ignore`, or the spec wasn't refreshed |
+| Methods named like `postUsers` | No `operationId`. Add one or use `x-fern-sdk-method-name`. See `spec`. |
+| Errors aren't typed | The spec has no response schemas for error status codes |
+| `Cannot connect to the Docker daemon` | `--local` needs a running Docker daemon. Start Docker or generate remotely. |
+| Release created but package not on the registry | The publish job in the SDK repo failed. Check that repo's Actions, not the config repo. |
+| Different output on each run | The generator version or the CLI version isn't pinned. Pin both. |
+
+## CI only
+
+| Symptom | Cause and fix |
+|---|---|
+| `No fern directory found` | Wrong working directory. Run from the folder that contains `fern/`. |
+| Job stops responding, then times out | A prompt is waiting. Add `--no-prompt` (or `--force` for preview `--id` overwrites). Prompts fail immediately when stdin isn't a TTY or `CI` is set. |
+| Works locally, `Unrecognized key` in CI | Different CLI versions. Pin a concrete `version` in `fern.config.json`. |
+| `fetch failed` installing or upgrading the CLI | The runner can't reach the npm registry. Check `HTTPS_PROXY`, the npm registry setting and `NODE_EXTRA_CA_CERTS`. |
+
+## Reference
+
+- [CLI commands](https://buildwithfern.com/learn/cli-api-reference/cli-reference/general-commands.md)
+- [Docs commands](https://buildwithfern.com/learn/cli-api-reference/cli-reference/docs-commands.md)
