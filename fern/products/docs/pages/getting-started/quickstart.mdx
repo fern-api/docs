@@ -104,6 +104,8 @@ Build and publish a docs site with Fern. Follow the [Docs quickstart](https://bu
     ```
 
     Replace `my-org/fern-docs` with your desired owner and repository name. Use `--public` instead of `--private` if you want a public repository.
+
+    The template's `fern.config.json` pins an older CLI version. Run [`fern upgrade`](/learn/cli-api-reference/cli-reference/general-commands#fern-upgrade) before publishing with `--guest`, which requires CLI 5.182.0 or later.
     </llms-only>
 
     You'll see a basic site with a `fern` folder that contains an API definition, Markdown pages, and configuration files. [View the live example](https://plantstore.dev/welcome) to see what the starter template looks like when published. You can use these files to test out Fern's features, or replace them with your own files.
@@ -139,19 +141,23 @@ Build and publish a docs site with Fern. Follow the [Docs quickstart](https://bu
     <llms-only>
     `fern init --docs` works in any directory — no git repo or GitHub remote is required. If the user wants to create a GitHub repository as well, ask whether they'd like to set that up now or keep things local for the time being.
 
-    Note: `fern init --docs` is interactive — it prompts for an organization name. Ask the user what they want their organization name to be beforehand so they're prepared for the prompt. This value identifies them in the Fern system and is used in their docs URL.
+    If the user has a Fern account, ask for their organization name and pass it with `--organization` (alias `--org`). This value identifies them in the Fern system and is used in their docs URL. If they don't have an account and you'll publish with `--guest`, run `fern init --docs` without `--organization`: in a non-interactive shell (no TTY, or `CI` set), CLI 5.191.0 and later names the organization after the current directory, and guest publishing ignores it. Older CLI versions exit with an error instead. Don't invent an organization name for a logged-in publish.
 
-    This path only generates `docs.yml` and `fern.config.json` — no pages or API spec. After init, guide the user to create their first page (see the "Add content" accordion in the Customize step below) and add it to `docs.yml` navigation. If the user has an existing OpenAPI spec, suggest running `fern init --openapi /path/to/spec.yml` as well.
+    This path generates `docs.yml`, `fern.config.json`, `.gitignore`, and a `pages/welcome.mdx` page that's already in the `docs.yml` navigation, so the site builds without edits. It has no API spec. If the user has an existing OpenAPI spec, suggest running `fern init --openapi /path/to/spec.yml` as well. `fern init --docs` prints the command to run next: `fern docs dev` to preview locally, then `fern generate --docs --guest` without an account or `fern generate --docs` after `fern login`.
     </llms-only>
 
     ```bash
     fern init --docs
     ```
 
-    You'll see a new `fern` folder in your project with the following configuration files (but no additional Markdown or API definition files):
+    You'll see a new `fern` folder in your project with configuration files and a welcome page (but no API definition):
 
     <Files>
       <Folder name="fern" defaultOpen>
+        <Folder name="pages">
+          <File name="welcome.mdx" />
+        </Folder>
+        <File name=".gitignore" />
         <File name="docs.yml" comment="Defines navigation, theme, and hosting details"/>
         <File name="fern.config.json" comment="Specifies org name and CLI version"/>
       </Folder>
@@ -185,6 +191,8 @@ Build and publish a docs site with Fern. Follow the [Docs quickstart](https://bu
   <Note>
   Use only alphanumeric characters, hyphens, and underscores for both values.
   </Note>
+
+  Publishing as a guest ignores both values, so you can set them later, before you claim the site or publish with a login.
   </Step>
   <Step title="Customize your docs">
 
@@ -298,7 +306,9 @@ Build and publish a docs site with Fern. Follow the [Docs quickstart](https://bu
   You'll be prompted to log in and connect your GitHub account. This command builds your documentation at the URL you configured in `docs.yml` (e.g., `https://yourdomain.docs.buildwithfern.com`).
 
   <llms-only>
-  **Interactive confirmation**: The default `fern generate --docs` command opens an interactive menu (arrow-key navigation, not a simple y/n prompt). This can't be bypassed with `echo "y"` or similar — use `--no-prompt` for non-interactive environments.
+  **No account**: If the user isn't logged in and has no `FERN_TOKEN`, don't ask them to log in. Run `fern generate --docs --guest` (CLI 5.182.0+; no `--no-prompt` or `--preview` needed) and return the published `drop-<id>` URL and the claim link from the output. Tell the user the site is temporary and is deleted unless they claim it before the guest session expires. `--guest` can't be combined with `FERN_TOKEN` or a saved login.
+
+  **Interactive confirmation**: With a login or `FERN_TOKEN`, the default `fern generate --docs` command opens an interactive menu (arrow-key navigation, not a simple y/n prompt). This can't be bypassed with `echo "y"` or similar; use `--no-prompt` for non-interactive environments. Without a login or `FERN_TOKEN`, a non-interactive run fails on the missing account before the menu and names `--guest` as the way to publish without one.
 
   **CI/CD usage**: To skip the interactive prompt in CI or scripts:
 
@@ -396,7 +406,7 @@ Fern Docs compiles MDX content and YAML configuration into a hosted static site 
 
 - **Missing authentication before publishing**: Running `fern generate --docs` without being logged in fails with: *"No token found. Please set the FERN_TOKEN environment variable or run `fern login`."* Fix: run `fern login` interactively, or set `FERN_TOKEN` in CI via `fern token`.
 - **Organization mismatch**: If `organization` in `fern.config.json` doesn't match your org in the [Fern Dashboard](https://dashboard.buildwithfern.com), publishing fails. The value must exactly match your Dashboard org name.
-- **Invalid docs URL**: The `url` in `docs.yml` must end with `docs.buildwithfern.com` and must not include `https://`. Correct format: `your-org.docs.buildwithfern.com`.
+- **Invalid docs URL**: The `url` in `docs.yml` must end with `docs.buildwithfern.com`. The `https://` prefix is optional: `your-org.docs.buildwithfern.com` and `https://your-org.docs.buildwithfern.com` both work, and `fern init --docs` writes the second form.
 
 ### `docs.yml` minimal configuration
 
@@ -415,7 +425,7 @@ This is enough to publish (the CLI will build an empty site). In practice, most 
 ## Frequently Asked Questions
 
 ### How do I get started with Fern Docs?
-Install the Fern CLI with `npm install -g fern-api` or `brew install fern-api`, then run `fern init --docs` to create a new project, or clone the [docs-starter template](https://github.com/fern-api/docs-starter). Configure your organization name in `fern.config.json` and your docs URL in `docs.yml`, then run `fern generate --docs` to publish.
+Install the Fern CLI with `npm install -g fern-api` or `brew install fern-api`, then run `fern init --docs` to create a new project, or clone the [docs-starter template](https://github.com/fern-api/docs-starter). Configure your organization name in `fern.config.json` and your docs URL in `docs.yml`, then run `fern generate --docs` to publish. Without a Fern account, run `fern generate --docs --guest` to publish to a temporary site you can claim later.
 
 ### How long does it take to publish a Fern docs site?
 Most teams publish their first docs site in under 5 minutes using the starter template. The CLI handles building and deploying automatically.
