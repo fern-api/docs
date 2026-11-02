@@ -162,76 +162,36 @@ enum ChatMessageType {
 }
 ```
 
-## Set up your fern folder
+## Get started with `fern init`
 
+`fern init` creates a `fern/` folder with a `generators.yml` that generates a C# SDK. Run it from your project root.
 
-<Steps>
-<Step title="Create your fern directory">
-Create a `fern/` folder in your project root.
+```bash title="terminal"
+# Sample gRPC service
+fern init --grpc
 
-```
-fern/
-```
-</Step>
-<Step title="Add your gRPC service">
-Add your gRPC files to the fern directory. You can place it in a subfolder called `proto` or directly in the fern directory.
-
-```
-fern/
-  └─ proto/
-    ├─ user_service.proto
-    └─ common.proto
-```
-</Step>
-<Step title="Create a `fern.config.json` file">
-Add a `fern.config.json` file in your fern directory that lists your organization and the current version of the Fern CLI:
-
-```json title="fern.config.json"
-{
-    "organization": "your-organization",
-    "version": "<Markdown src="/snippets/version-number-cli.mdx" />"
-}
+# Your own .proto file or directory of .proto files
+fern init --proto ./proto
 ```
 
-```
-fern/
-  ├─ fern.config.json
-  └─ proto/
-    ├─ user_service.proto
-    └─ common.proto
-```
-</Step>
-<Step title="Create a `generators.yml` file">
-Create a `generators.yml` file in your fern directory and add a reference to your gRPC proto files. See [gRPC generators.yml reference](/learn/api-definitions/grpc/generators-yml-reference) for complete configuration options.
+`--grpc` creates a sample unary service. `--proto` takes a local path, copies the `.proto` files into `fern/proto/`, and adds the `google/api` protos if they're imported and missing. `target` is set to the file that defines a `service`; when several files define one, `target` is omitted and every file is compiled. The two flags can't be combined with each other or with `--openapi`, `--fern-definition`, `--docs`, `--mintlify`, or `--readme`. See the [generators.yml reference](/learn/api-definitions/grpc/generators-yml-reference) for configuration options.
 
-```yaml title="generators.yml"
-# Your API definition
-api: 
-  specs: 
-    - proto:
-        # Path up to where package starts (e.g., for package userservice.v1)
-        root: ../user-service/proto 
-        # Omit to generate docs for entire root folder
-        target: ../user-service/proto/data/v1/user_service.proto 
-groups:
-  external:
-    generators:
-      # Your C# generator configuration here, if relevant
+Then generate the SDK:
+
+```bash title="terminal"
+fern generate
 ```
 
-<Note>
-If you want to [compile `.proto` files locally (`local-generation: true`)](/learn/api-definitions/grpc/generators-yml-reference#local-generation), you must have [buf](https://buf.build/docs/installation) installed on your machine or [in your CI/CD environment](/learn/api-definitions/grpc/sync-your-g-rpc-specification).
-</Note>
+`fern generate` compiles the `.proto` files on your machine, downloading [buf](https://buf.build/docs/installation) the first time, and builds the SDK in Fern's cloud. The SDK is written to `sdks/csharp`.
 
-Your final directory structure:
+### Supported proto features
 
-```
-fern/
-  ├─ fern.config.json
-  ├─ generators.yml
-  └─ proto/
-    ├─ user_service.proto
-    └─ common.proto
-```
-</Step>
-</Steps>
+The C# SDK supports unary RPCs. Streaming RPCs (server, client, and bidirectional) aren't supported yet. `fern init --proto` warns you if your files use them.
+
+### Other languages
+
+Only the C# SDK contains a gRPC client. For other languages, Fern converts the proto to OpenAPI and generates a REST client that follows the `google.api.http` routes. These clients send HTTP/JSON, which a native gRPC server doesn't accept, so they require a gateway in front of the server that translates HTTP/JSON to gRPC, such as [grpc-gateway](https://github.com/grpc-ecosystem/grpc-gateway) or Envoy's gRPC-JSON transcoder. Streaming RPCs are generated as plain `POST` methods and don't stream.
+
+## Get help
+
+If you run into issues, reach out to support@buildwithfern.com.
