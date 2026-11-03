@@ -211,6 +211,7 @@ After documenting any new functionality, before declaring the work done:
 - When you document a CLI command, flag or behavior change, also search the instruction pages for the command name, for example `fern generate --guest`, `fern claim` or `fern whoami`. Some pages describe commands without linking a canonical page.
 - Edit only the steps, rules and checks that changed. Keep each page short and scoped to one task.
 - To add a topic, add the page with `hidden: true` in `fern/products/home/home.yml` and add a row to the index in `topics.mdx`. Don't link instruction pages from visible pages.
+- The index page, `topics.mdx` (served at `/learn/home/fern-instructions.md`), is a contract with the Fern CLI and with `agents.page-directive` in `docs.yml`. Don't move it, change its slug, or change the format of its topic tables unless the CLI in `fern-api/fern` is updated too.
 - If you aren't sure whether a change affects an instruction page, say so in the PR description.
 
 ## Generated files
