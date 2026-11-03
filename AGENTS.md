@@ -212,6 +212,7 @@ After documenting any new functionality, before declaring the work done:
 - Edit only the steps, rules and checks that changed. Keep each page short and scoped to one task.
 - To add a topic, add the page with `hidden: true` in `fern/products/home/home.yml` and add a row to the index in `topics.mdx`. Don't link instruction pages from visible pages.
 - The index page, `topics.mdx` (served at `/learn/home/fern-instructions.md`), is a contract with the Fern CLI and with `agents.page-directive` in `docs.yml`. Don't move it, change its slug, or change the format of its topic tables unless the CLI in `fern-api/fern` is updated too.
+- The proposed CLI builds each topic's URL from its name, for example `fern instructions docs publish domain` fetches `/learn/home/fern-instructions/docs/publish/domain.md`, so released CLI versions depend on those paths. If you move or rename an instruction page, add a redirect in `docs.yml` from the old path to the new one. Redirects also apply to the `.md` URL, and a `:slug*` wildcard covers a moved folder.
 - If you aren't sure whether a change affects an instruction page, say so in the PR description.
 
 ## Generated files
