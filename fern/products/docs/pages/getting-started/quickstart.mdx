@@ -297,8 +297,18 @@ Build and publish a docs site with Fern. Follow the [Docs quickstart](https://bu
 
   You'll be prompted to log in and connect your GitHub account. This command builds your documentation at the URL you configured in `docs.yml` (e.g., `https://yourdomain.docs.buildwithfern.com`).
 
+  Don't have a Fern account yet? Publish as a guest instead:
+
+  ```bash
+  fern generate --docs --guest
+  ```
+
+  [`--guest`](/learn/cli-api-reference/cli-reference/docs-commands#guest) starts a temporary guest session and publishes your site to a `drop-<id>.docs.buildwithfern.com` URL, ignoring the `organization` in `fern.config.json` and the URL in `docs.yml`. The output includes a claim link; open it (or run [`fern claim`](/learn/cli-api-reference/cli-reference/general-commands#fern-claim) after `fern login`) to move the site into your organization before the session expires. Guest publishing needs CLI 5.182.0 or later: the `version` in `fern.config.json` is what runs, so run [`fern upgrade`](/learn/cli-api-reference/cli-reference/general-commands#fern-upgrade) if yours is older. Guest sessions aren't available on every Fern environment yet; if the CLI reports `Could not start a guest session`, log in and publish normally.
+
   <llms-only>
   **Interactive confirmation**: The default `fern generate --docs` command opens an interactive menu (arrow-key navigation, not a simple y/n prompt). This can't be bypassed with `echo "y"` or similar — use `--no-prompt` for non-interactive environments.
+
+  **No account**: If the user isn't logged in and has no `FERN_TOKEN`, don't ask them to log in. Run [`fern generate --docs --guest`](/learn/cli-api-reference/cli-reference/docs-commands#guest) (CLI 5.182.0+; no `--no-prompt` or `--preview` needed) and return the published `drop-<id>` URL and the claim link from the output. `--guest` can't be combined with `FERN_TOKEN` or a saved login.
 
   **CI/CD usage**: To skip the interactive prompt in CI or scripts:
 
@@ -307,7 +317,7 @@ Build and publish a docs site with Fern. Follow the [Docs quickstart](https://bu
   fern generate --docs --no-prompt
   ```
 
-  **Authentication**: The CLI checks for a `FERN_TOKEN` environment variable first, then falls back to a cached credential from `fern login`. Running `fern login` once caches the credential locally, so subsequent `fern generate --docs` runs won't prompt for login again. There is no `fern whoami` command. In GitHub Actions, store the API key as a repository secret named `FERN_TOKEN`. See [publishing your docs](/learn/docs/preview-publish/publishing-your-docs) for full CI workflow examples.
+  **Authentication**: The CLI checks for a `FERN_TOKEN` environment variable first, then falls back to a cached credential from `fern login`. Running `fern login` once caches the credential locally, so subsequent `fern generate --docs` runs won't prompt for login again. [`fern whoami`](/learn/cli-api-reference/cli-reference/general-commands#fern-whoami) shows which login, token, or guest session the CLI is using. In GitHub Actions, store the API key as a repository secret named `FERN_TOKEN`. See [publishing your docs](/learn/docs/preview-publish/publishing-your-docs) for full CI workflow examples.
   </llms-only>
 
   <Info>
@@ -394,7 +404,7 @@ Fern Docs compiles MDX content and YAML configuration into a hosted static site 
 
 ### Common pitfalls
 
-- **Missing authentication before publishing**: Running `fern generate --docs` without being logged in fails with: *"No token found. Please set the FERN_TOKEN environment variable or run `fern login`."* Fix: run `fern login` interactively, or set `FERN_TOKEN` in CI via `fern token`.
+- **Missing authentication before publishing**: Running `fern generate --docs` without being logged in fails with an authentication error that mentions `fern login`, `FERN_TOKEN`, and `--guest`. Fix: run `fern login` interactively, set `FERN_TOKEN` in CI via `fern token`, or rerun with `fern generate --docs --guest` to publish without an account.
 - **Organization mismatch**: If `organization` in `fern.config.json` doesn't match your org in the [Fern Dashboard](https://dashboard.buildwithfern.com), publishing fails. The value must exactly match your Dashboard org name.
 - **Invalid docs URL**: The `url` in `docs.yml` must end with `docs.buildwithfern.com` and must not include `https://`. Correct format: `your-org.docs.buildwithfern.com`.
 
