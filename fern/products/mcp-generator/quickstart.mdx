@@ -4,7 +4,7 @@ description: Generate a hosted MCP server from an OpenAPI spec and connect an ag
 availability: beta
 ---
 
-This guide takes an OpenAPI spec to a hosted [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server that an AI agent can call. Fern generates one tool per API operation and hosts the server at `https://<your-org>.fernmcp.dev/<slug>`. Once the server is live, [manage it in the dashboard](/learn/mcp-generator/get-started/manage).
+This guide takes an OpenAPI spec to a hosted [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server that an AI agent can call. Fern generates one tool per supported API operation and hosts the server at `https://<your-org>.fernmcp.dev/<slug>`. Once the server is live, [manage it in the dashboard](/learn/mcp-generator/get-started/manage).
 
 The generated server exposes your API's operations. To give readers an MCP server that answers questions from your documentation instead, use the [MCP server for your site](/learn/docs/ai-features/mcp-server).
 
@@ -113,7 +113,7 @@ Ask the agent to get the pet with ID 10. The agent calls the `get_pet_by_id` too
 
 ## Run the server locally instead
 
-To get the MCP server as files and run it on your own machine, use a `zip` target. No slug is needed.
+To get the MCP server as files and run it on your own machine, use a `zip` target. No slug is needed. Replace the `targets` section of `fern/sdk-config.yml`, and keep the rest of the file:
 
 ```yaml title="fern/sdk-config.yml"
 targets:
@@ -121,6 +121,8 @@ targets:
     output:
       delivery: zip
 ```
+
+The `servers` entry in your spec needs a full address here too, as in [the first step](#create-a-project-from-your-spec). A `zip` build accepts a relative path, but every tool call on the local server then fails with `Invalid URL`.
 
 `fern generate` then downloads `fern/generated/mcp.zip` and deploys nothing. Unzip it and start the server with Node.js:
 
@@ -138,7 +140,7 @@ The server listens at `http://localhost:8787/mcp`. The local server accepts conn
 
 | You see | Cause and fix |
 |---------|---------------|
-| `[metadata.baseUrl] Invalid url` | The `servers` entry in your spec is a relative path such as `/api/v1`. Change it to the full address, for example `https://api.example.com/v1`. |
+| `[metadata.baseUrl] Invalid url`, or `Invalid URL` from every tool on a local server | The `servers` entry in your spec is a relative path such as `/api/v1`. Change it to the full address, for example `https://api.example.com/v1`. |
 | `Deploying to Fern's hosted MCP platform requires authentication` | The CLI has no Fern credentials. Run `fern login`, or set `FERN_TOKEN` in CI. |
 | `Tool name "..." is ... characters` or `contains unsupported characters` | MCP tool names take 1 to 64 letters, digits, `_`, or `-`. Set `x-fern-mcp-name` on the operation, in your spec or an [overlay](/learn/api-definitions/openapi/overlays). The error message includes an overlay entry to copy. |
 | `Authentication required ... send request headers ...` | The agent is missing a credential. Add the header that the message names. The dashboard's **Connect** button shows it. |
