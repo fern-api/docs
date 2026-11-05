@@ -345,21 +345,25 @@ How you trigger a publish depends on your `mode`:
 
 The CI workflow then builds binaries for all platforms, attaches the archives and the `curl | bash` and PowerShell installers to the GitHub Release, publishes to npm, and updates any configured tap or bucket.
 
+When the CLI repository has the `CODESIGN_CERTIFICATE`, `CODESIGN_CERTIFICATE_PASSWORD`, and `CODESIGN_IDENTITY` Actions secrets (an Apple Developer ID certificate), the workflow also code-signs the macOS binaries, so a macOS keychain "Always Allow" survives upgrades. Without them, the macOS binaries ship unsigned.
+
 On public repositories, each build also signs its archives with GitHub build provenance attestations. Private repositories skip that step by default, since GitHub supports attestations on private repositories only with GitHub Enterprise Cloud; set [`distribution.githubAttestations`](/learn/cli-generator/get-started/configuration#config-options) to `true` to attest on Enterprise Cloud or `false` to drop attestations entirely.
 
 ## Build targets
 
-The CI workflow produces statically linked binaries for:
+The CI workflow produces binaries for:
 
 | Target | OS | Architecture |
 | --- | --- | --- |
 | `x86_64-unknown-linux-gnu` | Linux | x86_64 |
 | `aarch64-unknown-linux-gnu` | Linux | ARM64 |
+| `x86_64-unknown-linux-musl` | Linux (static) | x86_64 |
+| `aarch64-unknown-linux-musl` | Linux (static) | ARM64 |
 | `x86_64-apple-darwin` | macOS | Intel |
 | `aarch64-apple-darwin` | macOS | Apple Silicon |
 | `x86_64-pc-windows-msvc` | Windows | x86_64 |
 
-The npm package wraps the native binary with a Node.js launcher. Platform-specific optional dependencies ensure only the correct binary downloads at install time.
+The musl builds are fully statically linked, so they run in scratch containers and minimal CI images. The npm package wraps the native binary with a Node.js launcher. Platform-specific optional dependencies ensure only the correct binary downloads at install time.
 
 ## Install instructions for users
 
@@ -382,6 +386,6 @@ scoop bucket add my-org https://github.com/my-org/scoop-bucket
 scoop install my-cli
 ```
 
-Scoop covers x86_64 Windows only; ARM64 Windows users install through npm or the PowerShell installer. `self-update` replaces the binary in place rather than deferring to `brew upgrade` or `scoop update`, so those package managers can report an older version than the one installed.
+Scoop covers x86_64 Windows only. No Windows ARM64 binary is built. To upgrade, users rerun the command they installed with (`npm install -g`, the installer, `brew upgrade`, or `scoop update`).
 
 
