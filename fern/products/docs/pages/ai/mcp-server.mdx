@@ -131,5 +131,46 @@ This is especially useful on [authenticated sites](/learn/docs/authentication/ov
 
 ## Other ways agents can access your docs
 
-Agents can also fetch documentation directly over HTTP. Fern serves clean Markdown via [per-page URLs and `llms.txt`](/learn/docs/ai-features/markdown) — including on authenticated sites.
+Agents can also fetch documentation directly over HTTP. Fern serves clean Markdown via [per-page URLs and `llms.txt`](/learn/docs/ai-features/markdown). Requesting a page with an `Accept: text/markdown` or `Accept: text/plain` header returns its Markdown instead of HTML.
+
+On authenticated sites, agents send the same `FERN_TOKEN` JWT used for the MCP server:
+
+```bash Fetch protected content
+curl https://docs.example.com/platform/overview \
+  -H 'Accept: text/plain' \
+  -H "FERN_TOKEN: $JWT"
+```
+
+<llms-only>
+## FAQ
+
+### What can the MCP server do?
+
+The hosted MCP server exposes one tool that answers natural-language questions about the documentation site. It uses the same RAG pipeline as Ask Fern: it searches the indexed docs content semantically and returns a synthesized answer with citations, not a list of raw search results. Each message consumes 2 AI credits. Self-hosted containers instead expose `searchDocs` (keyword search returning matching pages) and `fetchPage` (a page's Markdown), without AI credits. The server reads documentation only; to give agents tools that call your API, use the MCP Generator (https://buildwithfern.com/learn/mcp-generator/get-started/quickstart).
+
+### Does the MCP server work on authenticated sites?
+
+Yes. MCP clients must send a `FERN_TOKEN` header containing a valid JWT. Get the JWT by exchanging a Fern API key at `/api/fern-docs/get-jwt` (JWT or OAuth sites) or the site password at `/api/fern-docs/auth/password` (password-protected sites), then register the server manually with the header, for example `claude mcp add --transport http --header "FERN_TOKEN: <jwt>" fern_mcp_docs.example.com https://docs.example.com/_mcp/server`. The one-click page action buttons can't carry credentials. Without a token, the server returns only publicly visible content. JWTs expire and aren't refreshed automatically; re-run the token exchange when one lapses.
+
+### How do I scope what the MCP server can access?
+
+The server answers from the same content Ask Fern indexes, so scoping follows Ask Fern:
+
+- **By role:** answers respect role-based access control (https://buildwithfern.com/learn/docs/authentication/features/rbac). A request only draws on pages the roles in its `FERN_TOKEN` JWT can read; requests without a token see public content only.
+- **By content source:** Ask Fern indexes the docs site plus any additional content sources configured under `ai-search.datasources` in `docs.yml` or through the Websites API (https://buildwithfern.com/learn/docs/ai-features/ask-fern/content-sources). Adding or removing sources changes what the MCP server can answer from.
+
+The MCP server has no separate allowlist of pages or tools. To prevent agent access entirely, disable the server.
+
+### How do I disable the MCP server?
+
+Set `mcp: false` under `page-actions.options` in `docs.yml`:
+
+```yaml docs.yml
+page-actions:
+  options:
+    mcp: false
+```
+
+The `/_mcp/server` endpoint then returns 404, the Connect to Claude Code and Connect to Cursor buttons are hidden, and the server is no longer advertised to agents through `llms.txt` or agent prompts. This also applies to self-hosted containers. Disabling is common on authenticated sites, where unauthenticated agents can discover the endpoint but can't read its content.
+</llms-only>
 
