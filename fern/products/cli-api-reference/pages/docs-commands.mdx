@@ -12,6 +12,7 @@ These commands build, preview, and publish a Fern documentation site, and valida
 | [`fern docs dev`](#fern-docs-dev) | Run local documentation preview server |
 | [`fern docs dev stop`](#fern-docs-dev-stop) | Stop a running local documentation preview server |
 | [`fern docs diff`](#fern-docs-diff) <Badge intent="warning" minimal>Beta</Badge> | Generate visual diffs between preview and production docs |
+| [`fern docs export`](#fern-docs-export) | Download your live docs site as HTML, Markdown, or a PDF |
 | [`fern generate --docs`](#fern-generate---docs) | Build & publish documentation updates |
 | [`fern docs preview list`](#fern-docs-preview-list) | List all preview deployments |
 | [`fern docs preview delete`](#fern-docs-preview-delete) | Delete a preview deployment |
@@ -252,6 +253,59 @@ These commands build, preview, and publish a Fern documentation site, and valida
 
     ```bash
     fern docs diff acme-preview-abc123.docs.buildwithfern.com fern/pages/intro.mdx --output ./my-diffs
+    ```
+
+  </Accordion>
+
+  <Accordion title="fern docs export">
+
+    Use `fern docs export` to download a copy of your live Fern-hosted docs site. The export reflects the latest published version. Run it from your Fern project after `fern login`; your account must belong to the organization in `fern.config.json`.
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern docs export [--format <html|md|pdf>] [--output <path>] [--instance <url>]
+    ```
+    </CodeBlock>
+
+    ### format
+
+    - `html` (default): the full static site, including each page's Markdown copy, `llms.txt`, and assets.
+    - `md`: only each page's Markdown and `llms.txt`.
+    - `pdf`: one PDF of the site, the same as [PDF export](/learn/dashboard/configuration/pdf-export) in the Dashboard.
+
+    Pages in an `html` export use root-relative links, so serve the folder with a static file server instead of opening files directly:
+
+    ```bash
+    fern docs export
+    npx serve docs-acme-com-html
+    ```
+
+    ### output
+
+    By default, the export is written to a folder named after the site and format, such as `docs-acme-com-html`, or to `docs-acme-com.pdf` for `pdf`. Use `--output` to choose another folder, or the file name for `pdf`. The command empties the output folder before writing (except `.git`).
+
+    ```bash
+    fern docs export --format md --output ./docs-markdown
+    ```
+
+    ### instance
+
+    Use `--instance` to choose which `docs.yml` instance URL to export. Required when `docs.yml` lists more than one instance.
+
+    ```bash
+    fern docs export --instance docs.acme.com
+    ```
+
+    ### PDF options
+
+    These options apply only to `--format pdf`:
+
+    - `--no-cover` and `--no-toc` leave out the cover page and the table of contents.
+    - `--cover-title` and `--cover-subtitle` set the cover text.
+    - `--header-left`, `--header-right`, `--footer-left`, and `--footer-right` add text to each page. Use `{pageIndex}` and `{totalPages}` for page numbers.
+
+    ```bash
+    fern docs export --format pdf --no-toc --footer-right "Page {pageIndex} of {totalPages}"
     ```
 
   </Accordion>
