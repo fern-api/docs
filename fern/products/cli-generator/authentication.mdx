@@ -9,17 +9,12 @@ Without a credential, the CLI still works — you can explore the command tree, 
 
 ## Credential sources
 
-The CLI supports several ways to supply credentials, configured at build time.
+The generator wires each scheme's credential to the sources below. A saved [profile](#profiles) can also supply it.
 
 | Source | Description |
 | --- | --- |
-| Environment variable | Read from an env var (the most common option). |
-| CLI flag | Auto-registered as a `--<flag-name>` global flag. |
-| File | Read trimmed contents from a file path (`~` is expanded). |
-| Literal | Baked into the binary at compile time. |
-| Fallback chain | Try multiple sources in order; first non-empty value wins. |
-
-A typical fallback chain lets the CLI flag override the env var, which in turn overrides a file:
+| Environment variable | Read from an env var. Every scheme supports this. |
+| CLI flag | API key schemes also get a `--<flag-name>` global flag, which takes priority over the env var. |
 
 ```bash
 # CLI flag takes priority
@@ -27,10 +22,6 @@ box users get-current-user --api-token sk-123
 
 # Otherwise falls back to the environment variable
 export BOX_API_KEY=sk-123
-box users get-current-user
-
-# Otherwise reads from a file
-echo "sk-123" > ~/.box/token
 box users get-current-user
 ```
 
