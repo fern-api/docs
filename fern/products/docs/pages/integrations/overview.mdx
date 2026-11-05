@@ -129,6 +129,38 @@ If you use GitHub Workflows to trigger docs generation, the environment variable
 
 </Note>
 
+## Require visitor consent
+
+Set `settings.require-analytics-consent` in `docs.yml` to keep PostHog analytics off until a visitor consents through a consent manager such as Ketch or OneTrust. The setting covers Fern's built-in PostHog analytics and your own [PostHog integration](/learn/docs/integrations/analytics/posthog); other analytics providers aren't gated by it. Unlike `settings.disable-analytics`, which turns analytics off for every visitor, this setting keeps analytics on for visitors who consent. Requires Fern CLI version `5.169.0` or later.
+
+```yaml docs.yml
+settings:
+  require-analytics-consent: true
+```
+
+Until the visitor consents, PostHog doesn't load: no cookies or browser storage, no feature flag requests, no session recording, and no events. Events triggered before consent are dropped, not queued.
+
+Your page reports consent by setting `window.fernAnalyticsConsent` and dispatching a `fern-analytics-consent` event on `window`, typically from your consent manager's callback in a [custom JavaScript](/learn/docs/customization/custom-css-js#custom-javascript) file loaded with `strategy: beforeInteractive`. This example uses Ketch:
+
+```js custom.js
+window.fernAnalyticsConsent = false;
+ketch("on", "consent", function (consent) {
+  window.fernAnalyticsConsent = consent.purposes.analytics === true;
+  window.dispatchEvent(new Event("fern-analytics-consent"));
+});
+```
+
+```yaml docs.yml
+js:
+  - path: ./custom.js
+    strategy: beforeInteractive
+```
+
+- **Grant:** Setting `window.fernAnalyticsConsent` to `true` and dispatching the event starts PostHog and records a page view for the current page.
+- **Revoke:** Setting it to any other value and dispatching the event turns PostHog off for the rest of the page and removes PostHog's `ph_*` and `__ph_*` cookies and storage keys. A later grant on the same page is ignored, and consent is read again on the next full page load. If the visitor revokes before PostHog has started, the next grant starts it as usual.
+
+Sites without `require-analytics-consent` ignore `window.fernAnalyticsConsent` and the `fern-analytics-consent` event.
+
 ## Connect other integrations via custom JavaScript
 
 <Markdown src="/snippets/enterprise-plan.mdx"/>
