@@ -196,6 +196,24 @@ client.orders.update(order_id: "o1", idempotency_key: "k1", order: {})
 ```
 </ParamField>
 
+<ParamField path="isolateModelCopies" type="boolean" default="false" required={false} toc={true}>
+When enabled, `dup` and `clone` on a generated model return a copy with its own field values, so setting a field on the copy doesn't change the original. Nested models and other mutable values are still shared, matching Ruby's shallow-copy semantics.
+</ParamField>
+
+<ParamField path="protectModelMethods" type="boolean" default="false" required={false} toc={true}>
+When enabled, an undeclared response field whose name matches an existing method, such as `hash`, `class`, or `to_h`, no longer replaces that method with a field accessor. The value is still included in `to_h`. Without this option, such a field redefines the method on the model class, which affects every instance of that model.
+</ParamField>
+
+<ParamField path="preserveIntegerInputs" type="boolean" default="false" required={false} toc={true}>
+When enabled, integers passed to `double` (OpenAPI `number`) request fields are sent as integers instead of being converted to `Float`, which avoids precision loss on large values. This also applies inside nested models, lists, maps, and unions. Response parsing still converts these fields to `Float`.
+
+```ruby
+client.payments.create(amount: 9_007_199_254_740_993)
+# Default: {"amount":9.007199254740992e+15}
+# Enabled: {"amount":9007199254740993}
+```
+</ParamField>
+
 <ParamField path="wrapInvalidJsonResponses" type="boolean" default="false" required={false} toc={true}>
 When enabled, a 2xx response whose body isn't valid JSON raises `Errors::ResponseError`, carrying the raw body and status code, instead of letting `JSON::ParserError` escape to the caller.
 </ParamField>
