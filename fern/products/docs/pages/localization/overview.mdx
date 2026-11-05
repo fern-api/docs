@@ -99,7 +99,7 @@ Create a `translations` folder inside your `fern` directory. Each language decla
 
 For each [base config YAML](/learn/docs/configuration/overview) you have — `docs.yml`, product files, version files — create a matching file under `fern/translations/{locale}/` at the same relative path and mirror its structure. 
 
-Within an entry, include only the fields you want to translate (`display-name`, `subtitle`, `section`, `page`); anything you omit falls back to the base file. Add a `slug:` to pin the base URL when the page name is an English term like `markdown` or `api-catalog`. [Example PR](https://github.com/fern-api/docs/pull/5203/files)
+Within an entry, include only the fields you want to translate (`display-name`, `subtitle`, `section`, `page`, `link`, `api`); anything you omit falls back to the base file. Add a `slug:` to pin the base URL when the page name is an English term like `markdown` or `api-catalog`. A slug matches on its last segment, so `customization/voice` also works. Entries without a slug match their base counterparts in order. [Example PR](https://github.com/fern-api/docs/pull/5203/files)
 
 <Tabs>
 <Tab title="Product switcher">
@@ -142,6 +142,28 @@ navigation:
           - page: Agent 指示
 ```
 </Tab>
+<Tab title="Tabs and API Reference">
+Tab names, including changelog tabs, go under `tabs` keyed by tab ID. Inside an `api` layout, a package entry uses the package key with `title` and `contents`, and an endpoint entry uses `endpoint: "METHOD /path"` with `title`. Endpoint entries match by `slug`, or by HTTP method when that method appears only once among sibling endpoints; otherwise they match in order. `section` entries in an `api` layout translate the corresponding API sections.
+
+```yaml fern/translations/ja/fern/products/docs/docs.yml
+tabs:
+  changelog:
+    display-name: 変更履歴
+navigation:
+  - tab: api-reference
+    layout:
+      - api: API リファレンス
+        layout:
+          - agents:
+              title: エージェント
+              contents:
+                - endpoint: POST /agents
+                  title: エージェントを作成
+      - link: ステータスページ
+```
+
+These entries translate sidebar labels only. API Reference pages serve default-language content unless the locale has its own translated API definition.
+</Tab>
 </Tabs>
 
 <Warning>
@@ -176,7 +198,7 @@ Fernドキュメントへようこそ。
 fern generate --docs
 ```
 
-Fern picks up the translations, renders the language switcher in the header, and emits a sitemap entry per locale. You can also preview translations locally with `fern docs dev`.
+Fern picks up the translations, renders the language switcher in the header, and emits a sitemap and [`llms.txt`](/learn/docs/ai-features/llms-txt#localized-sites) per locale. Pages that fall back to default-language content, including API Reference pages for an API without a translated definition, stay accessible at the localized URL but are marked [`noindex`](/learn/docs/seo/setting-seo-metadata#indexing) and excluded from that locale's sitemap and `llms.txt`. You can also preview translations locally with `fern docs dev`.
 
 </Step>
 

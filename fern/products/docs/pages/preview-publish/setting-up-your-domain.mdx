@@ -9,7 +9,7 @@ You can configure any of the following custom domain types:
 - **Subpath**: `mydomain.com/docs`
 - **Root domain**: `mydomain.com`
 
-Fern recommends [using the Fern Dashboard to set up custom domains](/learn/dashboard/configuration/custom-domains). The Dashboard automatically provides the correct DNS records based on your domain type. If you prefer to configure your domain manually, follow the instructions on this page. 
+Fern recommends [using the Fern Dashboard to set up custom domains](/learn/dashboard/configuration/custom-domains). The Dashboard automatically provides the correct DNS records based on your domain type. If you prefer to configure your domain manually, follow the instructions on this page. A domain whose DNS still points to Vercel must be [migrated to Fern's current hosting](/learn/dashboard/configuration/custom-domains#migrate-a-domain-that-points-to-vercel) before December 1, 2026, when publishing to it starts failing.
 
 ## Manual setup
 
@@ -34,9 +34,7 @@ instances:
 
 <Step title="Contact Fern">
 
-Contact Fern via your dedicated Slack channel or [email](mailto:support@buildwithfern.com) to receive:
-- A unique CNAME value for your site
-- A TXT record to verify your domain
+Contact Fern via your dedicated Slack channel or [email](mailto:support@buildwithfern.com) to receive the TXT record values that verify domain ownership and issue the SSL certificate.
 </Step>
 
 <Step title="Create DNS records">
@@ -46,18 +44,19 @@ Log in to your domain registrar's dashboard and navigate to the DNS settings for
 <CodeBlock title="CNAME Record (Subdomain)">
 ```
 Type    Name    Value
-CNAME   docs    b7278b3c9357963d.vercel-dns-013.com
+CNAME   docs    cname.ferndocs.com
 ```
 </CodeBlock>
 
-<CodeBlock title="TXT Record (Domain Verification)">
+<CodeBlock title="TXT Records (Domain Ownership and SSL Certificate)">
 ```
-Type    Name    Value
-TXT     @       [TXT record value provided by Fern]
+Type    Name                      Value
+TXT     _cf-custom-hostname.docs  [ownership value provided by Fern]
+TXT     _acme-challenge.docs      [certificate value provided by Fern]
 ```
 </CodeBlock>
 
-Replace `docs` with any subdomain you want to use.
+Replace `docs` with any subdomain you want to use. Both TXT records are required: the first verifies domain ownership, the second lets Fern issue the SSL certificate. Some DNS providers expect the full record name (for example, `_cf-custom-hostname.docs.mydomain.com`).
 
 <Warning title="Cloudflare users">
   If you are using Cloudflare, you should ensure the record isn't proxied.
@@ -140,7 +139,7 @@ proxy_set_header Accept-Encoding "gzip,deflate";
 </Accordion>
 <Accordion title="Root domain">
 
-To host your documentation on a root domain like `mydomain.com`, you need to edit your `docs.yml` configuration and configure DNS records.
+To host your documentation on a root domain like `mydomain.com`, you need to edit your `docs.yml` configuration and configure DNS records. Root domains can't hold a standard CNAME record, so your DNS provider must support CNAME flattening or an `ALIAS`/`ANAME` record.
 
 <Steps>
 <Step title="Configure the `url` in `docs.yml`">
@@ -149,48 +148,36 @@ To host your documentation on a root domain like `mydomain.com`, you need to edi
 ```yaml
 instances:
   - url: example.docs.buildwithfern.com
-    custom-domain: www.mydomain.com
+    custom-domain: mydomain.com
 ```
 </CodeBlock>
-
-[Here's an example.](https://github.com/dannysheridan/katiedanny/blob/2fcf5769e2994af29e31d00904e04788b188a18b/fern/docs.yml#L3-L5)
 </Step>
 
 <Step title="Contact Fern">
 
-Contact Fern via your dedicated Slack channel or [email](mailto:support@buildwithfern.com) to receive:
-- A unique CNAME value for your site
-- A TXT record to verify your domain
+Contact Fern via your dedicated Slack channel or [email](mailto:support@buildwithfern.com) to receive the TXT record values that verify domain ownership and issue the SSL certificate.
 </Step>
 
 <Step title="Configure your DNS settings">
 
 You'll need the following DNS records configured for your root domain.
 
-<CodeBlock title="CNAME Record (WWW Subdomain)">
+<CodeBlock title="ALIAS or flattened CNAME Record (Root Domain)">
 ```
-Type    Name    Value
-CNAME   www     b7278b3c9357963d.vercel-dns-013.com
-```
-</CodeBlock>
-
-<CodeBlock title="A Record (Apex Domain)">
-```
-Type    Name    Value
-A       @       76.76.21.21
+Type             Name    Value
+ALIAS or CNAME   @       cname.ferndocs.com
 ```
 </CodeBlock>
 
-<CodeBlock title="TXT Record (Domain Verification)">
+<CodeBlock title="TXT Records (Domain Ownership and SSL Certificate)">
 ```
-Type    Name    Value
-TXT     @       [TXT record value provided by Fern]
+Type    Name                 Value
+TXT     _cf-custom-hostname  [ownership value provided by Fern]
+TXT     _acme-challenge      [certificate value provided by Fern]
 ```
 </CodeBlock>
 
-This redirects `mydomain.com` to `www.mydomain.com`.
-
-After you add these records, Fern will provision a SSL certificate.
+Both TXT records are required. Fern provisions the SSL certificate once they resolve.
 </Step>
 
 <Step title="Verify the setup">

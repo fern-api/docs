@@ -1,0 +1,161 @@
+---
+title: Quickstart
+description: Generate a hosted MCP server from an OpenAPI spec and connect an agent to it.
+availability: beta
+---
+
+This guide takes an OpenAPI spec to a hosted [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server that an AI agent can call. Fern generates one tool per supported API operation and hosts the server at `https://<your-org>.fernmcp.dev/<slug>`. Once the server is live, [manage it in the dashboard](/learn/mcp-generator/get-started/manage).
+
+The generated server exposes your API's operations. To give readers an MCP server that answers questions from your documentation instead, use the [MCP server for your site](/learn/docs/ai-features/mcp-server).
+
+<Prompt
+  title="Generate an MCP server"
+  actions={["cursor", "claude", "chatgpt"]}
+>
+Generate a hosted MCP server from an OpenAPI specification with Fern. Follow the [MCP Generator quickstart](https://buildwithfern.com/learn/mcp-generator/get-started/quickstart.md) step by step.
+</Prompt>
+
+## Prerequisites
+
+- The [Fern CLI](https://www.npmjs.com/package/fern-api), version 5.191.0 or later.
+- A Fern account, and access to the [Fern dashboard](https://dashboard.buildwithfern.com/). Deploying requires `fern login` on your machine, or a `FERN_TOKEN` environment variable in CI.
+- An OpenAPI spec. This guide uses the Swagger Petstore sample.
+- A network that allows `*.fernmcp.dev`. If your company blocks it, ask your IT team to add `*.fernmcp.dev` to the allowlist. Agents on that network can't reach the server until they do.
+
+```bash
+npm install -g fern-api
+fern --version   # 5.191.0 or later
+fern login
+```
+
+Replace `<your-org>` in the commands that follow with your organization name.
+
+## Create the server
+
+<Steps>
+
+<Step title="Create a project from your spec">
+
+```bash
+mkdir petstore-mcp && cd petstore-mcp
+curl -o petstore.json https://petstore3.swagger.io/api/v3/openapi.json
+
+fern init --openapi ./petstore.json --org <your-org>
+```
+
+This creates a `fern/` folder that contains your spec and a file named `sdk-config.yml`.
+
+The Petstore spec lists its server as the relative path `/api/v3`. Before you generate, change the `servers` entry in `fern/openapi.json` to the full address `https://petstore3.swagger.io/api/v3`.
+</Step>
+
+<Step title="Ask for an MCP server">
+
+Replace the `targets` section of `fern/sdk-config.yml` so the file reads:
+
+```yaml title="fern/sdk-config.yml"
+schemaVersion: sdk-config/v1
+sdkName: api
+source:
+  specs:
+    - id: api
+      type: openapi
+      path: ./openapi.json
+targets:
+  - language: mcp
+    output:
+      delivery: hosted
+      slug: petstore
+```
+
+`slug` names the server and becomes the last part of its URL. It takes 1 to 30 lowercase letters, numbers, and single hyphens, and can't start or end with a hyphen.
+</Step>
+
+<Step title="Generate">
+
+```bash
+fern generate
+```
+
+When generation finishes, the CLI prints the server URL and its dashboard page:
+
+```txt
+Deployed MCP server "petstore"
+  https://<your-org>.fernmcp.dev/petstore
+Manage it at https://dashboard.buildwithfern.com/<your-org>/mcp/petstore
+```
+
+Generating again with the same slug updates the same server and keeps its URL. If a deploy fails, the server keeps serving its previous deployment. To redeploy whenever your spec changes, run `fern generate` in CI with `FERN_TOKEN` set.
+
+Fern builds hosted servers in the cloud, so `fern generate --local` doesn't apply to a `hosted` target. To build on your own machine, [run the server locally](#run-the-server-locally-instead).
+</Step>
+
+<Step title="Check that it's live">
+
+Open the server URL in a browser. The page shows the server's status (**Live**), its endpoint, the number of tools, and a connect snippet for each client.
+</Step>
+
+<Step title="Connect an agent">
+
+For Claude Code:
+
+```bash
+claude mcp add --transport http petstore \
+  https://<your-org>.fernmcp.dev/petstore \
+  --header 'api_key: special-key'
+```
+
+Ask the agent to get the pet with ID 10. The agent calls the `get_pet_by_id` tool and returns the pet from the Petstore API. The public Petstore data is shared and changes often, so an ID that doesn't exist returns `Pet not found`: try another ID.
+
+`api_key` is the credential the Petstore API accepts for this tool, and the demo takes any value. Other Petstore tools need OAuth, which is outside this guide. For your own API, use a real key. The dashboard's **Connect** button builds this command for you with the right credential, and it builds the commands for other agents too.
+</Step>
+
+</Steps>
+
+## Run the server locally instead
+
+To get the MCP server as files and run it on your own machine, use a `zip` target. No slug is needed. Replace the `targets` section of `fern/sdk-config.yml`, and keep the rest of the file:
+
+```yaml title="fern/sdk-config.yml"
+targets:
+  - language: mcp
+    output:
+      delivery: zip
+```
+
+The `servers` entry in your spec needs a full address here too, as in [the first step](#create-a-project-from-your-spec). A `zip` build accepts a relative path, but every tool call on the local server then fails with `Invalid URL`.
+
+`fern generate` then downloads `fern/generated/mcp.zip` and deploys nothing. Unzip it and start the server with Node.js:
+
+```bash
+unzip fern/generated/mcp.zip -d mcp-local
+cd mcp-local
+PORT=8787 node index.mjs   # PORT is optional, default 8787
+```
+
+The server listens at `http://localhost:8787/mcp`. The local server accepts connections on all network interfaces, so don't run it on a shared network. It calls your API from your machine, at the server address in your spec. A `zip` target has no hosted URL and doesn't appear in the dashboard.
+
+## Troubleshooting
+
+{/* <!-- vale FernStyles.We = NO --> */}
+
+| You see | Cause and fix |
+|---------|---------------|
+| `[metadata.baseUrl] Invalid url`, or `Invalid URL` from every tool on a local server | The `servers` entry in your spec is a relative path such as `/api/v1`. Change it to the full address, for example `https://api.example.com/v1`. |
+| `Deploying to Fern's hosted MCP platform requires authentication` | The CLI has no Fern credentials. Run `fern login`, or set `FERN_TOKEN` in CI. |
+| `Tool name "..." is ... characters` or `contains unsupported characters` | MCP tool names take 1 to 64 letters, digits, `_`, or `-`. Set `x-fern-mcp-name` on the operation, in your spec or an [overlay](/learn/api-definitions/openapi/overlays). The error message includes an overlay entry to copy. |
+| `Authentication required ... send request headers ...` | The agent is missing a credential. Add the header that the message names. The dashboard's **Connect** button shows it. |
+| The server URL doesn't load, or the agent can't connect | Your network may block `*.fernmcp.dev`. Ask your IT team to allow it. |
+| The dashboard says **Let's build your MCP server** | No server is deployed for your organization yet. Run the steps above. |
+
+{/* <!-- vale FernStyles.We = YES --> */}
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Manage in the dashboard" icon="regular gauge" href="/learn/mcp-generator/get-started/manage">
+    Connect agents, review tools and analytics, roll back, pause, or delete a server.
+  </Card>
+  <Card title="Overlays" icon="regular layer-group" href="/learn/api-definitions/openapi/overlays">
+    Rename tools or patch your spec without editing the source file.
+  </Card>
+</CardGroup>

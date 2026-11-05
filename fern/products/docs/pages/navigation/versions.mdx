@@ -118,6 +118,27 @@ Tags and commit SHAs are immutable, so a published version stays byte-for-byte s
 If the ref's own `docs.yml` is versioned, Fern builds its default version and ignores the rest; otherwise it builds the ref's top-level `navigation`. Publishing a ref-backed version requires git, access to the remote, and a `fern` folder at the same path at that ref. [Library reference](/learn/docs/api-references/library-reference) sections are skipped with a warning when their generated MDX is missing at the ref, so a version that predates a library still publishes.
 
 </Accordion>
+<Accordion title="Set the default version" toc={true}>
+
+The default version serves your unversioned URLs and is used for canonical URLs, the sitemap, search, and `llms.txt`. Without any configuration, the first version in your `versions` list is the default. To make a different version the default, set `default: true` on it. List order then only controls the order of the version dropdown, so a preview version can sit at the top while a stable release keeps the unversioned URLs.
+
+<CodeBlock title="docs.yml">
+```yaml {6}
+versions:
+  - display-name: Develop
+    ref: develop
+    availability: beta
+  - display-name: v3
+    default: true
+    path: ./versions/v3.yml
+  - display-name: v2
+    path: ./versions/v2.yml
+```
+</CodeBlock>
+
+A default version can use either `path` or [`ref`](#build-a-version-from-a-git-ref). Only one version in a `versions` list can set `default: true`, and the default version can't be [hidden](#hide-versions-from-navigation). `fern check`, `fern docs dev`, and publishing all report either case as a configuration error. The flag works the same way in [product versions](/learn/docs/configuration/products#add-versioning-to-your-products).
+
+</Accordion>
 <Accordion title="Change version slugs" toc={true}>
 
 By default, Fern generates URL slugs from the `display-name` by converting it to lowercase and replacing spaces with hyphens. For example, a version with `display-name: v3 (Deprecated)` would get the slug `v-3-deprecated` in the URL path.
@@ -196,7 +217,7 @@ versions:
 ```
 </CodeBlock>
 
-<Info>The default version (the first version in your `versions` list) can't be hidden.</Info>
+<Info>The [default version](#set-the-default-version) can't be hidden.</Info>
 
 </Accordion>
 <Accordion title="Conditionally render content">

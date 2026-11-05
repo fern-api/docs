@@ -275,3 +275,50 @@ auth-schemes:
     get-token:
       ...   
 ```
+
+## Refresh token exchange
+
+If your API issues a long-lived refresh token and exchanges it for short-lived access tokens, define a `bearer` scheme with a `get-token` endpoint and `type: refresh-token`. The generated SDK takes the user's refresh token, calls the `get-token` endpoint, and sends the returned access token with requests.
+
+```yaml api.yml
+name: api
+
+imports:
+  auth: auth.yml
+
+auth: RefreshTokenAuth
+auth-schemes:
+  RefreshTokenAuth:
+    scheme: bearer
+    get-token: auth.getTokenWithRefreshToken
+    type: refresh-token
+```
+
+The `get-token` endpoint must have a `grant_type` request property that accepts `refresh_token`. The SDK always sends `grant_type=refresh_token` and doesn't expose `grant_type` as a client option. `fern check` fails if the property is missing or is a literal other than `refresh_token`.
+
+```yaml title="auth.yml"
+types:
+  TokenResponse:
+    properties:
+      access_token: string
+      expires_in: integer
+      refresh_token: optional<string>
+
+service:
+  auth: false
+  base-path: /
+  endpoints:
+    getTokenWithRefreshToken:
+      path: /token
+      method: POST
+      request:
+        name: GetTokenRequest
+        body:
+          properties:
+            refresh_token: string
+            grant_type: string
+            scope: optional<string>
+      response: TokenResponse
+```
+
+`type` defaults to `api-key`. Refresh token exchange is supported in the Python, TypeScript, and Java SDK generators. For refresh token rotation and version requirements, see the [refresh token exchange reference](/learn/sdks/reference/generators-yml#refresh-token-exchange).
