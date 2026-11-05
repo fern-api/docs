@@ -10,6 +10,7 @@ These commands build, preview, and publish a Fern documentation site, and valida
 | Command | Description |
 |---------|-------------|
 | [`fern docs dev`](#fern-docs-dev) | Run local documentation preview server |
+| [`fern docs dev stop`](#fern-docs-dev-stop) | Stop a running local documentation preview server |
 | [`fern docs diff`](#fern-docs-diff) <Badge intent="warning" minimal>Beta</Badge> | Generate visual diffs between preview and production docs |
 | [`fern generate --docs`](#fern-generate---docs) | Build & publish documentation updates |
 | [`fern docs preview list`](#fern-docs-preview-list) | List all preview deployments |
@@ -32,7 +33,7 @@ These commands build, preview, and publish a Fern documentation site, and valida
 
     <CodeBlock title="terminal">
     ```bash
-    fern generate --docs [--instance <instance-url>] [--preview] [--id <name>] [--force] [--no-prompt]
+    fern generate --docs [--instance <instance-url>] [--preview] [--id <name>] [--force] [--no-prompt] [--guest] [--new-session]
     ```
     </CodeBlock>
 
@@ -73,17 +74,34 @@ These commands build, preview, and publish a Fern documentation site, and valida
     fern generate --docs --preview --id my-feature --no-prompt
     ```
 
+    ### guest
+
+    Use `--guest` to publish without a Fern account. The CLI starts a temporary guest session (or reuses the one saved in `fern/.guest-session`), ignores the `organization` in `fern.config.json` and the instance URL in `docs.yml`, and publishes to a `drop-<id>.docs.buildwithfern.com` site. The output includes a claim link; open it, or run `fern claim` after [`fern login`](/learn/cli-api-reference/cli-reference/general-commands#fern-login), to move the site into an organization before the session expires.
+
+    ```bash
+    fern generate --docs --guest
+    ```
+
+    `--guest` can't be combined with `FERN_TOKEN` or a saved login. Add `--new-session` to discard the saved guest session and start a fresh one.
+
   </Accordion>
 
   <Accordion title="fern docs dev">
 
-    Use `fern docs dev` to run a local development server to preview your docs. The server includes the [role selector and password login](/learn/docs/preview-publish/preview-changes#local-development) for sites that use role-based access control or password protection.
+    Use `fern docs dev` to run a local development server to preview your docs. The server includes the [role selector and password login](/learn/docs/preview-publish/preview-changes#local-development) for sites that use role-based access control or password protection. The server is for previewing on your own machine, not for hosting docs: to serve docs to readers, publish them with [`fern generate --docs`](#fern-generate---docs).
 
     <CodeBlock title="terminal">
     ```bash
     fern docs dev [--port <port-number>] [--skip-api] [--skip-validation]
+                  [--timeout <duration>] [--idle-timeout <duration>] [--json]
     ```
     </CodeBlock>
+
+    Once the server is ready, the CLI logs how to stop it, using this server's port and process ID:
+
+    ```
+    To stop the server, press Ctrl-C, run `fern docs dev stop --port 3000`, or run `kill 12345`.
+    ```
 
     <Warning title="Windows: enable long path support">
     On Windows, `fern docs dev` requires [long path support](https://learn.microsoft.com/en-us/windows/win32/fileio/maximum-file-path-limitation#enable-long-paths-in-windows-10-version-1607-and-later) to be enabled.
@@ -121,6 +139,46 @@ These commands build, preview, and publish a Fern documentation site, and valida
     fern docs dev --skip-validation
     ```
 
+    ### timeout
+
+    By default, the server runs until it's stopped. Use `--timeout <duration>` to stop it cleanly this long after it's ready; startup and bundle download don't count toward the limit. It accepts durations such as `30s`, `10m`, or `1h`; a plain number means seconds. When the timeout is reached, the CLI shuts down the server and exits with code `0`.
+
+    ```bash
+    fern docs dev --timeout 10m
+    ```
+
+    ### idle-timeout
+
+    Use `--idle-timeout <duration>` to stop the server cleanly after this long with no HTTP request in flight. It accepts the same durations as `--timeout`. The live-reload connection doesn't count as activity, so a browser tab left open doesn't keep the server running.
+
+    ```bash
+    fern docs dev --idle-timeout 15m
+    ```
+
+    ### json [#docs-dev-json]
+
+    Use `--json` to write lifecycle events to stdout as one JSON object per line, with logs on stderr. Agents and CI jobs can wait for the `ready` event instead of parsing log output.
+
+    ```json
+    {"event":"ready","url":"http://localhost:3000","port":3000,"backendPort":3001,"pid":12345,"stop":{"keys":"Ctrl-C","command":"fern docs dev stop --port 3000","kill":"kill 12345"}}
+    {"event":"reload","ok":true,"durationMs":412}
+    {"event":"reload","ok":false,"durationMs":380,"error":"..."}
+    {"event":"stopped","reason":"idle-timeout"}
+    ```
+
+    A `reload` event is emitted after each rebuild triggered by a file change, with `error` present when the rebuild fails. The `ready` event's `stop` object holds the same stop instructions as the log line. The `stopped` event's `reason` is `timeout`, `idle-timeout`, `signal`, `shutdown-request` (stopped by [`fern docs dev stop`](#fern-docs-dev-stop)), or `renderer-exit`.
+
+    Combine `--json` with `--idle-timeout` to run a preview in the background, then stop it with `fern docs dev stop` once checks finish. The idle timeout stops the server if the cleanup step never runs:
+
+    ```bash
+    fern docs dev --json --idle-timeout 15m > /tmp/fern-dev.ndjson 2> /tmp/fern-dev.log &
+    # Wait for the "ready" event, then request pages
+    curl -s http://localhost:3000/llms.txt
+    fern docs dev stop --port 3000
+    ```
+
+    `--timeout`, `--idle-timeout`, `--json`, and [`fern docs dev stop`](#fern-docs-dev-stop) aren't supported with `--legacy`.
+
     <llms-only>
     ### "Version redirection is disabled, so it was not upgraded"
 
@@ -128,6 +186,46 @@ These commands build, preview, and publish a Fern documentation site, and valida
 
     To verify which version is running, check `fern.config.json`. To inspect or change your organization's CLI version policy, use [`fern org get`](/learn/cli-api-reference/cli-reference/general-commands#fern-org-get) or update `fern.config.json` directly.
     </llms-only>
+
+  </Accordion>
+
+  <Accordion title="fern docs dev stop">
+
+    Use `fern docs dev stop` to cleanly stop a [`fern docs dev`](#fern-docs-dev) server from another terminal or script, without finding its process. It stops the server on port `3000` unless `--port` is set, and stops one server per call. It doesn't load your project, so it works from any directory.
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern docs dev stop [--port <port-number>] [--json]
+    ```
+    </CodeBlock>
+
+    On success, the command waits for the port to close and logs `Stopped fern docs dev on <url> (<fern folder>).` It exits with code `0` when there's nothing to stop, so it's safe to run as an unconditional cleanup step:
+
+    - Nothing is listening on the port: `No fern docs dev server running on port 3000; nothing to stop.`
+    - Another process, or a `fern docs dev --legacy` server, is using the port: `Port 3000 is in use, but not by a fern docs dev server; nothing to stop.` That process keeps running.
+
+    It exits with code `1` if the server refuses the request or the port is still open 10 seconds later.
+
+    ### port [#docs-dev-stop-port]
+
+    Use `--port <port-number>` to stop the server on a port other than `3000`. Use the port from the server's "ready on" log line or its `ready` event. The command doesn't scan other ports.
+
+    ```bash
+    fern docs dev stop --port 3002
+    ```
+
+    ### json [#docs-dev-stop-json]
+
+    Use `--json` to write the result to stdout as a single JSON object, with logs on stderr:
+
+    ```json
+    {"stopped":true,"port":3000,"url":"http://localhost:3000","pid":12345,"fernDirectory":"/path/to/project/fern"}
+    {"stopped":false,"port":3000,"reason":"no-server"}
+    {"stopped":false,"port":3000,"reason":"not-fern-docs-dev"}
+    {"stopped":false,"port":3000,"error":"..."}
+    ```
+
+    `reason` is `no-server` when nothing is listening and `not-fern-docs-dev` when another process is using the port; both exit with code `0`. `error` is present when the stop fails, which exits with code `1`.
 
   </Accordion>
 
