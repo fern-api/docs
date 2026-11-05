@@ -1,5 +1,5 @@
 declare const React: any;
-const { useState, useEffect } = React;
+const { useState, useEffect, useRef } = React;
 
 /* ─── Inline SVG Icons ─── */
 
@@ -176,6 +176,362 @@ function FernStatusWidget() {
 
 /* ─── Footer Component ─── */
 
+/* ─── Footer Fern cutout ─── */
+// Ported from marketing-site footer-fern-cutout.tsx + alignment-grid-impl.tsx
+// (trail shape only). Kept inline because custom footers can't import modules.
+
+// Fern lockup paths — same source as FooterFernExplode. The leaf is drawn at
+// its natural origin; the wordmark gets translated to sit to the right of the
+// leaf with a gap proportional to height (`gap = h * 0.12`, matching the old
+// 3D layout). Both paths share a ~173-unit vertical span.
+const LEAF_PATH =
+  "M 157.586 84.627 C 146.204 75.005 129.059 71.148 113.863 82.38 C 113.163 82.889 112.294 82.02 112.824 81.342 C 116.427 76.7 120.602 71.699 123.972 66.676 C 127.405 61.526 132.534 57.838 138.447 56.036 C 169.92 46.499 160.468 0 160.468 0 C 160.468 0 111.849 3.137 117.847 45.079 C 118.843 52.094 116.978 59.237 112.591 64.811 C 107.208 71.614 100.956 78.12 96.42 82.825 C 95.466 83.8 93.856 82.868 94.237 81.554 C 98.624 66.782 101.825 43.935 86.629 29.205 L 65.244 11.445 L 61.132 16.87 C 48.904 32.999 52.485 55.74 68.635 67.947 C 77.897 74.941 82.093 82.55 81.436 90.9 C 81.033 95.902 78.766 100.586 75.375 104.295 C 68.995 111.289 63.04 118.791 58.441 127.481 C 57.805 128.689 55.961 128.223 56.025 126.845 C 56.682 112.497 55.304 80.155 31.143 68.604 L 4.1 58.156 L 2.002 64.408 C -4.802 84.585 6.325 106.139 26.48 112.984 C 44.008 118.94 50.26 130.236 46.042 147.17 C 45.852 147.785 42.8 165.227 43.224 172.963 L 62.658 172.963 C 63.315 160.967 75.904 153.083 86.819 157.979 C 89.892 159.356 93.05 161.327 96.293 163.871 C 113.672 177.562 139.274 174.319 152.944 156.919 L 156.844 151.96 L 132.259 134.305 C 115.389 121.038 92.881 127.036 76.222 138.396 C 74.824 139.349 73.043 137.823 73.827 136.298 C 93.962 96.792 120.136 96.877 130.394 105.651 C 142.835 116.291 161.676 114.383 172.23 101.9 L 175.261 98.318 L 157.564 84.627 L 157.586 84.627 Z";
+
+const WORDMARK_PATH =
+  "M 160.046 46.296 C 195.368 46.296 219.318 70.005 219.318 107.981 C 219.318 112.326 219.077 116.698 218.594 121.767 L 133.924 121.767 C 135.372 136.759 145.295 144.992 161.494 144.992 C 172.383 144.992 179.383 140.406 182.548 133.862 L 217.146 133.862 C 210.119 157.571 191.748 173.046 161.28 173.046 C 124.752 173.046 100.56 147.648 100.56 108.947 L 100.532 108.947 C 100.532 70.971 124.724 46.296 160.046 46.296 Z M 260.899 70.976 C 263.796 57.432 273.477 49.922 288.711 49.922 L 310.007 49.922 L 310.007 54.025 C 310.007 68.052 298.634 79.424 284.607 79.424 C 271.305 79.424 265.003 86.209 265.003 99.753 L 265.003 169.431 L 231.129 169.431 L 231.129 49.922 L 260.899 49.922 L 260.899 70.976 Z M 385.334 46.296 C 414.595 46.296 432.993 65.178 432.993 96.852 L 432.993 169.425 L 399.119 169.425 L 399.119 100.472 C 399.119 84.514 391.851 76.764 378.307 76.764 C 364.763 76.764 355.805 86.204 355.805 101.438 L 355.805 169.398 L 321.932 169.398 L 321.932 49.917 L 351.702 49.917 L 351.702 62.013 C 358.729 51.607 371.549 46.296 385.334 46.296 Z M 107.655 29.501 L 74.506 29.501 C 67.479 29.501 63.617 32.398 63.617 39.425 L 63.617 49.831 L 100.387 49.831 L 100.387 79.332 L 63.617 79.332 L 63.617 169.313 L 29.743 169.313 L 29.743 79.332 L 0 79.332 L 0 49.831 L 29.743 49.831 L 29.743 35.321 C 29.743 12.096 43.046 0 66.03 0 L 107.655 0 L 107.655 29.501 Z M 160.046 72.901 C 143.606 72.901 134.648 82.1 133.683 96.127 L 185.203 96.127 L 185.203 95.645 C 185.203 82.101 176.487 72.901 160.046 72.901 Z";
+
+const LEAF_W = 175.261;
+const WORD_W = 432.993;
+const HEIGHT = 173.046;
+const GAP = HEIGHT * 0.12;
+const TOTAL_W = LEAF_W + GAP + WORD_W;
+
+// SVG-unit padding around the lockup inside both mask viewBoxes. Without
+// it, the halo's dilate+blur extends past the natural lockup bbox at top
+// and bottom and gets clipped on rasterization. Both the cutout and halo
+// SVGs use the same padded viewBox so their `contain`-fit scaling
+// produces identical lockup placement in the canvas.
+const MASK_PAD = 30;
+const MASK_VB = `${-MASK_PAD} ${-MASK_PAD} ${TOTAL_W + MASK_PAD * 2} ${HEIGHT + MASK_PAD * 2}`;
+// Mobile viewBox spans only the leaf bbox (no wordmark, no GAP), so
+// `contain`-fit scales the leaf up to fill the shorter canvas axis —
+// the natural square-ish aspect lets the leaf grow larger than it would
+// floating inside the full-lockup viewBox.
+const LEAF_MASK_VB = `${-MASK_PAD} ${-MASK_PAD} ${LEAF_W + MASK_PAD * 2} ${HEIGHT + MASK_PAD * 2}`;
+
+// Solid Fern silhouette used as AlignmentGrid's `cutoutMask`. Cells whose
+// center falls inside an opaque region of this image are skipped at draw
+// time, so the lockup reads as an empty shape carved out of the trail
+// field — without any overlay element that pushed particles could clip
+// against. The mobile variant drops the wordmark and uses the
+// leaf-only viewBox.
+const CUTOUT_MASK_URL = `data:image/svg+xml;utf8,${encodeURIComponent(
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${MASK_VB}" preserveAspectRatio="xMidYMid meet"><g fill="black"><path d="${LEAF_PATH}"/><g transform="translate(${LEAF_W + GAP}, 0)"><path d="${WORDMARK_PATH}"/></g></g></svg>`,
+)}`;
+const CUTOUT_MASK_URL_MOBILE = `data:image/svg+xml;utf8,${encodeURIComponent(
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${LEAF_MASK_VB}" preserveAspectRatio="xMidYMid meet"><path fill="black" d="${LEAF_PATH}"/></svg>`,
+)}`;
+
+// Blurred + dilated Fern silhouette used as AlignmentGrid's
+// `highlightMask`. `feMorphology dilate` grows the silhouette by `radius`
+// before blurring, which shifts the bright region's peak outward — the
+// lit contour sits a few cells away from the cutout edge instead of
+// hugging it tightly. The mobile variant pushes both values higher so the
+// halo reads as a more pronounced glow at the smaller render size; the
+// filter region jumps to 200% so the dilated+blurred output isn't clipped
+// inside the SVG.
+function buildHaloMask(dilate: number, blur: number) {
+  return `data:image/svg+xml;utf8,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${MASK_VB}" preserveAspectRatio="xMidYMid meet"><defs><filter id="b" x="-50%" y="-50%" width="200%" height="200%"><feMorphology operator="dilate" radius="${dilate}"/><feGaussianBlur stdDeviation="${blur}"/></filter></defs><g filter="url(#b)" fill="white"><path d="${LEAF_PATH}"/><g transform="translate(${LEAF_W + GAP}, 0)"><path d="${WORDMARK_PATH}"/></g></g></svg>`,
+  )}`;
+}
+
+function buildLeafHaloMask(dilate: number, blur: number) {
+  return `data:image/svg+xml;utf8,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${LEAF_MASK_VB}" preserveAspectRatio="xMidYMid meet"><defs><filter id="b" x="-50%" y="-50%" width="200%" height="200%"><feMorphology operator="dilate" radius="${dilate}"/><feGaussianBlur stdDeviation="${blur}"/></filter></defs><path filter="url(#b)" fill="white" d="${LEAF_PATH}"/></svg>`,
+  )}`;
+}
+
+const HALO_MASK_URL = buildHaloMask(7, 7);
+const HALO_MASK_URL_MOBILE = buildLeafHaloMask(14, 12);
+
+type FieldMask = {
+  canvas: HTMLCanvasElement;
+  ctx: CanvasRenderingContext2D;
+  img: HTMLImageElement;
+  data: ImageData | null;
+  w: number;
+  h: number;
+};
+
+function parseRgb(value: string): [number, number, number] | null {
+  const m = value.match(/\d+(\.\d+)?/g);
+  return m && m.length >= 3 ? [Number(m[0]), Number(m[1]), Number(m[2])] : null;
+}
+
+const CELL = 10;
+const WIND = 2;
+const MOUSE_RADIUS = 80;
+const GUST_SPEED = 700;
+const GUST_BAND_SQ = 80 * 80;
+const GUST_LIFE = 1.2;
+
+function FooterFernCutout() {
+  const containerRef = useRef(null);
+  const canvasRef = useRef(null);
+  const frameRef = useRef(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
+  useEffect(() => {
+    const container: HTMLDivElement | null = containerRef.current;
+    const canvas: HTMLCanvasElement | null = canvasRef.current;
+    if (!container || !canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const t0 = performance.now();
+    let width = 0;
+    let height = 0;
+    let offsetX = 0;
+    let offsetY = 0;
+    let color = "currentColor";
+    let baseRgb: [number, number, number] | null = null;
+    let highlightRgb: [number, number, number] | null = null;
+    let mouseX = -1e6;
+    let mouseY = -1e6;
+    let pointerFactor = 0;
+    let pointerTarget = 0;
+    const gusts: { x: number; y: number; t0: number }[] = [];
+
+    const readColor = () => {
+      const cs = getComputedStyle(container);
+      color = cs.color;
+      baseRgb = parseRgb(color);
+      highlightRgb = parseRgb(cs.getPropertyValue("--fern-cf-highlight").trim() || "rgb(0,0,0)");
+    };
+
+    const buildMask = (mask: FieldMask | null) => {
+      if (!mask || !mask.img.complete) return;
+      const iw = mask.img.naturalWidth;
+      const ih = mask.img.naturalHeight;
+      if (!iw || !ih || width === 0 || height === 0) return;
+      mask.w = Math.max(1, Math.floor(width));
+      mask.h = Math.max(1, Math.floor(height));
+      mask.canvas.width = mask.w;
+      mask.canvas.height = mask.h;
+      // Fit the lockup inside the centered content frame; the field itself bleeds full width.
+      const frame: HTMLDivElement | null = frameRef.current;
+      const fr = frame?.getBoundingClientRect();
+      const cr = container.getBoundingClientRect();
+      const fx = fr ? fr.left - cr.left : 0;
+      const fy = fr ? fr.top - cr.top : 0;
+      const fw = fr?.width || width;
+      const fh = fr?.height || height;
+      const scale = Math.min(fw / iw, fh / ih);
+      const dw = iw * scale;
+      const dh = ih * scale;
+      mask.ctx.clearRect(0, 0, mask.w, mask.h);
+      mask.ctx.drawImage(mask.img, fx + (fw - dw) / 2, fy + (fh - dh) / 2, dw, dh);
+      mask.data = mask.ctx.getImageData(0, 0, mask.w, mask.h);
+    };
+    const createMask = (src: string): FieldMask | null => {
+      const c = document.createElement("canvas");
+      const cc = c.getContext("2d", { willReadFrequently: true });
+      if (!cc) return null;
+      const mask: FieldMask = { canvas: c, ctx: cc, img: new Image(), data: null, w: 0, h: 0 };
+      mask.img.onload = () => {
+        buildMask(mask);
+        if (reduced) draw(performance.now());
+      };
+      mask.img.src = src;
+      return mask;
+    };
+    const cutout = createMask(isMobile ? CUTOUT_MASK_URL_MOBILE : CUTOUT_MASK_URL);
+    const halo = createMask(isMobile ? HALO_MASK_URL_MOBILE : HALO_MASK_URL);
+
+    const resize = () => {
+      const rect = container.getBoundingClientRect();
+      width = rect.width;
+      height = rect.height;
+      offsetX = rect.left + window.scrollX;
+      offsetY = rect.top + window.scrollY;
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.max(1, Math.floor(width * dpr));
+      canvas.height = Math.max(1, Math.floor(height * dpr));
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      readColor();
+      buildMask(cutout);
+      buildMask(halo);
+      if (reduced) draw(performance.now());
+    };
+
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    let reduced = mq.matches;
+    const onReducedChange = () => {
+      reduced = mq.matches;
+    };
+    mq.addEventListener("change", onReducedChange);
+
+    const ro = new ResizeObserver(resize);
+    ro.observe(container);
+    const mo = new MutationObserver(() =>
+      requestAnimationFrame(() => {
+        readColor();
+        if (reduced) draw(performance.now());
+      }),
+    );
+    mo.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class", "data-theme", "style"],
+    });
+
+    const onMove = (e: PointerEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      mouseX = e.clientX - rect.left;
+      mouseY = e.clientY - rect.top;
+      pointerTarget = 1;
+    };
+    const onLeave = () => {
+      pointerTarget = 0;
+    };
+    const onDown = (e: PointerEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      gusts.push({ x: e.clientX - rect.left, y: e.clientY - rect.top, t0: (performance.now() - t0) / 1000 });
+    };
+    container.addEventListener("pointermove", onMove);
+    container.addEventListener("pointerleave", onLeave);
+    container.addEventListener("pointerdown", onDown);
+
+    let visible = true;
+    const io = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        visible = entry.isIntersecting;
+        if (entry.isIntersecting) container.dataset.visible = "true";
+      }
+    });
+    io.observe(container);
+
+    function draw(now: number) {
+      const t = (now - t0) / 1000;
+      ctx.clearRect(0, 0, width, height);
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+      ctx.lineWidth = 0.5;
+      ctx.lineCap = "round";
+
+      const radiusSq = MOUSE_RADIUS * MOUSE_RADIUS;
+      pointerFactor += (pointerTarget - pointerFactor) * 0.18;
+      while (gusts.length && t - gusts[0]!.t0 > GUST_LIFE) gusts.shift();
+      const pointerActive = mouseX > -5e5 && pointerFactor > 0.005;
+
+      const intensity = 0.65 + 0.55 * Math.sin(t * 0.5) + 0.2 * Math.sin(t * 0.17);
+      const sway = Math.sin(t * 0.45) * 0.4;
+      const dotRadius = CELL * 0.08;
+      const dotWindScale = WIND * intensity * 0.15;
+      const dotPushMax = MOUSE_RADIUS * 0.25;
+      const first = CELL / 2;
+
+      const cutoutPixels = cutout?.data?.data;
+      const cutoutW = cutout?.w ?? 0;
+      const cutoutH = cutout?.h ?? 0;
+      const haloPixels = baseRgb && highlightRgb ? halo?.data?.data : undefined;
+      const haloW = halo?.w ?? 0;
+      const haloH = halo?.h ?? 0;
+      let currentStyle = color;
+
+      for (let x = first; x < width; x += CELL) {
+        for (let y = first; y < height; y += CELL) {
+          const mx = x | 0;
+          const my = y | 0;
+          if (
+            cutoutPixels &&
+            mx < cutoutW &&
+            my < cutoutH &&
+            cutoutPixels[(my * cutoutW + mx) * 4 + 3]! > 128
+          ) {
+            continue;
+          }
+          if (haloPixels) {
+            const raw = mx < haloW && my < haloH ? haloPixels[(my * haloW + mx) * 4 + 3]! / 255 : 0;
+            // Lift the falloff so blades near the wordmark contrast more.
+            const sample = raw > 0.02 ? Math.min(1, Math.pow(raw, 0.75)) : 0;
+            const style =
+              sample > 0.02
+                ? `rgb(${(baseRgb![0] + (highlightRgb![0] - baseRgb![0]) * sample) | 0},${(baseRgb![1] + (highlightRgb![1] - baseRgb![1]) * sample) | 0},${(baseRgb![2] + (highlightRgb![2] - baseRgb![2]) * sample) | 0})`
+                : color;
+            if (style !== currentStyle) {
+              ctx.strokeStyle = style;
+              ctx.fillStyle = style;
+              currentStyle = style;
+            }
+          }
+          const worldX = x + offsetX;
+          const worldY = y + offsetY;
+          const gust1 = Math.sin(worldX * 0.009 + worldY * 0.004 - t * 1.8);
+          const gust2 = Math.sin(worldX * 0.005 - worldY * 0.007 - t * 1.1);
+          const texture = Math.sin(worldX * 0.045 + worldY * 0.05) * 0.2;
+          let dispX = dotWindScale * CELL * (gust1 * 0.8 + sway * 0.4);
+          let dispY = dotWindScale * CELL * (gust2 * 0.6 + texture);
+          if (pointerActive) {
+            const dx = mouseX - x;
+            const dy = mouseY - y;
+            const distSq = dx * dx + dy * dy;
+            if (distSq < radiusSq) {
+              const dist = Math.sqrt(distSq) || 1;
+              const influence = 1 - dist / MOUSE_RADIUS;
+              const push = dotPushMax * influence * influence * pointerFactor;
+              dispX -= (dx / dist) * push;
+              dispY -= (dy / dist) * push;
+            }
+          }
+          for (const g of gusts) {
+            const age = t - g.t0;
+            const gdx = x - g.x;
+            const gdy = y - g.y;
+            const gdist = Math.sqrt(gdx * gdx + gdy * gdy) || 1;
+            const band = gdist - age * GUST_SPEED;
+            const mag = Math.exp(-(band * band) / GUST_BAND_SQ) * (1 - age / GUST_LIFE) * CELL * 0.8;
+            dispX += (gdx / gdist) * mag;
+            dispY += (gdy / gdist) * mag;
+          }
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+          ctx.lineTo(x + dispX, y + dispY);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(x + dispX, y + dispY, dotRadius, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+
+    resize();
+    let raf = 0;
+    const loop = (now: number) => {
+      if (visible && !reduced) draw(now);
+      raf = requestAnimationFrame(loop);
+    };
+    draw(performance.now());
+    raf = requestAnimationFrame(loop);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+      mo.disconnect();
+      io.disconnect();
+      container.removeEventListener("pointermove", onMove);
+      container.removeEventListener("pointerleave", onLeave);
+      container.removeEventListener("pointerdown", onDown);
+      mq.removeEventListener("change", onReducedChange);
+    };
+  }, [isMobile]);
+
+  return (
+    <div ref={containerRef} aria-hidden className="fern-cf-pattern">
+      <canvas ref={canvasRef} />
+      <div ref={frameRef} className="fern-cf-frame" />
+    </div>
+  );
+}
+
 export default function FernFooter() {
   return (
     <>
@@ -344,8 +700,60 @@ export default function FernFooter() {
         :root.dark .fern-cf-dark,
         .dark .fern-cf-dark { display: block; }
 
+        .fern-cf-field {
+          position: relative;
+          width: 100%;
+          height: 36rem;
+          border-top: 1px solid var(--border);
+          overflow: hidden;
+        }
+
+        .fern-cf-frame {
+          position: absolute;
+          top: 0;
+          bottom: 0;
+          left: 50%;
+          width: min(var(--spacing-page-width, 1504px), calc(100% - 4rem));
+          transform: translateX(-50%);
+          pointer-events: none;
+        }
+
+        .fern-cf-pattern {
+          --fern-cf-highlight: rgb(0, 0, 0);
+          position: absolute;
+          inset: 0;
+          color: #b4b4b4;
+          opacity: 0;
+          transition: opacity 700ms ease-out;
+        }
+
+        .fern-cf-pattern[data-visible="true"] {
+          opacity: 1;
+        }
+
+        .dark .fern-cf-pattern {
+          --fern-cf-highlight: rgb(255, 255, 255);
+          color: #484848;
+        }
+
+        .fern-cf-pattern canvas {
+          display: block;
+          width: 100%;
+          height: 100%;
+        }
+
+        @media (max-width: 767px) {
+          .fern-cf-field {
+            height: 20rem;
+          }
+        }
+
         /* Mobile */
         @media (max-width: 640px) {
+          .fern-cf-frame {
+            width: calc(100% - 2rem);
+          }
+
           .fern-cf {
             padding: 2rem 1rem;
           }
@@ -493,6 +901,10 @@ export default function FernFooter() {
           </div>
         </div>
       </footer>
+
+      <div className="fern-cf-field">
+        <FooterFernCutout />
+      </div>
     </>
   );
 }
