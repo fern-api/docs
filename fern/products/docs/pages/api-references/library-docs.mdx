@@ -90,7 +90,7 @@ Local parsing runs each parser inside a Docker container, so [Docker](https://do
 </Warning>
 
 <Note>
-For C++ libraries, the parser uses the source root (your `path` directory, or the repository root for a `git` input) as its scope. Input directives in your Doxyfile don't change that scope: Fern honors only [a few Doxyfile settings](#configuration-reference) and ignores the rest.
+For C++ libraries, the parser uses the source root (your `path` directory, or the repository root for a `git` input) as its scope. [`config.include`](#configinclude) and [`config.exclude`](#configexclude) narrow the scan to paths inside the source root but can't reach outside it, and Fern honors only [a few Doxyfile settings](#configuration-reference).
 </Note>
 </Tab>
 <Tab title="Remote parsing">
@@ -106,7 +106,9 @@ The `--remote` flag sends the repository URL to Fern's servers for parsing inste
 If you have multiple libraries configured, `fern docs md generate` processes all libraries in parallel. Use `--library plant-sdk` to generate docs for a specific library only.
 </Tip>
 
-The generated docs form a navigation section with pages for each module, class, function, and type in your library. For C++ libraries, groups defined with `@defgroup`, `@ingroup`, or `@addtogroup` also get index pages in a `groups/` folder inside `output.path`: each lists the group's description, its members by kind, and its subgroups (nested as subfolders). Member documentation stays on the symbol pages, groups with no members are skipped, and the `folder:` navigation entry picks the group pages up without changes.
+The generated docs form a navigation section with pages for each module, class, function, and type in your library. For C++ libraries, groups defined with `@defgroup`, `@ingroup`, or `@addtogroup` also get index pages in a `groups/` folder inside `output.path`: each lists the group's description, its members by kind, and its subgroups (nested as subfolders). Member documentation stays on the symbol pages, groups with no members are skipped, and the `folder:` navigation entry picks the group pages up without changes. To also browse the reference by source file, set [`config.organize-by: header`](#configorganize-by).
+
+C++ pages also reflect C idioms: a struct declared with `typedef struct X {...} X;` shows the `typedef` line on its page, values of an anonymous `enum { A, B };` are listed under "Anonymous enumerations" on the enums index page, and array fields keep their extents (`char id[64]`).
 
 </Step>
 <Step title="Preview locally">
@@ -208,8 +210,46 @@ You can also edit page content by modifying the MDX files directly — generated
   The language of the library. Supported values: `python`, `cpp`.
 </ParamField>
 
-<ParamField path="config.doxyfile" type="string">
-  Path to a custom [Doxyfile](https://www.doxygen.nl/manual/config.html). C++ only. Fern reads four settings from it and applies them to its own doxygen configuration: `ALIASES`, `PREDEFINED`, `FILE_PATTERNS`, and `OPTIMIZE_OUTPUT_FOR_C`. `ALIASES` supports parameterized macros and backslash line continuations.
+<ParamField path="config.organize-by" type="string" default="kind" toc={true}>
+  How C++ pages are organized. C++ only; generation fails if it's set on a library with another `lang`. Supported values:
 
-  Every other setting is ignored, including `INPUT`, `INPUT_FILTER`, `GENERATE_XML`, and the `@INCLUDE` and `@INCLUDE_PATH` directives. Publishing fails when one of the four supported settings has an invalid value: a space or shell metacharacter in `FILE_PATTERNS`, a value other than `YES` or `NO` for `OPTIMIZE_OUTPUT_FOR_C`, an `ALIASES` entry that isn't an alias definition, a trailing backslash, or doxygen's `$(VAR)` environment-variable expansion. Doxyfile content over 262,144 characters is also rejected.
+  - `kind`: Groups pages by symbol kind, in folders such as `functions/` and `structs/`.
+  - `header`: Keeps the `kind` layout and adds a `headers/` folder with an index page and one page per source header. Each header page shows its `#include` line and the file's Doxygen description, links to the classes, functions, enums, typedefs, variables, and macros it declares, and lists the headers it includes.
+</ParamField>
+
+<ParamField path="config.include" type="list of strings" toc={true}>
+  Files or directories to scan, relative to the source root (`input.path`, or `input.subpath` within a `git` repository). C++ only. When set, only these paths are parsed (doxygen's `INPUT`), which keeps vendored and internal code in a large source tree out of the generated docs. Generation fails if a path is absolute, contains `..`, resolves outside the source root, or doesn't exist.
+</ParamField>
+
+<ParamField path="config.exclude" type="list of strings" toc={true}>
+  Files, directories, or glob patterns to leave out of the scan. C++ only. Paths are relative to the source root and become doxygen's `EXCLUDE`. Entries containing `*` or `?` are matched against full file paths as doxygen's `EXCLUDE_PATTERNS`, for example `*/detail/*` or `*_priv.h`. A path that doesn't exist is skipped with a warning.
+</ParamField>
+
+<ParamField path="config.exclude-symbols" type="list of strings" toc={true}>
+  Symbol names or glob patterns to leave out of the generated docs, for example `INTERNAL_*` or `detail::*` (doxygen's `EXCLUDE_SYMBOLS`). C++ only.
+
+  ```yaml docs.yml
+  libraries:
+    plant-core:
+      input:
+        path: ../plant-core-cpp
+      output:
+        path: ./static/plant-core-docs
+      lang: cpp
+      config:
+        organize-by: header
+        include:
+          - include/plant
+        exclude:
+          - include/plant/vendor
+          - "*_internal.h"
+        exclude-symbols:
+          - "detail::*"
+  ```
+</ParamField>
+
+<ParamField path="config.doxyfile" type="string">
+  Path to a custom [Doxyfile](https://www.doxygen.nl/manual/config.html). C++ only. Fern reads these settings from it and applies them to its own doxygen configuration: `ALIASES`, `PREDEFINED`, `FILE_PATTERNS`, `OPTIMIZE_OUTPUT_FOR_C`, and the source selection settings `INPUT`, `EXCLUDE`, `EXCLUDE_PATTERNS`, and `EXCLUDE_SYMBOLS`. `ALIASES` supports parameterized macros and backslash line continuations. When both are set, `config.include` replaces the Doxyfile's `INPUT` list, and `config.exclude` and `config.exclude-symbols` add to its exclusions.
+
+  Every other setting is ignored, including `INPUT_FILTER`, `GENERATE_XML`, and the `@INCLUDE` and `@INCLUDE_PATH` directives. Publishing fails when a supported setting has an invalid value: a space or shell metacharacter in `FILE_PATTERNS`, a value other than `YES` or `NO` for `OPTIMIZE_OUTPUT_FOR_C`, an `ALIASES` entry that isn't an alias definition, an `INPUT` or `EXCLUDE` path that's absolute or contains `..`, a trailing backslash, or doxygen's `$(VAR)` environment-variable expansion. Doxyfile content over 262,144 characters is also rejected.
 </ParamField>
