@@ -1,0 +1,35 @@
+---
+title: Automate Fern in CI
+slug: fern-instructions/automate
+description: Run fern check on pull requests, publish docs previews per pull request, publish docs on merge, and release SDKs from CI with FERN_TOKEN.
+---
+
+Use this to set up or fix a CI workflow that runs the Fern CLI.
+
+## Workflow
+
+1. Create an organization token with `fern token` and store it as a CI secret named `FERN_TOKEN`. Never print or commit it.
+2. Pin a concrete CLI `version` in `fern.config.json` so CI and local runs match. Install the CLI in CI with `fern-api/setup-fern-cli@v1` (GitHub Actions) or `npm install -g fern-api`.
+3. Add the jobs the user needs:
+   - Pull requests: `fern check`.
+   - Docs preview per pull request: `fern generate --docs --preview --id <branch> --no-prompt`, then post the printed URL (`Published docs to <url>`, on stderr) as a comment.
+   - Docs on merge to the default branch: `fern generate --docs --no-prompt`.
+   - SDK release: `fern generate --target <language> --version <version> --force` (or `--group` for `generators.yml`).
+4. Skip secret-dependent jobs on fork and Dependabot pull requests, which don't receive secrets.
+5. To keep the spec current, add the `fern-api/sync-openapi` action. See `spec sync`.
+
+## Rules
+
+- Pass `--no-prompt` or `--force` to anything that can prompt. Prompts fail immediately when stdin isn't a TTY or `CI` is set.
+- Don't use `fern login` or `--guest` in CI. Use `FERN_TOKEN`.
+- Run the command from the folder that contains `fern/`.
+
+## Verify
+
+- `fern whoami` in a CI step reports an organization token. The workflow passes on a test pull request and posts a working preview link.
+
+## Reference
+
+- [Publish your docs](https://buildwithfern.com/learn/docs/preview-publish/publishing-your-docs.md)
+- [Preview changes](https://buildwithfern.com/learn/docs/preview-publish/preview-changes.md)
+- [Sync your OpenAPI spec](https://buildwithfern.com/learn/api-definitions/openapi/sync-your-open-api-specification.md)

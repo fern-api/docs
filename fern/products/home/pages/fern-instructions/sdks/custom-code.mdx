@@ -1,0 +1,35 @@
+---
+title: Keep custom code in Fern SDKs
+slug: fern-instructions/sdks/custom-code
+description: Preserve hand-written code in generated SDKs with .fernignore for whole files or Replay for line-level edits.
+---
+
+Use this before editing any file in a generated SDK.
+
+## Pick an approach
+
+| Approach | Use when | Trade-off |
+|---|---|---|
+| `.fernignore` | The user owns a whole file: a hand-written module, README, or workflow | Fern stops updating that file entirely |
+| Replay | Small edits inside generated files | Fern reapplies the edits with a 3-way merge on every regeneration |
+
+## Workflow
+
+1. `.fernignore`: add the file paths to `.fernignore` at the root of the SDK repo (gitignore syntax). GitHub delivery creates the file. Each SDK has its own.
+2. Replay: enable it (`replay.enabled: true` in `sdk-config.yml`), commit the edits in the SDK repo, and regenerate. If a merge conflicts, resolve it with `fern replay resolve`. `fern replay forget` drops a recorded edit.
+3. Regenerate and confirm the custom code survived.
+
+## Rules
+
+- Don't edit generated files that aren't protected by one of these. The next generation overwrites them.
+- `.fernignore` applies only to SDKs. It has no effect on docs.
+- Prefer fixing names and behavior in the spec or SDK config over custom code.
+
+## Verify
+
+- After `fern generate`, the custom files and edits are unchanged and the SDK still builds.
+
+## Reference
+
+- [Custom code](https://buildwithfern.com/learn/sdks/overview/custom-code.md)
+- [Migrate to Replay](https://buildwithfern.com/learn/sdks/overview/replay-migration.md)

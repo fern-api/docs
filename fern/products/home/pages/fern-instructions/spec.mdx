@@ -1,0 +1,41 @@
+---
+title: Prepare an API spec for Fern
+slug: fern-instructions/spec
+description: Get an OpenAPI spec ready for Fern SDKs and docs, with good operationIds, tags, reusable schemas, examples, and error responses.
+---
+
+Use this when editing the OpenAPI (or AsyncAPI) file Fern reads, or when SDK names or docs content need to change at the spec level.
+
+## Workflow
+
+1. Find the spec. It's listed under `source.specs` in `sdk-config.yml`, `api.specs` in `generators.yml`, or `specs` on an `api` entry in `docs.yml`. Check for overlays or overrides listed next to it.
+2. Decide where the change goes. If the spec is downloaded from an `origin` or generated from code, put Fern changes in an overlay instead of editing it. See `spec overrides`.
+3. Fix what drives SDK and docs quality:
+   - `operationId` on every operation. It becomes the SDK method name.
+   - `tags` group operations into SDK clients and API Reference sections.
+   - Shared shapes live in `components.schemas` and are used with `$ref`. Inline objects become auto-named types.
+   - `required` and `nullable` are accurate.
+   - Request and response `examples` for each operation. Otherwise Fern generates them.
+   - Response schemas for error status codes, so SDKs get typed errors.
+   - `securitySchemes` and `servers`. See `spec auth`.
+4. Use `x-fern-*` extensions for anything OpenAPI can't express. See `spec extensions`.
+5. Run `fern check` after every change. Add `--warnings` to see missing `operationId` and similar warnings.
+6. Preview the effect: `fern docs dev` for docs, `fern generate --preview` for SDKs.
+
+## Rules
+
+- Fern silently ignores unknown `x-` keys. A misspelled extension does nothing and raises no error. Copy names from the extension pages.
+- Don't put credentials or private hostnames in a spec that's published.
+- Use OpenAPI 3.x where possible. Swagger 2.0 works but loses detail.
+
+## Verify
+
+- `fern check` passes. Generated method names, groups and types read naturally, and the API Reference shows examples for every endpoint.
+
+## Reference
+
+- [OpenAPI overview](https://buildwithfern.com/learn/api-definitions/openapi/overview.md)
+- [Authentication](https://buildwithfern.com/learn/api-definitions/openapi/authentication.md)
+- [Servers](https://buildwithfern.com/learn/api-definitions/openapi/servers.md)
+- [Extensions](https://buildwithfern.com/learn/api-definitions/openapi/extensions/overview.md)
+- [API definitions overview](https://buildwithfern.com/learn/api-definitions/overview/what-is-an-api-definition.md)

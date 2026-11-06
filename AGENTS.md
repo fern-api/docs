@@ -203,6 +203,18 @@ After documenting any new functionality, before declaring the work done:
 5. If the functionality has dashboard settings, verify `fern/products/dashboard/pages/` covers them — usually folded into the most relevant existing page, not a new page.
 6. Verify every link you wrote — see *Link checking* above for URL construction.
 
+## Agent instruction pages
+
+`fern/products/home/pages/fern-instructions/` holds hidden pages written for coding agents. They're served at `/learn/home/fern-instructions/<topic>.md`, and they're the content behind the proposed `fern instructions <topic>` CLI command. Each page condenses the canonical pages listed in its `## Reference` section. The pages are hidden from the sidebar, search and `llms.txt`, so readers won't notice when they go stale. Keep them in sync in the same PR as the change that affects them.
+
+- When you change a canonical page, find the instruction pages that cite it and update them too. Search for the page's `/learn/...` URL path, for example `grep -rl "docs/preview-publish/publishing-your-docs" fern/products/home/pages/fern-instructions/`.
+- When you document a CLI command, flag or behavior change, also search the instruction pages for the command name, for example `fern generate --guest`, `fern claim` or `fern whoami`. Some pages describe commands without linking a canonical page.
+- Edit only the steps, rules and checks that changed. Keep each page short and scoped to one task.
+- To add a topic, add the page with `hidden: true` in `fern/products/home/home.yml` and add a row to the index in `topics.mdx`. Don't link instruction pages from visible pages.
+- The index page, `topics.mdx` (served at `/learn/home/fern-instructions.md`), is a contract with the Fern CLI and with `agents.page-directive` in `docs.yml`. Don't move it, change its slug, or change the format of its topic tables unless the CLI in `fern-api/fern` is updated too.
+- The proposed CLI builds each topic's URL from its name, for example `fern instructions docs publish domain` fetches `/learn/home/fern-instructions/docs/publish/domain.md`, so released CLI versions depend on those paths. If you move or rename an instruction page, add a redirect in `docs.yml` from the old path to the new one. Redirects also apply to the `.md` URL, and a `:slug*` wildcard covers a moved folder.
+- If you aren't sure whether a change affects an instruction page, say so in the PR description.
+
 ## Generated files
 
 Automation owns some paths in this repo. Never write to them by hand, and never delete or reformat what automation put there: the next sync reverts the edit, and a hand-written change collides with the automated pull request that maintains the file.
