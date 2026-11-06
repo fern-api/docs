@@ -1,0 +1,60 @@
+---
+title: Configure Fern docs navigation
+slug: fern-instructions/docs/configure/navigation
+description: Add, move, rename, and hide pages, sections, folders, tabs, versions, and products in docs.yml navigation.
+---
+
+Use this to change the sidebar or any page URL.
+
+## Workflow
+
+1. Find where navigation lives. A single-product site has `navigation:` in `fern/docs.yml`. With products or versions, each product or version has its own `.yml` file, referenced from `docs.yml`. Paths in a YAML file are relative to that file.
+2. Add the entry:
+
+   ```yaml
+   navigation:
+     - section: Guides
+       contents:
+         - page: Rotate API keys
+           path: ./pages/guides/rotate-keys.mdx
+         - folder: ./pages/tutorials   # every .mdx in the folder, in filename order
+     - link: Status page
+       href: https://status.example.com
+     - api: API Reference
+   ```
+
+3. Work out the new URL: `<base path>/<product slug>/<section slug>/<page slug>`. Each level's slug is its `slug:` if set, otherwise derived from its display name (lowercased, hyphenated). In a `folder:`, page slugs come from filenames. A frontmatter `slug:` replaces the whole path within the product. `skip-slug: true` drops a level.
+4. If an existing page's URL changes, add a redirect from the old URL. See `docs configure seo`.
+5. Run `fern check` and open the page in `fern docs dev`.
+
+## Options
+
+| Key | Effect |
+|---|---|
+| `hidden: true` | On a page, section, tab or version: removed from the sidebar, search, sitemap and `llms.txt`, but reachable by URL |
+| `collapsed: true` | Section or folder starts collapsed |
+| `icon` | Sidebar icon, for example `fa-solid fa-key` |
+| `availability` | Badge such as `beta` or `deprecated` |
+| `slug`, `skip-slug` | Control the URL segment |
+| `tabs` + `tab:` entries | Top-level tabs, each with its own navigation |
+| `versions` | Versioned docs, each version with its own `.yml` navigation |
+| `products` | Product switcher. Each product has its own `.yml`, and the top-level `docs.yml` then has no `navigation` of its own. Requires a Team or Enterprise plan. |
+
+## Rules
+
+- Renaming a section, tab or version without an explicit `slug:` changes every URL under it.
+- Don't guess URLs from the directory layout. Section slugs often differ from folder names.
+- Every `path:` must point at an existing file. `fern check` reports missing ones.
+
+## Verify
+
+- `fern check` passes.
+- The sidebar in `fern docs dev` matches the intended structure, and moved pages redirect from their old URLs.
+
+## Reference
+
+- [Navigation](https://buildwithfern.com/learn/docs/configuration/navigation.md)
+- [Tabs](https://buildwithfern.com/learn/docs/configuration/tabs.md)
+- [Versions](https://buildwithfern.com/learn/docs/configuration/versions.md)
+- [Products](https://buildwithfern.com/learn/docs/configuration/products.md)
+- [Hiding content](https://buildwithfern.com/learn/docs/customization/hiding-content.md)

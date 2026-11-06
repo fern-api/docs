@@ -9,13 +9,15 @@ These commands apply to every Fern project, whether it publishes [docs](/learn/c
 
 | Command | Description |
 |---------|-------------|
-| [`fern init`](#fern-init) | Create new Fern project from OpenAPI spec or scratch |
+| [`fern init`](#fern-init) | Create new Fern project from an OpenAPI spec, a gRPC proto, or scratch |
 | [`fern check`](#fern-check) | Validate API definition & configuration |
 | [`fern upgrade`](#fern-upgrade) | Update Fern CLI & generators to latest versions |
 | [`fern downgrade`](#fern-downgrade) | Move the Fern CLI version in `fern.config.json` back to an older version |
 | [`fern login`](#fern-login) | Login to Fern CLI via GitHub, Google, Postman, or enterprise SSO |
 | [`fern logout`](#fern-logout) | Log out of the Fern CLI |
 | [`fern token`](#fern-token) | Generate an organization-scoped API key for CI/CD |
+| [`fern whoami`](#fern-whoami) | Show the login, `FERN_TOKEN`, or guest session the CLI is using |
+| [`fern claim`](#fern-claim) | Move a guest session's work (from `fern generate --guest`) into your organization |
 | [`fern export`](#fern-export) | Export an OpenAPI spec for your API |
 | [`fern api update`](#fern-api-update) | Manually update your OpenAPI spec |
 | [`fern api enrich`](#fern-api-enrich) | Merge `x-fern-examples` from an overrides file into native OpenAPI examples |
@@ -35,7 +37,7 @@ These commands apply to every Fern project, whether it publishes [docs](/learn/c
 
     <CodeBlock title="terminal">
     ```bash
-    fern init [--docs] [--openapi <path/url>]
+    fern init [--docs] [--openapi <path/url>] [--grpc] [--proto <path>]
     ```
     </CodeBlock>
 
@@ -62,6 +64,24 @@ These commands apply to every Fern project, whether it publishes [docs](/learn/c
     # Initialize from URL
     fern init --openapi https://petstore3.swagger.io/api/v3/openapi.json
     ```
+
+    ### grpc
+
+    Use `--grpc` to initialize a sample gRPC service and a `generators.yml` that generates a C# SDK. See [gRPC](/learn/api-definitions/grpc/overview).
+
+    ```bash
+    fern init --grpc
+    ```
+
+    ### proto
+
+    Use `--proto` to initialize from your own `.proto` file or a directory of them. The files are copied into `fern/proto/`.
+
+    ```bash
+    fern init --proto ./proto
+    ```
+
+    `--grpc` and `--proto` cannot be combined with each other or with `--openapi`, `--fern-definition`, `--docs`, `--mintlify`, or `--readme`.
 
     ### docs
 
@@ -369,6 +389,70 @@ These commands apply to every Fern project, whether it publishes [docs](/learn/c
     </CodeBlock>
 
     After logging out, you'll need to run [`fern login`](#fern-login) again to access protected features.
+
+  </Accordion>
+
+  <Accordion title="fern whoami">
+
+    Use `fern whoami` to see which credential the CLI acts as in the current directory. Running it before generating or publishing confirms which account or API key a permission error applies to.
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern whoami
+    fern whoami --json
+    ```
+    </CodeBlock>
+
+    The report shows which login is in use:
+
+    - **Organization token**: a `FERN_TOKEN` environment variable is set. It takes precedence over a saved login.
+    - **User login**: a credential saved by [`fern login`](#fern-login), shown with the account's email (or username) and user ID. If Fern can't verify the saved login, for example because it expired, the report says so and suggests running `fern login` again.
+    - **Not logged in**: neither a `FERN_TOKEN` nor a saved login is present.
+
+    If the repo has a guest session saved by [`fern generate --guest`](/learn/cli-api-reference/cli-reference/docs-commands#guest), the report also shows its session ID, organization, and expiry, plus the claim link while the session is live. An expired guest session is replaced by the next `fern generate --guest` run.
+
+    `fern whoami` always runs on the installed CLI, even in projects whose `fern.config.json` pins an older CLI version.
+
+    ### json
+
+    Use `--json` to print the report as a JSON object, for scripts and CI checks. The `login.kind` field is `user`, `user-unverified`, `organization-token`, or `none`. The `guestSession` field is present only when the repo has a saved guest session, and never includes the session token.
+
+    ```bash
+    fern whoami --json
+    ```
+
+    ```json
+    {
+      "login": {
+        "kind": "user",
+        "userId": "<user-id>",
+        "username": "<username>",
+        "email": "user@example.com"
+      },
+      "guestSession": {
+        "sessionId": "<session-id>",
+        "organizationId": "<organization-id>",
+        "expiresAt": "2026-11-12T00:00:00.000Z",
+        "claimUrl": "<claim-url>",
+        "live": true,
+        "venusOrigin": "https://venus.buildwithfern.com"
+      }
+    }
+    ```
+
+  </Accordion>
+
+  <Accordion title="fern claim">
+
+    Use `fern claim` to keep the work published from a guest session. Run it after [`fern login`](#fern-login) in the repo that ran [`fern generate --guest`](/learn/cli-api-reference/cli-reference/docs-commands#guest); by default it turns the guest organization into your own, or pass `--org` to move the site into an organization you administer.
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern claim [--org <organization>]
+    ```
+    </CodeBlock>
+
+    The claim link printed by `fern generate --guest` does the same from the Fern Dashboard.
 
   </Accordion>
 

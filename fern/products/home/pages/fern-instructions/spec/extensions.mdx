@@ -1,0 +1,63 @@
+---
+title: Use Fern OpenAPI extensions
+slug: fern-instructions/spec/extensions
+description: Pick the right x-fern extension for SDK names, ignored elements, pagination, examples, audiences, availability, retries, idempotency, and global headers.
+---
+
+Use this when OpenAPI alone can't express what the SDK or docs need.
+
+## Pick an extension
+
+| Need | Extension |
+|---|---|
+| SDK method and group names | `x-fern-sdk-method-name`, `x-fern-sdk-group-name` |
+| Type, property and parameter names | `x-fern-type-name`, `x-fern-property-name`, `x-fern-parameter-name` |
+| Enum value names and descriptions | `x-fern-enum` |
+| Leave something out of SDKs and docs | `x-fern-ignore` |
+| Auto-pagination | `x-fern-pagination` |
+| Request and response examples | `x-fern-examples` |
+| Publish a subset to some audiences | `x-fern-audiences` |
+| Beta, deprecated and similar badges | `x-fern-availability` |
+| Retries | `x-fern-retries` |
+| Idempotency | `x-fern-idempotent`, `x-fern-idempotency-headers` |
+| Headers or parameters on every request | `x-fern-global-headers`, `x-fern-global-parameters` |
+| Variables set once on the client | `x-fern-sdk-variables` |
+| Streaming responses | `x-fern-streaming` |
+| Server names, URL templates, base path | `x-fern-server-name`, `x-fern-base-path` |
+| SDK namespaces | `x-fern-sdk-namespace` |
+| API Explorer behavior | `x-fern-explorer` |
+| API version header | `x-fern-version` |
+
+Example:
+
+```yaml
+paths:
+  /plants:
+    get:
+      operationId: listPlants
+      x-fern-sdk-group-name: plants
+      x-fern-sdk-method-name: list
+      x-fern-pagination:
+        cursor: $request.cursor
+        next_cursor: $response.next_cursor
+        results: $response.data
+```
+
+## Workflow
+
+1. Open the extension's page and copy the exact name and shape.
+2. Add it to the spec, or to an overlay if the spec is downloaded or generated. See `spec overrides`.
+3. Run `fern check`, then preview the SDK or docs.
+
+## Rules
+
+- Unknown or misspelled `x-` keys are ignored without an error.
+- Prefer standard OpenAPI (`operationId`, `tags`, `deprecated`) when it does the job, and add an extension only to change the result.
+
+## Verify
+
+- The generated SDK or API Reference reflects the extension, for example the new method name or pagination iterator.
+
+## Reference
+
+- [Extensions overview](https://buildwithfern.com/learn/api-definitions/openapi/extensions/overview.md) (links to every extension page)
