@@ -22,7 +22,7 @@ Each message sent through the MCP server runs Ask Fern under the hood and consum
 - **`searchDocs`** runs keyword search against the container's built-in search index and returns matching pages rather than a synthesized answer.
 - **`fetchPage`** returns a page's [Markdown](/learn/docs/ai-features/markdown).
 
-Both tools enforce the same access control as a browser request. A result is only returned for a page the caller could open, based on their roles and credentials (including a [`FERN_TOKEN` header](#authenticated-sites)). Setting `mcp: false` [disables the server](#disable-the-mcp-server) on self-hosted containers too.
+Both tools enforce the same access control as a browser request. A result is only returned for a page the caller could open, based on their roles and credentials (including a [`FERN_TOKEN` header](#fern-token-header)). Setting `mcp: false` [disables the server](#disable-the-mcp-server) on self-hosted containers too.
 
 ## Connect to your MCP server
 
@@ -54,7 +54,26 @@ claude mcp add --transport http \
 
 ## Authenticated sites
 
-On sites with [authentication](/learn/docs/authentication/overview) enabled, MCP clients must include a `FERN_TOKEN` header containing a valid JWT. Without it, the server only returns publicly visible content (if any).
+On sites with [authentication](/learn/docs/authentication/overview) enabled, the server only returns publicly visible content (if any) to clients that haven't authenticated. On [SSO](/learn/docs/authentication/setup/sso) sites, clients sign in through the site's login. On sites using other methods, clients send a `FERN_TOKEN` header.
+
+### Sign in with SSO
+
+On SSO sites, MCP clients sign in through the site's own SSO login using the standard MCP OAuth flow. Signing in is optional: a client that doesn't sign in still reads public pages, and the server tells it how to sign in.
+
+To sign in, register the server with `?sign_in=true` appended to its URL. The [page action](/learn/docs/configuration/site-level-settings#page-actions-configuration) buttons register the URL without it, so add the server manually. In Claude Code:
+
+```bash
+claude mcp add --transport http \
+  fern_mcp_docs.example.com "https://docs.example.com/_mcp/server?sign_in=true"
+```
+
+Then run `/mcp` in Claude Code, select the server, and choose **Authenticate**. Other clients, such as Cursor, Claude Desktop, and ChatGPT, show a **Sign in** or **Authenticate** option for the server. The client opens the site's SSO login in the browser and returns to the client once the user signs in. If the client returns to an address other than `localhost`, a consent page naming that destination appears first.
+
+Signed-in results are scoped to the user's [roles](/learn/docs/authentication/features/rbac), and the same organization membership rules apply as on the docs site. The client refreshes its session automatically, and the session stays active as long as the client uses it at least once every 30 days. MCP sign-in is separate from the browser session, so logging out of the docs site in the browser doesn't sign out MCP clients. To sign out a client, remove the server or clear its authentication in the client.
+
+### Send a `FERN_TOKEN` header [#fern-token-header]
+
+On sites using password protection, JWT, or OAuth, and on [self-hosted](/learn/docs/self-hosted/overview) containers, MCP clients must include a `FERN_TOKEN` header containing a valid JWT.
 
 <Steps>
 <Step title="Get a token">
@@ -99,9 +118,7 @@ For Cursor, VS Code, and other clients, add `FERN_TOKEN: <jwt>` to the `headers`
 </Step>
 </Steps>
 
-<Note>
-  JWTs expire. Re-run the token exchange when the token lapses. There is no automatic refresh mechanism in the MCP transport.
-</Note>
+JWTs expire. Re-run the token exchange when the token lapses, as the `FERN_TOKEN` header has no automatic refresh.
 
 ## Exclude test and eval traffic from analytics
 
