@@ -1,0 +1,78 @@
+---
+title: Export your docs
+description: Download a copy of your live docs site as static HTML, Markdown, or a PDF for offline viewing and internal distribution.
+---
+
+`fern docs export` downloads a copy of your live Fern-hosted docs site. The export is a static HTML site, a folder of Markdown files, or one PDF, so you can hand docs to readers who can't reach your live site, such as on-premise customers, air-gapped environments, or a compliance archive.
+
+The export is a snapshot of the version of your site published when you run the command. To share later changes, publish them and run the export again.
+
+## Prerequisites
+
+- Fern CLI 5.197.0 or later.
+- A docs site published to Fern hosting with [`fern generate --docs`](/learn/docs/preview-publish/publishing-your-docs).
+- A Fern account that belongs to the `organization` in `fern.config.json`. Run [`fern login`](/learn/cli-api-reference/cli-reference/general-commands#fern-login), or set `FERN_TOKEN` in CI.
+
+## Export your site
+
+Run the command from your Fern project:
+
+```bash
+fern docs export
+```
+
+The CLI exports the instance URL in `docs.yml`, waits for Fern to package the site, and writes it to a folder named after the site, such as `docs-acme-com-html`. Each run empties the output folder before writing (except `.git`).
+
+Choose the format with `--format`:
+
+| Format | Output |
+|--------|--------|
+| `html` (default) | The full static site: every page, each page's Markdown copy, `llms.txt`, and the images, icons, and fonts pages load |
+| `md` | Each page's Markdown and `llms.txt` |
+| `pdf` | One PDF with a cover page and table of contents, the same as [PDF export](/learn/dashboard/configuration/pdf-export) in the Dashboard |
+
+```bash
+fern docs export --format md
+fern docs export --format pdf
+```
+
+## View an HTML export
+
+Links in an HTML export are relative file paths, so the folder works on any static file server or object store (Amazon S3, Google Cloud Storage, nginx, an internal web server) without rewrite rules. To view it locally:
+
+```bash
+npx serve docs-acme-com-html
+```
+
+To share the export, zip the folder or upload it to your static host.
+
+## Options
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--format <html\|md\|pdf>` | Format of the export. | `html` |
+| `--output <path>` | Output folder, or the file name for `pdf`. | Named after the site, such as `docs-acme-com-html` or `docs-acme-com.pdf` |
+| `--instance <url>` | Instance URL from `docs.yml` to export. Required when `docs.yml` lists more than one instance. | The only instance |
+| `--no-cover`, `--no-toc` | Leave out the PDF cover page or table of contents. | Included |
+| `--cover-title`, `--cover-subtitle` | PDF cover text. | Site title and subtitle |
+| `--header-left`, `--header-right`, `--footer-left`, `--footer-right` | Text on each PDF page. Use `{pageIndex}` and `{totalPages}` for page numbers. | None |
+
+The PDF flags apply only to `--format pdf`. For example, to export a PDF with page numbers in the footer:
+
+```bash
+fern docs export --format pdf --output acme-docs.pdf --footer-right "Page {pageIndex} of {totalPages}"
+```
+
+## Limits
+
+Each organization can run 150 exports per day, counting HTML, Markdown, and PDF exports from both the CLI and the Dashboard. Failed exports don't count.
+
+`fern docs export` only exports Fern-hosted sites. For [self-hosted docs](/learn/docs/self-hosted/overview), run `/scripts/export.sh` inside the docs container to render a [static export](/learn/docs/self-hosted/previews).
+
+## Security considerations
+
+An export is a set of static files with no authentication. Anyone with the files can read every page in them, and older copies keep showing older content after you publish changes.
+
+<Warning>
+If your site uses [authentication](/learn/docs/authentication/overview) or [role-based access control](/learn/docs/authentication/features/rbac), the export includes gated pages. Share it only with readers allowed to see all your content.
+</Warning>
