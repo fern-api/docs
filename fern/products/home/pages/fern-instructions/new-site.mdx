@@ -39,6 +39,7 @@ Run `fern whoami` (or `fern whoami --json`) to see what the CLI acts as in the c
 - Later runs in the same repo reuse the session. The CLI stores it in `fern/.guest-session` (gitignored) and keeps the credential in `~/.fern/guest-sessions/`. It warns when less than an hour is left, and a run that crosses the deadline fails.
 - While running as a guest, the CLI ignores the `organization` in `fern.config.json` (with a warning) and doesn't change the file.
 - `fern generate --docs --guest` publishes the docs to a temporary `drop-<id>` site that the guest session owns. It ignores the `instances` URL in `docs.yml`. The CLI prints the site URL and the claim link.
+- A guest publish to production (not `--preview`) also uploads the `fern/` folder with the site. After claiming, connecting a GitHub repository in the Fern Dashboard writes that folder to the repo (as a pull request if the repo already has commits). Files ignored by git, `.env` and `.env.*` files, `.guest-session`, `.git` and `node_modules` are left out. A folder over 20 MB or 5,000 files is skipped with a warning and the site still publishes. Pass `--no-source` to publish without uploading the folder.
 - `--guest` fails if `FERN_TOKEN` is set or a login is saved. Unset `FERN_TOKEN` or run `fern logout` to continue as a guest, or drop `--guest` to use the existing credentials.
 - `fern generate --docs --guest --new-session` discards the recorded session and starts a new guest organization. Earlier guest output isn't carried over. Use it when the old session was claimed, revoked, or expired.
 
@@ -63,6 +64,7 @@ Common `fern claim` failures:
 
 - Never invent an organization name. Ask the user. Use only letters, numbers, hyphens and underscores.
 - Don't commit `fern/.guest-session` or anything from `~/.fern/`.
+- Before a guest publish, check that `fern/` holds no secrets git doesn't ignore. Add them to `.gitignore` or pass `--no-source`.
 - Don't print or store `FERN_TOKEN` values. Store them as CI secrets.
 - The `organization` in `fern.config.json` must match the user's organization in the [Fern Dashboard](https://dashboard.buildwithfern.com), or publishing with a login fails.
 
@@ -78,3 +80,5 @@ Common `fern claim` failures:
 - [Docs quickstart](https://buildwithfern.com/learn/docs/getting-started/quickstart.md)
 - [SDKs quickstart](https://buildwithfern.com/learn/sdks/overview/quickstart.md)
 - [General CLI commands](https://buildwithfern.com/learn/cli-api-reference/cli-reference/general-commands.md)
+- [Docs commands](https://buildwithfern.com/learn/cli-api-reference/cli-reference/docs-commands.md)
+- [Connect a Git repository](https://buildwithfern.com/learn/dashboard/configuration/github-repo.md)
