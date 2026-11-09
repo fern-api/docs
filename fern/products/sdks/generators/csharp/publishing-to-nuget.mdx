@@ -106,7 +106,19 @@ OIDC-based publishing (also known as "trusted publishing") is the most secure wa
 <Steps>
 <Step title="Configure OIDC">
 
-`sdk-config.yml` supports trusted publishing only for npm. To add `api-key: OIDC` with `generators.yml`, see [Legacy NuGet publishing](/learn/sdks/legacy/generators/csharp/publishing#configure-authentication).
+Set `output.publish.trustedPublishing` to `true` on the C#/.NET target:
+
+```yaml title="sdk-config.yml" {9}
+targets:
+  - language: csharp
+    output:
+      delivery: github
+      github:
+        repository: your-org/your-csharp-sdk
+      publish:
+        registry: nuget
+        trustedPublishing: true
+```
 
 </Step>
 
@@ -206,7 +218,19 @@ For private repositories, the trust policy is temporarily active for 7 days. It 
 
 <Step title="Add API key">
 
-`sdk-config.yml` doesn't have a NuGet credential field yet. To add `api-key: ${NUGET_API_KEY}` with `generators.yml`, see [Legacy NuGet publishing](/learn/sdks/legacy/generators/csharp/publishing#configure-authentication).
+Set `output.publish.apiKey` to an environment expression naming the GitHub repository secret that holds your NuGet API key. The generated release workflow reads the key from that secret, so `sdk-config.yml` holds only the secret's name:
+
+```yaml title="sdk-config.yml" {9}
+targets:
+  - language: csharp
+    output:
+      delivery: github
+      github:
+        repository: your-org/your-csharp-sdk
+      publish:
+        registry: nuget
+        apiKey: ${NUGET_API_KEY}
+```
 
 </Step>
 
@@ -341,4 +365,4 @@ Once the workflow completes, view your new release by logging into NuGet and nav
 
 ## Migrating from API key to OIDC publishing
 
-Migrating to OIDC publishing uses `generators.yml`. See [Migrating from API key to OIDC publishing](/learn/sdks/legacy/generators/csharp/publishing#migrating-from-api-key-to-oidc-publishing) in the Legacy docs.
+In `sdk-config.yml`, replace `output.publish.apiKey` with `trustedPublishing: true`. For the NuGet trusted publishing policy and secret cleanup, see [Migrating from API key to OIDC publishing](/learn/sdks/legacy/generators/csharp/publishing#migrating-from-api-key-to-oidc-publishing) in the Legacy docs.

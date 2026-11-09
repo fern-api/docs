@@ -1,0 +1,59 @@
+---
+title: Change a spec you can't edit
+slug: fern-instructions/spec/overrides
+description: Customize an OpenAPI spec for Fern with overlays or overrides when the source spec is downloaded, generated, or shared.
+---
+
+Use this when the spec comes from somewhere else (a URL, a code generator, another team) and edits to it would be lost.
+
+## Pick an approach
+
+| Approach | When |
+|---|---|
+| Edit the spec | The user owns the file and nothing regenerates it |
+| Overlay (preferred) | The spec is downloaded, generated from code, or shared with other tools. Uses the [OpenAPI Overlay](https://spec.openapis.org/overlay/v1.0.0) standard: JSONPath `target` plus `update` or `remove`. |
+| Overrides | Existing Fern projects that already use them. A Fern-specific YAML file that mirrors the spec's structure and is deep-merged into it. |
+
+## Workflow
+
+1. Create the overlay:
+
+   ```yaml title="overlays/sdk.yml"
+   overlay: 1.0.0
+   info:
+     title: SDK customizations
+     version: 1.0.0
+   actions:
+     - target: $.paths['/plants'].get
+       update:
+         x-fern-sdk-group-name: plants
+         x-fern-sdk-method-name: list
+   ```
+
+2. Reference it next to the spec, for example in `generators.yml`:
+
+   ```yaml
+   api:
+     specs:
+       - openapi: ./openapi.json
+         overlays: ./overlays/sdk.yml
+   ```
+
+   In `sdk-config.yml` or a `docs.yml` `api` entry, add the file to the spec entry's `overlays` or `overrides` list.
+3. For overrides, `fern write-overrides` scaffolds an `overrides.yml` from the spec.
+4. Run `fern check`.
+
+## Rules
+
+- Both fields take a single path or a list, applied in order. Overrides apply before overlays.
+- A `target` that matches nothing changes nothing. Check the JSONPath against the spec.
+- Keep the source spec untouched so `fern api update` can refresh it. See `spec sync`.
+
+## Verify
+
+- `fern check` passes and the generated SDK or API Reference shows the change.
+
+## Reference
+
+- [Overlays](https://buildwithfern.com/learn/api-definitions/openapi/overlays.md)
+- [Overrides](https://buildwithfern.com/learn/api-definitions/openapi/overrides.md)

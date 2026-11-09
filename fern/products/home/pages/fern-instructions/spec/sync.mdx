@@ -1,0 +1,37 @@
+---
+title: Keep an API spec in sync
+slug: fern-instructions/spec/sync
+description: Refresh a Fern project's spec from its source with fern api update, and automate it with the sync-openapi GitHub Action.
+---
+
+Use this when the API spec lives elsewhere and the Fern project's copy needs to stay current.
+
+## Workflow
+
+1. Record where the spec comes from by adding `origin` to the spec entry in `generators.yml`:
+
+   ```yaml
+   api:
+     specs:
+       - openapi: ./openapi.json
+         origin: https://api.example.com/openapi.json
+   ```
+
+2. Run `fern api update` (add `--api <name>` in multi-API projects). It downloads every spec with an `origin` over the local file, which must already exist.
+3. Review the diff and run `fern check`.
+4. To automate it, add the `fern-api/sync-openapi` GitHub Action. It runs on a schedule or trigger and opens a pull request with the spec changes. The spec sync guide has the workflow file.
+
+## Rules
+
+- Keep Fern customizations in overlays or overrides, not in the downloaded file. `fern api update` overwrites it.
+- The action needs a token that can open pull requests in the repo.
+
+## Verify
+
+- After `fern api update`, the local spec matches the source, and `fern check` passes.
+
+## Reference
+
+- [Sync your OpenAPI spec](https://buildwithfern.com/learn/api-definitions/openapi/sync-your-open-api-specification.md)
+- [Sync an AsyncAPI spec](https://buildwithfern.com/learn/api-definitions/asyncapi/sync-your-async-api-specification.md)
+- [`fern api update`](https://buildwithfern.com/learn/cli-api-reference/cli-reference/general-commands.md)

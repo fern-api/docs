@@ -1,0 +1,43 @@
+---
+title: Set up a custom domain for Fern docs
+slug: fern-instructions/docs/publish/domain
+description: Serve Fern docs on a custom subdomain, an apex domain, or a subpath behind a reverse proxy, and combine docs from several repos on one domain.
+---
+
+Use this to put a Fern site on the user's own domain.
+
+## Workflow
+
+1. Choose the shape:
+   - Subdomain, such as `docs.example.com`: DNS only.
+   - Subpath, such as `example.com/docs`: needs a reverse proxy in front of the user's site.
+   - Several repos on one domain: multi-source docs.
+2. Add `custom-domain` to the instance in `docs.yml` and publish:
+
+   ```yaml
+   instances:
+     - url: example.docs.buildwithfern.com
+       custom-domain: docs.example.com
+   ```
+
+   For a subpath, follow the reverse proxy guide for the `custom-domain` value.
+3. Subdomain: the user contacts Fern (Slack channel or support@buildwithfern.com) for the TXT record values, then adds a `CNAME` from the subdomain to `cname.ferndocs.com` plus the two TXT records (`_cf-custom-hostname.<sub>` and `_acme-challenge.<sub>`).
+4. Subpath: configure the user's proxy (Cloudflare Workers, Vercel, Netlify, Nginx or AWS CloudFront) to forward the subpath to Fern, following the provider steps in the reverse proxy guide.
+5. Publish again with `fern generate --docs`.
+
+## Rules
+
+- You can't create DNS records or obtain TXT values for the user. Tell them exactly which records to add and that Fern supplies the TXT values.
+- Keep `url` on `docs.buildwithfern.com`. The custom domain is an addition, not a replacement.
+- Don't cache HTML responses from Fern in the proxy.
+
+## Verify
+
+- `dig CNAME docs.example.com` returns `cname.ferndocs.com`.
+- The custom domain serves the site over HTTPS, and a deep link such as `<domain>/<page>.md` returns Markdown.
+
+## Reference
+
+- [Set up a custom domain](https://buildwithfern.com/learn/docs/preview-publish/setting-up-your-domain.md)
+- [Reverse proxy](https://buildwithfern.com/learn/docs/preview-publish/reverse-proxy.md)
+- [Multi-source docs](https://buildwithfern.com/learn/docs/preview-publish/multi-source-docs.md)

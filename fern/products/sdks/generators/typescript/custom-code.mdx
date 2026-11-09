@@ -46,9 +46,24 @@ To get started adding custom code:
 
 <Accordion title="Advanced: Custom import paths" toc={true}>
 
-By default, the TypeScript generator only auto-generates `exports` entries in `package.json` for your API definition. If you want consumers to import your custom file via a dedicated subpath (e.g. `import { myHelper } from "@acme/sdk/helper"`), you must register it manually. `sdk-config.yml` doesn't have the `packageJson` option yet, so use [`packageJson.exports`](/learn/sdks/legacy/generators/typescript/configuration#packagejson) in a Legacy `generators.yml`.
+By default, the TypeScript generator only auto-generates `exports` entries in `package.json` for your API definition. If you want consumers to import your custom file via a dedicated subpath (e.g. `import { myHelper } from "@acme/sdk/helper"`), you must register it manually. Add it under [`generation.exports`](/learn/sdks/generators/typescript/configuration#exports) on the TypeScript target in `sdk-config.yml`:
 
-The export key (e.g., `"./helper"`) determines the import path your users will use and doesn't need to match the source file path. These entries are merged into the generated `exports`, so they persist across regenerations. Since Node.js [enforces the `exports` map](https://nodejs.org/api/packages.html#package-entry-points), custom files aren't importable via a subpath until you add them here.
+```yaml title="sdk-config.yml" {4-13}
+targets:
+  - language: typescript
+    generation:
+      exports:
+        "./helper": # consumer import path — not the source file path
+          types: "./dist/cjs/helper.d.ts"
+          import:
+            types: "./dist/esm/helper.d.mts"
+            default: "./dist/esm/helper.mjs"
+          require:
+            types: "./dist/cjs/helper.d.ts"
+            default: "./dist/cjs/helper.js"
+```
+
+The export key (e.g., `"./helper"`) determines the import path your users will use and doesn't need to match the source file path. Each entry replaces the generated entry for the same subpath and persists across regenerations. Since Node.js [enforces the `exports` map](https://nodejs.org/api/packages.html#package-entry-points), custom files aren't importable via a subpath until you add them here.
 
 </Accordion>
 

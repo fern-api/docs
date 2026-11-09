@@ -1,0 +1,55 @@
+---
+title: Define auth and servers in an API spec
+slug: fern-instructions/spec/auth
+description: Model API authentication schemes, environments, and multiple base URLs in an OpenAPI spec for Fern SDKs and docs.
+---
+
+Use this when the SDK's constructor options, auth headers or environments are wrong.
+
+## Workflow
+
+1. Declare every scheme in `components.securitySchemes` and apply it with top-level or per-operation `security`:
+
+   ```yaml
+   components:
+     securitySchemes:
+       ApiKey:
+         type: apiKey
+         in: header
+         name: X-API-Key
+         x-fern-header:
+           name: apiKey
+           env: ACME_API_KEY
+   security:
+     - ApiKey: []
+   ```
+
+   `x-fern-bearer`, `x-fern-header` and `x-fern-basic` rename the SDK parameter and set an environment variable fallback. OAuth client credentials flows are supported too.
+2. List environments in `servers` and name each with `x-fern-server-name`. The names become SDK environment options:
+
+   ```yaml
+   servers:
+     - url: https://api.acme.com
+       x-fern-server-name: Production
+     - url: https://api.staging.acme.com
+       x-fern-server-name: Staging
+   ```
+
+3. For APIs with several base URLs, or URL variables, follow the servers page.
+4. With `sdk-config.yml`, auth can also be set once under `api.auth`.
+5. Run `fern check` and generate a preview to check the client's constructor.
+
+## Rules
+
+- Don't put real keys or private hosts in a published spec.
+- Each scheme needs a stable name. Renaming it changes SDK parameters.
+
+## Verify
+
+- The generated client takes the expected credentials, reads the environment variable fallback, and offers the named environments.
+
+## Reference
+
+- [Authentication](https://buildwithfern.com/learn/api-definitions/openapi/authentication.md)
+- [Servers](https://buildwithfern.com/learn/api-definitions/openapi/servers.md)
+- [Server names and URL templating](https://buildwithfern.com/learn/api-definitions/openapi/extensions/server-names-and-url-templating.md)
