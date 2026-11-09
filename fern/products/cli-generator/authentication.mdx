@@ -32,9 +32,11 @@ The CLI supports every scheme type that OpenAPI's `securitySchemes` defines:
 | Scheme | How the CLI applies it |
 | --- | --- |
 | Bearer (`http: bearer`) | Sends `Authorization: Bearer <token>`. |
-| API key (`apiKey`) | Sends the key in the configured header (for example, `X-Auth-Token`). |
+| API key (`apiKey`) | Sends the key in the configured header (for example, `X-Auth-Token`). A `prefix` on the header scheme in `generators.yml` (`{ header: X-Api-Key, prefix: Key }`) is prepended at request time, so the stored credential stays the bare key. |
 | Basic (`http: basic`) | Sends `Authorization: Basic <base64(user:pass)>`. Each field has its own credential source. |
 | OAuth 2 | Sends `Authorization: Bearer <token>`. Declare an [OAuth flow](#oauth-flows) to have the CLI obtain and refresh the token itself. |
+
+An operation that requires authentication, through its own `security` or the spec-level default, fails locally with an auth error (exit code `2`) when no flag, environment variable, or selected profile supplies a credential, and the request isn't sent. Operations with `security: []`, optional auth (`- {}`), or no declared security are sent as-is.
 
 ## OAuth flows
 
