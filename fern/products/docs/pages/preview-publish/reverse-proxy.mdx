@@ -19,10 +19,12 @@ Every proxied request needs two headers:
 | `x-fern-host` | Your bare domain without the subpath (e.g. `mydomain.com`, not `mydomain.com/docs`) | Tells Fern which docs site to serve |
 | `Host` | `app.buildwithfern.com` | Routes the request to Fern's origin |
 
+The TLS connection to Fern's origin must also send `app.buildwithfern.com` as the SNI server name. The origin rejects handshakes without SNI, which most proxies report as a `502 Bad Gateway`. The origin's IP addresses change over time, so configure your proxy to resolve `app.buildwithfern.com` through DNS rather than pinning IP addresses.
+
 Fern sets `Cache-Control: public, max-age=0, must-revalidate` on HTML responses, which most providers respect by default. If yours overrides origin cache headers or applies its own time-to-live, explicitly disable caching for the proxied path.
 
 <Warning>
-Don't cache HTML responses from Fern. Cached HTML references JavaScript and CSS from older deployments — those files no longer exist, so pages fail to load. Static assets (`/_next/static/*`) are served directly by Fern's CDN and don't pass through your proxy.
+Don't cache HTML responses from Fern. Cached HTML references JavaScript and CSS from older deployments that no longer exist, so pages fail to load. Static assets (JavaScript, CSS, fonts) have content-hashed URLs and are served with `Cache-Control: public, max-age=31536000, immutable`, so caching them is safe.
 </Warning>
 
 ## Set up your provider
@@ -226,14 +228,21 @@ Vercel respects the origin's `Cache-Control` header for rewrite destinations, so
 <Step title="Add a `location` block">
 
 ```nginx
+# Re-resolve Fern's origin instead of caching its IP addresses at startup
+resolver 1.1.1.1 8.8.8.8 valid=60s;
+
 location /docs {
-    proxy_pass https://app.buildwithfern.com;
-    proxy_set_header Host app.buildwithfern.com;
+    set $fern_origin app.buildwithfern.com;
+    proxy_pass https://$fern_origin;
+    proxy_set_header Host $fern_origin;
     proxy_set_header x-fern-host mydomain.com;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
+
+    # Send SNI on the upstream TLS handshake (off by default in nginx)
     proxy_ssl_server_name on;
+    proxy_ssl_name $fern_origin;
 
     # Prevent encoding issues with Brotli responses
     proxy_set_header Accept-Encoding "gzip, deflate";
@@ -244,6 +253,8 @@ location /docs {
     add_header Cache-Control "public, max-age=0, must-revalidate" always;
 }
 ```
+
+Nginx doesn't send SNI to upstreams unless `proxy_ssl_server_name` is `on`, and without SNI every request returns `502 Bad Gateway` with `SSL_do_handshake() failed` in the error log. Setting `proxy_pass` from a variable makes nginx resolve the origin at request time through `resolver`. With a literal hostname, nginx resolves it once at startup and keeps those IP addresses until reload. Replace `1.1.1.1 8.8.8.8` with your own DNS resolvers if outbound DNS is restricted.
 </Step>
 </Steps>
 
@@ -261,6 +272,7 @@ In a **Site Delivery** or **Ion** property, add a rule matching path `/docs*`:
 
 - **Origin Server**: `app.buildwithfern.com`
 - **Forward Host Header**: Origin Hostname
+- **Use SNI TLS Extension**: On
 
 Add a **Modify Outgoing Request Header** behavior:
 
@@ -324,6 +336,8 @@ curl -sI https://mydomain.com/docs | grep -i "^age:"
 
 If `content-type` is `text/x-component` instead of `text/html`, your proxy is forwarding the viewer's `Host` header to Fern's origin. Ensure the `Host` header sent to the origin is `app.buildwithfern.com`.
 
+If your proxy returns `502 Bad Gateway` and its logs show a TLS handshake failure with the upstream, the proxy isn't sending SNI. Enable SNI for the upstream connection (in nginx, `proxy_ssl_server_name on`).
+
 If the `age` header is present and non-zero, your proxy is serving a cached response. Revisit your provider's configuration to ensure HTML caching is disabled.
 
 <llms-only>
@@ -338,6 +352,9 @@ Fern provides configuration guides for Cloudflare Workers, AWS CloudFront, Netli
 
 ### What headers does my reverse proxy need to send to Fern?
 Every proxied request must include two headers: `x-fern-host` set to your bare domain (e.g. `mydomain.com`) and `Host` set to `app.buildwithfern.com`. The `x-fern-host` header tells Fern which docs site to serve.
+
+### Why does my reverse proxy return 502 Bad Gateway?
+Fern's origin requires TLS SNI. A proxy that connects to `app.buildwithfern.com` without sending `app.buildwithfern.com` as the SNI server name fails the TLS handshake and returns `502`. In nginx, set `proxy_ssl_server_name on` and `proxy_ssl_name app.buildwithfern.com`. The origin's IP addresses also change, so the proxy must resolve `app.buildwithfern.com` through DNS (in nginx, use a `resolver` and a variable in `proxy_pass`) instead of pinning IPs.
 
 ### Should I cache HTML responses from Fern in my reverse proxy?
 No. You must not cache HTML responses. Fern sets `Cache-Control: public, max-age=0, must-revalidate` on HTML pages. Caching HTML causes pages to reference JavaScript and CSS from older deployments that no longer exist, breaking the site.

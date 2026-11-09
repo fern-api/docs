@@ -1,12 +1,7 @@
 ---
 title: Authentication
 description: Configure how generated CLIs authenticate with your API using environment variables, CLI flags, files, or fallback chains.
-availability: beta
 ---
-
-<Note title="Early access">
-The CLI generator is in early access. [Reach out](https://buildwithfern.com/book-demo?type=cli) to get started.
-</Note>
 
 Each generated CLI reads authentication credentials from the security schemes declared in your OpenAPI spec. Credentials can come from environment variables, CLI flags, files, or a combination of these through fallback chains.
 
@@ -56,7 +51,7 @@ Declaring an `oauth` scheme under `auth-schemes` in `generators.yml` makes the C
 
 | Flow | `type` | Use case |
 | --- | --- | --- |
-| Client credentials | `client-credentials` | Machine-to-machine. The CLI exchanges a client ID and secret from environment variables for a token, configured with the same [`auth-schemes` fields the SDKs use](/learn/sdks/reference/generators-yml#auth-schemes). |
+| Client credentials | `client-credentials` | Machine-to-machine. The CLI exchanges a client ID and secret from environment variables for a token, configured with the same [`auth-schemes` fields the SDKs use](/learn/sdks/legacy/reference/generators-yml#auth-schemes). |
 | Authorization code with Proof Key for Code Exchange (PKCE) | `authorization-code` | Interactive login. The CLI opens a browser and receives the callback on a loopback listener. |
 | Device code | `device-code` | Interactive login on machines without a browser, such as SSH sessions and containers. |
 
@@ -174,7 +169,7 @@ When an API accepts more than one credential under the `any` strategy, the CLI a
       - TokenAuth: []
     ```
 
-2. In `generators.yml`, define the same schemes under [`auth-schemes`](/learn/sdks/reference/generators-yml#auth-schemes) and compose them with [`api.auth`](/learn/sdks/reference/generators-yml#auth) set to `any`.
+2. In `generators.yml`, define the same schemes under [`auth-schemes`](/learn/sdks/legacy/reference/generators-yml#auth-schemes) and compose them with [`api.auth`](/learn/sdks/legacy/reference/generators-yml#auth) set to `any`.
 
     ```yaml title="generators.yml" {5}
     auth-schemes:
@@ -200,7 +195,7 @@ my-cli users list
 
 ## Named profiles
 
-For APIs where every call carries a tenant identifier (an account SID, an org slug, a workspace), a profile stores it once instead of it being typed on every command. A profile is a named bundle of request context resolved once per invocation: a credential, parameter defaults, [server URL variables](/learn/cli-generator/get-started/features#server-url-variables), an optional base URL, a [retry limit](/learn/cli-generator/get-started/features#retries-with-backoff), and a default output format. Nothing else is accepted; an unknown key is rejected at write time rather than stored and ignored.
+For APIs where every call carries a tenant identifier (an account SID, an org slug, a workspace), a profile stores it once instead of it being typed on every command. A profile is a named bundle of request context resolved once per invocation: a credential, parameter defaults, [server URL variables](/learn/cli-generator/get-started/features#server-url-variables), an optional base URL, a [retry limit](/learn/cli-generator/get-started/features#retries-with-backoff), [transport settings](/learn/cli-generator/get-started/features#tls-proxies-and-ca-bundles) (request timeout, proxy, CA bundle, TLS verification, and User-Agent suffix), and a default output format. Nothing else is accepted; an unknown key is rejected at write time rather than stored and ignored.
 
 Profiles are off by default. Enable them with the [`profiles` config option](/learn/cli-generator/get-started/configuration#config-options) in `generators.yml`, which adds a `profiles` command group and a global `--profile` / `-p` flag to the generated CLI. A CLI generated without the option is unchanged.
 
@@ -217,6 +212,8 @@ config:
 acme profiles create prod --set AccountSid=AC11… --with-token   # token read from stdin, stored in the OS keychain
 acme profiles create sub --parent prod --set AccountSid=AC99…   # subaccount that shares prod's credential
 acme profiles set prod ACME_REGION=us1 ACME_RETRIES=3           # add or change values by env var name
+acme profiles set corp --yes ACME_TIMEOUT_SECS=45 ACME_PROXY=http://proxy.corp:3128   # per-profile transport settings
+acme profiles set staging --yes ACME_BASE_URL=https://staging.acme.dev   # create a missing profile without asking
 acme profiles use sub                                           # make it the active profile
 
 acme messages list             # no --account-sid needed
@@ -226,11 +223,35 @@ acme profiles list             # every profile, with the active one marked
 acme profiles current          # the profile in effect and how it was selected
 acme profiles show staging     # one profile's resolved config without selecting it
 acme profiles remove sub       # also deletes that profile's stored credential
+
+# with provisionOperation and revokeOperation configured: a key per profile
+acme profiles create ci --set AccountSid=AC11… --provision   # mints a key with your current credentials
+acme profiles remove ci --yes --revoke                        # revokes that key before deleting the profile
 ```
 
-`profiles create` accepts `--set <name>=<value>` for API parameters (validated against the spec, so a typo is rejected), `--server-var <name>=<value>` or `--<name> <value>` for server URL variables, `--base-url`, `--retries <N>`, `--default-format`, `--parent <name>`, and `--with-token` to read a credential from stdin. When several auth schemes are declared, `--scheme` names the one the credential belongs to.
+`profiles create` accepts `--set <name>=<value>` for API parameters (validated against the spec, so a typo is rejected), `--server-var <name>=<value>` or `--<name> <value>` for server URL variables, `--base-url`, `--retries <N>`, `--default-format`, `--parent <name>`, and `--with-token` to read a credential from stdin. When several auth schemes are declared, `--scheme` names the one the credential belongs to. When the CLI is generated with [`profiles.provisionOperation`](/learn/cli-generator/get-started/configuration#profiles), `--provision` (or the flag name set by `provisionOperation.flag`, such as `--api-key`) instead mints a new API key by calling the configured operation with the credentials already in your environment, and stores it in the OS keychain without printing it. A profile that already owns a provisioned key must be removed with `--revoke` before it can be provisioned again, so the old key is revoked rather than orphaned.
 
-`profiles set <name> KEY=VALUE ...` takes any environment variable the CLI reads (a credential such as `ACME_AUTH_TOKEN`, or a setting such as `ACME_RETRIES`, `ACME_BASE_URL`, `ACME_OUTPUT`, or `ACME_<SERVER_VAR>`) or an API parameter by its spec name, and creates the profile if it doesn't exist. Keys are validated before anything is written, and an unrecognized key fails with a suggestion. `auth login --from-env` captures the credential from the CLI's own environment variables into the active profile.
+`profiles set <name> KEY=VALUE ...` takes any environment variable the CLI reads (a credential such as `ACME_AUTH_TOKEN`, a setting such as `ACME_RETRIES`, `ACME_BASE_URL`, `ACME_OUTPUT`, or `ACME_<SERVER_VAR>`, or a transport setting: `ACME_TIMEOUT_SECS`, `ACME_PROXY`, `ACME_CA_BUNDLE`, `ACME_INSECURE`, or `ACME_USER_AGENT_SUFFIX`) or an API parameter by its spec name. Keys and values are validated before anything is written: an unrecognized key fails with a suggestion, and a malformed timeout, proxy URL, or boolean is rejected. `profiles list`, `profiles show`, and `profiles current` print the stored transport settings. `auth login --from-env` captures the credential from the CLI's own environment variables into the active profile.
+
+`profiles set` updates an existing profile without prompting but never creates a missing one unasked, so a mistyped name can't store credentials under a new profile. In a terminal it asks first. When an existing profile has a similar name, it offers that one (answering yes writes to it), then asks whether to create the named profile. Any answer other than `y` or `yes` counts as no, and declining every question writes nothing.
+
+```
+$ acme profiles set prd ACME_RETRIES=3
+Profile `prd` doesn't exist. Did you mean `prod`? [y/N] n
+Create profile `prd`? [y/N] y
+```
+
+When stdin or stderr isn't a terminal (a script, CI job, or agent), `set` on a missing profile fails with a validation error that names any similar profile, and nothing is written. Pass `--yes` / `-y` to create the profile without asking, or run `profiles create` first.
+
+### Guided API-key setup
+
+A CLI generated with `profiles.provisionOperation` walks users through creating a key-backed profile when it runs in an interactive terminal:
+
+- **`auth login`** with no flags prompts for a profile name (defaulting to the active profile, or `default`) and the credential fields. Secret fields are hidden as they're typed, and basic auth fields use the scheme's own names, such as `Account Sid` and `Auth Token`. It then asks `Create an API key for this profile? [Y/n]`. On yes, the CLI creates the key using the typed credential, stores only the new key, and makes the profile active; on no, it stores the typed credential instead. Naming an existing profile asks before overwriting it, and a profile that already owns a provisioned key is refused until it's removed with `profiles remove <name> --revoke`.
+- **`profiles create <name>`** with no credential flags prompts the same way, without changing the active profile.
+- **`profiles remove <name>`**, after the `[y/N]` confirmation, asks `Also delete this profile's API key from the server? [Y/n]` when the profile owns a provisioned key and `revokeOperation` is set. If that revoke fails, the profile is still removed and the key's revoke parameters (such as `Sid=SK…`) are printed so it can be deleted from the API provider's console. Removing the last profile prints a hint to run `profiles create`.
+
+Explicit flags and non-interactive runs keep the scripted behavior: `auth login --with-token`, `--from-env`, `--scheme`, and `--no-browser` don't prompt; `profiles create` with `--with-token`, `--from-env`, `--provision`, `--credential`, or `--parent` doesn't prompt; and `profiles remove` without a terminal still requires `--yes`. `--revoke` deletes the key without the extra prompt, an explicit `--revoke` that fails leaves the profile in place for a retry, and `--yes` without `--revoke` keeps the key. A revoke is signed with the parent credentials from the CLI's environment variables when every one is set, and with the profile's stored key otherwise.
 
 ### Select a profile
 
@@ -244,13 +265,13 @@ for tenant in prod sub; do acme messages list -p "$tenant" --format json; done
 
 ### Precedence
 
-With a profile selected, each value resolves as `explicit flag → selected profile → environment variable → spec default`. The order is the same however the profile was selected: `-p`, `<PREFIX>_PROFILE`, or `profiles use`. The profile's stored values win, and environment variables fill only the values the profile leaves unset. With no profile selected, values resolve as `explicit flag → environment variable → spec default`. A CI pipeline that exports `ACME_API_KEY` or `ACME_BASE_URL` should therefore select no profile; if one is selected, its stored values take effect over the exported variables. Retries resolve as `--retries` → profile → `<PREFIX>_RETRIES` → `x-fern-retries`, and `--retries 0` is equivalent to `--no-retry`. `profiles current` reports when an environment variable is supplying a credential the selected profile doesn't store, and `auth status` lists the profile's keyring credential before the environment variable.
+With a profile selected, each value resolves as `explicit flag → selected profile → environment variable → spec default`. The order is the same however the profile was selected: `-p`, `<PREFIX>_PROFILE`, or `profiles use`. The profile's stored values win, and environment variables fill only the values the profile leaves unset. With no profile selected, values resolve as `explicit flag → environment variable → spec default`. A CI pipeline that exports `ACME_API_KEY` or `ACME_BASE_URL` should therefore select no profile; if one is selected, its stored values take effect over the exported variables. Retries resolve as `--retries` → profile → `<PREFIX>_RETRIES` → `x-fern-retries`, and `--retries 0` is equivalent to `--no-retry`. Transport settings follow the same order, so a profile that stores `ACME_TIMEOUT_SECS=45` uses a 45-second timeout even when `ACME_TIMEOUT_SECS=10` is exported. For TLS verification, an explicit value on either side counts: a profile's stored `ACME_INSECURE=false` keeps verification on despite an exported `ACME_INSECURE=1`. `ACME_CONNECT_TIMEOUT_SECS` and `ACME_NO_PROXY` are environment-only. `profiles current` lists the environment variables supplying a credential, as `credential_env_fallback`, only when the selected profile stores no credential of its own, and `auth status` lists the profile's keyring credential before the environment variable.
 
 ### Storage and inheritance
 
 Non-secret settings live in `~/.config/<bin>/profiles.toml`. Secrets are never written to that file: credentials go to the OS keychain under a profile-scoped account, the same store `auth login` uses.
 
-`--parent <name>` sets single-level inheritance. A child inherits its parent's credential, base URL, server variables, parameter defaults (child wins per key), and retries. It doesn't inherit the default output format, since output shape belongs to the invocation rather than the tenant. Because the parent is resolved at read time, editing it propagates to its children.
+`--parent <name>` sets single-level inheritance. A child inherits its parent's credential, base URL, server variables, parameter defaults (child wins per key), retries, and transport settings. It doesn't inherit the default output format, since output shape belongs to the invocation rather than the tenant. Because the parent is resolved at read time, editing it propagates to its children.
 
 ## Help output
 

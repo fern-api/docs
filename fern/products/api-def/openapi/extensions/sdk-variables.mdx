@@ -8,7 +8,7 @@ description: Use `x-fern-sdk-variables` to set common path parameters across all
 The `x-fern-sdk-variables` extension allows you to define variables that are set once during SDK client initialization and automatically used in path parameters across all endpoint calls. This is useful for common parameters like tenant IDs, organization IDs, or environment identifiers that appear in many endpoint paths.
 
 <Note>
-  SDK variables are supported in TypeScript (v2.6.3+), Python (v4.24.0+), and Java (v3.6.3+). Only string types are supported.
+  SDK variables are supported in TypeScript (v2.6.3+), Python (v4.24.0+), Java (v3.6.3+), Go (v1.66.0+), C# (v2.87.0+), Ruby (v1.31.0+), and PHP (v2.25.0+). Only string types are supported.
 </Note>
 
 ## Configuration
@@ -45,7 +45,7 @@ paths:
 
 ## SDK usage
 
-Variables become required constructor parameters instead of being passed to individual method calls:
+Variables are set once on the client instead of being passed to individual method calls. Bound path parameters are removed from the generated method signatures:
 
 <CodeBlocks>
 ```typescript {2-3}
@@ -77,4 +77,124 @@ PlantClient client = PlantClient.builder()
 
 List<Plant> plants = client.listPlantsInZone();
 ```
+
+```go {3-4}
+client := client.NewClient(
+    option.WithAPIKey("your-api-key"),
+    option.WithGardenID("garden_123"),
+    option.WithZoneID("zone_456"),
+)
+
+plants, err := client.ListPlantsInZone(context.TODO())
+```
+
+```csharp {4-5}
+var client = new PlantClient(
+    apiKey: "your-api-key",
+    clientOptions: new ClientOptions {
+        GardenId = "garden_123",
+        ZoneId = "zone_456"
+    }
+);
+
+var plants = await client.ListPlantsInZoneAsync();
+```
+
+```ruby {3-4}
+client = Plant::Client.new(
+  api_key: "your-api-key",
+  garden_id: "garden_123",
+  zone_id: "zone_456"
+)
+
+plants = client.list_plants_in_zone
+```
+
+```php {3-4}
+$client = new PlantClient(
+    apiKey: 'your-api-key',
+    gardenId: 'garden_123',
+    zoneId: 'zone_456',
+);
+
+$plants = $client->listPlantsInZone();
+```
 </CodeBlocks>
+
+In TypeScript, Python, and Java, a variable is required when the client is constructed. In Go, C#, Ruby, and PHP, the client accepts variables as optional settings, and calling an endpoint that uses an unset variable raises an error before the request is sent. Go and PHP also accept a variable as a per-request option (`option.WithGardenID(...)` in Go, the `options` array in PHP), which overrides the client value for that call.
+
+## Environment variable fallback
+
+Add `x-fern-env` to a variable in `x-fern-sdk-variables` to let the SDK read the value from an environment variable when it isn't passed to the client:
+
+```yaml {5} title="openapi.yml"
+x-fern-sdk-variables:
+  gardenId:
+    type: string
+    description: The unique identifier for your garden
+    x-fern-env: PLANT_GARDEN_ID
+  zoneId:
+    type: string
+    description: The zone within the garden
+```
+
+A variable with `x-fern-env` becomes an optional client setting. A value passed to the client takes precedence over the environment variable. If neither is set, the SDK raises an error that names both the variable and the environment variable. Variables without `x-fern-env`, such as `zoneId`, keep the behavior described in [SDK usage](#sdk-usage).
+
+| Language | Fallback | Error when the value is missing |
+|----------|----------|---------------------------------|
+| TypeScript (v3.99.0+) | `process.env.PLANT_GARDEN_ID` | Thrown when the client is constructed |
+| Java (v4.26.0+) | Builder field defaults to `System.getenv("PLANT_GARDEN_ID")` | `build()` throws `IllegalStateException` |
+| Go (v1.66.0+) | `os.Getenv("PLANT_GARDEN_ID")` when the client is created | Bound endpoint methods return an error |
+| C# (v2.87.0+) | `ClientOptions.GardenId` defaults to `Environment.GetEnvironmentVariable("PLANT_GARDEN_ID")` | Bound endpoint methods throw `ArgumentException` |
+| Ruby (v1.31.0+) | `garden_id:` keyword defaults to `ENV.fetch("PLANT_GARDEN_ID", nil)` | Bound endpoint methods raise `ArgumentError` |
+| PHP (v2.25.0+) | `getenv('PLANT_GARDEN_ID')` | Bound endpoint methods throw `InvalidArgumentException` |
+
+Python SDKs don't support the environment variable fallback yet.
+
+With `PLANT_GARDEN_ID` set in the environment, callers omit `gardenId` when creating the client:
+
+<CodeBlocks>
+```typescript
+// gardenId is read from PLANT_GARDEN_ID
+const client = new PlantClient({
+  zoneId: "zone_456",
+  apiKey: "your-api-key"
+});
+```
+
+```java
+// gardenId is read from PLANT_GARDEN_ID
+PlantClient client = PlantClient.builder()
+    .zoneId("zone_456")
+    .apiKey("your-api-key")
+    .build();
+```
+
+```go
+// GardenID is read from PLANT_GARDEN_ID
+client := client.NewClient(
+    option.WithAPIKey("your-api-key"),
+    option.WithZoneID("zone_456"),
+)
+```
+
+```csharp
+// GardenId is read from PLANT_GARDEN_ID
+var client = new PlantClient(
+    apiKey: "your-api-key",
+    clientOptions: new ClientOptions { ZoneId = "zone_456" }
+);
+```
+
+```ruby
+# garden_id is read from PLANT_GARDEN_ID
+client = Plant::Client.new(api_key: "your-api-key", zone_id: "zone_456")
+```
+
+```php
+// gardenId is read from PLANT_GARDEN_ID
+$client = new PlantClient(apiKey: 'your-api-key', zoneId: 'zone_456');
+```
+</CodeBlocks>
+
+In a Fern Definition, declare the fallback with the `env` key on a [variable in `api.yml`](/learn/api-definitions/ferndef/api-yml/global-headers#sdk-variables).

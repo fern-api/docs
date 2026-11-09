@@ -1,7 +1,7 @@
 ---
 title: Generating an SDK
 headline: Generating an SDK (Go)
-description: Learn how to generate a Go SDK with Fern. Step-by-step guide to configure generators.yml, run fern generate, and create Go client libraries.
+description: Learn how to generate a Go SDK with Fern. Step-by-step guide to configure sdk-config.yml, run fern generate, and create Go client libraries.
 ---
 
 <Markdown src="/snippets/enterprise-plan.mdx"/>
@@ -23,32 +23,19 @@ Generate a Go SDK with Fern. Follow the [Go SDK quickstart](https://buildwithfer
 
 <Markdown src="/products/sdks/snippets/init-fern-folder.mdx"/>
 
-<Step title="Add the SDK generator">
+<Step title="Add the SDK target">
 
-Run the following command to add the Go SDK generator to `generators.yml`:
+Add a Go target to the `targets` list in `sdk-config.yml`:
 
-<Template
-  data={{ GROUP_NAME: "go-sdk" }}
-  tooltips={{
-    GROUP_NAME: (<p>The name of the <code>generators.yml</code> group that configures your Go SDK's output location and other metadata. You can customize this group name to differentiate between multiple SDKs across different languages.</p>)
-  }}
->
-```bash
-fern add fern-go-sdk --group {{GROUP_NAME}}
+```yaml title="sdk-config.yml"
+targets:
+  - language: go
+    output:
+      delivery: files
+      path: ../sdks/go
 ```
-</Template>
 
-This command adds the following `group` to `generators.yml`:
-
-```yaml title="generators.yml"
-  go-sdk: # group name
-    generators:
-      - name: fern-go-sdk
-        version: <Markdown src="/snippets/version-number-go.mdx"/>
-        output:
-          location: local-file-system
-          path: ../sdks/go
-```
+The target uses the newest supported Go generator. To pin a version, set [`generatorVersion`](/learn/sdks/reference/sdk-config#targetsgeneratorversion) on the target.
 </Step>
 
 <Step title="Generate the SDK">
@@ -56,14 +43,14 @@ This command adds the following `group` to `generators.yml`:
 Run the following command to generate your SDK:
 
 ```bash
-fern generate --group go-sdk
+fern generate --target go
 ```
 
 <Note>
   If you have multiple APIs, use the [`--api` flag](/learn/cli-api-reference/cli-reference/sdk-commands#api) to specify the API you want to generate:
 
   ```bash
-  fern generate --group go-sdk --api your-api-name
+  fern generate --target go --api your-api-name
   ``` 
 </Note>
 
@@ -71,7 +58,7 @@ fern generate --group go-sdk
 
 <Files>
   <Folder name="fern" comment="created by fern init" />
-  <Folder name="sdks" defaultOpen comment="created by fern generate --group go-sdk">
+  <Folder name="sdks" defaultOpen comment="created by fern generate --target go">
     <Folder name="go" defaultOpen>
       <Folder name="core" />
       <File name="go.mod" />

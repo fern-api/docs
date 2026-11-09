@@ -1,0 +1,83 @@
+---
+title: Fern Autorelease
+description: Automate SDK releases with Fern Autorelease. Detects API spec changes, regenerates SDKs, determines version bumps, and publishes to package registries.
+---
+
+<Markdown src="/products/sdks/legacy/snippets/legacy-notice.mdx" current="/learn/sdks/overview/autorelease" />
+
+
+<Note title="Early Access">
+Fern Autorelease is in early access. [Contact us](https://buildwithfern.com/book-demo) to get started.
+</Note>
+
+Fern Autorelease automates SDK releases end-to-end. When your API specification changes, Autorelease regenerates SDKs, determines the version bump, and publishes to package registries.
+
+## How it works
+
+When changes to your API specification are committed, Autorelease:
+
+1. Regenerates SDKs for all configured languages
+2. Analyzes the API diff and determines the appropriate [semantic version](https://semver.org/) bump
+3. Commits to repositories, tags releases, and publishes packages
+4. Updates changelogs automatically
+
+If a release fails, Autorelease pauses and sends alerts via Slack (if configured) or the Fern Dashboard where you can review and retry.
+
+## Setup
+
+To enable Autorelease, add `autorelease: true` to your `generators.yml` and ensure the [Fern GitHub App](https://github.com/apps/fern-api) is installed on your SDK repositories. Releases trigger automatically on commits to your spec repository and appear as commit status checks. No changes to your CI/CD setup are required.
+<Tabs>
+<Tab title="Enable globally for all generators">
+
+```yaml generators.yml
+autorelease: true
+```
+</Tab>
+<Tab title="Enable per-generator">
+
+```yaml generators.yml {6}
+groups:
+  python-sdk:
+    generators:
+      - name: fern-python-sdk
+        version: <Markdown src="/snippets/version-number-python.mdx"/>
+        autorelease: true
+```
+</Tab>
+</Tabs>
+
+<Frame>
+  <img
+    src="./images/autorelease-commit-check.png"
+    alt="Autorelease commit status check"
+    className="rounded-lg border border-gray-200 dark:border-gray-700"
+  />
+</Frame>
+
+### Review releases before publishing
+
+[Set `mode: pull-request`](/learn/sdks/legacy/reference/generators-yml#pull-request-recommended) to review releases before publishing. Autorelease opens a pull request for you to review instead of publishing directly.
+
+```yaml generators.yml {8}
+groups: 
+  ts-sdk:
+    generators:
+      - name: fern-typescript-sdk
+      ...
+        github: 
+          repository: your-org/your-repo-name
+          mode: pull-request
+```
+
+### Disable autorelease
+
+To disable Autorelease for a specific generator while keeping it enabled globally, set `autorelease: false` on that generator:
+
+```yaml generators.yml {6}
+groups:
+  internal-sdk:
+    generators:
+      - name: fern-python-sdk
+        version: <Markdown src="/snippets/version-number-python.mdx"/>
+        autorelease: false
+```

@@ -23,17 +23,34 @@ These commands generate SDKs from your API definition, keep generators up to dat
 
     <CodeBlock title="terminal">
     ```bash
-    fern generate [--group <group>] [--api <api>] [--version <version>] [--preview] [--fernignore <path>] [--local] [--force] [--no-replay] [--package] [--package-mode <mode>] [--package-only]
+    fern generate [--target <language>] [--group <group>] [--api <api>] [--version <version>] [--preview] [--output <dir>] [--fernignore <path>] [--local] [--runner <docker|podman>] [--force] [--no-replay] [--package] [--package-mode <mode>] [--package-only]
     ```
     </CodeBlock>
 
     <Note>
-      Remote generation (the default) requires authentication — the CLI prompts you to log in if needed, or you can set `FERN_TOKEN`. Self-hosted generation (`--local`) does not require login.
+      Remote generation (the default) requires authentication — the CLI prompts you to log in if needed, or you can set `FERN_TOKEN`. Self-hosted generation (`--local`) does not require login when writing to the local file system; GitHub output requires `FERN_TOKEN` or `fern login`.
     </Note>
+
+    ### target
+
+    Use `--target <language>` to generate one target from [`sdk-config.yml`](/learn/sdks/reference/sdk-config). The CLI reads `sdk-config.yml` from the API folder (`fern/apis/<api>/`), or from `fern/` for a project with one API. Repeat `--target` to generate several targets, and combine it with `--group` to run legacy groups in the same run.
+
+    ```bash
+    # Generate the TypeScript target
+    fern generate --target typescript
+
+    # Generate the TypeScript and Python targets
+    fern generate --target typescript --target python
+
+    # Generate the Python target and a legacy group in one run
+    fern generate --target python --group java-sdk
+    ```
+
+    Without `--group` or `--target`, `fern generate` runs the legacy default group and every target in `sdk-config.yml`. `--generator` filters legacy groups only, so passing it with `--target` and no `--group` returns an error.
 
     ### group
 
-    Use `--group <group>` to specify which generator group to run. You can use either a group name or an alias name. Aliases are [defined in your `generators.yml`](/learn/sdks/reference/generators-yml#aliases) and map to multiple groups, allowing you to run several groups in parallel with a single command.
+    Use `--group <group>` to select a legacy generator group from [`generators.yml`](/learn/sdks/legacy/reference/generators-yml) or `generators.legacy.yml`. Repeat `--group` to run several groups. You can use either a group name or an alias name. Aliases are [defined in your `generators.yml`](/learn/sdks/legacy/reference/generators-yml#aliases) and map to multiple groups, allowing you to run several groups in parallel with a single command.
 
     ```bash
     # Run a specific group
@@ -49,7 +66,7 @@ These commands generate SDKs from your API definition, keep generators up to dat
     fern generate --group python-sdk --local
     ```
 
-    You can also set an alias as your `default-group` in `generators.yml`, so running `fern generate` without any arguments will run all groups in that alias.
+    You can also set an alias as your [`default-group`](/learn/sdks/legacy/reference/generators-yml#default-group) in `generators.yml`, so running `fern generate` without any arguments will run all groups in that alias.
 
     The `--group` flag can be combined with other flags like `--local` for [self-hosted SDK generation](/learn/sdks/deep-dives/self-hosted), `--preview` for local testing, or `--version` to specify the SDK version.
 
@@ -67,6 +84,8 @@ These commands generate SDKs from your API definition, keep generators up to dat
     fern generate --group python-sdk --preview
     ```
 
+    Use `--output <dir>` with `--preview` to write the preview to a different directory. `--output` works only with `--preview`, and `--preview` can't be combined with `--package` or `--package-only`.
+
     ### api
 
     Use `--api <api>` to specify the API for SDK generation. This is useful when your project contains multiple API definitions. The API name should match the directory name in your `fern/apis/` folder.
@@ -74,6 +93,8 @@ These commands generate SDKs from your API definition, keep generators up to dat
     ```bash
     fern generate --api public-api
     ```
+
+    Repeat `--api` to generate SDKs for several APIs. `--api` can't be combined with `--docs`.
 
     ### version
 
@@ -97,6 +118,8 @@ These commands generate SDKs from your API definition, keep generators up to dat
     fern generate --fernignore ./custom-fernignore
     ```
 
+    `--fernignore` works only for remote generation. It returns an error with `--local` or `--runner`, and can't be combined with `--skip-fernignore`.
+
     ### local
 
     Use `--local` to run SDK generation on your own machine instead of using Fern's cloud infrastructure. This is useful for organizations with strict security or compliance requirements. See [self-hosted SDKs](/learn/sdks/deep-dives/self-hosted) for setup instructions.
@@ -113,7 +136,32 @@ These commands generate SDKs from your API definition, keep generators up to dat
     A Docker daemon must be running on your machine, as SDK generation runs inside a Docker container.
     </Note>
 
-    By default, the CLI pulls generator images from Docker Hub. To pull from a custom container registry, use the [`image` field](/learn/sdks/reference/generators-yml#image) in your `generators.yml` instead of `name`. See [custom container registry](/learn/sdks/deep-dives/self-hosted#private-registry-setup) for details.
+    For legacy generators, the CLI pulls generator images from Docker Hub by default. To pull from a custom container registry, use the [`image` field](/learn/sdks/legacy/reference/generators-yml#image) in your `generators.yml` instead of `name`. See [custom container registry](/learn/sdks/deep-dives/self-hosted#private-registry-setup) for details.
+
+    SDK Config targets run on Fern's on-prem generator instead. Each language has a minimum generator version for local generation:
+
+    | Language | Minimum version |
+    |----------|-----------------|
+    | TypeScript | 4.0.0 |
+    | Python | 6.0.0 |
+    | Java | 5.0.0 |
+    | Go | 2.0.0 |
+    | C# | 3.0.0 |
+    | PHP | 3.0.0 |
+    | Ruby | 2.0.0 |
+    | Rust | 1.0.0 |
+    | Swift | 1.0.0 |
+
+    A target without [`generatorVersion`](/learn/sdks/reference/sdk-config#targets) runs the minimum version locally, while remote generation runs the newest version. Pinning `generatorVersion` below the minimum returns an error. Languages without an on-prem generator image fail with `--local`, and two targets with the same language can't run locally in one run.
+
+    ### runner
+
+    Use `--runner <docker|podman>` to choose the container runtime for local generation. Passing `--runner` turns on local generation, the same as `--local`, so SDK Config targets run on the on-prem generator.
+
+    ```bash
+    fern generate --target python --runner podman
+    ```
+
 
     ### force
 
@@ -132,13 +180,11 @@ These commands generate SDKs from your API definition, keep generators up to dat
     fern generate --no-replay --local
     ```
 
-    <Note>
-    `--no-replay` works only for local generation (`--local`).
-    </Note>
+    `--no-replay` applies to both local and remote generation, except for remote runs on Fern's legacy generation service, which ignore it. The flag doesn't appear in `fern generate --help`.
 
     ### package
 
-    Use `--package` to build a distributable package artifact for every generator in the run whose [output location](/learn/sdks/reference/generators-yml#output) is `local-file-system`. Artifacts are written to a `fern-dist/` folder inside that generator's output directory, so a generated SDK can be handed to internal consumers without publishing it to a public registry. `--package` works with both cloud and local (`--local`) generation.
+    Use `--package` to build a distributable package artifact for every target or generator in the run that writes to the local file system: an `sdk-config.yml` target with [`output.delivery: files`](/learn/sdks/reference/sdk-config#output) or a local run, or a legacy generator whose [output location](/learn/sdks/legacy/reference/generators-yml#output) is `local-file-system`. Artifacts are written to a `fern-dist/` folder inside that generator's output directory, so a generated SDK can be handed to internal consumers without publishing it to a public registry. `--package` works with both cloud and local (`--local`) generation.
 
     ```bash
     # Package every local-file-system output
@@ -213,7 +259,7 @@ These commands generate SDKs from your API definition, keep generators up to dat
     <Files>
       <Folder name="fern" defaultOpen>
         <File name="fern.config.json" />
-        <File name="generators.yml" />
+        <File name="sdk-config.yml" />
         <Folder name="openapi" defaultOpen>
           <File name="openapi-overrides.yaml" comment="your overrides file" highlighted />
           <File name="openapi.json" />
@@ -240,7 +286,7 @@ These commands generate SDKs from your API definition, keep generators up to dat
   </Accordion>
 
   <Accordion title="fern generator upgrade">
-    Use `fern generator upgrade` to update all generators in your `generators.yml` to their latest versions.
+    Use `fern generator upgrade` to update all generators in a [legacy `generators.yml`](/learn/sdks/legacy/reference/generators-yml) to their latest versions. For `sdk-config.yml` targets, set the version with [`generatorVersion`](/learn/sdks/reference/sdk-config#targets) instead.
 
     <Note>
     This is different from `fern upgrade` which updates the Fern CLI version. Use both commands to keep your entire Fern toolchain up to date.
