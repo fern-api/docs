@@ -9,17 +9,12 @@ Without a credential, the CLI still works — you can explore the command tree, 
 
 ## Credential sources
 
-The CLI supports several ways to supply credentials, configured at build time.
+The generator wires each scheme's credential to the sources below. A saved [profile](#profiles) can also supply it.
 
 | Source | Description |
 | --- | --- |
-| Environment variable | Read from an env var (the most common option). |
-| CLI flag | Auto-registered as a `--<flag-name>` global flag. |
-| File | Read trimmed contents from a file path (`~` is expanded). |
-| Literal | Baked into the binary at compile time. |
-| Fallback chain | Try multiple sources in order; first non-empty value wins. |
-
-A typical fallback chain lets the CLI flag override the env var, which in turn overrides a file:
+| Environment variable | Read from an env var. Every scheme supports this. |
+| CLI flag | API key schemes also get a `--<flag-name>` global flag, which takes priority over the env var. |
 
 ```bash
 # CLI flag takes priority
@@ -27,10 +22,6 @@ box users get-current-user --api-token sk-123
 
 # Otherwise falls back to the environment variable
 export BOX_API_KEY=sk-123
-box users get-current-user
-
-# Otherwise reads from a file
-echo "sk-123" > ~/.box/token
 box users get-current-user
 ```
 
@@ -41,9 +32,11 @@ The CLI supports every scheme type that OpenAPI's `securitySchemes` defines:
 | Scheme | How the CLI applies it |
 | --- | --- |
 | Bearer (`http: bearer`) | Sends `Authorization: Bearer <token>`. |
-| API key (`apiKey`) | Sends the key in the configured header (for example, `X-Auth-Token`). |
+| API key (`apiKey`) | Sends the key in the configured header (for example, `X-Auth-Token`). A `prefix` on the header scheme in `generators.yml` (`{ header: X-Api-Key, prefix: Key }`) is prepended at request time, so the stored credential stays the bare key. |
 | Basic (`http: basic`) | Sends `Authorization: Basic <base64(user:pass)>`. Each field has its own credential source. |
 | OAuth 2 | Sends `Authorization: Bearer <token>`. Declare an [OAuth flow](#oauth-flows) to have the CLI obtain and refresh the token itself. |
+
+An operation that requires authentication, through its own `security` or the spec-level default, fails locally with an auth error (exit code `2`) when no flag, environment variable, or selected profile supplies a credential, and the request isn't sent. Operations with `security: []`, optional auth (`- {}`), or no declared security are sent as-is.
 
 ## OAuth flows
 

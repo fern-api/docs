@@ -7,14 +7,17 @@ Generated CLIs ship with a common set of runtime flags and environment variables
 
 ## Output formatting
 
-Use the `--format` flag to control how responses are displayed.
+Use the `--format` flag to control how responses are displayed. Without it, the CLI prints a table when stdout is a terminal and JSON when output is piped; set `<NAME>_OUTPUT` to change that default.
 
 | Format | Flag | Description |
 | --- | --- | --- |
-| JSON | `--format json` | Default. Pretty-printed JSON. |
-| Table | `--format table` | Columnar table. Nested objects flatten to `parent.child` column names unless the operation sets [`x-fern-cli-table`](/learn/cli-generator/get-started/openapi-extensions#x-fern-cli-table). |
+| JSON | `--format json` | Pretty-printed JSON. The default when output is piped. |
+| Table | `--format table` | The default in an interactive terminal. Columnar table. Nested objects flatten to `parent.child` column names unless the operation sets [`x-fern-cli-table`](/learn/cli-generator/get-started/openapi-extensions#x-fern-cli-table). |
 | YAML | `--format yaml` | YAML representation of the response. |
 | CSV | `--format csv` | Comma-separated values, suitable for piping into spreadsheet tools. |
+| JSON Lines | `--format jsonl` | One compact JSON value per line (also accepts `ndjson`). |
+| Raw | `--format raw` | The response bytes exactly as the server sent them. |
+| HTTP | `--format http` | Status line, headers, and body, like `curl -i`. |
 
 ```bash
 # Display plants in a table
@@ -130,6 +133,8 @@ Every generated CLI exposes a global `--schema` flag that prints its command sur
 | `contoso plants --schema` | The operations in one command group. |
 | `contoso plants list --schema` | The full input and output contract for one operation. |
 
+[Custom commands](/learn/cli-generator/get-started/custom-commands) are described too: a custom command's path returns its `command`, `description`, and `flags`, and root `--schema` adds a `customCommands` array when any are registered.
+
 ```bash
 contoso plants list --schema
 ```
@@ -180,7 +185,7 @@ export BIGCOMMERCE_STORE_HASH=abc123
 bigcommerce v3 customers list
 ```
 
-The environment variable is `<PREFIX>_<VARIABLE>`, where `<PREFIX>` is the binary name uppercased with `-` replaced by `_`. Variables declared with `x-fern-sdk-variables` use their bare name instead (`gardenId` reads `GARDEN_ID`). A [named profile](/learn/cli-generator/get-started/authentication#named-profiles) can also store the variable; the flag wins over a selected profile, which wins over the environment variable.
+The environment variable is `<PREFIX>_<VARIABLE>`, where `<PREFIX>` is the binary name uppercased with `-` replaced by `_`. Variables declared with `x-fern-sdk-variables` use their bare name instead (`gardenId` reads `GARDEN_ID`). A [named profile](/learn/cli-generator/get-started/authentication#named-profiles) can also store the variable; the flag wins over a selected profile, which wins over the environment variable. Placeholders in a caller-supplied base URL (`--base-url`, `<PREFIX>_BASE_URL`, or a profile's base URL), such as `https://api.stage-{region}.example.com`, are filled from the same sources.
 
 ## File uploads and downloads
 
@@ -197,7 +202,7 @@ For endpoints with `format: binary` request bodies, pass a file path as the `--f
 | `4` | Discovery error | Couldn't load API schema. |
 | `5` | Internal error | Unexpected failure. |
 
-All errors are emitted as structured JSON on stderr, making them easy to parse in scripts and CI pipelines.
+With JSON output, errors are written to stdout as a structured JSON envelope, with a human-readable summary on stderr, so scripts and CI pipelines can parse them. Table output writes only the human-readable error to stderr.
 
 ## TLS, proxies, and CA bundles
 

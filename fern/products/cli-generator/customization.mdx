@@ -31,13 +31,14 @@ When both are present, overrides are applied first, then overlays.
 
 A single CLI can combine multiple OpenAPI specs into one command tree. This is useful for APIs that split their spec across domains or versions.
 
-Specs can be merged flat (all commands at the top level) or under a namespace prefix:
+List each spec under `api.specs` in `generators.yml`. A spec without a `namespace` merges flat at the top level; a spec with a `namespace` gets its own subcommand:
 
-```rust title="main.rs"
-CliApp::new("my-api")
-    .spec(include_str!("core.yaml"))
-    .spec_under("billing", include_str!("billing.yaml"))
-    .run()
+```yaml title="generators.yml"
+api:
+  specs:
+    - openapi: core.yaml
+    - openapi: billing.yaml
+      namespace: billing
 ```
 
 This produces a CLI where core commands live at the top level and billing commands live under a `billing` subcommand:
@@ -47,7 +48,9 @@ my-api users list          # from core.yaml
 my-api billing invoices list  # from billing.yaml
 ```
 
-When a namespace matches a top-level resource in the incoming spec, the CLI hoists that resource's methods into the namespace to avoid repetition (for example, `billing billing invoices list` becomes `billing invoices list`).
+When a namespace matches a top-level resource in the incoming spec, the CLI hoists that resource's methods into the namespace to avoid repetition (for example, `billing billing invoices list` becomes `billing invoices list`). A slash in a namespace nests it: `namespace: messaging/bulk-messages` produces `my-api messaging bulk-messages create`.
+
+Specs under the same namespace that define a resource with the same name merge that resource's commands and sub-resources. The CLI fails at startup only when two specs define the same command, and the error names the full command path.
 
 ## Custom commands
 
