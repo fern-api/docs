@@ -1,0 +1,68 @@
+---
+title: Remote paths
+description: Serve a path prefix on your Fern docs domain from another HTTPS service you run, while Fern serves the rest of the site.
+---
+
+Remote paths let a Fern-hosted docs domain serve part of its URL space from another application. Fern serves the docs site and reverse-proxies each configured path prefix to an HTTPS service you run. For example, `developer.example.com` can serve docs from Fern and a developer portal at `developer.example.com/ui` from your own app.
+
+Remote paths are the inverse of a [reverse proxy setup](/learn/docs/preview-publish/reverse-proxy): there, your infrastructure owns the domain and forwards a subpath to Fern. With remote paths, Fern owns the domain and forwards a subpath to you, so no proxy rules are needed on your side.
+
+## Configure remote paths
+
+Add a `remote-paths` list to `docs.yml`. Each entry maps a `path` on your docs domain to a `destination` URL:
+
+<CodeBlock title="docs.yml">
+  ```yml
+  remote-paths:
+    - path: /ui
+      destination: https://portal.example.com/ui
+  ```
+</CodeBlock>
+
+Remote paths take effect when you [publish your docs](/learn/docs/preview-publish/publishing-your-docs), and preview builds include them. Rolling back to an earlier deployment also rolls back its remote paths. A site can have up to 20 remote paths.
+
+<ParamField path="path" type="string" required={true} toc={true}>
+  The path prefix to proxy. Must start with `/`, can't end with `/`, and can't be `/`. If your docs are hosted on a [subpath](/learn/docs/preview-publish/setting-up-your-domain), `path` is relative to that subpath, so `/ui` on a site at `example.com/docs` proxies `example.com/docs/ui`.
+</ParamField>
+
+<ParamField path="destination" type="string" required={true} toc={true}>
+  The absolute `https` URL to forward to. The part of the request path after `path`, and the query string, are appended to it.
+</ParamField>
+
+## Matching
+
+A remote path matches its own URL and everything beneath it, on whole path segments. With `path: /ui`:
+
+| Request | Proxied to |
+|---|---|
+| `/ui` | `https://portal.example.com/ui` |
+| `/ui/applications?tab=keys` | `https://portal.example.com/ui/applications?tab=keys` |
+| `/uix` | Not proxied. Fern serves it. |
+
+The destination path doesn't need to match `path`. With `destination: https://portal.example.com`, a request to `/ui/applications` goes to `https://portal.example.com/applications`.
+
+Remote paths take precedence over [redirects](/learn/docs/seo/redirects) and docs pages, so a page under a remote path is never served. Fern's own endpoints, such as `/_fern-files`, `/api/fern-docs`, `/.well-known`, `/robots.txt`, `/sitemap.xml`, and `/llms.txt`, always stay with Fern, and `fern check` rejects a `path` that overlaps one of them. Two remote paths can't overlap each other.
+
+## Allowed destinations
+
+`fern check` rejects a `destination` that isn't a public HTTPS host:
+
+- Not `https`, has a port, credentials, a query string, or a fragment.
+- An IP address, `localhost`, a single-label hostname, or a private suffix such as `.local` or `.internal`.
+- A host Fern serves, including `*.buildwithfern.com`, `*.ferndocs.com`, and your own docs domains.
+
+The destination must answer on its own hostname with a valid TLS certificate. Fern sends the destination's hostname as `Host` and passes your docs domain in `X-Forwarded-Host`.
+
+## Request and response handling
+
+Fern forwards every HTTP method, the request body, and websocket upgrades. Responses, including server-sent events and other streamed responses, pass through without buffering.
+
+- **Headers:** Fern adds `X-Forwarded-Host`, `X-Forwarded-Proto`, `X-Forwarded-For`, and `Forwarded`.
+- **Redirects:** Fern returns redirects to the browser instead of following them. A `Location` that points at the destination is rewritten to the matching path on your docs domain, so `https://portal.example.com/ui/logout` becomes `/ui/logout`.
+- **Cookies:** cookies your app sets are scoped to your docs domain and to the remote path.
+- **Caching:** Fern never caches proxied responses. Your app's `Cache-Control` headers reach the browser unchanged.
+- **Errors:** your app's error responses pass through. If Fern can't reach the destination, it returns `502 Bad Gateway`.
+
+## Authentication
+
+Remote paths aren't covered by [docs authentication](/learn/docs/authentication/overview). Fern doesn't check a visitor's docs login before proxying and doesn't forward Fern's login cookies, so your app handles its own authentication.
