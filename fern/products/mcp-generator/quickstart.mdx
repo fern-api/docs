@@ -1,7 +1,6 @@
 ---
 title: Quickstart
 description: Generate a hosted MCP server from an OpenAPI spec and connect an agent to it.
-availability: beta
 ---
 
 This guide takes an OpenAPI spec to a hosted [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server that an AI agent can call. Fern generates one tool per supported API operation and hosts the server at `https://<your-org>.fernmcp.dev/<slug>`. Once the server is live, [manage it in the dashboard](/learn/mcp-generator/get-started/manage).
@@ -45,16 +44,18 @@ fern init --openapi ./petstore.json --org <your-org>
 
 This creates a `fern/` folder that contains your spec and a file named `sdk-config.yml`.
 
-The Petstore spec lists its server as the relative path `/api/v3`. Before you generate, change the `servers` entry in `fern/openapi.json` to the full address `https://petstore3.swagger.io/api/v3`.
+The Petstore spec lists its server as the relative path `/api/v3`, and an MCP server needs the full address of the API it calls. The next step sets that address in `sdk-config.yml`.
 </Step>
 
 <Step title="Ask for an MCP server">
 
-Replace the `targets` section of `fern/sdk-config.yml` so the file reads:
+Edit `fern/sdk-config.yml` so the file reads:
 
 ```yaml title="fern/sdk-config.yml"
 schemaVersion: sdk-config/v1
 sdkName: api
+api:
+  baseUrl: https://petstore3.swagger.io/api/v3
 source:
   specs:
     - id: api
@@ -67,7 +68,7 @@ targets:
       slug: petstore
 ```
 
-`slug` names the server and becomes the last part of its URL. It takes 1 to 30 lowercase letters, numbers, and single hyphens, and can't start or end with a hyphen.
+`api.baseUrl` is the address the server's tools call, and it takes precedence over the `servers` entry in your spec. If your spec's `servers` entry is already a full address, you can leave `api` out. `slug` names the server and becomes the last part of its URL. It takes 1 to 30 lowercase letters, numbers, and single hyphens, and can't start or end with a hyphen.
 </Step>
 
 <Step title="Generate">
@@ -122,7 +123,7 @@ targets:
       delivery: zip
 ```
 
-The `servers` entry in your spec needs a full address here too, as in [the first step](#create-a-project-from-your-spec). A `zip` build accepts a relative path, but every tool call on the local server then fails with `Invalid URL`.
+A local server needs the full address of your API too, from `api.baseUrl` or the `servers` entry in your spec. A `zip` build accepts a relative path, but every tool call on the local server then fails with `Invalid URL`.
 
 `fern generate` then downloads `fern/generated/mcp.zip` and deploys nothing. Unzip it and start the server with Node.js:
 
@@ -132,7 +133,9 @@ cd mcp-local
 PORT=8787 node index.mjs   # PORT is optional, default 8787
 ```
 
-The server listens at `http://localhost:8787/mcp`. The local server accepts connections on all network interfaces, so don't run it on a shared network. It calls your API from your machine, at the server address in your spec. A `zip` target has no hosted URL and doesn't appear in the dashboard.
+The server listens at `http://localhost:8787/mcp`, and each [toolset](/learn/mcp-generator/get-started/configure#group-tools-into-toolsets) at `http://localhost:8787/mcp/<toolset>`. The local server accepts connections on all network interfaces, so don't run it on a shared network. It calls your API from your machine. A `zip` target has no hosted URL and doesn't appear in the dashboard.
+
+The zip also holds the generated TypeScript project in `project/`. Its `README.md` covers building it with `npm run setup` and running it over stdio, which reads credentials from environment variables instead of request headers.
 
 ## Troubleshooting
 
@@ -140,9 +143,11 @@ The server listens at `http://localhost:8787/mcp`. The local server accepts conn
 
 | You see | Cause and fix |
 |---------|---------------|
-| `[metadata.baseUrl] Invalid url`, or `Invalid URL` from every tool on a local server | The `servers` entry in your spec is a relative path such as `/api/v1`. Change it to the full address, for example `https://api.example.com/v1`. |
+| `[metadata.baseUrl] Invalid url`, or `Invalid URL` from every tool on a local server | The `servers` entry in your spec is a relative path such as `/api/v1`. Set `api.baseUrl` in `sdk-config.yml` to the full address, for example `https://api.example.com/v1`, or use the full address in `servers`. |
 | `Deploying to Fern's hosted MCP platform requires authentication` | The CLI has no Fern credentials. Run `fern login`, or set `FERN_TOKEN` in CI. |
-| `Tool name "..." is ... characters` or `contains unsupported characters` | MCP tool names take 1 to 64 letters, digits, `_`, or `-`. Set `x-fern-mcp-name` on the operation, in your spec or an [overlay](/learn/api-definitions/openapi/overlays). The error message includes an overlay entry to copy. |
+| `Tool name "..." is ... characters` or `contains unsupported characters` | MCP tool names take 1 to 64 letters, digits, `_`, or `-`. [Set `x-fern-mcp-name`](/learn/mcp-generator/get-started/configure#name-and-describe-tools) on the operation, in your spec or an [overlay](/learn/api-definitions/openapi/overlays). The error message includes an overlay entry to copy. |
+| `MCP tool filter entries matched no tools` | An entry in `tools` or `toolsets` names no operation. The message lists the available tool names. |
+| `Request exceeded the 30s time limit` or `Response exceeded the 1 MiB size limit` | The API took longer than 30 seconds to answer, or sent more than 1 MiB. Narrow the request, for example with a smaller page size. |
 | `Authentication required ... send request headers ...` | The agent is missing a credential. Add the header that the message names. The dashboard's **Connect** button shows it. |
 | The server URL doesn't load, or the agent can't connect | Your network may block `*.fernmcp.dev`. Ask your IT team to allow it. |
 | The dashboard says **Let's build your MCP server** | No server is deployed for your organization yet. Run the steps above. |
@@ -152,6 +157,9 @@ The server listens at `http://localhost:8787/mcp`. The local server accepts conn
 ## Next steps
 
 <CardGroup cols={2}>
+  <Card title="Configure the server" icon="regular sliders" href="/learn/mcp-generator/get-started/configure">
+    Choose which operations become tools, group them into toolsets, and rename them.
+  </Card>
   <Card title="Manage in the dashboard" icon="regular gauge" href="/learn/mcp-generator/get-started/manage">
     Connect agents, review tools and analytics, roll back, pause, or delete a server.
   </Card>
