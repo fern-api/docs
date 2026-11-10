@@ -1,0 +1,274 @@
+---
+title: Features
+description: Explore the capabilities of Fern's generated CLIs, including output formatting, retries, pagination, dry-run mode, and TLS configuration.
+---
+
+<Markdown src="/products/cli-generator/legacy/snippets/legacy-notice.mdx" current="/learn/cli-generator/get-started/features" />
+
+
+Generated CLIs ship with a common set of runtime flags and environment variables: output formatting, retries with exponential backoff, pagination, dry-run previewing, TLS and proxy configuration, exit codes, and structured logging. APIs with templated server URLs also expose per-variable flags and environment variables. The binary name (set via [`binaryName`](/learn/cli-generator/legacy/get-started/configuration#config-options)) determines the environment-variable prefix used by TLS, proxy, and logging settings below. The root `--help` output ends with an `Environment variables:` section generated from the spec, listing `<NAME>_PROFILE`, `<NAME>_BASE_URL`, `<NAME>_OUTPUT`, `<NAME>_RETRIES`, one variable per server URL variable (such as `<NAME>_REGION`), and the transport variables (`<NAME>_CA_BUNDLE`, `<NAME>_INSECURE`, `<NAME>_PROXY`, `<NAME>_TIMEOUT_SECS`, `<NAME>_USER_AGENT_SUFFIX`).
+
+## Output formatting
+
+Use the `--format` flag to control how responses are displayed. Without it, the CLI prints a table when stdout is a terminal and JSON when output is piped; set `<NAME>_OUTPUT` to change that default.
+
+| Format | Flag | Description |
+| --- | --- | --- |
+| JSON | `--format json` | Pretty-printed JSON. The default when output is piped. |
+| Table | `--format table` | The default in an interactive terminal. Columnar table. Nested objects flatten to `parent.child` column names unless the operation sets [`x-fern-cli-table`](/learn/cli-generator/legacy/get-started/openapi-extensions#x-fern-cli-table). |
+| YAML | `--format yaml` | YAML representation of the response. |
+| CSV | `--format csv` | Comma-separated values, suitable for piping into spreadsheet tools. |
+| JSON Lines | `--format jsonl` | One compact JSON value per line (also accepts `ndjson`). |
+| Raw | `--format raw` | The response bytes exactly as the server sent them. |
+| HTTP | `--format http` | Status line, headers, and body, like `curl -i`. |
+
+```bash
+# Display plants in a table
+contoso plants list --format table
+
+# Export orders as CSV
+contoso orders list --format csv > orders.csv
+```
+
+## Dry-run mode
+
+Pass `--dry-run` to validate arguments and preview the HTTP request without sending it. The CLI prints the method, URL, headers, and body it would send, then exits.
+
+```bash
+contoso plants get --params '{"plantId": "abc"}' --dry-run
+```
+
+## Retries with backoff
+
+Failed requests are retried automatically with exponential backoff on status codes `408`, `429`, and `5xx`, honoring `Retry-After` headers.
+
+| Setting | Default |
+| --- | --- |
+| Total attempts | 4 (initial + 3 retries) |
+| Base delay | 500 ms |
+| Backoff factor | 2x |
+| Jitter | 10% |
+
+GET, HEAD, OPTIONS, DELETE, and PUT retry by default. POST and PATCH retry only when the operation declares server-side idempotency support with [`x-fern-idempotent: true`](/learn/api-definitions/openapi/extensions/idempotency), which also exposes an `--idempotency-key` flag on that command, or when the caller passes `--idempotency-key` explicitly. Pass `--no-retry` to disable retries for a single invocation, or `--retries <N>` to set the number of retries after the first attempt (`--retries 0` equals `--no-retry`). The limit resolves as `--retries` → `<PREFIX>_RETRIES` → [profile](/learn/cli-generator/legacy/get-started/authentication#named-profiles) → `x-fern-retries`.
+
+An `Idempotency-Key` header is generated automatically for POST, PUT, and PATCH requests unless the invocation carries its own `--idempotency-key` or the operation opts out with `x-fern-cli-idempotency: false`. The same generated key is sent on every attempt of a request, but the key alone doesn't make a request retry-eligible.
+
+```bash
+# Disable retries for a single request
+contoso plants create --json '{"name": "Monstera"}' --no-retry
+```
+
+## Pagination
+
+For endpoints annotated with [`x-fern-pagination`](/learn/api-definitions/openapi/extensions/pagination), the CLI auto-paginates when the `--page-all` flag is set.
+
+| Flag | Description | Default |
+| --- | --- | --- |
+| `--page-all` | Fetch every page and emit one JSON line per page (NDJSON). | Off |
+| `--page-limit <N>` | Maximum number of pages to fetch. | 10 |
+| `--page-delay <MS>` | Delay in milliseconds between page requests. | 100 |
+| `--no-pager` | Skip the pager when `--page-all` output goes to an interactive terminal. | Off |
+
+These flags are registered only on operations whose spec declares pagination. On a spec with no pagination metadata they don't exist, and passing one is an argument error.
+
+```bash
+# Fetch all plants, one JSON line per page
+contoso plants list --page-all
+
+# Limit to 5 pages with a 200 ms delay
+contoso plants list --page-all --page-limit 5 --page-delay 200
+```
+
+Paginated output works with all output formats. For table and CSV formats, headers are only emitted on the first page so the output concatenates cleanly.
+
+## Passing parameters
+
+Path and query parameters can be passed two ways: as individual flags, or as a single JSON object. Request bodies use `--json`.
+
+| Flag | Purpose |
+| --- | --- |
+| `--<param>` | An individual path or query parameter, kebab-cased from its name in the spec. |
+| `--params <JSON>` | All path and query parameters as a single JSON object. Overrides individual flags. |
+| `--json <JSON>` | Request body for POST, PUT, and PATCH methods. |
+
+```bash
+# Individual flags
+contoso plants get --plant-id abc
+
+# The equivalent --params JSON object
+contoso plants get --params '{"plantId": "abc"}'
+
+# Request body
+contoso plants create \
+  --json '{"name": "Monstera", "species": "Monstera deliciosa", "sunlight": "indirect"}'
+```
+
+Object-valued body flags take a JSON object, including properties wrapped in a one-option `oneOf` or `anyOf` (`oneOf: [$ref: Model]`), which are handled as the wrapped object and get dotted flags for its fields (`--from.name`). When the object, or each element of an array of objects, has exactly one required property and that property is a string, the flag also accepts a plain value for that property, and `--help` shows the value as `<VALUE|JSON_OBJECT>`. List flags accept comma-separated plain values and JSON objects in any mix:
+
+```bash
+# Sends "from": {"email": "me@x.com"}
+# and "to": [{"email": "a@x.com"}, {"email": "b@x.com"}, {"email": "c@x.com", "name": "C"}]
+contoso messages send --from me@x.com \
+  --to a@x.com,b@x.com --to '{"email": "c@x.com", "name": "C"}'
+```
+
+String values inside JSON input (`--json`, an object-valued flag, or a JSON element of a repeated object flag) can reference files: `@<path>` embeds the file as UTF-8 text, or base64 when it isn't valid UTF-8; `@file://<path>` requires UTF-8; and `@data://<path>` always base64-encodes. A leading `\@` sends a literal `@`. A file that can't be read fails before the request is sent. Items of string-list flags are always sent as written, so `--to @handle` stays `"@handle"`.
+
+```bash
+contoso messages send --attachments '{"content": "@data://report.pdf", "filename": "report.pdf"}'
+```
+
+Inputs are checked against the spec before the request is built. String values marked `format: email` must match a loose `local@domain.tld` pattern; a malformed address fails with a validation error naming the field, and no request is sent.
+
+When stdin and stderr are both terminals, the CLI prompts for each required parameter not supplied by a flag, `--params`, `--json`, a [profile](/learn/cli-generator/legacy/get-started/authentication#named-profiles), or a [global parameter](/learn/cli-generator/legacy/get-started/openapi-extensions#global-parameters). Answers convert the same way as the equivalent flag value. An empty answer leaves the parameter unset and Ctrl-D stops prompting, so the CLI reports the remaining parameters as missing. Piped, scripted, and CI runs never prompt, and neither does an invocation that reads stdin (`--json -` or an `@-` reference).
+
+Headers declared API-wide, through the `headers:` block of a Fern definition or [`x-fern-global-headers`](/learn/api-definitions/openapi/extensions/global-headers) in OpenAPI, are sent on every request, preserving each header's `env` fallback, `client-default`, and optionality. An [`x-fern-global-parameters`](/learn/cli-generator/legacy/get-started/openapi-extensions#global-parameters) entry targeting the same header takes precedence.
+
+Run `contoso <command> --help` to list a command's flags, or [`--schema`](#machine-readable-schema) for the same surface as a machine-readable JSON contract. When a flag name differs from the spec, `--help` shows the original name as `(api: <name>)`, which is the key to use in `--params`.
+
+## Machine-readable schema
+
+Every generated CLI exposes a global `--schema` flag that prints its command surface as JSON. It's the agent-facing counterpart to `--help`: the output is deterministic, derived from your spec and the CLI's own flag surface, and is handled before arguments are parsed, so an operation's schema prints even when its required flags are missing.
+
+| Command | Output |
+| --- | --- |
+| `contoso --schema` | `globalFlags` plus every operation's name and description. |
+| `contoso plants --schema` | The operations in one command group. |
+| `contoso plants list --schema` | The full input and output contract for one operation. |
+
+[Custom commands](/learn/cli-generator/legacy/get-started/custom-commands) are described too: a custom command's path returns its `command`, `description`, and `flags`, and root `--schema` adds a `customCommands` array when any are registered.
+
+```bash
+contoso plants list --schema
+```
+
+```json
+{
+  "operation": "plants.list",
+  "description": "List all plants",
+  "input": {
+    "type": "object",
+    "properties": {
+      "limit": {
+        "type": "integer",
+        "description": "Maximum number of plants to return.",
+        "location": "query",
+        "maximum": 100,
+        "flag": "--limit"
+      }
+    },
+    "required": []
+  },
+  "output": {
+    "type": "array",
+    "items": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" }
+      },
+      "required": ["id", "name"]
+    }
+  }
+}
+```
+
+`input.properties` is keyed by the spec's parameter names, and each property's `flag` gives the exact flag to pass. Properties without a `flag` are passed through `--params` or `--json`. Operations that support [`--page-all`](#pagination), return binary bodies, or stream also report `paginable`, `binaryResponse`, or `streaming`. The root schema lists the CLI's built-in command groups (`auth`, `completion`, `man`, and `profiles` when [enabled](/learn/cli-generator/legacy/get-started/authentication#named-profiles)) under `builtinCommands`, separate from the spec-derived operations.
+
+## Server URL variables
+
+For APIs with [templated server URLs](/learn/api-definitions/openapi/extensions/server-names-and-url-templating) (such as `https://api.example.com/stores/{store_hash}/v3`), the CLI automatically exposes each template variable as a CLI flag and environment variable, carrying the variable's `default`, `description`, and `enum` from the spec. When an invocation pins no variable, the server's `x-fern-default-url` is used as the base URL. Servers declared on an individual operation resolve the same way as the root `servers` block.
+
+```bash
+# Pass the variable as a flag
+bigcommerce --store-hash abc123 v3 customers list
+
+# Or set it via an environment variable
+export BIGCOMMERCE_STORE_HASH=abc123
+bigcommerce v3 customers list
+```
+
+The environment variable is `<PREFIX>_<VARIABLE>`, where `<PREFIX>` is the binary name uppercased with `-` replaced by `_`. Variables declared with `x-fern-sdk-variables` use their bare name instead (`gardenId` reads `GARDEN_ID`). A [named profile](/learn/cli-generator/legacy/get-started/authentication#named-profiles) can also store the variable; the flag wins over a selected profile, which wins over the environment variable. Placeholders in a caller-supplied base URL (`--base-url`, `<PREFIX>_BASE_URL`, or a profile's base URL), such as `https://api.stage-{region}.example.com`, are filled from the same sources.
+
+## File uploads and downloads
+
+For endpoints with `format: binary` request bodies, pass a file path as the `--file` argument. For binary responses, use `--output <PATH>` to save the response body to a file.
+
+## Exit codes
+
+| Code | Meaning | Example cause |
+| --- | --- | --- |
+| `0` | Success | Command completed normally. |
+| `1` | API error | Server returned a 4xx/5xx response. |
+| `2` | Auth error | [Credentials](/learn/cli-generator/legacy/get-started/authentication) missing or invalid. |
+| `3` | Validation error | Bad arguments, unknown command, or invalid JSON. |
+| `4` | Discovery error | Couldn't load API schema. |
+| `5` | Internal error | Unexpected failure. |
+
+With JSON output, errors are written to stdout as a structured JSON envelope, with a human-readable summary on stderr, so scripts and CI pipelines can parse them. Table output writes only the human-readable error to stderr.
+
+## TLS, proxies, and CA bundles
+
+Every generated CLI honors environment variables for TLS and proxy configuration at runtime. Variables are scoped by binary name — `<NAME>` is the CLI's binary name uppercased with hyphens mapped to underscores (for example, `CONTOSO`).
+
+| Variable | Effect |
+| --- | --- |
+| `<NAME>_CA_BUNDLE` | Path to a PEM file appended to the default trust roots. |
+| `<NAME>_INSECURE=1` | Disable TLS verification. Logs a warning. Not for production use. |
+| `<NAME>_PROXY` | HTTP/HTTPS proxy URL, overriding `HTTPS_PROXY` / `HTTP_PROXY`. |
+| `<NAME>_NO_PROXY` | Comma-separated proxy bypass list scoped to this CLI. |
+| `<NAME>_TIMEOUT_SECS` | Total request timeout. None by default. |
+| `<NAME>_CONNECT_TIMEOUT_SECS` | Connection-establishment timeout. |
+
+Standard environment variables (`HTTPS_PROXY`, `HTTP_PROXY`, `NO_PROXY`, `SSL_CERT_FILE`) are honored when the scoped overrides are absent.
+
+With [named profiles](/learn/cli-generator/legacy/get-started/authentication#named-profiles) enabled, `<NAME>_CA_BUNDLE`, `<NAME>_INSECURE`, `<NAME>_PROXY`, `<NAME>_TIMEOUT_SECS`, and `<NAME>_USER_AGENT_SUFFIX` can also be stored per profile with `profiles set`, for example a corporate-proxy profile. A selected profile's value outranks the exported variable, which applies only when the profile leaves the setting unset.
+
+```bash
+export CONTOSO_TIMEOUT_SECS=10
+contoso profiles set corp --yes CONTOSO_TIMEOUT_SECS=45 CONTOSO_PROXY=http://proxy.corp:3128
+contoso profiles use corp
+contoso plants list   # 45-second timeout through the corp proxy
+```
+
+<Accordion title="Common scenarios">
+
+**Behind a MITM proxy (Proxyman, Charles, mitmproxy):**
+
+```bash
+export SSL_CERT_FILE=~/path/to/proxyman-ca.pem
+export HTTPS_PROXY=http://127.0.0.1:9090
+contoso plants list
+```
+
+**Corporate network with a custom root CA:**
+
+```bash
+export CONTOSO_CA_BUNDLE=/etc/ssl/corp-roots.pem
+contoso plants list
+```
+
+</Accordion>
+
+## User-Agent
+
+Each generated CLI sends a `User-Agent` header identifying it by binary name and version, `<binaryName>-cli/<version>` (for example, `contoso-cli/1.4.0`), so its traffic is distinguishable on the API backend. The `-cli` suffix is added automatically.
+
+A tool built on top of the CLI can append its own product token without replacing the CLI's identity, producing `contoso-cli/1.4.0 partner-app/3.1`. Supply the token at runtime with either the `--user-agent-suffix` flag or the `<NAME>_USER_AGENT_SUFFIX` environment variable, or store it on a [named profile](/learn/cli-generator/legacy/get-started/authentication#named-profiles). The flag wins over a selected profile, which wins over the environment variable. Rename the flag and its environment variable at generation time with [`userAgentSuffixFlag`](/learn/cli-generator/legacy/get-started/configuration#config-options).
+
+```bash
+# Append a product token via flag
+contoso plants list --user-agent-suffix "partner-app/3.1"
+
+# Or via environment variable
+export CONTOSO_USER_AGENT_SUFFIX="partner-app/3.1"
+contoso plants list
+```
+
+## Structured logging
+
+Logging is off by default. Set `<NAME>_LOG` to a [tracing filter](https://docs.rs/tracing-subscriber/latest/tracing_subscriber/filter/struct.EnvFilter.html) to emit structured logs to stderr. Set `<NAME>_LOG_FILE` to a directory path to write daily rotated JSON log files.
+
+```bash
+CONTOSO_LOG=debug contoso plants list
+```

@@ -25,7 +25,7 @@ By default, `fern generate` [runs the CLI generator on Fern's cloud infrastructu
 ## Setup
 
 <Info>
-This page assumes you've completed the [Quickstart](/learn/cli-generator/get-started/quickstart), so your `generators.yml` already writes to a [`local-file-system`](/learn/cli-generator/get-started/configuration#output) output path. Adding `--local` runs that same configuration through Docker instead of Fern's cloud.
+This page assumes you've completed the [Quickstart](/learn/cli-generator/get-started/quickstart), so the `cli` target in `sdk-config.yml` already writes to a [local `output.path`](/learn/cli-generator/get-started/configuration#output-and-distribution). Adding `--local` runs that same configuration through Docker instead of Fern's cloud.
 </Info>
 
 <Steps>
@@ -43,10 +43,10 @@ export FERN_TOKEN=<your-token>
 <Step title="Run local generation">
 
 ```bash
-fern generate --group cli --local
+fern generate --target cli --local
 ```
 
-The CLI pulls the generator's Docker image (cached after the first run), processes your OpenAPI spec, and writes a complete Rust project to the configured output path. Images pull from Docker Hub by default; you can alternatively pull from a [private registry](#custom-container-registry).
+The CLI pulls the generator's Docker image (cached after the first run), processes your OpenAPI spec, and writes a complete Rust project to the configured output path.
 
 </Step>
 
@@ -64,26 +64,4 @@ cargo build
 
 ## Custom container registry
 
-By default, `--local` pulls generator images from Docker Hub. To pull from a private registry, replace the `name` field with an [`image`](/learn/sdks/legacy/reference/generators-yml#image) object:
-
-```yaml title="generators.yml" {4-6}
-groups:
-  cli:
-    generators:
-      - image:
-          name: fern-cli-generator
-          registry: ghcr.io/your-org
-        version: <Markdown src="/snippets/version-number-cli-generator.mdx"/>
-        output:
-          location: local-file-system
-          path: ../my-cli
-        config:
-          binaryName: my-cli
-```
-
-If your registry requires authentication, log in before running generation:
-
-```bash
-echo $CR_PAT | docker login ghcr.io -u USERNAME --password-stdin
-fern generate --group cli --local
-```
+`--local` pulls the generator image from Docker Hub. `sdk-config.yml` has no setting for a private registry; to pull from one, use a [`generators.yml` `image` configuration](/learn/cli-generator/legacy/get-started/local-generation#custom-container-registry).

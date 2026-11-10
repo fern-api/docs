@@ -1,34 +1,49 @@
 ---
 title: Configuration reference
-description: Configure CLI generation in generators.yml with generator-specific options, output targets, GitHub integration, and shared settings.
+description: Configure CLI generation in sdk-config.yml with a cli target, CLI generation settings, package metadata, output, and distribution.
 ---
 
-Configure the CLI generator in `generators.yml`. Options nested under `config` are specific to the CLI generator. The rest (`output`, `github`, `audiences`, `smart-casing`, `metadata`, `api`) behave the same way as for [SDK generators](/learn/sdks/legacy/reference/generators-yml).
+Configure the CLI generator as a target with `language: cli` in `sdk-config.yml`. A single SDK Config can describe the CLI alongside SDK targets: `source.specs` lists the OpenAPI specs, `api` holds settings every target shares (such as [auth schemes](/learn/cli-generator/get-started/authentication)), and each target has its own `package`, `generation`, and `output` blocks. CLI-only settings go in the CLI target's `generation` block. An unknown key fails validation instead of being ignored.
 
-```yaml title="generators.yml" {6-8}
-groups:
-  cli:
-    generators:
-      - name: fern-cli-generator
-        version: <Markdown src="/snippets/version-number-cli-generator.mdx"/>
-        config:
-          binaryName: my-cli
-          customCommands: true
-        github:
-          repository: my-org/my-cli
-          mode: pull-request
+```yaml title="sdk-config.yml" {9-19}
+schemaVersion: sdk-config/v1
+sdkName: My API
+sdkVersion: 1.0.0
+source:
+  specs:
+    - id: my-api
+      type: openapi
+      path: ./openapi.yml
+targets:
+  - language: cli
+    generation:
+      binaryName: my-cli
+      customCommands: true
+      profiles:
+        enabled: true
+    output:
+      delivery: github
+      github:
+        repository: my-org/my-cli
+        mode: pull-request
 ```
 
-## `config` options
+Settings shared with SDK targets, such as `source`, `api`, `package`, and `output`, are documented in the [`sdk-config.yml` reference](/learn/sdks/reference/sdk-config). This page covers the CLI-specific settings and how the shared blocks apply to a CLI.
+
+## CLI generation settings
+
+Set these under `targets[].generation` on the `cli` target.
 
 <ParamField path="binaryName" type="string" toc={true}>
 Name of the compiled binary. Determines the executable filename, the Cargo `[[bin]]` target name, and the environment-variable prefix used for [TLS, proxy, and logging settings](/learn/cli-generator/get-started/features#tls-proxies-and-ca-bundles).
 
 When omitted, the generator derives the name from the API definition's display name (kebab-cased). Multi-spec workspaces must set this field explicitly — there is no sensible auto-derivation when multiple specs are present.
 
-```yaml title="generators.yml"
-config:
-  binaryName: contoso
+```yaml title="sdk-config.yml"
+targets:
+  - language: cli
+    generation:
+      binaryName: contoso
 ```
 
 The binary name `contoso` produces:
@@ -36,23 +51,26 @@ The binary name `contoso` produces:
 - Env-var prefix: `CONTOSO` (e.g. `CONTOSO_CA_BUNDLE`, `CONTOSO_LOG`)
 </ParamField>
 
-<ParamField path="displayName" type="string" toc={true}>
-API name used in the generated README and `reference.md` titles (`# <displayName> CLI`) and in the crate's default description. A name that already ends in "CLI" isn't doubled: `displayName: Acme CLI` gives "Acme CLI".
+<ParamField path="crateName" type="string" toc={true}>
+Name of the generated Cargo package. Release archives and installers use it. Defaults to `binaryName` when the target delivers to GitHub.
 
-When omitted, a single-spec workspace uses the spec's `info.title`. A multi-spec workspace uses a readable form of [`binaryName`](#binaryname): `twilio-cli` gives "Twilio CLI".
-
-```yaml title="generators.yml"
-config:
-  displayName: Contoso
+```yaml title="sdk-config.yml"
+targets:
+  - language: cli
+    generation:
+      binaryName: acme
+      crateName: acme-cli
 ```
 </ParamField>
 
 <ParamField path="rootGroup" type="string" toc={true}>
 Mounts every spec-derived command under one top-level command, leaving the top level free for custom commands. Without it, generated commands are top-level (`my-cli users list`); with `rootGroup: api`, they become `my-cli api users list`.
 
-```yaml title="generators.yml"
-config:
-  rootGroup: api
+```yaml title="sdk-config.yml"
+targets:
+  - language: cli
+    generation:
+      rootGroup: api
 ```
 </ParamField>
 
@@ -65,9 +83,11 @@ Controls whether the generator produces the custom command infrastructure alongs
 
 Set to `false` to produce a spec-only CLI with no custom command support.
 
-```yaml title="generators.yml"
-config:
-  customCommands: false
+```yaml title="sdk-config.yml"
+targets:
+  - language: cli
+    generation:
+      customCommands: false
 ```
 </ParamField>
 
@@ -76,9 +96,11 @@ Renames the global flag (and its derived environment variable) that a downstream
 
 Any kebab identifier is accepted except the CLI's built-in flag names (`params`, `output`, `json`, `format`, `dry-run`, `base-url`, `page-all`, `page-limit`, `page-delay`, `no-pager`, `no-extract`, `no-retry`, `no-stream`, `quiet`, `query`, `help`, `debug`, `schema`). The default `user-agent-suffix` exposes `--user-agent-suffix` and `<NAME>_USER_AGENT_SUFFIX`. For example, setting `via` exposes `--via` and `<NAME>_VIA` instead (the environment variable is `<NAME>_` followed by the flag uppercased with hyphens converted to underscores):
 
-```yaml title="generators.yml"
-config:
-  userAgentSuffixFlag: via
+```yaml title="sdk-config.yml"
+targets:
+  - language: cli
+    generation:
+      userAgentSuffixFlag: via
 ```
 
 A consumer of the generated `contoso` CLI then appends its product token with the renamed flag:
@@ -89,89 +111,32 @@ contoso plants list --via "partner-app/3.1"
 ```
 </ParamField>
 
-<ParamField path="generateWireTests" type="boolean" default="false" toc={true}>
-Generates a wiremock-based integration test suite alongside the CLI. When enabled, generation emits a `wire_test.rs` harness and a `wire-test-cases.json` manifest with one case per endpoint example. Each test starts an in-process mock server, drives the compiled binary, and asserts the command hit the expected method and path and rendered the mocked response. The generated CI runs the suite with `cargo test`.
-
-Only commands derived from the API spec are covered; [custom commands](/learn/cli-generator/get-started/custom-commands) aren't.
-
-```yaml title="generators.yml"
-config:
-  generateWireTests: true
-```
-</ParamField>
-
 <ParamField path="splitTypeCrates" type="boolean" default="false" toc={true}>
 Splits the generated types into one crate per API, plus a shared `core` crate for types that more than one API references, nested inside `<binaryName>-types/crates/`. By default, every generated model lands in a single `<binaryName>-types` crate.
 
 Enable it for workspaces with many specs, where that single crate is one `rustc` compilation unit large enough to exhaust the memory of a standard CI runner and get `cargo build` killed. Splitting also shortens builds, because the per-API crates compile in parallel and cache independently. `<binaryName>-types` remains as a facade that re-exports everything, so imports such as `use plant_types::Plant;` keep resolving and [custom command](/learn/cli-generator/get-started/custom-commands) handlers need no changes. The shipped artifact is the same either way: one binary with every spec embedded.
 
-```yaml title="generators.yml"
-config:
-  binaryName: plant
-  splitTypeCrates: true
+```yaml title="sdk-config.yml"
+targets:
+  - language: cli
+    generation:
+      binaryName: plant
+      splitTypeCrates: true
 ```
 </ParamField>
-
-<ParamField path="banner" type="string | object" toc={true} required={false}>
-Prints a logo or wordmark above the root `--help` output. The banner is plain text, so any text art or Unicode block art works, including a logo converted from an image into block characters.
-
-Store the art as an asset in your Fern config repository and reference it with `file`. Put brand colours in `colors`:
-
-```yaml title="generators.yml"
-config:
-  binaryName: acme
-  banner:
-    file: ./assets/cli-banner.txt
-    colors: ["#2929CC", "#4949F2", "#30F2B1"]
-```
-
-For short text, set `banner` to a string (`banner: "Acme CLI"`) or use `text` instead of `file`.
-
-The banner shows only on root `--help` in an interactive terminal. It's printed without colour when `NO_COLOR` is set or `TERM=dumb`, and omitted when output is piped. Subcommand help never shows it.
-</ParamField>
-<Indent>
-<ParamField path="banner.file" type="string" required={false}>
-Path to a text file containing the banner, relative to `generators.yml` (for example, `fern/assets/cli-banner.txt` next to `fern/generators.yml`). Fern reads the file at generation time and bakes its contents into the CLI, so edit the asset and regenerate to change the banner. Can't be combined with `text`.
-</ParamField>
-
-<ParamField path="banner.text" type="string" required={false}>
-The banner inline, typically as a YAML block scalar (`text: |`). Can't be combined with `file`.
-</ParamField>
-
-<ParamField path="banner.colors" type="string[]" required={false}>
-Six-digit hex colours such as `"#4949F2"`. One colour renders the banner solid; two or more render a gradient through each colour in order, along `direction`. Ignored when the art already contains terminal colour escape codes, which are printed as given, so you can colour a logo character by character.
-</ParamField>
-
-<ParamField path="banner.direction" type="string" default="horizontal" required={false}>
-Axis the `colors` gradient runs along: `horizontal` (left to right), `vertical` (top to bottom), or `diagonal` (top-left to bottom-right).
-</ParamField>
-
-<ParamField path="banner.lineColors" type="string[]" required={false}>
-One solid hex colour per line of the banner, in order. Lines past the end of the list reuse its last colour. Use this for striped or two-tone wordmarks instead of a gradient. Can't be combined with `colors`.
-
-```yaml title="generators.yml"
-config:
-  banner:
-    file: ./assets/cli-banner.txt
-    lineColors: ["#2929CC", "#2929CC", "#4949F2", "#4949F2", "#30F2B1", "#30F2B1"]
-```
-</ParamField>
-
-<ParamField path="banner.animate" type="boolean" default="false" required={false}>
-When `true`, root `--help` in an interactive terminal plays a short shimmer across the banner, then prints it statically. Pipes, captured output, `NO_COLOR`, `TERM=dumb`, and terminals too small for the banner skip the animation.
-</ParamField>
-</Indent>
 
 <ParamField path="profiles" type="object" toc={true} required={false}>
 Adds [named profiles](/learn/cli-generator/get-started/authentication#named-profiles) to the generated CLI: a top-level `profiles` subcommand group, a global `--profile` / `-p` flag, and a `<binaryName>_PROFILE` environment variable. A profile stores a tenant's credential, parameter defaults, server URL variables, base URL, retry limit, and default output format once, so users of multi-tenant APIs don't pass an account identifier on every command.
 
 Off by default. A CLI generated without this block is byte-identical to one generated before the option existed, and a `profiles` block with `enabled` unset or `false` is a no-op.
 
-```yaml title="generators.yml"
-config:
-  binaryName: acme
-  profiles:
-    enabled: true
+```yaml title="sdk-config.yml"
+targets:
+  - language: cli
+    generation:
+      binaryName: acme
+      profiles:
+        enabled: true
 ```
 </ParamField>
 <Indent>
@@ -188,26 +153,23 @@ Dotted command path of an operation that revokes a profile's remote credential, 
 </ParamField>
 
 <ParamField path="profiles.provisionOperation" type="object" required={false}>
-An operation that mints a profile's remote credential (an API key), and how its response maps onto that credential. When set, `profiles create` gains a `--provision` flag that calls the operation with the credentials already in the caller's environment and stores the mapped response fields in the OS keychain without printing the secret. In an interactive terminal, it also turns on the [guided API-key flow](/learn/cli-generator/get-started/authentication#guided-api-key-setup) for `auth login` and `profiles create`. Paired with `revokeOperation`, a profile owns its API key end to end: minted by `profiles create --provision` or the guided flow, revoked by `profiles remove --revoke`. When omitted, the flag isn't registered and the guided flow is off.
+An operation that mints a profile's remote credential (an API key), and how its response maps onto that credential. When set, `profiles create` can call the operation with the credentials already in the caller's environment and store the mapped response fields in the OS keychain without printing the secret. In an interactive terminal, it also turns on the [guided API-key flow](/learn/cli-generator/get-started/authentication#guided-api-key-setup) for `auth login` and `profiles create`. Paired with `revokeOperation`, a profile owns its API key end to end: minted when the profile is created, revoked by `profiles remove --revoke`. When omitted, the guided flow is off.
 
-```yaml title="generators.yml"
-config:
-  binaryName: acme
-  profiles:
-    enabled: true
-    revokeOperation: iam.keys.remove
-    provisionOperation:
-      operation: iam.keys.create
-      credential:
-        username: sid
-        password: secret
-      revokeParameters:
-        Sid: sid
-      flag: api-key
-      parameters:
-        FriendlyName: "{cli} for {user} on {host}"
-      profileParameters:
-        AccountSid: username
+```yaml title="sdk-config.yml"
+targets:
+  - language: cli
+    generation:
+      binaryName: acme
+      profiles:
+        enabled: true
+        revokeOperation: iam.keys.remove
+        provisionOperation:
+          operation: iam.keys.create
+          credential:
+            username: sid
+            password: secret
+          revokeParameters:
+            Sid: sid
 ```
 </ParamField>
 <Indent>
@@ -223,108 +185,55 @@ Maps each credential field to the top-level response field that supplies it. The
 Maps each parameter the `revokeOperation` takes to the response field it's read from, such as `Sid: sid` to record the new key's ID. The values are stored on the profile as `credential_parameters` and used only by `profiles remove --revoke`, never as request defaults. They're kept in plaintext profile metadata and shown by `profiles show`, so map identifiers here, never secrets. Without `revokeParameters`, the profile has no record of which key it owns, and `--revoke` can only pass the profile's own parameters.
 </ParamField>
 
-<ParamField path="profiles.provisionOperation.flag" type="string" default="provision" required={false}>
-Long name of the `profiles create` flag that mints a key, without the leading dashes. Must start with a lowercase letter and contain only `[a-z0-9-]`. Set `api-key` to expose `--api-key`; `--provision` stays accepted as a hidden alias, so existing scripts keep working.
+<ParamField path="skills" type="boolean" toc={true}>
+Whether the generated CLI includes skills for AI agents.
 </ParamField>
 
-<ParamField path="profiles.provisionOperation.parameters" type="map<string, string>" required={false}>
-Extra request values sent with the provisioning operation, such as a label for the new key. Values may contain these placeholders, substituted at request time:
-
-- `{cli}`: the CLI's binary name
-- `{profile}`: the name of the profile being created
-- `{user}`: the local username (`USER`, or `USERNAME` on Windows)
-- `{host}`: the machine's short hostname
-
-A parameter the profile already sets takes precedence over the configured value. Values can't contain quotes, backslashes, or control characters.
+<ParamField path="paginationParameters" type="string[]" toc={true}>
+Request parameter names the CLI treats as pagination controls rather than ordinary flags, so they work with [automatic pagination](/learn/cli-generator/get-started/features#pagination).
 </ParamField>
 
-<ParamField path="profiles.provisionOperation.profileParameters" type="map<string, string>" required={false}>
-Maps each profile parameter to the credential field it's copied from when the credential is typed in the guided flow, such as `AccountSid: username` to save the account ID the user entered. Requests keep targeting that account after the typed credential is replaced by the provisioned key. A value passed with `--set` takes precedence. Keys and values may contain only `[A-Za-z0-9_.-]`.
-</ParamField>
-</Indent>
-</Indent>
+<ParamField path="oauthTokenEndpoints" type="map<string, object>" toc={true}>
+Custom request and response property names for an OAuth scheme's token and refresh endpoints, keyed by the ID of an `oauth2` scheme in `api.auth.schemes` that has a `client-credentials` flow. Use it when the token endpoint doesn't use the standard OAuth property names. See [OAuth flows](/learn/cli-generator/get-started/authentication#oauth-flows).
 
-<ParamField path="packageIdentity" type="object" toc={true} required={false}>
-Sets the Cargo `[package]` metadata of the generated crate. cargo-dist names the GitHub Release archives and the shell and PowerShell installers after `name`, and the installers download archives from the releases of `repository`. When the generator delivers to a GitHub repository through the [`github`](#github) block, unset `name`, `repository`, and `homepage` default from that repository, so the installers work without any `packageIdentity` config. Without the `github` block, the crate keeps Fern's template identity (`fern-cli-sdk`, `https://github.com/fern-api/cli-sdk`), and `authors` and `keywords` keep Fern's values in every mode. Explicit values always take precedence over these defaults.
-
-```yaml title="generators.yml"
-config:
-  binaryName: plant
-  packageIdentity:
-    name: plant-cli
-    description: Command-line interface for the Plant API.
-    license: MIT
-    repository: https://github.com/garden/plant-cli
-    homepage: https://example.com
-    authors: ["Plants <support@garden-plants.com>"]
-    keywords: ["plants", "cli"]
+```yaml title="sdk-config.yml"
+targets:
+  - language: cli
+    generation:
+      oauthTokenEndpoints:
+        oauth:
+          token:
+            requestProperties:
+              clientId: username
+              clientSecret: password
 ```
 </ParamField>
 
-<Indent>
-<ParamField path="packageIdentity.name" type="string" required={false}>
-Crate name. Must be a valid cargo crate name: it starts with a letter and contains only letters, digits, `-`, and `_`. Invalid values fail at generation time with a config error instead of surfacing later as a manifest error during `cargo build`. The generator renames the matching `Cargo.lock` entry in the same pass, so `cargo build --locked` still resolves the workspace member.
+## Package metadata
 
-For GitHub output, defaults to `binaryName` when that's a valid crate name of at most 64 characters and doesn't collide with a crate already in the generated `Cargo.lock`; otherwise defaults to `fern-cli-sdk`. Release assets and installers are named after it, such as `<binaryName>-installer.sh`. Set `name: fern-cli-sdk` to keep the `fern-cli-sdk-*` asset names.
-</ParamField>
+The Cargo package's metadata comes from the target's `package` block, documented in the [`sdk-config.yml` reference](/learn/sdks/reference/sdk-config#package). With GitHub delivery, the repository and homepage default from `output.github.repository`. Set the Cargo package name with [`crateName`](#cratename).
 
-<ParamField path="packageIdentity.description" type="string" required={false}>
-Short crate description shown on crates.io. When [`distribution.homebrew`](#distribution) is configured, defaults to a description derived from the API's display name, which also becomes the formula's `desc`.
-</ParamField>
-
-<ParamField path="packageIdentity.license" type="string" required={false}>
-SPDX license expression, such as `Apache-2.0`.
-</ParamField>
-
-<ParamField path="packageIdentity.repository" type="string" required={false}>
-URL of the crate's source repository. For GitHub output, defaults to the URL of the `github` repository. The installers and Homebrew formula download release archives from this repository.
-</ParamField>
-
-<ParamField path="packageIdentity.homepage" type="string" required={false}>
-URL of the project homepage. For GitHub output, defaults to the URL of the `github` repository.
-</ParamField>
-
-<ParamField path="packageIdentity.authors" type="array of strings" required={false}>
-Crate authors, in Cargo's `Name <email>` form.
-</ParamField>
-
-<ParamField path="packageIdentity.keywords" type="array of strings" required={false}>
-Keywords for crates.io search.
-</ParamField>
-</Indent>
-
-<ParamField path="extraDependencies" type="object" toc={true} required={false}>
-Adds crates to the `[dependencies]` table of the generated root `Cargo.toml`. Use it when code you keep in `.fernignore`, such as [custom command](/learn/cli-generator/get-started/custom-commands) handlers or custom authentication, imports crates the generated CLI doesn't already depend on. Each value is a version requirement string or a dependency table with any of `version`, `features`, `optional`, `defaultFeatures`, `package`, `path`, `git`, `branch`, `rev`, and `registry`. Crates the generated CLI already depends on can't be redeclared.
-
-```yaml title="generators.yml"
-config:
-  binaryName: plant
-  extraDependencies:
-    google-cloud-auth: "1.16"
-    google-cloud-iam-credentials-v1:
-      version: "1.12"
-      defaultFeatures: false
+```yaml title="sdk-config.yml"
+targets:
+  - language: cli
+    package:
+      description: Command-line interface for the Plant Store API
+      license:
+        type: MIT
+      homepage: https://plantstore.dev
+    generation:
+      binaryName: plant
 ```
 
-Generation writes the dependencies to `Cargo.toml` only. The first `cargo build` after generation resolves them into `Cargo.lock`.
-</ParamField>
+## Output and distribution
 
-<ParamField path="extraDevDependencies" type="object" required={false}>
-Same as `extraDependencies`, for the `[dev-dependencies]` table.
+The target's `output` block controls delivery. Use `delivery: files` with `path` to write the generated Rust project locally, or `delivery: github` with `output.github` to push it to a repository that builds and releases the CLI. npm publishing goes in `output.publish`, and Homebrew and Scoop go in `output.distribution`. See [Publishing](/learn/cli-generator/get-started/publishing) for the full setup and the [`sdk-config.yml` reference](/learn/sdks/reference/sdk-config#output) for every `output` field.
 
-```yaml title="generators.yml"
-config:
-  extraDevDependencies:
-    mockall: "0.11"
-```
-</ParamField>
+<ParamField path="output.distribution" type="object" toc={true} required={false}>
+Configures the release workflow that builds the GitHub Release archives every generated CLI ships, and adds opt-in Homebrew and Scoop publishing on top of them. The release workflow runs from a tagged release, so `distribution` is honored only when the generator delivers to a GitHub repository through `output.delivery: github`; any other target or delivery mode rejects it. Enabling a channel adds a publish job to the release workflow and the matching install command to the generated README. Each job pushes to a public [tap or bucket repository](/learn/cli-generator/get-started/publishing#configure-distribution-channels) you create, authenticating with either a personal access token per channel or a GitHub App whose credentials you store as repository secrets.
 
-<ParamField path="distribution" type="object" toc={true} required={false}>
-Configures the release workflow that builds the GitHub Release archives every generated CLI ships, and adds opt-in Homebrew and Scoop publishing on top of them. The release workflow runs from a tagged release, so `distribution` is honored only when the generator delivers to a GitHub repository through the `github` block. Enabling a channel adds a publish job to the release workflow and the matching install command to the generated README. Each job pushes to a public [tap or bucket repository](/learn/cli-generator/get-started/publishing#configure-distribution-channels) you create, authenticating with either a personal access token per channel or a GitHub App whose credentials you store as repository secrets.
-
-```yaml title="generators.yml"
-config:
-  binaryName: plant
+```yaml title="sdk-config.yml"
+output:
   distribution:
     homebrew:
       tap: garden/homebrew-tap
@@ -334,182 +243,49 @@ config:
 ```
 </ParamField>
 <Indent>
-<ParamField path="distribution.githubApp" type="object" required={false}>
-GitHub App that the Homebrew and Scoop publish jobs use to mint a short-lived installation token at release time, instead of reading a long-lived personal access token. Declared once for both channels; a tap and a bucket under different accounts each need the App [installed on their own account](/learn/cli-generator/get-started/publishing#configure-distribution-channels), since every job requests a token for the owner of the repository it pushes to. A channel's `tokenEnvironmentVariable` takes precedence over `githubApp`.
+<ParamField path="output.distribution.githubApp" type="object" required={false}>
+GitHub App that the Homebrew and Scoop publish jobs use to mint a short-lived installation token at release time, instead of reading a long-lived personal access token. Declared once for both channels; a tap and a bucket under different accounts each need the App [installed on their own account](/learn/cli-generator/get-started/publishing#configure-distribution-channels), since every job requests a token for the owner of the repository it pushes to. A channel's `tokenSecretName` takes precedence over `githubApp`.
 </ParamField>
 
-<ParamField path="distribution.githubApp.appIdSecret" type="string" required={true}>
+<ParamField path="output.distribution.githubApp.appIdSecretName" type="string" required={true}>
 Name of the GitHub Actions secret holding the App's App ID or Client ID.
 </ParamField>
 
-<ParamField path="distribution.githubApp.privateKeySecret" type="string" required={true}>
+<ParamField path="output.distribution.githubApp.privateKeySecretName" type="string" required={true}>
 Name of the GitHub Actions secret holding the entire contents of the App's private key `.pem` file, line breaks included.
 </ParamField>
 
-<ParamField path="distribution.githubAttestations" type='"auto" | boolean' default="auto" required={false}>
+<ParamField path="output.distribution.githubAttestations" type='"auto" | boolean' default="auto" required={false}>
 Whether the release workflow signs the GitHub Release build artifacts with [GitHub artifact attestations](https://docs.github.com/en/actions/security-for-github-actions/using-artifact-attestations/using-artifact-attestations-to-establish-provenance-for-builds). GitHub supports attestations on private repositories only with GitHub Enterprise Cloud; on any other private repository the attest step fails every build and no release is cut.
 
 - `"auto"`: attests on public repositories and skips the step on private ones.
 - `true`: always attests. Set this for a private repository on GitHub Enterprise Cloud, where `"auto"` would skip attestations that work.
 - `false`: never attests. Removes the attest step and its `attestations: write` permission from the release workflow and sets `github-attestations = false` in `dist-workspace.toml`.
 
-```yaml title="generators.yml"
-config:
+```yaml title="sdk-config.yml"
+output:
   distribution:
     githubAttestations: false
 ```
 </ParamField>
 
-<ParamField path="distribution.homebrew.tap" type="string" required={true}>
+<ParamField path="output.distribution.homebrew.tap" type="string" required={true}>
 Tap repository as `<owner>/<repo>`, such as `garden/homebrew-tap`. The repository must already exist and be public.
 </ParamField>
 
-<ParamField path="distribution.homebrew.formula" type="string" required={false}>
+<ParamField path="output.distribution.homebrew.formula" type="string" required={false}>
 Formula name, which is also the `.rb` filename `brew install <tap>/<formula>` resolves against. Must start with a lowercase letter and contain only `[a-z0-9-]`. Defaults to `binaryName`.
 </ParamField>
 
-<ParamField path="distribution.homebrew.tokenEnvironmentVariable" type="string" default="HOMEBREW_TAP_TOKEN" required={false}>
+<ParamField path="output.distribution.homebrew.tokenSecretName" type="string" default="HOMEBREW_TAP_TOKEN" required={false}>
 Name of the GitHub Actions secret holding a token with write access to the tap repository. The workflow's built-in `GITHUB_TOKEN` is scoped to the CLI repository and is rejected here.
 </ParamField>
 
-<ParamField path="distribution.scoop.bucket" type="string" required={true}>
+<ParamField path="output.distribution.scoop.bucket" type="string" required={true}>
 Bucket repository as `<owner>/<repo>`, such as `garden/scoop-bucket`. The repository must already exist and be public. The generated manifest declares a `64bit` architecture only.
 </ParamField>
 
-<ParamField path="distribution.scoop.tokenEnvironmentVariable" type="string" default="SCOOP_BUCKET_TOKEN" required={false}>
+<ParamField path="output.distribution.scoop.tokenSecretName" type="string" default="SCOOP_BUCKET_TOKEN" required={false}>
 Name of the GitHub Actions secret holding a token with write access to the bucket repository.
 </ParamField>
 </Indent>
-
-## Publishing & delivery
-
-### `output`
-
-Configures where to publish the generated CLI. The CLI generator supports `npm` and `local-file-system` output locations; binaries also reach users through the GitHub Release that each tag produces, plus the opt-in Homebrew and Scoop channels configured under [`distribution`](#config-options). The [publishing workflow](/learn/cli-generator/get-started/publishing) covers OIDC auth, CI builds, and tap and bucket setup, and [self-hosted generation](/learn/cli-generator/get-started/local-generation) covers Docker-based generation on your own machine.
-
-<AccordionGroup>
-<Accordion title="npm">
-
-Publish the CLI as an npm package. Users install with `npm install -g @myorg/my-cli` or `npx @myorg/my-cli`.
-
-```yaml title="generators.yml"
-groups:
-  cli:
-    generators:
-      - name: fern-cli-generator
-        version: <Markdown src="/snippets/version-number-cli-generator.mdx"/>
-        output:
-          location: npm
-          package-name: "@myorg/my-cli"
-          token: "${NPM_TOKEN}"
-        config:
-          binaryName: my-cli
-```
-</Accordion>
-<Accordion title="Local file system">
-
-Write the generated Rust project to a local directory for manual building and distribution.
-
-```yaml title="generators.yml"
-groups:
-  cli:
-    generators:
-      - name: fern-cli-generator
-        version: <Markdown src="/snippets/version-number-cli-generator.mdx"/>
-        output:
-          location: local-file-system
-          path: ../my-cli
-        config:
-          binaryName: my-cli
-```
-</Accordion>
-</AccordionGroup>
-
-### `github`
-
-Specifies how generated CLI code is delivered to your repository. Supports the same [modes as SDKs](/learn/sdks/legacy/reference/generators-yml#github): `release`, `pull-request`, and `push`.
-
-```yaml title="generators.yml"
-groups:
-  cli:
-    generators:
-      - name: fern-cli-generator
-        version: <Markdown src="/snippets/version-number-cli-generator.mdx"/>
-        config:
-          binaryName: my-cli
-        github:
-          repository: my-org/my-cli
-          mode: release
-```
-
-| Mode | Behavior |
-| --- | --- |
-| `release` | Commits to the default branch and tags a new release. Triggers CI workflows that build and publish the binary. |
-| `pull-request` | Opens a PR with the generated source for review before merging. |
-| `push` | Pushes directly to the specified branch. Requires `branch` field. |
-
-## Command generation
-
-### `audiences`
-
-Filter which API endpoints are included in the generated CLI based on audience tags. Only endpoints tagged with the specified audiences in your API spec (via [`x-fern-audiences`](/learn/api-definitions/openapi/extensions/audiences)) produce commands. Without this filter, all endpoints generate commands.
-
-```yaml title="generators.yml"
-groups:
-  cli:
-    audiences: ["external"]
-    generators:
-      - name: fern-cli-generator
-        version: <Markdown src="/snippets/version-number-cli-generator.mdx"/>
-        config:
-          binaryName: my-cli
-```
-
-### `smart-casing`
-
-Enables intelligent case conversion that preserves numbers and common programming patterns in generated command and flag names.
-
-```yaml title="generators.yml"
-groups:
-  cli:
-    generators:
-      - name: fern-cli-generator
-        version: <Markdown src="/snippets/version-number-cli-generator.mdx"/>
-        smart-casing: true
-        config:
-          binaryName: my-cli
-```
-
-### `api`
-
-Override authentication settings at the generator level. This uses the same schema as the [SDK generator-level `api.auth`](/learn/sdks/legacy/reference/generators-yml#override-api-authentication-settings) to control which auth schemes the CLI uses.
-
-```yaml title="generators.yml"
-groups:
-  cli:
-    generators:
-      - name: fern-cli-generator
-        version: <Markdown src="/snippets/version-number-cli-generator.mdx"/>
-        api:
-          auth: BearerAuth
-        config:
-          binaryName: my-cli
-```
-
-### `metadata`
-
-Attach package metadata to the generated CLI for use in published artifacts.
-
-```yaml title="generators.yml"
-groups:
-  cli:
-    generators:
-      - name: fern-cli-generator
-        version: <Markdown src="/snippets/version-number-cli-generator.mdx"/>
-        metadata:
-          package-description: "CLI for the Contoso API"
-          author: "Contoso Inc."
-          reference-url: "https://docs.contoso.com/cli"
-        config:
-          binaryName: contoso
-```
