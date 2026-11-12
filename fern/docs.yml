@@ -10,6 +10,9 @@ instances:
 
 title: Fern Documentation
 
+announcement:
+  message: "Custom domains that still point to Vercel must point to `cname.ferndocs.com` by December 1, 2026. [Update your DNS](/learn/docs/preview-publish/vercel-domain-migration)"
+
 translations:
   - lang: en
     default: true
@@ -43,6 +46,15 @@ products:
     image: ./images/product-switcher/product-switcher-sdks-light.png
     slug: sdks
     subtitle: Generate client libraries in multiple languages
+    versions:
+      - display-name: Current
+        path: ./products/sdks/current.yml
+        slug: current
+        announcement:
+          message: "Meet your improved SDK generator: Describe your SDK once, add a language with one line, and get the newest SDK generators by default. [Migrate now](/learn/sdks/legacy/generators/migration-guides/sdk-config)"
+      - display-name: Legacy
+        path: ./products/sdks/legacy/legacy.yml
+        slug: legacy
 
   - display-name: CLI Generator
     path: ./products/cli-generator/cli-generator.yml
@@ -50,6 +62,14 @@ products:
     image: ./images/product-switcher/product-switcher-cli-generator-light.png
     slug: cli-generator
     subtitle: Generate a CLI from your API definition
+
+  # TODO(design): placeholder icon/image reused from CLI Generator; swap in MCP Generator artwork.
+  - display-name: MCP Generator
+    path: ./products/mcp-generator/mcp-generator.yml
+    icon: fa-regular fa-robot
+    image: ./images/product-switcher/product-switcher-cli-generator-light.png
+    slug: mcp-generator
+    subtitle: Generate and host an MCP server from your API definition
 
   - display-name: Docs
     path: ./products/docs/docs.yml
@@ -171,7 +191,7 @@ page-actions:
   options:
     skills:
       title: Install agent skills
-      description: Skills for authoring Fern documentation, maintained in our open-source skills repo.
+      description: Skills for building with Fern across docs, OpenAPI specs, SDKs, and CI, maintained in our open-source skills repo.
       learn-more-url: https://buildwithfern.com/learn/docs/ai-features/agent-skills
       repository: https://github.com/fern-api/skills
       install-command: npx skills add fern-api/skills
@@ -181,6 +201,24 @@ page-actions:
             Author and edit Fern documentation: MDX pages, navigation, docs.yml
             config, custom components, landing pages, and changelog entries.
           url: https://github.com/fern-api/skills/tree/main/skills/fern-docs
+        - name: fern-spec
+          description: >-
+            Author and tune the OpenAPI spec Fern consumes: operationId and
+            schema hygiene, x-fern-* extensions, overlays versus overrides,
+            auth and servers, and spec sync.
+          url: https://github.com/fern-api/skills/tree/main/skills/fern-spec
+        - name: fern-sdks
+          description: >-
+            Configure and generate Fern SDKs: generators.yml, auth schemes,
+            environments, .fernignore for custom code, and common generation
+            failures.
+          url: https://github.com/fern-api/skills/tree/main/skills/fern-sdks
+        - name: fern-workflows
+          description: >-
+            Set up CI/CD that runs the Fern CLI: fern check on pull requests,
+            docs previews and publishes, SDK releases, and handling FERN_TOKEN
+            safely.
+          url: https://github.com/fern-api/skills/tree/main/skills/fern-workflows
 
 settings:
   http-snippets:
@@ -191,7 +229,7 @@ js:
     strategy: afterInteractive
 
 agents:
-  page-directive: "For clean Markdown content of this page, append .md to this URL. For the complete documentation index, see https://buildwithfern.com/learn/llms.txt."
+  page-directive: "For clean Markdown content of this page, append .md to this URL. For the complete documentation index, see https://buildwithfern.com/learn/llms.txt. For task-scoped instructions for coding agents working in a Fern project, see https://buildwithfern.com/learn/home/fern-instructions.md."
 
 analytics:
   # posthog:
@@ -234,7 +272,7 @@ redirects:
   - source: /learn/sdks/capabilities/augment-with-custom-code
     destination: /learn/sdks/overview/custom-code
   - source: /learn/sdks/capabilities/o-auth-token-refresh
-    destination: /learn/sdks/reference/generators-yml#auth-schemes
+    destination: /learn/sdks/legacy/reference/generators-yml#auth-schemes
   - source: /learn/sdks/capabilities/retries-with-backoff
     destination: /learn/sdks/deep-dives/retries-with-backoff
   - source: /learn/sdks/capabilities/web-sockets
@@ -292,19 +330,26 @@ redirects:
   - source: /learn/sdks/introduction/customer-showcase
     destination: /learn/sdks/overview/introduction
   - source: /learn/sdks/introduction/changelog/ts/:slug*
-    destination: /learn/sdks/generators/typescript/changelog/:slug*
+    destination: /learn/sdks/legacy/generators/typescript/changelog/:slug*
   - source: /learn/sdks/introduction/changelog/python/:slug*
-    destination: /learn/sdks/generators/python/changelog/:slug*
+    destination: /learn/sdks/legacy/generators/python/changelog/:slug*
   - source: /learn/sdks/introduction/changelog/csharp/:slug*
-    destination: /learn/sdks/generators/csharp/changelog/:slug*
+    destination: /learn/sdks/legacy/generators/csharp/changelog/:slug*
   - source: /learn/sdks/introduction/changelog/go/:slug*
-    destination: /learn/sdks/generators/go/changelog/:slug*
+    destination: /learn/sdks/legacy/generators/go/changelog/:slug*
   - source: /learn/sdks/introduction/changelog/java/:slug*
-    destination: /learn/sdks/generators/java/changelog/:slug*
+    destination: /learn/sdks/legacy/generators/java/changelog/:slug*
   - source: /learn/sdks/introduction/changelog/ruby/:slug*
-    destination: /learn/sdks/generators/ruby/changelog/:slug*
+    destination: /learn/sdks/legacy/generators/ruby/changelog/:slug*
   - source: /learn/sdks/introduction/changelog/php/:slug*
-    destination: /learn/sdks/generators/php/changelog/:slug*
+    destination: /learn/sdks/legacy/generators/php/changelog/:slug*
+  # Generator changelog entries before the Current SDK Config release (2026/10/19) moved to Legacy
+  - source: /learn/sdks/generators/:lang/changelog/:year(2023|2024|2025)/:rest*
+    destination: /learn/sdks/legacy/generators/:lang/changelog/:year/:rest*
+  - source: /learn/sdks/generators/:lang/changelog/2026/:month([1-9])/:day
+    destination: /learn/sdks/legacy/generators/:lang/changelog/2026/:month/:day
+  - source: /learn/sdks/generators/:lang/changelog/2026/10/:day([1-9]|1[0-8])
+    destination: /learn/sdks/legacy/generators/:lang/changelog/2026/10/:day
 
   # SDK overview (renamed pages)
   - source: /learn/sdks/overview/set-up-the-fern-folder
@@ -329,10 +374,12 @@ redirects:
     destination: /learn/sdks/generators/java/custom-code
 
   # SDK reference
-  - source: /learn/sdks/reference/generators-yml-reference
-    destination: /learn/sdks/reference/generators-yml
+  - source: /learn/sdks/legacy/reference/generators-yml-reference
+    destination: /learn/sdks/legacy/reference/generators-yml
   - source: /learn/sdks/reference/configuration
-    destination: /learn/sdks/reference/generators-yml
+    destination: /learn/sdks/legacy/reference/generators-yml
+  - source: /learn/sdks/reference/generators-yml
+    destination: /learn/sdks/legacy/reference/generators-yml
 
   # SDK misc legacy paths
   - source: /learn/sdks/client

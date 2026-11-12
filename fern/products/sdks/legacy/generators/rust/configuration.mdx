@@ -1,0 +1,166 @@
+---
+title: Rust configuration
+description: Configuration options for the Fern Rust SDK.
+---
+
+<Markdown src="/products/sdks/legacy/snippets/legacy-notice.mdx" current="/learn/sdks/generators/rust/configuration" />
+
+
+You can customize the behavior of the Rust SDK generator in `generators.yml`:
+
+```yaml {6-15} title="generators.yml"
+groups:
+  rust-sdk:
+    generators:
+      - name: fern-rust-sdk
+        version: <Markdown src="/snippets/version-number-rust.mdx"/>
+        config:
+          clientClassName: YourClientName
+          crateName: your-crate-name
+          crateVersion: "1.0.0"
+          dateTimeType: "offset"
+          environmentEnumName: YourEnvironment
+          enableWireTests: true
+```
+
+<ParamField path="clientClassName" type="string" required={false} toc={true}>
+The name of the generated client struct. This allows you to customize the struct name that users will instantiate when using your SDK.
+</ParamField>
+
+<ParamField path="crateName" type="string" required={false} toc={true}>
+The name of the generated Rust crate. This is used in `Cargo.toml` and determines how users will add your SDK as a dependency. By default, hyphens become underscores in the package name (`my-sdk` publishes as `my_sdk`); set [`preserveCrateNameHyphens`](#preservecratenamehyphens) to keep them.
+</ParamField>
+
+<ParamField path="crateVersion" type="string" required={false} toc={true}>
+The version of the generated crate. This is used in `Cargo.toml` for publishing to crates.io.
+</ParamField>
+
+<ParamField path="dateTimeType" type="'offset' | 'utc'" default="offset" required={false} toc={true}>
+Determines how timezone information is handled:
+
+- `offset`: Uses `DateTime<FixedOffset>` to preserve the original timezone from API responses
+- `utc`: Uses `DateTime<Utc>` to normalize all datetimes to UTC regardless of their original timezone
+
+Both options accept any datetime format and assume UTC if no timezone is provided in the datetime string.
+</ParamField>
+
+<ParamField path="environmentEnumName" type="string" required={false} toc={true}>
+The name of the generated environment enum. This allows you to customize the enum name that defines your API environments (such as production, staging, development).
+</ParamField>
+
+<ParamField path="enableWebsockets" type="boolean" default="false" required={false} toc={true}>
+Enable generation of [WebSocket clients](/learn/sdks/legacy/deep-dives/websocket-clients) for APIs with WebSocket channels.
+</ParamField>
+
+<ParamField path="enableWireTests" type="boolean" default="false" required={false} toc={true}>
+When enabled, generates [mock server (wire) tests](/learn/sdks/legacy/deep-dives/testing#mock-server-tests) to verify that the SDK sends the correct HTTP requests and correctly handles responses per the API spec.
+</ParamField>
+
+<ParamField path="generateExamples" type="boolean" default="true" required={false} toc={true}>
+When enabled, generates code examples in the README and reference documentation.
+</ParamField>
+
+<ParamField path="maxRetries" type="number" required={false} toc={true}>
+The default number of retries for failed requests. When not set, the generated SDK defaults to 3 retries. SDK users can still override this per-request via request options.
+</ParamField>
+
+<ParamField path="preserveCrateNameHyphens" type="boolean" default="false" required={false} toc={true}>
+Keeps hyphens from [`crateName`](#cratename) in the Cargo package name. By default, the generator converts every run of hyphens and underscores to a single underscore, so `crateName: my-sdk` produces `name = "my_sdk"` in `Cargo.toml`. crates.io treats hyphenated and underscored spellings as the same crate, so enable this option when your crate is already published under a hyphenated name.
+
+```yaml title="generators.yml"
+config:
+  crateName: my-sdk
+  preserveCrateNameHyphens: true
+```
+
+The hyphenated name applies to the `Cargo.toml` package name, the default description and docs.rs documentation URL, the default crates.io publish package name, and the README install snippet (`cargo add my-sdk`). The name is still lowercased, invalid characters are replaced, repeated separators are collapsed, and leading or trailing separators are trimmed. Rust code continues to import the crate by its underscored name (`use my_sdk::prelude::*`), since Cargo maps a hyphenated package name to an underscored library name. When `crateName` isn't set, the default name derived from your organization and API name also keeps its hyphens.
+</ParamField>
+
+<ParamField path="respectOptionalRequestBody" type="boolean" default="false" required={false} toc={true}>
+Lets callers omit the request body on endpoints with an optional request body. The method takes the body as an `Option`, and a call that passes `None` sends no body and no `Content-Type` header, instead of an empty JSON object (`{}`). Enable this when your API treats a missing body differently from an empty one.
+
+Only applies to request bodies declared as a single named type that the endpoint takes on its own. Required bodies, bodies folded into a request wrapper, and inlined request properties are unaffected.
+</ParamField>
+
+<ParamField path="userAgentFromPlatformHeaders" type="boolean" default="false" required={false} toc={true}>
+Sets the default `ClientConfig.user_agent` to the platform `User-Agent` value that Fern computes for the SDK, matching the other Fern SDKs. By default, the Rust SDK uses `"<ApiName> Rust SDK"` (the API name in PascalCase) and ignores the `user-agent` template.
+
+With this option enabled, the default user agent is `<package-name>/<version>`, or the resolved `user-agent` template when one is set. The template supports the `{packageName}`, `{version}`, `{language}`, `{generatorVersion}`, `{organization}`, and `{apiName}` placeholders and is resolved at generation time.
+
+```yaml title="generators.yml"
+config:
+  userAgentFromPlatformHeaders: true
+  user-agent: "plantstore-rust-sdk/{version}"
+```
+
+This sets the default user agent to `plantstore-rust-sdk/0.1.0`. When Fern has no platform `User-Agent` value for the generation (for example, when the SDK version isn't known), the default falls back to `"<ApiName> Rust SDK"`.
+</ParamField>
+
+### Package metadata
+
+Configure metadata for publishing to crates.io:
+
+```yaml title="generators.yml"
+config:
+  packageDescription: "SDK for the Plant Store API"
+  packageLicense: "MIT"
+  packageRepository: "https://github.com/your-org/your-sdk"
+  packageDocumentation: "https://docs.example.com"
+```
+
+<ParamField path="packageDescription" type="string" required={false} toc={true}>
+A description of the crate for crates.io. This appears in the crate's metadata and search results.
+</ParamField>
+
+<ParamField path="packageLicense" type="string" required={false} toc={true}>
+The license identifier for the crate (e.g., "MIT", "Apache-2.0").
+</ParamField>
+
+<ParamField path="packageLicenseFile" type="string" required={false} toc={true}>
+Path to a custom license file (e.g., `LICENSE.md`). When set, uses `license-file` instead of `license` in `Cargo.toml`. This is useful when your license isn't a standard Software Package Data Exchange (SPDX) identifier.
+</ParamField>
+
+<ParamField path="packageRepository" type="string" required={false} toc={true}>
+The URL of the crate's source repository.
+</ParamField>
+
+<ParamField path="packageDocumentation" type="string" required={false} toc={true}>
+The URL of the crate's documentation.
+</ParamField>
+
+### Dependencies
+
+Add custom dependencies to your generated SDK:
+
+```yaml title="generators.yml"
+config:
+  extraDependencies:
+    tokio: "1.0"
+    serde_json: "1.0"
+  extraDevDependencies:
+    mockall: "0.11"
+```
+
+<ParamField path="extraDependencies" type="object" required={false} toc={true}>
+Additional dependencies to include in the generated `Cargo.toml`. Specify as a map of crate names to version requirements. You can also specify full dependency specifications with features and default features:
+
+```yaml title="generators.yml"
+config:
+  extraDependencies:
+    reqwest:
+      version: "0.12"
+      defaultFeatures: true
+```
+
+```yaml title="generators.yml"
+config:
+  extraDependencies:
+    reqwest:
+      version: "0.12"
+      features: ["rustls-tls"]
+```
+</ParamField>
+
+<ParamField path="extraDevDependencies" type="object" required={false} toc={true}>
+Additional dev dependencies to include in the generated `Cargo.toml`. These are only used during development and testing.
+</ParamField>

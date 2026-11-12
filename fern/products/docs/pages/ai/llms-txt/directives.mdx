@@ -6,10 +6,12 @@ description: Configure the default directive prepended to every page served to A
 Every page served to AI agents is automatically prepended with a default directive that tells agents how to navigate your documentation programmatically:
 
 ```text title="Default page directive" wordWrap
-For clean Markdown of any page, append .md to the page URL. For a complete documentation index, see https://docs.example.com/llms.txt.
+For clean Markdown of any page, append .md to the page URL.
+For a complete documentation index, see https://docs.example.com/llms.txt.
+For AI client integration (Claude Code, Cursor, etc.), connect to the MCP server at https://docs.example.com/_mcp/server.
 ```
 
-The URLs in the directive are generated from your site's domain and basepath. The directive is injected after the frontmatter metadata section but before the page body, so agents see it first even if they truncate the rest of the page. It applies to individual page Markdown (`.md`/`.mdx` URLs), and human-facing documentation is unaffected.
+The URLs in the directive are generated from your site's domain and basepath. The [MCP server](/learn/docs/ai-features/mcp-server) line is omitted when [`page-actions.options.mcp`](/learn/docs/configuration/site-level-settings#page-actionsoptionsmcp) is `false` or [Ask Fern](/learn/docs/ai-features/ask-fern/overview) is disabled. The same rule applies to the MCP line in the "Instructions for AI Agents" section of `llms.txt`. The directive is injected after the frontmatter metadata section but before the page body, so agents see it first even if they truncate the rest of the page. It applies to individual page Markdown (`.md`/`.mdx` URLs), and human-facing documentation is unaffected.
 
 ## Customize agent directives
 
@@ -26,3 +28,20 @@ To disable the directive entirely, set `page-directive` to an empty string:
 agents:
   page-directive: ""
 ```
+
+## Product and version context
+
+On versioned or multi-product sites, Fern also adds a product and version context block to each page's agent Markdown (`.md`/`.mdx` URLs and the Markdown API). The block names the product and version the page belongs to and, for versioned pages, links to the `llms.txt` index of each version so agents can switch to the right version instead of mixing content across versions:
+
+```text title="Example product and version context" wordWrap
+> This page is for Video Calling, version Current (version ID: 4.x) (default).
+> For other versions, use one of these documentation indexes:
+> - Current (version ID: 4.x) (default): https://example.com/docs/video/latest/llms.txt
+> - 3.x: https://example.com/docs/video/3.x/llms.txt
+```
+
+The version ID is shown only when it differs from the version's display name, and `(default)` marks the default version. The index list includes the versions in the page's version group, excluding hidden and authenticated versions. Pages with no product or version context don't get the block.
+
+The context block is inserted directly before the page directive, separated by a blank line. It's added alongside a custom `page-directive` rather than replacing it, and it's still included when `page-directive` is set to an empty string. Content copied with the page's copy button doesn't include it.
+
+The same text is also rendered in the page HTML inside a hidden element with the `data-fern-agent-context` attribute, so agents reading the HTML get the same context without it being visible to readers.

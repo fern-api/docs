@@ -113,6 +113,7 @@ function FernStatusWidget() {
             if (dotClass === 'is-green') {
               const now = new Date();
               for (const m of data.scheduled_maintenances) {
+                if (m.ends_at && new Date(m.ends_at).getTime() < now.getTime()) continue;
                 const startsAt = new Date(m.starts_at);
                 if ((startsAt.getTime() - now.getTime()) / (1000 * 60 * 60) <= 24) {
                   dotClass = 'is-blue';

@@ -15,87 +15,67 @@ internally instead, generate to the local file system (optionally
 <Info>
 	This page assumes that you have:
 
-	* An initialized `fern` folder, a GitHub repository for your Ruby SDK, and a Ruby generator group in `generators.yml`. See [Generating an SDK (Ruby)](/learn/sdks/generators/ruby/quickstart).
+	* An initialized `fern` folder, a GitHub repository for your Ruby SDK, and a Ruby target in `sdk-config.yml`. See [Generating an SDK (Ruby)](/learn/sdks/generators/ruby/quickstart).
 </Info>
 
-## Configure `generators.yml`
+## Configure `sdk-config.yml`
+
+Update the Ruby target in `sdk-config.yml` to configure the gem name, client name, and publishing destination. Your `sdk-config.yml` [should live in your source repository](/learn/sdks/overview/project-structure) (or on your local machine), not the repository that contains your Ruby SDK code.
 
 <Steps>
 
-	  <Step title="Configure `output` location">
+	<Step title="Add a unique package name">
 
-		Next, change the output location in `generators.yml` from `local-file-system` (the default) to `pypi` to indicate that Fern should publish your package directly to the PyPI registry:
+	Your package name must be unique in the RubyGems repository, otherwise publishing your SDK to RubyGems will fail.
 
-	    ```yaml {6-7}
-	    groups: 
-	      ruby-sdk:
-	        generators:
-	          - name: fern-ruby-sdk
-	            version: <Markdown src="/snippets/version-number-ruby.mdx"/>
-	            output:
-	              location: rubygems
-
-	    ```
-	  </Step>
-
-	  <Step title="Add a unique package name">
-
-	     Your package name must be unique in the RubyGems repository, otherwise publishing your SDK to RubyGems will fail. Update your package name if you haven't done so already:
-
-
-```yaml {8}
-groups: 
-  ruby-sdk:
-    generators:
-      - name: fern-ruby-sdk
-        version: <Markdown src="/snippets/version-number-ruby.mdx"/>
-        output:
-          location: rubygems
-          package-name: your-package-name
+```yaml title="sdk-config.yml" {3-4}
+targets:
+  - language: ruby
+    package:
+      packageName: your-package-name
 ```
-	    
-	  </Step>
-	<Step title="Configure `clientModuleName`">
 
-	     The `clientModuleName` option controls the name of the generated client. This is the name customers use to import your SDK (`import { your-client-name } from 'your-package-name';`). 
+	</Step>
 
+	<Step title="Configure the client name">
 
-```yaml {9-10}
-groups: 
-  ruby-sdk:
-    generators:
-      - name: fern-ruby-sdk
-        version: <Markdown src="/snippets/version-number-ruby.mdx"/>
-        output:
-          location: rubygems
-          package-name: your-package-name
-        config:
-          clientModuleName: YourClientName # must be PascalCase
+	The `generation.naming.clientName` option controls the name of the generated client module.
+
+```yaml title="sdk-config.yml" {5-7}
+targets:
+  - language: ruby
+    package:
+      packageName: your-package-name
+    generation:
+      naming:
+        clientName: YourClientName
 ```
-	    
-	  </Step>
 
-	  <Step title="Add repository location">
+	</Step>
 
-	  Add the path to your GitHub repository to `generators.yml`: 
+	<Step title="Configure GitHub delivery and RubyGems publishing">
 
-```yaml {11-12}
-groups: 
-  ruby-sdk:
-    generators:
-      - name: fern-ruby-sdk
-        version: <Markdown src="/snippets/version-number-ruby.mdx"/>
-        output:
-          location: rubygems
-          package-name: your-package-name
-        config:
-          clientModuleName: YourClientName
-        github: 
-          repository: your-org/company-ruby
+	Set `output.delivery` to `github`, add the path to your GitHub repository, and set `output.publish.registry` to `rubygems`:
+
+```yaml title="sdk-config.yml" {8-13}
+targets:
+  - language: ruby
+    package:
+      packageName: your-package-name
+    generation:
+      naming:
+        clientName: YourClientName
+    output:
+      delivery: github
+      github:
+        repository: your-org/company-ruby
+      publish:
+        registry: rubygems
 ```
-	  
-	  </Step>
-  </Steps>
+
+	</Step>
+
+</Steps>
 
 ## Set up RubyGems publishing authentication
 
@@ -135,26 +115,6 @@ groups:
 
 	</Step>
 
-	<Step title="Configure RubyGems authentication token">
-
-	Add `api-key: ${RUBYGEMS_API_KEY}` to `generators.yml` to tell Fern to use the `RUBYGEMS_API_KEY` environment variable for authentication when publishing to the PyPI registry.
-
-```yaml title="ruby" {9}
-groups: 
-  ruby-sdk:
-    generators:
-      - name: fern-ruby-sdk
-        version: <Markdown src="/snippets/version-number-ruby.mdx"/>
-        output:
-          location: rubygems
-          package-name: your-package-name
-          api-key: ${RUBYGEMS_API_KEY}
-        config:
-          clientModuleName: YourClientName
-        github: 
-          repository: your-org/company-ruby
-```
-	</Step>
 
 </Steps>
 
@@ -179,7 +139,7 @@ groups:
 	Regenerate your SDK and publish it on RubyGems:
 
 	```bash
-	fern generate --group ruby-sdk --version <version>
+	fern generate --target ruby --version <version>
 	```
     Local machine output will verify that the release is pushed to your
     repository and tagged with the version you specified. Log back into RubyGems and

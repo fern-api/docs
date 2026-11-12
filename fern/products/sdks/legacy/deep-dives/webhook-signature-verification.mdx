@@ -1,0 +1,155 @@
+---
+title: Webhook signature verification
+description: Configure webhook signature verification in your Fern-generated SDKs to validate HMAC or asymmetric signatures, protect against replay attacks, and ensure webhook authenticity.
+---
+
+<Markdown src="/products/sdks/legacy/snippets/legacy-notice.mdx" current="/learn/sdks/deep-dives/webhook-signature-verification" />
+
+<Markdown src="/snippets/enterprise-plan.mdx"/>
+
+When you define a webhook signing scheme, in your API spec or [API-wide in `generators.yml`](#configure-api-wide-in-generatorsyml), Fern automatically generates utilities that allow your SDK users to verify webhook signatures and ensure events originate from your API. These helpers are generated for the TypeScript, Python, Java, Go, PHP, Ruby, C#, and Rust SDKs. The Rust SDK supports HMAC verification configured in the API spec only; it doesn't read the API-wide scheme.
+
+Fern supports two signature verification methods:
+- **Hash-based Message Authentication Code (HMAC)** — Symmetric key verification using shared secrets
+- **Asymmetric** — Public key verification using RSA, Elliptic Curve Digital Signature Algorithm (ECDSA), or Ed25519 keys
+
+## Generated SDK behavior
+
+The generated SDK exposes a `WebhooksHelper` class with a static `verifySignature` method that returns whether the request is authentic. It takes the raw request body, the signature header value, the signing key (a shared secret for HMAC, a public key for asymmetric verification), and one parameter per additional payload component. A webhook that overrides the document-level configuration gets its own helper, such as `PlantShippedWebhooksHelper`.
+
+These examples verify an HMAC signature over a timestamp and body:
+
+<Tabs>
+<Tab title="TypeScript" language="typescript">
+```typescript
+import { WebhooksHelper } from "my-api";
+
+const isValid = await WebhooksHelper.verifySignature(
+  requestBody,
+  signatureHeader,
+  process.env.WEBHOOK_SECRET,
+  timestampHeader,
+);
+```
+</Tab>
+<Tab title="Python" language="python">
+```python
+from my_api import WebhooksHelper
+
+is_valid = WebhooksHelper.verify_signature(
+    request_body=request_body,
+    signature_header=signature_header,
+    signature_key=os.environ["WEBHOOK_SECRET"],
+    timestamp_header=timestamp_header,
+)
+```
+</Tab>
+<Tab title="Java" language="java">
+```java
+import com.example.myapi.WebhooksHelper;
+
+boolean isValid = WebhooksHelper.verifySignature(
+    requestBody,
+    signatureHeader,
+    System.getenv("WEBHOOK_SECRET"),
+    timestampHeader);
+```
+</Tab>
+<Tab title="Go" language="go">
+```go
+import myapi "github.com/example/my-api-go"
+
+isValid, err := myapi.WebhooksHelper{}.VerifySignature(
+	requestBody,
+	signatureHeader,
+	os.Getenv("WEBHOOK_SECRET"),
+	timestampHeader,
+)
+```
+</Tab>
+<Tab title="PHP" language="php">
+```php
+use MyApi\WebhooksHelper;
+
+$isValid = WebhooksHelper::verifySignature(
+    $requestBody,
+    $signatureHeader,
+    getenv('WEBHOOK_SECRET'),
+    $timestampHeader,
+);
+```
+</Tab>
+<Tab title="Ruby" language="ruby">
+```ruby
+require "my_api"
+
+is_valid = MyApi::WebhooksHelper.verify_signature(
+  request_body: request_body,
+  signature_header: signature_header,
+  signature_key: ENV["WEBHOOK_SECRET"],
+  timestamp_header: timestamp_header
+)
+```
+</Tab>
+<Tab title="C#" language="csharp">
+```csharp
+using MyApi;
+
+var isValid = WebhooksHelper.VerifySignature(
+    requestBody,
+    signatureHeader,
+    Environment.GetEnvironmentVariable("WEBHOOK_SECRET"),
+    timestampHeader
+);
+```
+</Tab>
+<Tab title="Rust" language="rust">
+```rust
+use my_api::webhooks::WebhooksHelper;
+
+let is_valid = WebhooksHelper::verify_signature(
+    &request_body,
+    &signature_header,
+    &std::env::var("WEBHOOK_SECRET").unwrap_or_default(),
+    &timestamp_header,
+);
+```
+</Tab>
+</Tabs>
+
+## Setting up webhook signature verification
+
+Configure signature verification in your API definition with the [`x-fern-webhook-signature` extension](/learn/api-definitions/openapi/endpoints/webhooks#sdk-signature-verification), at the document level (inherited by all webhooks) or per-webhook.
+
+## Configure API-wide in generators.yml
+
+If every webhook your API sends is signed the same way, declare the scheme once under [`api.settings.webhook-signature`](/learn/sdks/legacy/reference/generators-yml#settingswebhook-signature) in `generators.yml` instead of in the API definition. Every generator in the API emits the shared `WebhooksHelper` from this scheme, even when the spec models no webhooks and carries no `x-fern-webhook-signature` extension. This fits providers such as Twilio, which signs every webhook identically but doesn't model incoming webhooks in its OpenAPI specs.
+
+The block accepts the same [configuration options](/learn/api-definitions/openapi/endpoints/webhooks#sdk-signature-verification) as a webhook signature block in the API definition:
+
+```yaml title="generators.yml"
+api:
+  specs:
+    - openapi: ./openapi.yml
+  settings:
+    webhook-signature:
+      type: hmac
+      header: X-Twilio-Signature
+      algorithm: sha1
+      encoding: base64
+      payload-format:
+        components: [notification-url, body]
+        delimiter: ""
+        body-sort: alphabetical
+      body-hash-binding:
+        algorithm: sha256
+        encoding: hex
+        location:
+          type: query-parameter
+          name: bodySHA256
+      url-normalization:
+        port-variants: true
+        legacy-query-encoding: true
+```
+
+When the API definition also configures signatures, the more specific scheme wins: a webhook's own `signature` overrides a document-level `webhook-signature` or `x-fern-webhook-signature`, which overrides `api.settings.webhook-signature`. A webhook with a distinct scheme still gets its own helper, such as `PlantShippedWebhooksHelper`; the API-wide scheme always backs the default `WebhooksHelper`.

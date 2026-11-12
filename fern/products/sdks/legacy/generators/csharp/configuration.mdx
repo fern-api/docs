@@ -1,0 +1,221 @@
+---
+title: .NET configuration
+description: Configure your C# .NET SDK generator with Fern. Customize client class names, namespaces, error handling, and pagination settings.
+---
+
+<Markdown src="/products/sdks/legacy/snippets/legacy-notice.mdx" current="/learn/sdks/generators/csharp/configuration" />
+
+
+You can customize the behavior of the C#/.NET SDK generator in `generators.yml`:
+
+```yml {6-7} title="generators.yml"
+groups: 
+  csharp-sdk:
+    generators:
+      - name: fern-csharp-sdk
+        version: <Markdown src="/snippets/version-number-csharp.mdx"/>
+        config:
+          client-class-name: YourApiClient
+```
+
+<ParamField path="auto-generate-idempotency-key" type="boolean | object" default="false" toc={true}>
+Overrides the API-wide [`api.settings.auto-generate-idempotency-key`](/learn/sdks/legacy/reference/generators-yml#settings) for this SDK. Set `true` to attach an [idempotency-key header](/learn/sdks/legacy/deep-dives/idempotency#auto-generate-idempotency-keys) to eligible requests (`POST` and `PUT` by default) unless the caller provides one, or `false` to opt this SDK out when auto-generation is enabled API-wide. Pass an object to customize `header-name` and `methods`.
+</ParamField>
+
+<ParamField path="base-api-exception-class-name" type="string" required={false} toc={true}>
+Customizes the name of the base API exception class that all API-specific exceptions will inherit from. This allows you to define a custom base exception class name for better integration with your existing error handling patterns.
+</ParamField>
+
+<ParamField path="base-exception-class-name" type="string" required={false} toc={true}>
+Specifies the name of the base exception class that all generated exceptions will inherit from. This provides a common parent class for all SDK exceptions, enabling consistent exception handling patterns.
+</ParamField>
+
+<ParamField path="client-class-name" type="string" required={false} toc={true}>
+Sets the name of the generated API client class. This determines the primary client type name that users will interact with in the generated .NET SDK.
+</ParamField>
+
+<ParamField path="custom-pager-name" type="string" required={false} toc={true}>
+Customizes the name of the pagination helper class used for handling paginated API responses. This allows you to specify a custom name that fits your naming conventions.
+</ParamField>
+
+<ParamField path="default-timeout-in-milliseconds" type="number | 'infinity'" default="30000" required={false} toc={true}>
+The default timeout for network requests, in milliseconds. Set to `infinity` to disable the default timeout. SDK users can still [override this per request](/learn/sdks/legacy/deep-dives/sdk-user-features#customization-options) by passing `RequestOptions.Timeout`.
+</ParamField>
+
+<ParamField path="enable-forward-compatible-enums" type="boolean" required={false} toc={true}>
+When enabled, generates enum types that can handle unknown values. This allows the SDK to process new enum values that may be added to the API without breaking existing client code, improving forward compatibility.
+</ParamField>
+
+<ParamField path="enable-wire-tests" type="boolean" default="true" required={false} toc={true}>
+Generates [mock server (wire) tests](/learn/sdks/legacy/deep-dives/testing#mock-server-tests) to verify that the SDK sends and receives HTTP requests as expected.
+</ParamField>
+
+<ParamField path="environment-class-name" type="string" required={false} toc={true}>
+Specifies the name of the environment configuration class used for managing different API environments (e.g., development, staging, production).
+</ParamField>
+
+<ParamField path="explicit-namespaces" type="boolean" required={false} toc={true}>
+When enabled, generates code with explicit namespace declarations throughout the SDK. This can help avoid naming conflicts and improve code clarity in larger projects.
+</ParamField>
+
+<ParamField path="exported-client-class-name" type="string" required={false} toc={true}>
+Sets the name of the exported client class that will be used in code examples and documentation. This is useful for customizing how the client appears in generated documentation.
+</ParamField>
+
+<ParamField path="generate-documentation-file" type="boolean" default="true" required={false} toc={true}>
+Controls whether the generated project emits an XML documentation file. When enabled, the published package ships `lib/<framework>/<namespace>.xml`, which supplies IntelliSense to consumers of the SDK. `CS1591` is suppressed, so public members without a documentation comment don't produce build warnings.
+</ParamField>
+
+<ParamField path="generate-error-types" type="boolean" required={false} toc={true}>
+When enabled, generates specific error type classes for different API errors. This provides strongly typed error handling instead of using generic exception types.
+</ParamField>
+
+<ParamField path="generate-mock-server-tests" type="boolean" default="true" required={false} toc={true}>
+Alias for [`enable-wire-tests`](#enable-wire-tests), retained for backward compatibility. Generates [mock server (wire) tests](/learn/sdks/legacy/deep-dives/testing#mock-server-tests) to verify that the SDK sends and receives HTTP requests as expected.
+</ParamField>
+
+<ParamField path="include-exception-handler" type="boolean" required={false} toc={true}>
+When enabled, includes built-in exception handling utilities in the generated SDK. This provides convenience methods for common error handling scenarios.
+</ParamField>
+
+<ParamField path="inline-path-parameters" type="boolean" required={false} toc={true}>
+When enabled, path parameters are included as properties in the request object instead of being passed as separate method parameters. This creates a more unified request structure where all parameters are grouped together.
+</ParamField>
+
+<ParamField path="maxRetries" type="number" required={false} toc={true}>
+The default number of retries for failed requests. When not set, the generated SDK uses its own built-in default. SDK users can still override this per-request via request options.
+</ParamField>
+
+<ParamField path="namespace" type="string" required={false} toc={true}>
+Specifies the root namespace for all generated .NET code. This determines the namespace hierarchy that users will import when using the SDK.
+</ParamField>
+
+<ParamField path="offset-semantics" type="'item-index' | 'page-index'" required={false} toc={true}>
+Controls how the offset parameter is interpreted for [auto-paginated](/learn/sdks/legacy/deep-dives/auto-pagination) endpoints.
+
+*    `item-index`: The offset counts individual items (e.g., offset 20 skips the first 20 items).
+*    `page-index`: The offset counts pages (e.g., offset 3 skips to page 3).
+</ParamField>
+
+<ParamField path="omit-fern-headers" type="boolean" default="false" required={false} toc={true}>
+When enabled, the generated SDK omits the `X-Fern-Language`, `X-Fern-SDK-Name`, and `X-Fern-SDK-Version` headers from HTTP requests.
+</ParamField>
+
+<ParamField path="include-platform-headers" type="boolean" default="false" required={false} toc={true}>
+When enabled, the generated SDK sends a single structured `User-Agent` header of the form `{sdkName}/{version} ({os}; {arch}) {runtime}/{runtimeVersion}` (for example, `my-sdk/1.2.0 (linux; x86_64) dotnet/8.0.4`), carrying SDK, operating system, architecture, and runtime information in place of the default `User-Agent` and discrete platform headers. A configured [`user-agent`](#user-agent) template supplies the leading product token. If `omit-fern-headers` is enabled, no `User-Agent` or platform headers are sent and this option has no effect.
+</ParamField>
+
+<ParamField path="allow-user-agent-app-info" type="boolean" default="false" required={false} toc={true}>
+When enabled, the generated SDK emits an `AppInfo` record and exposes it as an `AppInfo` property on `ClientOptions`, which appends a `{Name}/{Version} ({Comment})` [product token](https://www.rfc-editor.org/rfc/rfc9110#name-user-agent) to the `User-Agent` header so an application built on the SDK can identify itself to the API. The application sets a required `Name` plus an optional `Version` and `Comment`; omitted or blank values are dropped from the token. An explicit `User-Agent` header takes precedence, and [`omit-fern-headers`](#omit-fern-headers) suppresses the header entirely.
+
+```csharp
+AppInfo = new AppInfo { Name = "partner-app", Version = "3.1.0", Comment = "+https://partner.example" }
+// User-Agent: my-sdk/1.2.0 (linux; x86_64) dotnet/8.0.4 partner-app/3.1.0 (+https://partner.example)
+```
+</ParamField>
+
+<ParamField path="package-id" type="string" required={false} toc={true}>
+Sets the NuGet package identifier for the generated SDK. This is used when publishing the SDK to NuGet or other package repositories.
+</ParamField>
+
+<ParamField path="package-metadata" type="object" required={false} toc={true}>
+NuGet package metadata written into the generated project file, which determines how the package appears once it's [published to NuGet](/learn/sdks/legacy/generators/csharp/publishing). Unset keys are omitted from the project file, leaving NuGet's own defaults or the values Fern derives from the SDK's GitHub output location.
+
+```yaml title="generators.yml"
+config:
+  package-metadata:
+    description: A .NET SDK for the Plantstore API.
+    authors:
+      - Plantstore
+    tags:
+      - plants
+      - sdk
+    copyright: Copyright (c) Plantstore, Inc.
+    repository-url: https://github.com/plantstore/plantstore-dotnet
+    include-source-link: true
+    include-symbols: true
+```
+</ParamField>
+
+<ParamField path="package-metadata.description" type="string" required={false}>
+Sets `<Description>`, the package description shown on nuget.org.
+</ParamField>
+
+<ParamField path="package-metadata.authors" type="string | List<string>" required={false}>
+Sets `<Authors>`. A list is joined with commas.
+</ParamField>
+
+<ParamField path="package-metadata.tags" type="string | List<string>" required={false}>
+Sets `<PackageTags>`, the search tags on nuget.org. A list is joined with semicolons.
+</ParamField>
+
+<ParamField path="package-metadata.copyright" type="string" required={false}>
+Sets `<Copyright>`.
+</ParamField>
+
+<ParamField path="package-metadata.icon" type="string" required={false}>
+Sets `<PackageIcon>` and packs the image into the package. The path is relative to the root of the generated SDK, and the image file must exist there: add it to the SDK repository and list it in [`.fernignore`](/learn/sdks/legacy/generators/csharp/custom-code) so generation doesn't remove it.
+</ParamField>
+
+<ParamField path="package-metadata.project-url" type="string" required={false}>
+Sets `<PackageProjectUrl>`, overriding the URL derived from the SDK's GitHub output location.
+</ParamField>
+
+<ParamField path="package-metadata.repository-url" type="string" required={false}>
+Sets `<RepositoryUrl>`, overriding the URL derived from the SDK's GitHub output location.
+</ParamField>
+
+<ParamField path="package-metadata.repository-type" type="string" default="git" required={false}>
+Sets `<RepositoryType>`. Applies only when the package has a repository URL.
+</ParamField>
+
+<ParamField path="package-metadata.include-source-link" type="boolean" default="false" required={false}>
+When enabled, adds a `Microsoft.SourceLink.GitHub` package reference and builds the package deterministically with embedded source information, so debuggers can step into the SDK's sources.
+</ParamField>
+
+<ParamField path="package-metadata.include-symbols" type="boolean" default="false" required={false}>
+When enabled, the build produces a `.snupkg` symbol package alongside the `.nupkg`.
+</ParamField>
+
+<ParamField path="read-only-memory-types" type="List<string>" required={false} toc={true}>
+Specifies a list of types that should be generated using ReadOnlyMemory&lt;T&gt; instead of regular arrays or collections. This can improve performance for large data transfers by reducing memory allocations.
+</ParamField>
+
+<ParamField path="redact-response-body-on-error" type="boolean" required={false} toc={true}>
+When enabled, prevents raw response bodies from leaking into exception messages and logs. Deserialization error exceptions pass `null` instead of the raw response body, and the base API exception class includes a custom `ToString()` override that excludes the response body.
+</ParamField>
+
+<ParamField path="respect-optional-request-body" type="boolean" default="false" required={false} toc={true}>
+Lets callers omit the request body on endpoints with an optional request body. A call that omits it sends no body and no `Content-Type` header, instead of an empty JSON object (`{}`). Enable this when your API treats a missing body differently from an empty one.
+
+The body parameter is defaulted, and `Body` on a wrapped request is no longer `required`:
+
+```csharp
+Task<Plant> WaterPlantAsync(string plantId, WaterRequest? request = null, ...)
+```
+
+Only applies to request bodies declared as a single named type. Required bodies and inlined request properties are unaffected.
+</ParamField>
+
+<ParamField path="root-client-class-access" type="'public' | 'internal'" required={false} toc={true}>
+Controls the access modifier for the root client class. Use 'public' to make the client accessible from other assemblies, or 'internal' to restrict access within the same assembly.
+</ParamField>
+
+<ParamField path="root-namespace-for-core-classes" type="boolean" required={false} toc={true}>
+When enabled, places core SDK classes (like base client classes and utilities) in the root namespace instead of nested namespaces. This can simplify imports for commonly used types.
+</ParamField>
+
+<ParamField path="use-discriminated-unions" type="boolean" required={false} toc={true}>
+When enabled, generates discriminated union types for API responses that can contain multiple different object types. This provides type-safe handling of polymorphic responses.
+</ParamField>
+
+<ParamField path="user-agent" type="string" default="{packageName}/{version}" required={false} toc={true}>
+Sets a custom `User-Agent` header template for requests sent by the generated SDK. The template is resolved at generation time and supports the `{packageName}`, `{version}`, `{language}`, `{generatorVersion}`, `{organization}`, and `{apiName}` placeholders.
+
+```yaml title="generators.yml"
+config:
+  user-agent: "plantstore-dotnet-sdk/{version}"
+```
+
+This sends `User-Agent: plantstore-dotnet-sdk/0.1.0`. With [`include-platform-headers`](#include-platform-headers) enabled, the resolved value leads the structured header: `User-Agent: plantstore-dotnet-sdk/0.1.0 (linux; x86_64) dotnet/8.0.4`. A value that doesn't end in a version, such as `plantstore/sdk-dotnet`, is used as-is. The [`allow-user-agent-app-info`](#allow-user-agent-app-info) token is appended after either form.
+</ParamField>

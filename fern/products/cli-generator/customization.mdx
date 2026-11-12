@@ -1,12 +1,7 @@
 ---
 title: Customization
 description: Customize generated CLIs with overrides, overlays, multi-spec merging, and custom commands.
-availability: beta
 ---
-
-<Note title="Early access">
-The CLI generator is in early access. [Reach out](https://buildwithfern.com/book-demo?type=cli) to get started.
-</Note>
 
 A generated CLI can be customized at three levels: the OpenAPI spec it's built from, the [configuration](/learn/cli-generator/get-started/configuration) that combines multiple specs into a single command tree, and code that adds custom commands alongside the spec-derived ones. [OpenAPI extensions](/learn/cli-generator/get-started/openapi-extensions) control how spec elements map to commands and flags.
 
@@ -36,13 +31,14 @@ When both are present, overrides are applied first, then overlays.
 
 A single CLI can combine multiple OpenAPI specs into one command tree. This is useful for APIs that split their spec across domains or versions.
 
-Specs can be merged flat (all commands at the top level) or under a namespace prefix:
+List each spec under `api.specs` in `generators.yml`. A spec without a `namespace` merges flat at the top level; a spec with a `namespace` gets its own subcommand:
 
-```rust title="main.rs"
-CliApp::new("my-api")
-    .spec(include_str!("core.yaml"))
-    .spec_under("billing", include_str!("billing.yaml"))
-    .run()
+```yaml title="generators.yml"
+api:
+  specs:
+    - openapi: core.yaml
+    - openapi: billing.yaml
+      namespace: billing
 ```
 
 This produces a CLI where core commands live at the top level and billing commands live under a `billing` subcommand:
@@ -52,17 +48,10 @@ my-api users list          # from core.yaml
 my-api billing invoices list  # from billing.yaml
 ```
 
-When a namespace matches a top-level resource in the incoming spec, the CLI hoists that resource's methods into the namespace to avoid repetition (for example, `billing billing invoices list` becomes `billing invoices list`).
+When a namespace matches a top-level resource in the incoming spec, the CLI hoists that resource's methods into the namespace to avoid repetition (for example, `billing billing invoices list` becomes `billing invoices list`). A slash in a namespace nests it: `namespace: messaging/bulk-messages` produces `my-api messaging bulk-messages create`.
+
+Specs under the same namespace that define a resource with the same name merge that resource's commands and sub-resources. The CLI fails at startup only when two specs define the same command, and the error names the full command path.
 
 ## Custom commands
 
-Generated CLIs can include custom commands alongside the spec-derived ones. Custom commands have access to the same API executor, so they can chain multiple API calls into a single workflow.
-
-```rust title="main.rs"
-CliApp::new("my-api")
-    .spec(include_str!("openapi.yaml"))
-    .auth_scheme_env("bearerAuth", "MY_API_TOKEN")
-    .command(whoami_cmd(), whoami_handler)
-    .run()
-```
-
+Generated CLIs can include custom commands, written in Rust, alongside the spec-derived ones. Custom commands call your API through a co-generated SDK client that shares the CLI's auth and retries, so they can chain multiple API calls into a single workflow. See [Custom commands](/learn/cli-generator/get-started/custom-commands).

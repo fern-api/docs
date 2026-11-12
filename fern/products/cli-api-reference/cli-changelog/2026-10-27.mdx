@@ -1,0 +1,82 @@
+## 5.180.1
+**`(fix):`** Interactive prompts now fail fast with a non-zero exit code when stdin is not a TTY or CI is set,
+instead of waiting forever for input (for example, `fern init` run by an agent without
+`--organization`). Cancelling a prompt (Ctrl+C or stdin closing) now also exits non-zero
+instead of reporting success. `CI=false` and `CI=0` are now treated as not running in CI.
+
+
+## 5.180.0
+**`(feat):`** Add `fern whoami [--json]`: shows whether the CLI is using a login, a `FERN_TOKEN` organization token or
+nothing, and this repo's guest session (`fern generate --guest`) with its organization, expiry and claim
+link. The guest token itself is never printed.
+
+
+## 5.179.0
+**`(feat):`** Add `fern claim [--org <name>]`: claims the guest session recorded by `fern generate --guest` with your
+Fern login (via Venus), points `fern.config.json` at the organization that now owns the work and forgets
+the guest session.
+
+
+**`(feat):`** Add `fern generate --guest` (SDKs and `--docs`): with no `fern login` or `FERN_TOKEN`, the CLI
+starts a temporary Venus guest session, generates under its `guest-<id>` organization and prints the
+claim link and expiry. The session is reused by every run in the same repo (`fern/.guest-session`,
+gitignored; credential in `~/.fern/guest-sessions/`) and the CLI warns when it is about to expire.
+A guest can only download: `--docs` requires `--preview`, and generators that push to GitHub or
+publish to a registry are refused up front. `--guest --new-session` discards the recorded session
+and starts another one. The login error now mentions `--guest`.
+
+
+## 5.178.0
+**`(feat):`** Load protobuf (`proto`) sources from `sdk-config.yml` into the SDK Config workspace with the same
+semantics as `proto` specs in `generators.yml`: local and git roots, an optional target, ordered
+overrides, dependencies, `localGeneration` and `fromOpenApi`. `fern check` validates them; SDK Config
+generation (hosted and `--local`) rejects them with a clear error until protobuf-to-OpenAPI conversion lands.
+Upgrades `@postman/sdk-config` to 0.17.0.
+
+
+## 5.177.0
+**`(feat):`** `fern docs dev` can now stop itself and report its state in a machine-readable way, so agents and CI
+no longer have to find and kill the process. All three flags are off by default and apply to the default
+(Astro) preview server only:
+- `--timeout <duration>` stops the server cleanly this long after it is ready.
+- `--idle-timeout <duration>` stops it after this long with no HTTP requests (the live-reload stream doesn't count).
+- `--json` writes `ready` (URL, ports, PID), `reload` and `stopped` events to stdout as one JSON object per line; logs go to stderr.
+Durations accept `30s`, `10m` or `1h`; a plain number means seconds.
+
+
+**`(fix):`** `fern docs dev` (default Astro server) now exits and returns to the prompt after a clean stop (SIGTERM,
+SIGHUP, `--timeout` or `--idle-timeout`) when run in an interactive terminal. Previously the server shut down
+but the CLI process stayed alive. It now leaves through the CLI's normal exit path, after the renderer has
+exited, and the renderer's 2s SIGKILL fallback now actually fires if it ignores SIGTERM.
+
+
+## 5.176.1
+**`(fix):`** Fix `fern docs dev` returning 404 for the sidebar navigation, compiled MDX components and
+optimized images with the latest docs renderer, which serves them under `_fern-files/_nav`,
+`_fern-files/_mdx` and `_fern-files/_img`. The preview now sends `_`-prefixed `_fern-files/`
+paths to the renderer and only sends uploaded files to the local file mirror.
+
+
+## 5.176.0
+**`(feat):`** SDK snippets from sdk-gen are now read from the `placeholdersSnippetsUrl` link of each artifact, the file whose
+values carry editable placeholders for the docs "Try it" panel. The SDKs whose snippets were read are left out of
+the `snippetsConfiguration` sent to FDR, so FDR no longer fails looking them up in its own snippet store.
+
+
+## 5.175.0
+**`(fix):`** C/C++ library docs: backslashes in generated `description:` frontmatter are now YAML-escaped
+(a `\M` in a Doxygen comment no longer breaks the page or the site), and `fern docs md check`
+fails on pages whose frontmatter does not parse instead of silently dropping it.
+
+
+**`(feat):`** C/C++ library docs: when two symbols sanitize to the same filename or URL (`s_dup` vs `__s_dup`,
+`S_CASE` vs `s_case`), the public name now always gets the plain URL and `_`-prefixed names
+get the `-2` suffix, independent of source order. New opt-in `config.slug-style: hyphenated`
+on `lang: cpp` libraries keeps word boundaries in URLs (`/functions/doca-pcc-dev-get-port-counter-id`).
+
+
+**`(feat):`** `fern docs md generate --keep-logs` writes each library parser's logs to
+`<fern folder>/.fern/library-docs-logs/<library>.log` instead of a temporary file that is
+removed when the command exits.
+
+

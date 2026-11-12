@@ -1,7 +1,7 @@
 ---
 title: Generating an SDK
 headline: Generating an SDK (TypeScript)
-description: Create TypeScript client libraries with Fern SDK generator. Quick guide to configuring generators.yml and generating SDKs from OpenAPI or Fern definitions.
+description: Create TypeScript client libraries with Fern SDK generator. Quick guide to configuring sdk-config.yml and generating SDKs from OpenAPI or Fern definitions.
 ---
 
 Generate a TypeScript SDK by following the instructions on this page. 
@@ -17,35 +17,22 @@ Generate a TypeScript SDK with Fern. Follow the [TypeScript SDK quickstart](http
 
 <Markdown src="/products/sdks/snippets/init-fern-folder.mdx"/>
 
-<Step title="Add the SDK generator">
+<Step title="Add the SDK target">
 
-Run the following command to add the TypeScript SDK generator to `generators.yml`:
+Add a TypeScript target to the `targets` list in `sdk-config.yml`:
 
-<Template
-  data={{ GROUP_NAME: "ts-sdk" }}
-  tooltips={{
-    GROUP_NAME: (<p>The name of the <code>generators.yml</code> group that configures your TypeScript SDK's output location and other metadata. You can customize this group name to differentiate between multiple SDKs across different languages.</p>)
-  }}
->
-```bash
-fern add fern-typescript-sdk --group {{GROUP_NAME}}
+```yaml title="sdk-config.yml"
+targets:
+  - language: typescript
+    output:
+      delivery: files
+      path: ../sdks/typescript
 ```
-</Template>
 
-This command adds the following `group` to `generators.yml`:
-
-```yaml title="generators.yml"
-  ts-sdk: # group name
-    generators:
-      - name: fern-typescript-sdk
-        version: <Markdown src="/snippets/version-number-ts.mdx"/>
-        output:
-          location: local-file-system
-          path: ../sdks/typescript
-```
+The target uses the newest supported TypeScript generator. To pin a version, set [`generatorVersion`](/learn/sdks/reference/sdk-config#targetsgeneratorversion) on the target.
 
 <Note>
-  `fern init` includes a TypeScript SDK generator by default. If you already ran `fern init` and haven't modified `generators.yml`, you can skip this step.
+  `fern init` adds a TypeScript target by default. If you already ran `fern init` and haven't modified `sdk-config.yml`, skip this step.
 </Note>
 </Step>
 
@@ -54,14 +41,14 @@ This command adds the following `group` to `generators.yml`:
 Run the following command to generate your SDK:
 
 ```bash
-fern generate --group ts-sdk
+fern generate --target typescript
 ```
 
 <Note>
   If you have multiple APIs, use the [`--api` flag](/learn/cli-api-reference/cli-reference/sdk-commands#api) to specify the API you want to generate:
 
   ```bash
-  fern generate --group ts-sdk --api your-api-name
+  fern generate --target typescript --api your-api-name
   ``` 
 </Note>
 
@@ -69,7 +56,7 @@ fern generate --group ts-sdk
 
 <Files>
   <Folder name="fern" comment="created by fern init" />
-  <Folder name="sdks" defaultOpen comment="created by fern generate --group ts-sdk">
+  <Folder name="sdks" defaultOpen comment="created by fern generate --target typescript">
     <Folder name="typescript" defaultOpen>
       <File name="Client.ts" />
       <File name="index.ts" />
