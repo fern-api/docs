@@ -1,7 +1,7 @@
 ---
 title: Start a new Fern project
 slug: fern-instructions/new-site
-description: Create a fern folder, publish docs without a Fern account using guest sessions, claim a guest session, and check which identity the CLI is using.
+description: Create a fern folder, choose how the CLI authenticates, publish docs or generate SDKs without a Fern account using guest sessions, claim a guest session, and check which identity the CLI is using.
 ---
 
 Use this to create a Fern project, to run the CLI before the user has a Fern account, or to work out why the CLI says it isn't authenticated.
@@ -23,24 +23,29 @@ Use this to create a Fern project, to run the CLI before the user has a Fern acc
 
 Run `fern whoami` (or `fern whoami --json`) to see what the CLI acts as in the current repo. It reports one of: logged in as a user, using an organization token from `FERN_TOKEN`, or not logged in. It also reports the repo's guest session, if any: session ID, guest organization, expiry, whether it's still live, and the claim link. It never prints the guest token.
 
-| Situation | Use |
-|---|---|
-| The user has a Fern account and a browser | `fern login`. Use `fern login --device-code` on a remote machine, or `fern login --email <address>` for enterprise SSO. |
-| CI or another non-interactive environment | `FERN_TOKEN=<organization token>`. Create one with `fern token`. |
-| No account yet, or the user wants to try Fern Docs first | `fern generate --docs --guest`. Guests can't generate SDKs yet. |
+`fern docs dev`, `fern check` and `fern generate --local` don't need authentication. Publishing docs, preview links and SDK generation on Fern's servers do. When `fern whoami` reports not logged in and the task needs Fern's servers, ask the user whether they have a Fern account before running anything else. Don't choose `--guest` for them: the CLI's missing-account error suggests `--guest` first, but guest output lives in a temporary organization that the user has to claim.
 
-`fern docs dev` and `fern check` don't need authentication. Run them before choosing.
+| The user's answer | Use |
+|---|---|
+| Has a Fern account | `fern login`. Use `fern login --device-code` on a remote machine, or `fern login --email <address>` for enterprise SSO. |
+| CI or another non-interactive environment | `FERN_TOKEN=<organization token>`. Create one with `fern token`. |
+| No account, and wants to try Fern without signing up | `--guest`, after explaining the guest session rules in the next section: `fern generate --docs --guest` for docs, `fern generate --guest` for SDKs. |
+| No account, and only needs local output | Docs: `fern docs dev`. SDKs: `fern generate --local`, which needs Docker. |
 
 ## Guest sessions
 
-`--guest` lets the CLI publish docs without a login or `FERN_TOKEN`. Guest sessions can't generate SDKs yet, so SDK generation needs `fern login` or `FERN_TOKEN`.
+`--guest` lets the CLI publish docs (`fern generate --docs --guest`) or generate SDKs (`fern generate --guest`) without a login or `FERN_TOKEN`.
 
-- The first `fern generate --docs --guest` in a repo starts a temporary guest session with its own `guest-<id>` organization. The CLI prints the session ID, the expiry time, and a link: `Claim it to keep this work: <url>`. Give that link to the user.
+- The first `--guest` run in a repo starts a temporary guest session with its own `guest-<id>` organization. The CLI prints the session ID, the expiry time, and a link: `Claim it to keep this work: <url>`. Give that link to the user.
 - Later runs in the same repo reuse the session. The CLI stores it in `fern/.guest-session` (gitignored) and keeps the credential in `~/.fern/guest-sessions/`. It warns when less than an hour is left, and a run that crosses the deadline fails.
-- While running as a guest, the CLI ignores the `organization` in `fern.config.json` (with a warning) and doesn't change the file.
+- While running as a guest, the CLI uses the guest organization instead of the `organization` in `fern.config.json`, and doesn't change the file. Generated SDKs still take their client and error class names from the `fern.config.json` organization.
 - `fern generate --docs --guest` publishes the docs to a temporary `drop-<id>` site that the guest session owns. It ignores the `instances` URL in `docs.yml`. The CLI prints the site URL and the claim link.
+- `fern generate --guest` only downloads SDKs. Targets with `output.delivery: files` in `sdk-config.yml` (or `local-file-system` output in `generators.yml`) are written to their output path. Targets that push to GitHub or publish to a registry are refused before the session starts. Add `--preview` to write them to `fern/.preview/` instead.
+- For each SDK build, the CLI prints a dashboard link where the SDK can be downloaded again for 7 days. Claiming the session moves the builds into the user's organization.
+- Guest sessions have per-session limits. When one is reached, the CLI says so and the session's work is kept. Claim the session or log in to continue.
+- `--guest` can't be combined with `--local` or `--runner`. Local generation needs no account.
 - `--guest` fails if `FERN_TOKEN` is set or a login is saved. Unset `FERN_TOKEN` or run `fern logout` to continue as a guest, or drop `--guest` to use the existing credentials.
-- `fern generate --docs --guest --new-session` discards the recorded session and starts a new guest organization. Earlier guest output isn't carried over. Use it when the old session was claimed, revoked, or expired.
+- `--new-session` (for example `fern generate --guest --new-session`) discards the recorded session and starts a new guest organization. Earlier guest output isn't carried over. Use it only when the old session was claimed, revoked, or expired, not after a limit error.
 
 ## Claiming a guest session
 
@@ -55,12 +60,13 @@ fern claim --org <name>    # or move the work into an existing organization the 
 `fern claim` requires a login. It points `fern.config.json` at the organization that owns the work after the claim and forgets the guest session. After claiming, the guest token stops working, so later runs need `fern login` or `FERN_TOKEN` (without `--guest`).
 
 Common `fern claim` failures:
-- No guest session recorded for the repo: run `fern generate --docs --guest` first.
-- The session expired, was taken down, or was already claimed: start a new one with `fern generate --docs --guest --new-session`.
+- No guest session recorded for the repo: run `fern claim` in the repo where the `--guest` run happened.
+- The session expired, was taken down, or was already claimed: start a new one by adding `--new-session` to the `--guest` command.
 - `--org` names an organization the user isn't an admin of.
 
 ## Rules
 
+- Use `--guest` only after the user says they don't have a Fern account and agrees to a temporary guest session.
 - Never invent an organization name. Ask the user. Use only letters, numbers, hyphens and underscores.
 - Don't commit `fern/.guest-session` or anything from `~/.fern/`.
 - Don't print or store `FERN_TOKEN` values. Store them as CI secrets.
@@ -71,7 +77,7 @@ Common `fern claim` failures:
 - `fern whoami` shows the expected identity.
 - `fern check` passes.
 - Docs: `fern docs dev` starts and prints a local URL that renders the site.
-- Guest runs: the output includes a claim link and an expiry. Tell the user both, and that unclaimed work disappears after the expiry.
+- Guest runs: the output includes a claim link and an expiry. Tell the user both, and that unclaimed work disappears after the expiry. For SDK runs, also give the user the build link and the output path.
 
 ## Reference
 
