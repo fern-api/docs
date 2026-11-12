@@ -266,16 +266,6 @@ Create profile `prd`? [y/N] y
 
 When stdin or stderr isn't a terminal (a script, CI job, or agent), `set` on a missing profile fails with a validation error that names any similar profile, and nothing is written. Pass `--yes` / `-y` to create the profile without asking, or run `profiles create` first.
 
-### Guided API-key setup
-
-A CLI generated with `profiles.provisionOperation` walks users through creating a key-backed profile when it runs in an interactive terminal:
-
-- **`auth login`** with no flags prompts for a profile name (defaulting to the active profile, or `default`) and the credential fields. Secret fields are hidden as they're typed, and basic auth fields use the scheme's own names, such as `Account Sid` and `Auth Token`. It then asks `Create an API key for this profile? [Y/n]`. On yes, the CLI creates the key using the typed credential, stores only the new key, and makes the profile active; on no, it stores the typed credential instead. Naming an existing profile asks before overwriting it, and a profile that already owns a provisioned key is refused until it's removed with `profiles remove <name> --revoke`.
-- **`profiles create <name>`** with no credential flags prompts the same way, without changing the active profile.
-- **`profiles remove <name>`**, after the `[y/N]` confirmation, asks `Also delete this profile's API key from the server? [Y/n]` when the profile owns a provisioned key and `revokeOperation` is set. If that revoke fails, the profile is still removed and the key's revoke parameters (such as `Sid=SK…`) are printed so it can be deleted from the API provider's console. Removing the last profile prints a hint to run `profiles create`.
-
-Explicit flags and non-interactive runs keep the scripted behavior: `auth login --with-token`, `--from-env`, `--scheme`, and `--no-browser` don't prompt; `profiles create` with `--with-token`, `--from-env`, `--credential`, or `--parent` doesn't prompt; and `profiles remove` without a terminal still requires `--yes`. `--revoke` deletes the key without the extra prompt, an explicit `--revoke` that fails leaves the profile in place for a retry, and `--yes` without `--revoke` keeps the key. A revoke is signed with the parent credentials from the CLI's environment variables when every one is set, and with the profile's stored key otherwise.
-
 ### Select a profile
 
 A profile is selected by, in order, `--profile` / `-p`, the `<PREFIX>_PROFILE` environment variable, then the profile marked active by `profiles use`, where `<PREFIX>` is the binary name uppercased with `-` replaced by `_`. With no profile selected, the CLI behaves as if the feature were absent. A named profile that doesn't exist is an error rather than a fallthrough to environment credentials, so a command never runs against the wrong tenant. The `profiles` group itself always runs unprofiled, so a stale active pointer can be repaired.
