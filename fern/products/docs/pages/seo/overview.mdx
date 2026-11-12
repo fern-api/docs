@@ -34,9 +34,77 @@ Normalization strips whitespace, copyright symbols, and capitalization before ha
 The sitemap route fetches stored slug data, builds a URL-to-timestamp lookup, and adds the timestamp to each sitemap XML entry. If no data exists for a domain yet, the sitemap omits timestamps gracefully rather than failing.
 </llms-only>
 
+## SEO settings at a glance
+
+Every setting is optional. Site-wide values live in `docs.yml`; page-level values live in the page's frontmatter and take precedence.
+
+| What it controls | Where to configure it | Key | Details |
+|---|---|---|---|
+| Page title in search results | Page frontmatter | `title`, `headline` | [Basic metadata](/learn/docs/seo/setting-seo-metadata#basic-metadata) |
+| Meta description | Page frontmatter | `description` | [Subtitle and description](/learn/docs/configuration/page-level-settings#subtitle-and-description) |
+| Social previews | `docs.yml` or page frontmatter | `og:*`, `twitter:*` | [SEO metadata](/learn/docs/seo/setting-seo-metadata#social-image) |
+| Canonical URL | `docs.yml` (site) or page frontmatter (page) | `metadata.canonical-host`, `canonical-url` | [Core metadata](/learn/docs/seo/setting-seo-metadata#core-metadata) |
+| Excluding a page from search engines | Page frontmatter | `noindex`, `nofollow` | [Indexing](/learn/docs/seo/setting-seo-metadata#indexing) |
+| Hiding a page from navigation and search | `docs.yml` navigation | `hidden` | [Hiding content](/learn/docs/customization/hiding-content) |
+| URL paths | `docs.yml` navigation or page frontmatter | `slug`, `skip-slug` | [Configuring slugs](/learn/docs/seo/configuring-slugs) |
+| Moved or deleted pages | `docs.yml` | `redirects` | [Redirects](/learn/docs/seo/redirects) |
+| Crawler access | `docs.yml` | `agents.robots-txt` | [Custom robots.txt](/learn/docs/seo/robots-txt) |
+| Structured data | Page frontmatter | `jsonld`, `jsonld:breadcrumb` | [Structured data](/learn/docs/seo/setting-seo-metadata#structured-data-json-ld) |
+
+`sitemap.xml` needs no configuration. Fern builds it from your navigation and uses `canonical-host` for its URLs.
+
+## Example configuration
+
+A typical setup sets site-wide defaults once in `docs.yml` and overrides them only on pages that need it.
+
+```yaml docs.yml
+metadata:
+  og:site_name: PlantStore Docs
+  og:image: https://plantstore.dev/images/docs-social-card.png
+  og:image:width: 1200
+  og:image:height: 630
+  twitter:site: "@PlantStoreAPI"
+  canonical-host: docs.plantstore.dev
+
+redirects:
+  - source: /getting-started/install
+    destination: /get-started/installation
+
+agents:
+  robots-txt: ./robots.txt
+```
+
+Each page then needs only a clear title and description. Add `headline` when the search result title should carry more context than the on-page heading.
+
+```mdx quickstart.mdx
+---
+title: Quickstart
+headline: Quickstart | PlantStore API Docs
+description: Create an API key, install the PlantStore SDK, and place your first order in under five minutes.
+---
+```
+
+## Best practices
+
+- **Write a unique `description` for every page.** Search engines often show it as the result snippet. Without one, Fern falls back to `subtitle`, which may not summarize the page for searchers. Aim for 150–160 characters.
+- **Keep titles specific and short.** Aim for 50–60 characters. Use `headline` to add the product name for search results while keeping the sidebar and on-page `title` concise.
+- **Set `canonical-host` when your docs are reachable at more than one domain**, for example after migrating to a new custom domain. Otherwise search engines may split ranking across the duplicate URLs.
+- **Choose stable, descriptive slugs before launch.** Every slug change creates a new URL that search engines must rediscover.
+- **Add a redirect whenever a published URL changes.** Moving a page, renaming a section, or changing a slug all change URLs. [`fern check`](/learn/cli-api-reference/cli-reference/general-commands#fern-check) flags [missing redirects](/learn/docs/seo/redirects#catching-missing-redirects) before you publish.
+- **Use a 1200x630px social image.** This size renders correctly on LinkedIn, Slack, Discord, and X. If you set no `og:image`, Fern generates a [dynamic image](/learn/docs/seo/setting-seo-metadata#dynamic-og-images) for each page.
+
+## Common pitfalls
+
+- **Expecting the `*.docs.buildwithfern.com` URL to rank.** Fern serves pages on the instance URL with an `X-Robots-Tag: noindex, nofollow` header, so search engines index your [custom domain](/learn/docs/preview-publish/setting-up-your-domain) instead.
+- **Using `hidden` on a section, tab, or version to keep pages out of search.** `hidden` on a group removes it from navigation only; its pages stay indexed. Add `noindex: true` to each page as well. `hidden` on an individual page handles both.
+- **Using `robots.txt` to protect private content.** `robots.txt` is advisory and doesn't stop crawlers that ignore it. Use [authentication](/learn/docs/authentication/overview) instead.
+- **Dropping the `Sitemap` line from a custom `robots.txt`.** Fern's default file points crawlers to `sitemap.xml`; a custom file replaces it entirely, so add the `Sitemap:` line back.
+- **Leaving out the subpath in redirects.** Sites hosted on a subpath (such as `example.com/docs`) must include it in both `source` and `destination`.
+- **Adding arbitrary frontmatter fields as meta tags.** Only the documented SEO fields are written to the page `<head>`. Add other tags with [custom JavaScript](/learn/docs/customization/custom-css-js#custom-javascript).
+
 ## Customize your SEO
 
-When you want more control, you can configure:
+Each setting is covered in detail on its own page:
 
 <CardGroup cols={2}>
   <Card title="SEO metadata" icon="fa-duotone fa-tags" href="/learn/docs/seo/setting-seo-metadata">
