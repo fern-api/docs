@@ -27,14 +27,16 @@ box users get-current-user
 
 ## Supported auth schemes
 
-The CLI supports every scheme type that OpenAPI's `securitySchemes` defines:
+The CLI supports these scheme types:
 
 | Scheme | How the CLI applies it |
 | --- | --- |
 | Bearer (`http: bearer`) | Sends `Authorization: Bearer <token>`. |
-| API key (`apiKey`) | Sends the key in the configured header (for example, `X-Auth-Token`). A `prefix` on the `api-key` scheme in `api.auth.schemes` (`{ type: api-key, location: header, name: X-Api-Key, prefix: Key }`) is prepended at request time, so the stored credential stays the bare key. |
+| API key (`apiKey`, in a header) | Sends the key in the configured header (for example, `X-Auth-Token`). A `prefix` on the `api-key` scheme in `api.auth.schemes` (`{ type: api-key, location: header, name: X-Api-Key, prefix: Key }`) is prepended at request time, so the stored credential stays the bare key. |
 | Basic (`http: basic`) | Sends `Authorization: Basic <base64(user:pass)>`. Each field has its own credential source. |
 | OAuth 2 | Sends `Authorization: Bearer <token>`. Declare an [OAuth flow](#oauth-flows) to have the CLI obtain and refresh the token itself. |
+
+API keys sent in a query parameter or cookie, OpenID Connect, and custom schemes aren't supported, and the CLI skips them.
 
 An operation that requires authentication, through its own `security` or the spec-level default, fails locally with an auth error (exit code `2`) when no flag, environment variable, or selected profile supplies a credential, and the request isn't sent. Operations with `security: []`, optional auth (`- {}`), or no declared security are sent as-is.
 
@@ -169,7 +171,6 @@ When a spec declares multiple security schemes, the CLI composes them according 
 | --- | --- |
 | Auto | Default. Infers the right composition from the spec's `security` blocks. |
 | Any | The API accepts any one of the declared schemes. The first scheme with a credential wins. |
-| All | The API requires every scheme simultaneously (for example, HMAC signature plus API key). |
 | Routing | Per-operation dispatch. Each endpoint's `security` block determines which schemes to use. |
 
 Operations that declare `security: []` (an empty list) opt out of authentication entirely — no credentials are sent regardless of what's configured.
