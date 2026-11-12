@@ -15,16 +15,18 @@ Publish your public-facing Fern Swift SDK as a Swift package distributed via Git
 
 ## Configure `sdk-config.yml`
 
-Swift packages are distributed via Git repositories, so the Swift target delivers to GitHub. Set `output.delivery` to `github` and add the path to your GitHub repository:
+Swift packages are distributed via Git repositories, so the Swift target delivers to GitHub. Set `output.delivery` to `github` and set `output.github.repository` to your SDK repository in `owner/name` format. Replace `YOUR_GITHUB_ORG/YOUR_REPO_NAME` with your values:
 
 ```yaml title="sdk-config.yml" {3-6}
 targets:
-  - language: swift
+  - language: swift # Generate the Swift SDK
     output:
-      delivery: github
+      delivery: github # Push generated code to a GitHub repository
       github:
-        repository: your-org/company-swift
+        repository: YOUR_GITHUB_ORG/YOUR_REPO_NAME # For example, plantstore/plantstore-swift
 ```
+
+These are the only required fields. To control the target branch or how changes land (for example, as a pull request instead of a release), add [`branch`](/learn/sdks/reference/sdk-config#outputgithubbranch) or [`mode`](/learn/sdks/reference/sdk-config#outputgithubmode) under `github`.
 
 ## Publish as a Swift package
 
@@ -35,8 +37,10 @@ At this point, you're ready to generate a release for your SDK.
     Regenerate your SDK and publish it to your repository:
     
     ```bash
-    fern generate --target swift --version <version>
+    fern generate --target swift --version YOUR_VERSION
     ```
+
+    Replace `YOUR_VERSION` with a semantic version such as `1.0.0`. Fern uses it as the Git tag for the release.
     
     Local machine output will verify that the release is pushed to your repository and tagged with the version you specified.
   </Step>
@@ -49,7 +53,8 @@ At this point, you're ready to generate a release for your SDK.
     
     ```swift
     dependencies: [
-        .package(url: "https://github.com/<github-org>/<github-repo-name>", from: "<version>")
+        // Repository from output.github.repository, and the minimum version to install
+        .package(url: "https://github.com/YOUR_GITHUB_ORG/YOUR_REPO_NAME", from: "YOUR_VERSION")
     ]
     ```
     
