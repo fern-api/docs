@@ -1,0 +1,156 @@
+---
+title: Try Fern without an account
+slug: try-without-account
+description: Publish a docs site or generate an SDK from an OpenAPI spec with no Fern account using a temporary guest session, then claim the work into your organization.
+---
+
+The Fern CLI can publish docs and generate SDKs without a Fern account. Add `--guest` to `fern generate` and the CLI starts a temporary guest session with its own guest organization. Docs publish to a temporary Fern Drop site, and SDKs download to your project. To keep the work, claim the session into an organization before it expires.
+
+Guest mode is built for coding agents. The agent runs the CLI and stops at the claim link; you finish in the browser.
+
+## Use a coding agent
+
+Give Claude Code, Cursor, Codex, Devin, or a similar agent your OpenAPI spec and ask for a docs site or an SDK. For best results, first install the [Fern agent skills](/learn/docs/ai-features/agent-skills) with `npx skills add fern-api/skills --all`.
+
+<Prompt
+  title="Create a docs site from an OpenAPI spec"
+  actions={["cursor", "claude", "chatgpt"]}
+>
+I have this OpenAPI spec `./openapi.yml` and I need to create a docs website for this spec using Fern. Can you do this for me?
+</Prompt>
+
+<Prompt
+  title="Generate an SDK from an OpenAPI spec"
+  actions={["cursor", "claude", "chatgpt"]}
+>
+I have this OpenAPI spec `./openapi.yml` and I need to generate an SDK for this using Fern. Can you do this for me?
+</Prompt>
+
+The agent creates a `fern` folder, runs `fern check`, then runs `fern generate --docs --guest` or `fern generate --guest`. It reports the drop site URL or the SDK's output path and build link, plus the claim link and the session's expiry. To claim the work, continue from [Claim the work](#claim-the-work).
+
+## Run it yourself
+
+<Steps>
+  <Step title="Create a Fern project">
+
+  Install the CLI and create a `fern` folder. For docs, follow the [Docs quickstart](/learn/docs/getting-started/quickstart); for SDKs, follow the [SDKs quickstart](/learn/sdks/overview/quickstart). The `organization` in `fern.config.json` only names the project at this point.
+
+  </Step>
+  <Step title="Publish or generate as a guest">
+
+  <Tabs>
+    <Tab title="Docs">
+
+    ```bash
+    fern generate --docs --guest
+    ```
+
+    The CLI publishes the site to a `https://drop-<id>.docs.buildwithfern.com` URL, ignoring the `organization` in `fern.config.json` and the `instances` URL in `docs.yml`. A banner on the site says it's unclaimed and when it expires.
+
+    The CLI also uploads your `fern` folder with the site, so connecting a GitHub repository after you claim the site commits the folder to that repository. Add `--no-source` to publish without it.
+
+    </Tab>
+    <Tab title="SDKs">
+
+    ```bash
+    fern generate --guest
+    ```
+
+    The CLI writes each SDK to its output path. Guests can only download SDKs: a target that publishes to GitHub or a package registry fails the run. Add `--preview` to write every target to `fern/.preview/<generator>/`, or set the target's output to local files. Generated code keeps the names from the `organization` in `fern.config.json`.
+
+    The output includes a build link to a public build page, where you can download the SDK for 7 days. Rerunning with the same inputs returns the finished build without spending usage.
+
+    </Tab>
+  </Tabs>
+
+  The first `--guest` run prints the session ID, the guest organization, the expiry time, and the claim link:
+
+  ```txt
+  Started guest session gs_7416b9841b13 as organization guest-6dd35d51ee9e (expires 11/14/2026, 12:23:08 AM).
+  Claim it to keep this work: https://dashboard.buildwithfern.com/claim/gs_7416b9841b13?from=sdk#...
+  ```
+
+  Treat the claim link like a password. The part after `#` is a secret, and anyone with the link can claim the session.
+
+  </Step>
+  <Step title="Claim the work">
+
+  Open the claim link and sign in to the Fern Dashboard. Choose a new organization or one you administer, then enter the docs URL (`<slug>.docs.buildwithfern.com`) or a name for the SDK that's unique in the organization. Select **Claim**.
+
+  To claim from the terminal instead, sign in and run [`fern claim`](/learn/cli-api-reference/cli-reference/general-commands#fern-claim) in the same repository:
+
+  ```bash
+  fern login
+  fern claim
+  ```
+
+  By default, `fern claim` turns the guest organization into your own. Pass `--org <organization>` to move the work into an existing organization you administer. Either way, claiming requires a signed-in user, so an agent can't do it for you.
+
+  After the claim, the CLI points `fern.config.json` at the organization and removes the guest session. Later runs use `fern login` or `FERN_TOKEN` without `--guest`.
+
+  </Step>
+  <Step title="Connect GitHub">
+
+  <Tabs>
+    <Tab title="Docs">
+
+    The site appears in your organization's docs list as **Publishing**, then **Live**, at `<slug>.docs.buildwithfern.com`. The old `drop-<id>` URL redirects there for 24 hours.
+
+    To manage the site from a repository, open the site's overview and select **Connect GitHub**. Create a repository or choose an existing one, then share it with the [Fern GitHub App](/learn/dashboard/configuration/github-repo). Fern commits your `fern` folder, a publish workflow, and a README to `main`. After that, edits are pull requests, and merging publishes the site.
+
+    </Tab>
+    <Tab title="SDKs">
+
+    The SDK appears on your organization's SDKs page with **Download** and **Publish to GitHub**. Select **Publish to GitHub**, create a repository or choose an existing one, then share it with the [Fern GitHub App](/learn/dashboard/configuration/github-repo). Fern pushes the SDK to `main`.
+
+    To regenerate the SDK from CI when the spec changes, select **Set up Fern repository** on the SDK's card. Fern commits your `fern` folder, a regenerate workflow, and a README to a repository you choose.
+
+    </Tab>
+  </Tabs>
+
+  If the dialog reports that Fern can't see the repository after you share it, select **Reconnect GitHub** in the dialog or re-authorize GitHub.
+
+  </Step>
+</Steps>
+
+## Expiration
+
+| What | How long it lasts |
+| --- | --- |
+| Guest session and its claim link | 3 hours from creation |
+| Drop site | Until the session expires. The banner on the site shows the exact time. |
+| SDK build and its public build page | 7 days from the build |
+| Grant from opening the claim link | 10 minutes, single use. Reopen the link if the claim page sat longer. |
+| Drop URL redirect after a docs claim | 24 hours |
+
+The CLI warns when less than an hour is left in the session, and a run that crosses the deadline fails. Work that you claim follows your organization's normal retention.
+
+## Usage limits
+
+| Limit | Default |
+| --- | --- |
+| SDK build units per session | 5. Each target in a build spends one unit, so a TypeScript and Python build spends 2. |
+| Docs publishes per session | 10 |
+| New sessions | 3 per machine per day, 60 per IP address per hour |
+| Drop site size | 200 pages and 50 MB |
+| Publishes per drop site | 20 |
+| New drop sites | 10 per IP address per hour |
+
+A build that never runs doesn't spend a unit. When a session runs out, the CLI fails with `GUEST_LIMIT_REACHED` and the session keeps its work. Claim the session or log in to continue.
+
+## Commands and options
+
+| Command or option | What it does |
+| --- | --- |
+| [`fern generate --guest`](/learn/cli-api-reference/cli-reference/sdk-commands#guest) | Generates SDKs on a guest session and writes them to their output paths. |
+| [`fern generate --docs --guest`](/learn/cli-api-reference/cli-reference/docs-commands#guest) | Publishes docs to a drop site on a guest session. |
+| `--no-source` | With `--docs --guest`, publishes without uploading the `fern` folder. |
+| `--new-session` | With `--guest`, starts a new guest session and guest organization. Earlier guest work isn't carried over. |
+| [`fern claim [--org <organization>]`](/learn/cli-api-reference/cli-reference/general-commands#fern-claim) | Claims this repository's guest session. Requires `fern login`. |
+| [`fern whoami`](/learn/cli-api-reference/cli-reference/general-commands#fern-whoami) | Shows the login, `FERN_TOKEN`, or guest session in use, with the session's ID, organization, and expiry. |
+
+The CLI records the session in `fern/.guest-session`, which it gitignores, and keeps the credential in `~/.fern/guest-sessions/`. Later `--guest` runs in the same repository reuse the session.
+
+`--guest` can't be combined with `--local` or `--runner`, and it refuses to run when `FERN_TOKEN` is set or a login is saved. Unset `FERN_TOKEN` or run `fern logout` to continue as a guest, or drop `--guest` to use your account.
+
+Use `--new-session` only when the session expired, was revoked, or was already claimed. After a limit error, claim the session instead; a new session counts against the daily limit.
