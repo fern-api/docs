@@ -129,74 +129,20 @@ navbar-links:
 </ParamField>
 
 <ParamField path="profiles" type="object" required={false} toc={true}>
-  Named sets of values that fill `${NAME}` placeholders, so one set of pages can publish as several editions. Learn more about the
-  [`profiles` configuration](/learn/docs/configuration/site-level-settings#profiles-configuration).
+  Named sets of values that fill `${NAME}` placeholders, so one set of pages can publish as several editions. Learn more about [profiles](/learn/docs/configuration/profiles).
 </ParamField>
 
 ## Profiles configuration
 
-A profile is a named set of values, such as a product name or CLI command. Pages, navigation titles, and site strings use them through `${NAME}` placeholders. Profiles publish one set of pages as several editions (for example, Community and Enterprise) without copying any page.
-
-Define profiles under `profiles`, then select one with `profile` on the site or on any product, version, tab, tab variant, section, or page:
-
-```yaml docs.yml
-profiles:
-  community:
-    vars:
-      PRODUCT: Acme
-      CLI: acme
-  enterprise:
-    vars:
-      PRODUCT: Acme Enterprise
-      CLI: acme-ent
-
-profile: community
-
-products:
-  - display-name: Community
-    slug: community
-    path: ./products/community.yml
-  - display-name: Enterprise
-    slug: enterprise
-    path: ./products/enterprise.yml
-    profile: enterprise
-```
-
-When both product files list the same `install.mdx`, Fern builds one page per product, each at its own URL. The source page is written once:
-
-```mdx title="install.mdx"
-Install ${PRODUCT} with `${CLI} install`.
-```
-
-The page reads "Install Acme with `acme install`" under Community and "Install Acme Enterprise with `acme-ent install`" under Enterprise.
+Profiles fill `${NAME}` placeholders with per-edition values. For examples and precedence rules, see [Profiles](/learn/docs/configuration/profiles).
 
 <ParamField path="profiles.{name}.vars" type="object, string, or list of strings" required={true} toc={true}>
-  The values for this profile. Accepts an inline map, a path to a YAML file, or a list of paths. Paths are relative to `docs.yml`, and each file contains a top-level `vars` map:
-
-  ```yaml docs.yml
-  profiles:
-    enterprise:
-      vars:
-        - ./vars/common.yml
-        - ./vars/enterprise.yml
-  ```
-
-  ```yaml vars/enterprise.yml
-  vars:
-    PRODUCT: Acme Enterprise
-    CLI: acme-ent
-  ```
-
-  A name defined in two files fails the build. Vars files are committed with your docs, so don't store secrets in them.
+  The values for this profile. Accepts an inline map, a path to a YAML file, or a list of paths. Paths are relative to `docs.yml`, and each file contains a top-level `vars` map.
 </ParamField>
 
 <ParamField path="profile" type="string" required={false} toc={true}>
-  The name of a profile from `profiles`. Set it at the top level of `docs.yml` or on a product, version, tab, tab variant, section, or page. The closest `profile` to a page applies (page, then section, tab variant, tab, version, product, and site). Profiles don't merge: a closer profile replaces the outer one entirely, including names it doesn't define. `fern check` reports a `profile` that names no entry in `profiles`.
+  The name of a profile from `profiles`. Set it at the top level of `docs.yml` or on a product, version, tab, tab variant, section, or page. The closest `profile` to a page applies.
 </ParamField>
-
-Profile values fill page content and frontmatter, navigation titles, navbar links, the announcement banner, and footer text. Search results, Markdown output, and [`llms.txt`](/learn/docs/ai-features/llms-txt) get the same filled text as each page. Values don't apply to endpoint and webhook descriptions that come from an API definition.
-
-To show a literal `${NAME}`, escape it as `\$\{NAME\}`. A placeholder whose name isn't in the applied profile stays as written, unless [`substitute-env-vars`](/learn/docs/configuration/site-level-settings#settingssubstitute-env-vars) is on. In that case, Fern fills it from the environment variable with the same name, which also covers pages with no profile in scope.
 
 ## Instances configuration
 
@@ -982,7 +928,7 @@ settings:
 
   To output a literal `${VAR}`, escape it as `\$\{VAR\}`.
 
-  For values that change per product, version, or section instead of per build, use [profiles](/learn/docs/configuration/site-level-settings#profiles-configuration).
+  For values that change per product, version, or section instead of per build, use [profiles](/learn/docs/configuration/profiles).
 
   <Note>
   During local preview (`fern docs dev`), undefined variables resolve to empty strings. During publishing, undefined variables cause the build to fail.
