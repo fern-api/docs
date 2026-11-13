@@ -90,18 +90,18 @@ Typed models are available from `<binary_name>_sdk::api::*` (for a CLI named `pl
 
 `command_under` creates any missing intermediate groups with an empty description. Set one with `app.describe(&["serverless", "env"], "Manage environment variables")`. To hide root global flags that don't apply to a custom subtree, such as `--dry-run` on a command that never calls the API, use `app.hide_global_flags(&["serverless"], &["dry-run"])`. The flags are still accepted there; they only disappear from `--help`.
 
-To keep your own commands at the top level and the API commands under a single group, set `rootGroup` in `generators.yml`. With the following config, `plant plants list` becomes `plant api plants list`:
+To keep your own commands at the top level and the API commands under a single group, set `rootGroup` in the CLI target's `generation` block. With the following config, `plant plants list` becomes `plant api plants list`:
 
-```yaml title="generators.yml"
-config:
-  binaryName: plant
-  rootGroup: api
+```yaml title="sdk-config.yml"
+targets:
+  - language: cli
+    generation:
+      binaryName: plant
+      rootGroup: api
 ```
 
 ## Things to know
 
 - **Regeneration doesn't touch `custom.rs`**, but everything it calls is regenerated from your spec. If a spec change renames an endpoint or resource, update `custom.rs` to match. `cargo build` reports every call that no longer exists.
 - **Handlers control their own output.** Response transforms and error-recovery hooks configured on the CLI only apply to spec-derived commands, so print results however suits the command.
-- **Extra Rust crates go in `generators.yml`.** If a handler imports a crate the CLI doesn't already depend on, add it with [`extraDependencies`](/learn/cli-generator/get-started/configuration#extradependencies) instead of editing `Cargo.toml`, which is regenerated.
-- **Wire tests don't cover custom commands.** The optional [`generateWireTests`](/learn/cli-generator/get-started/configuration#generatewiretests) suite only tests spec-derived commands, so add your own tests for custom ones.
 - **You can turn custom commands off.** Set [`customCommands: false`](/learn/cli-generator/get-started/configuration#customcommands) to generate a spec-only CLI without `custom.rs` or the SDK and types crates.

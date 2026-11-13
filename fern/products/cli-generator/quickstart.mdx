@@ -30,48 +30,44 @@ Generate a CLI from an OpenAPI specification with Fern. Follow the [CLI Generato
 
 ```bash
 mkdir my-api-config && cd my-api-config
-fern init --organization my-org
+fern init --openapi path/to/openapi.yml --organization my-org
 ```
 
-This creates a `fern/` directory containing the default configuration files.
+This creates a `fern/` directory with an `sdk-config.yml` that points `source.specs` at a copy of your spec. The spec must include at least one path, and any `securitySchemes` declared under `components` become the credentials the CLI [reads at runtime](/learn/cli-generator/get-started/authentication). The CLI target reads local specs only, so reference the spec with `path` rather than `url`.
 </Step>
 
-<Step title="Add your OpenAPI spec">
+<Step title="Add a CLI target">
 
-Place your spec at `fern/openapi.yml` (or any path you reference in the next step). The spec must include at least one path, and any `securitySchemes` declared under `components` become the credentials the CLI [reads at runtime](/learn/cli-generator/get-started/authentication).
-</Step>
+Add a target with `language: cli` to `targets` in `fern/sdk-config.yml`:
 
-<Step title="Configure the generator">
-
-Replace the contents of `fern/generators.yml`:
-
-```yaml title="fern/generators.yml"
-api:
+```yaml title="fern/sdk-config.yml" {9-14}
+schemaVersion: sdk-config/v1
+sdkName: My API
+sdkVersion: 1.0.0
+source:
   specs:
-    - openapi: openapi.yml
-default-group: cli
-groups:
-  cli:
-    generators:
-      - name: fern-cli-generator
-        version: <Markdown src="/snippets/version-number-cli-generator.mdx"/>
-        output:
-          location: local-file-system
-          path: ../my-cli
-        config:
-          binaryName: my-cli
+    - id: my-api
+      type: openapi
+      path: ./openapi.yml
+targets:
+  - language: cli
+    generation:
+      binaryName: my-cli
+    output:
+      delivery: files
+      path: ../my-cli
 ```
 
-The `path` is relative to the `fern/` directory, so this writes the generated Rust project to a sibling `my-cli/` directory. To ship the CLI to npm, GitHub Releases, Homebrew, or Scoop instead of building it locally, configure a [publishing target](/learn/cli-generator/get-started/publishing).
+The `output.path` is relative to `sdk-config.yml`, so this writes the generated Rust project to a sibling `my-cli/` directory. CLI-only settings such as `binaryName` go in the target's `generation` block; the [configuration reference](/learn/cli-generator/get-started/configuration) lists them all. To ship the CLI to npm, GitHub Releases, Homebrew, or Scoop instead of building it locally, configure a [publishing target](/learn/cli-generator/get-started/publishing).
 </Step>
 
 <Step title="Generate the CLI">
 
 ```bash
-fern generate --group cli
+fern generate --target cli
 ```
 
-Fern reads the OpenAPI spec, runs the CLI generator, and writes a complete Rust project to the output path. 
+Fern reads the OpenAPI spec, runs the CLI generator, and writes a complete Rust project to the output path. Without `--target`, `fern generate` builds every target in `sdk-config.yml`.
 </Step>
 
 <Step title="Build and run">
@@ -87,8 +83,8 @@ The `--help` output shows the full command tree: top-level commands derived from
 
 <Step title="Customize the output">
 
-- Rename commands, hide endpoints, or patch metadata without forking your spec by layering [overrides and overlays](/learn/cli-generator/get-started/customization#overrides-and-overlays) onto `generators.yml`.
-- Ship one binary that drives multiple APIs by listing them under `api.specs` with [multi-spec merging](/learn/cli-generator/get-started/customization#multi-spec-merging).
+- Rename commands, hide endpoints, or patch metadata without forking your spec by layering [overrides and overlays](/learn/cli-generator/get-started/customization#overrides-and-overlays) onto the spec in `sdk-config.yml`.
+- Ship one binary that drives multiple APIs by listing them under `source.specs` with [multi-spec merging](/learn/cli-generator/get-started/customization#multi-spec-merging).
 - Add subcommands that don't map to an endpoint — login flows, config helpers, local utilities — with [custom commands](/learn/cli-generator/get-started/custom-commands).
 </Step>
 
