@@ -1,0 +1,88 @@
+---
+title: Configure the server
+description: Choose which API operations become MCP tools, group them into toolsets, rename tools, and pass credentials.
+---
+
+The MCP Generator turns each operation in your OpenAPI spec into one tool. Settings in the `generation` block of the `mcp` target in `sdk-config.yml` decide which tools the server exposes and how agents see them, and OpenAPI extensions on each operation set its tool's name and description. Run `fern generate` after a change to redeploy the server with the same URL.
+
+```yaml title="fern/sdk-config.yml"
+targets:
+  - language: mcp
+    output:
+      delivery: hosted
+      slug: petstore
+    generation:
+      serverName: Petstore
+      serverDescription: Manage pets, orders, and users in the Swagger Petstore.
+      excludeAvailability: [DEPRECATED]
+      tools:
+        exclude: ["delete_*"]
+      toolsets:
+        orders:
+          include: [get_inventory, place_order, get_order_by_id]
+```
+
+## Name and describe tools
+
+A tool's name is the operation's `operationId` in snake case, so `getPetById` becomes `get_pet_by_id`. An operation without an `operationId` is named after its HTTP method and path. When two operations produce the same name, the generator adds the service name, then the path segments that tell them apart, then the HTTP method, and a number only as a last resort.
+
+A tool's description comes from the operation's `summary` and `description`, cut to 512 characters. To set either one yourself, add these extensions to the operation, in your spec or an [overlay](/learn/api-definitions/openapi/overlays):
+
+```yaml title="overlay.yml"
+overlay: 1.0.0
+info:
+  title: MCP tool names
+  version: 1.0.0
+actions:
+  - target: "$.paths['/pet/{petId}'].get"
+    update:
+      x-fern-mcp-name: get_pet
+      x-fern-mcp-description: Get one pet by its numeric ID.
+```
+
+`x-fern-mcp-name` is used as written. It must be 1 to 64 letters, digits, `_`, or `-`, and no two tools can share a name. Generation fails otherwise.
+
+## Choose which operations become tools
+
+`tools` filters the operations that become tools. `include` keeps only the operations it matches, and `exclude` removes the operations it matches. Each entry matches by:
+
+- Tool name, such as `get_pet_by_id`.
+- `operationId`, such as `getPetById`.
+- Tag, written `tag:<tag>`, such as `tag:store`.
+- Tool name with `*` wildcards, such as `delete_*`.
+
+An entry that matches no operation fails generation, and the error lists the available tool names.
+
+`excludeAvailability: [DEPRECATED]` removes every operation marked `deprecated: true` in your spec. Without it, a deprecated operation's tool says so in its description.
+
+Some operations can't become tools, and the generator skips them with a warning: operations whose request body has no JSON content type, such as a file upload that only accepts `application/octet-stream`, and operations with a required query parameter in a serialization style the generator doesn't support.
+
+## Group tools into toolsets
+
+A toolset is a subset of the server's tools with its own URL. An agent connected to a toolset sees only those tools, which keeps its tool list short.
+
+| Server | All tools | One toolset |
+|--------|-----------|-------------|
+| Hosted | `https://<your-org>.fernmcp.dev/<slug>` | `https://<your-org>.fernmcp.dev/<slug>/<toolset>` |
+| [Custom domain](/learn/mcp-generator/get-started/manage#use-a-custom-domain) | `https://<your-domain>` | `https://<your-domain>/<toolset>` |
+| Local | `http://localhost:8787/mcp` | `http://localhost:8787/mcp/<toolset>` |
+
+Fern creates a toolset for each tag and each service that has at least two tools, named in kebab case. For Petstore, that gives `pet`, `store`, and `user`. `toolsets` adds your own, or replaces a generated toolset with the same name. Each one takes the same `include` and `exclude` entries as `tools`, and draws only from the tools that `tools` and `excludeAvailability` keep. Toolset names use lowercase letters, digits, and hyphens, and can't be `default`.
+
+## Name the server
+
+`serverName` and `serverDescription` set the server's name and description. Without them, the name comes from `sdkName` in `sdk-config.yml`, with `sdk` replaced by `mcp` (`acme-sdk` becomes `acme-mcp`), and the description from `info.description` in your spec.
+
+## Pass credentials
+
+Credentials come from the security schemes in your spec. Agents send them as request headers on every call, and the server forwards them to your API:
+
+- An API key scheme reads the request header named in the scheme, even when your API expects the key in a query parameter or cookie. The server puts the key where your API expects it.
+- An HTTP bearer scheme reads `Authorization: Bearer <token>`, and an HTTP basic scheme reads `Authorization: Basic <base64 of username:password>`.
+- An OAuth scheme, including client credentials, reads an access token from the `Authorization` header. The server doesn't get tokens itself, so the agent supplies a valid token.
+
+Parameters that carry a credential aren't tool inputs. When a call is missing a credential, the error names the headers to send. The dashboard's **Connect** button builds each agent's command with the right headers.
+
+## Limits
+
+Every tool call times out after 30 seconds, and a response from your API can be at most 1 MiB. The server rejects path parameters of `.` or `..` and cookie values that contain semicolons or control characters.
