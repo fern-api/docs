@@ -6,6 +6,108 @@ description: Write a page once and publish it in several editions. Profiles swap
 
 A profile is a named set of values, such as a product name or CLI command. Write `${NAME}` in a page, and Fern swaps in the value from the profile. Give each product, version, or tab its own profile, and one page shows the right values in every edition, with no copies to maintain.
 
+## See it in action
+
+This site has two products, Community and Enterprise, that share one install page.
+
+<Steps>
+<Step title="Define a profile for each product">
+
+```yaml docs.yml
+profiles:
+  community:
+    vars:
+      PRODUCT: Acme
+      CLI: acme
+  enterprise:
+    vars:
+      PRODUCT: Acme Enterprise
+      CLI: acme-ent
+
+profile: community
+
+products:
+  - display-name: Community
+    slug: community
+    path: ./products/community.yml
+  - display-name: Enterprise
+    slug: enterprise
+    path: ./products/enterprise.yml
+    profile: enterprise
+```
+
+</Step>
+<Step title="Write the page and its navigation once">
+
+Both product files list the same pages, with placeholders in the sidebar titles.
+
+<CodeBlocks>
+````mdx pages/install.mdx
+---
+title: Install ${PRODUCT}
+subtitle: Get ${PRODUCT} running in under a minute
+---
+
+Install the `${CLI}` command-line tool, then sign in.
+
+```bash
+npm install -g ${CLI}
+${CLI} login
+```
+
+Check that ${PRODUCT} is installed:
+
+```bash
+${CLI} --version
+```
+````
+
+```yaml products/community.yml
+navigation:
+  - section: Get started
+    contents:
+      - page: Install ${PRODUCT}
+        path: ../pages/install.mdx
+      - page: Configure ${CLI}
+        path: ../pages/configure.mdx
+```
+</CodeBlocks>
+
+</Step>
+<Step title="Each product gets its own edition">
+
+Fern builds the install page once per product. The title, subtitle, commands, and sidebar titles change with the profile.
+
+<Tabs>
+<Tab title="Community">
+<div className="dark:hidden">
+  <Frame>
+    <img src="./assets/profiles-community-light.png" alt="The install page in the Community product, filled from the community profile" />
+  </Frame>
+</div>
+<div className="hidden dark:block">
+  <Frame>
+    <img src="./assets/profiles-community-dark.png" alt="The install page in the Community product, filled from the community profile" />
+  </Frame>
+</div>
+</Tab>
+<Tab title="Enterprise">
+<div className="dark:hidden">
+  <Frame>
+    <img src="./assets/profiles-enterprise-light.png" alt="The install page in the Enterprise product, filled from the enterprise profile" />
+  </Frame>
+</div>
+<div className="hidden dark:block">
+  <Frame>
+    <img src="./assets/profiles-enterprise-dark.png" alt="The install page in the Enterprise product, filled from the enterprise profile" />
+  </Frame>
+</div>
+</Tab>
+</Tabs>
+
+</Step>
+</Steps>
+
 ## Define profiles
 
 Add profiles to `docs.yml`, then select one with `profile`:
@@ -57,54 +159,15 @@ A name defined in two files fails the build. Vars files are committed with your 
 
 Write the page once:
 
-````mdx install.mdx
+```mdx install.mdx
 ---
 title: Install ${PRODUCT}
-subtitle: Get ${PRODUCT} running in under a minute
 ---
 
-Install the `${CLI}` command-line tool, then sign in.
-
-```bash
-npm install -g ${CLI}
-${CLI} login
+Run `${CLI} install`.
 ```
 
-Check that ${PRODUCT} is installed:
-
-```bash
-${CLI} --version
-```
-````
-
-When both product files list `install.mdx`, Fern builds one page per product, each at its own URL. Under Community, the page reads "Install Acme" and runs `acme login`. Under Enterprise, it reads "Install Acme Enterprise" and runs `acme-ent login`. A sidebar title written as `page: Install ${PRODUCT}` changes the same way:
-
-<Tabs>
-<Tab title="Community">
-<div className="dark:hidden">
-  <Frame>
-    <img src="./assets/profiles-community-light.png" alt="The install page in the Community product, filled from the community profile" />
-  </Frame>
-</div>
-<div className="hidden dark:block">
-  <Frame>
-    <img src="./assets/profiles-community-dark.png" alt="The install page in the Community product, filled from the community profile" />
-  </Frame>
-</div>
-</Tab>
-<Tab title="Enterprise">
-<div className="dark:hidden">
-  <Frame>
-    <img src="./assets/profiles-enterprise-light.png" alt="The install page in the Enterprise product, filled from the enterprise profile" />
-  </Frame>
-</div>
-<div className="hidden dark:block">
-  <Frame>
-    <img src="./assets/profiles-enterprise-dark.png" alt="The install page in the Enterprise product, filled from the enterprise profile" />
-  </Frame>
-</div>
-</Tab>
-</Tabs>
+When both product files list `install.mdx`, Fern builds one page per product, each at its own URL. Under Enterprise, the page reads "Install Acme Enterprise" and "Run `acme-ent install`".
 
 Values fill page content and frontmatter, navigation titles, navbar links, the announcement banner, and footer text. Search, Markdown output, and [`llms.txt`](/learn/docs/ai-features/llms-txt) get the same filled text. Endpoint and webhook descriptions from an API definition aren't filled.
 
