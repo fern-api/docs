@@ -8,6 +8,8 @@ max-toc-depth: 3
 
 Tabs split a product or version into parallel bodies of content, each with its own sidebar. Tab variants give a single tab more than one version of its content, such as REST versus GraphQL or beginner versus advanced.
 
+With tabs in the header, a [tab menu](#tab-menus) groups several tabs under one header tab, such as a product switcher.
+
 Two tabs make sense when the content is unrelated, like guides and an API Reference. Variants of one tab make sense when it covers the same ground for a different reader.
 
 ## Tabs
@@ -107,6 +109,14 @@ theme:
 
 <ParamField path="href" type="string" toc={true}>
   External URL. When set, clicking the tab redirects to this URL. Tabs with `href` must not include `layout` or `variants`.
+</ParamField>
+
+<ParamField path="tab-menu" type="list" toc={true}>
+  Turns the tab into a [tab menu](#tab-menus) of other tabs, groups, and links. A tab with a `tab-menu` has no `layout` or `variants` of its own.
+</ParamField>
+
+<ParamField path="tab-menu-column-height" type="integer | 'no-limit'" toc={true}>
+  Maximum number of entries per column in this tab's menu. `no-limit` keeps a single column. Overrides [`layout.tab-menu.default-column-height`](/learn/docs/configuration/site-level-settings#layouttab-menudefault-column-height). Only applies to tabs with a `tab-menu`.
 </ParamField>
 
 <ParamField path="target" type="string" toc={true}>
@@ -236,6 +246,37 @@ navigation:
   </video>
 </Frame>
 
+### Grouped variants
+
+A `variants` list can also hold `group` entries and `link` entries. A `group` has a header and an `items` list of variants and links. A `link` adds an external URL to the selector. When the list has groups or links, the sidebar selector shows every entry in one stacked list under its group header.
+
+```yaml title="docs.yml"
+navigation:
+  - tab: sdks
+    variants:
+      - group: Server SDKs
+        items:
+          - title: Python
+            default: true
+            layout:
+              - page: Quickstart
+                path: ./pages/python/quickstart.mdx
+          - title: TypeScript
+            layout:
+              - page: Quickstart
+                path: ./pages/typescript/quickstart.mdx
+      - group: Mobile SDKs
+        items:
+          - title: Swift
+            layout:
+              - page: Quickstart
+                path: ./pages/swift/quickstart.mdx
+      - link: Community SDKs
+        href: https://github.com/example/community-sdks
+```
+
+Link entries take `link` (display text), `href`, and optional `icon` and `target`.
+
 ### Variant properties
 
 <ParamField path="title" type="string" required={true} toc={true}>
@@ -281,3 +322,123 @@ navigation:
 <ParamField path="feature-flag" type="string | object" toc={true}>
   Conditional display configuration
 </ParamField>
+
+## Tab menus
+
+A tab menu turns a header tab into a dropdown that lists other tabs, grouped into columns, along with external links. Use it to build a product switcher in the header instead of a long row of tabs. Tab menus require [tabs in the header](#tabs-placement-and-styling). With tabs in the sidebar, the menu's tabs show in a selector at the top of the sidebar instead.
+
+To configure a tab menu:
+
+- Declare the menu tab under `tabs` with a `tab-menu` list. Each entry is a tab, a `group` of tabs and links, or a link.
+- Declare each tab in the menu only inside its menu entry, not under `tabs`.
+- In `navigation`, add `- tab:` for the menu tab with no `layout` or `variants`. Its position sets where the menu sits in the header.
+- In `navigation`, give each tab in the menu its own `- tab:` entry with a `layout`, or with `variants` to show a selector at the top of that tab's sidebar.
+
+```yaml title="docs.yml"
+layout:
+  tabs-placement: header
+
+tabs:
+  products:
+    display-name: Products
+    tab-menu-column-height: 2
+    tab-menu:
+      - group: Platform
+        tabs:
+          - tab: agents
+            display-name: Agents
+            subtitle: Build AI agents
+            icon: fa-solid fa-robot
+          - tab: studio
+            display-name: Studio
+      - link: Status
+        href: https://status.example.com
+  guides:
+    display-name: Guides
+
+navigation:
+  - tab: products # Menu tab: no layout or variants
+  - tab: agents
+    variants: # Selector at the top of the Agents sidebar
+      - title: Python
+        default: true
+        layout:
+          - page: Quickstart
+            path: ./pages/agents/python.mdx
+      - title: TypeScript
+        layout:
+          - page: Quickstart
+            path: ./pages/agents/typescript.mdx
+  - tab: studio
+    layout:
+      - page: Overview
+        path: ./pages/studio/overview.mdx
+  - tab: guides
+    layout:
+      - page: Getting started
+        path: ./pages/guides/getting-started.mdx
+```
+
+URLs for tabs in a menu nest under the menu tab, for example `/products/agents/python/quickstart`. Selecting a tab with variants opens its `default: true` variant, or the first variant.
+
+Each `group` starts a new column, and ungrouped entries share one column. A column continues into a new one after the number of entries set by the tab's [`tab-menu-column-height`](#tab-menu-column-height), or the site-wide [`layout.tab-menu.default-column-height`](/learn/docs/configuration/site-level-settings#layouttab-menudefault-column-height). Menus open on hover by default. Set [`layout.tab-menu.interact-on-click-only`](/learn/docs/configuration/site-level-settings#layouttab-menuinteract-on-click-only) to `true` to open and close them only when the tab is selected, with no animation. To restyle menus, use the [tab menu CSS selectors](/learn/docs/customization/css-selectors-reference#tab-menu-components).
+
+### Tab menu entry properties
+
+Tabs in a `tab-menu`, directly or inside a `group`, accept these properties. The `tab` value is the ID that the tab's `- tab:` entry in `navigation` uses.
+
+<ParamField path="tab-menu[].tab" type="string" required={true} toc={true}>
+  ID of the tab. Must match a `- tab:` entry in `navigation`.
+</ParamField>
+
+<ParamField path="tab-menu[].display-name" type="string" required={true} toc={true}>
+  Name shown in the menu
+</ParamField>
+
+<ParamField path="tab-menu[].subtitle" type="string" toc={true}>
+  Text displayed below the name
+</ParamField>
+
+<ParamField path="tab-menu[].icon" type="string" toc={true}>
+  <Markdown src="/products/docs/snippets/icons.mdx" />
+</ParamField>
+
+<ParamField path="tab-menu[].slug" type="string" toc={true}>
+  Custom URL slug for the tab
+</ParamField>
+
+<ParamField path="tab-menu[].skip-slug" type="boolean" toc={true}>
+  Exclude the tab slug from URLs
+</ParamField>
+
+<ParamField path="tab-menu[].hidden" type="boolean" toc={true}>
+  Hide the tab from the menu
+</ParamField>
+
+<ParamField path="tab-menu[].default" type="boolean" toc={true}>
+  When true, this tab displays by default for the menu tab. If not specified, the first tab is used.
+</ParamField>
+
+<ParamField path="tab-menu[].viewers" type="string | list" toc={true}>
+  Role-based access control for the tab
+</ParamField>
+
+<ParamField path="tab-menu[].feature-flag" type="string | object" toc={true}>
+  Conditional display configuration
+</ParamField>
+
+A `group` entry takes `group` (the column header) and a `tabs` list of tab and link entries. A link entry takes `link` (display text), `href`, and optional `icon` and `target`.
+
+<llms-only>
+### Tab menu errors
+
+`fern check` reports these errors for tab menus:
+
+- A tab in a `tab-menu` has no `- tab:` entry in `navigation`, or its entry has neither `layout` nor `variants`.
+- A tab is listed in more than one `tab-menu`, or is both in a `tab-menu` and under `tabs`.
+- The menu tab's `navigation` entry has its own `layout` or `variants`. Put pages under each menu entry's own `- tab:` entry.
+- A menu entry's tab is in `navigation`, but its menu tab isn't. Add `- tab: <menu tab>` where the menu sits in the header.
+- Two tabs in one menu get the same URL slug. Give each a different `display-name` or `slug`.
+
+`fern check` warns when a tab has a `tab-menu` but tabs aren't in the header, and when `tab-menu-column-height` is set on a tab without a `tab-menu`.
+</llms-only>
