@@ -207,6 +207,22 @@ navigation:
 `paginated` controls page layout only. It's unrelated to [endpoint pagination](/learn/api-definitions/openapi/extensions/pagination), which navigates through a response using cursors or offsets and requires no `docs.yml` configuration.
 </Info>
 
+### Documenting standalone types
+
+By default, the API Reference only documents a schema inline on the pages of the endpoints, webhooks, and WebSockets that reference it. A schema that no operation references doesn't appear anywhere, so a spec whose value lives in its schemas (for example, a `paths: {}` document of XML element schemas, or shared models and event payloads never wired to an operation) renders nothing. Set `types` to `true` to give each of those schemas its own page.
+
+```yaml title="docs.yml"
+navigation:
+  - api: API Reference
+    types: true
+```
+
+Fern adds a `Types` section as the last section of the API Reference, with one page per unreferenced schema sorted by title, at `<api-reference>/types/<type-name>`. Schemas that an operation references, directly or through another schema, stay inline on that operation's page, and enums or objects declared inline inside another schema stay nested on their parent's page.
+
+Each type page lists the schema's properties, enum values, or union variants, and shows an example in the side panel. The example uses the schema's own `example` or `examples`, or is assembled from its properties' `example` values. Types with [XML encoding metadata](/learn/sdks/deep-dives/xml-encoded-types) (the OpenAPI `xml` object or `x-fern-xml-text`) get an XML example; all other types get a JSON example. Type pages are included in search, `llms.txt`, and the [Markdown version of each page](/learn/docs/ai-features/markdown).
+
+If the API Reference also includes a [GraphQL schema](/learn/docs/api-references/generate-graphql-ref#types), which has its own `Types` section, the standalone section is titled `Schemas` and lives at `<api-reference>/schemas/<type-name>` instead.
+
 ### Styling endpoints
 
 To customize the display of an endpoint, you can add a `title`. You can also use `slug` to customize the endpoint URL.
@@ -494,6 +510,11 @@ The following properties can be set on the `- api` entry in your `docs.yml` navi
 
 <ParamField path="tag-description-pages" toc={true} type="boolean">
   When `true`, uses OpenAPI tag descriptions as summary pages for each section.
+
+</ParamField>
+
+<ParamField path="types" toc={true} type="boolean">
+  When `true`, gives every schema that no endpoint, webhook, or WebSocket references [its own page](#documenting-standalone-types) under a `Types` section at the end of the API Reference. Defaults to `false`.
 
 </ParamField>
 
