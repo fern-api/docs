@@ -219,7 +219,28 @@ navigation:
 
 Fern adds a `Types` section as the last section of the API Reference, with one page per unreferenced schema sorted by title, at `<api-reference>/types/<type-name>`. Schemas that an operation references, directly or through another schema, stay inline on that operation's page, and enums or objects declared inline inside another schema stay nested on their parent's page.
 
-Each type page lists the schema's properties, enum values, or union variants, and shows an example in the side panel. The example uses the schema's own `example` or `examples`, or is assembled from its properties' `example` values. Types with [XML encoding metadata](/learn/sdks/deep-dives/xml-encoded-types) (the OpenAPI `xml` object or `x-fern-xml-text`) get an XML example; all other types get a JSON example. Type pages are included in search, `llms.txt`, and the [Markdown version of each page](/learn/docs/ai-features/markdown).
+Each type page lists the schema's properties, enum values, or union variants, and shows an example in the side panel. For an OpenAPI object schema, the example is the schema's first `example` or `examples` entry. A schema without one gets an example assembled from its properties' `example` values, but only when every required property has an `example`. Otherwise, the example uses placeholder values.
+
+```yaml title="openapi.yml"
+components:
+  schemas:
+    Say:
+      type: object
+      xml:
+        name: Say
+      properties:
+        voice:
+          type: string
+          xml:
+            attribute: true
+        message:
+          type: string
+      example:
+        voice: alice
+        message: Thanks for calling.
+```
+
+Types with [XML encoding metadata](/learn/sdks/deep-dives/xml-encoded-types) (the OpenAPI `xml` object or `x-fern-xml-text`) get an XML example; all other types get a JSON example. An XML example built from a schema example writes only the properties the example sets and one element per list item, rendering each item of a `oneOf` list as the variant it matches. Type pages are included in search, `llms.txt`, and the [Markdown version of each page](/learn/docs/ai-features/markdown).
 
 If the API Reference also includes a [GraphQL schema](/learn/docs/api-references/generate-graphql-ref#types), which has its own `Types` section, the standalone section is titled `Schemas` and lives at `<api-reference>/schemas/<type-name>` instead.
 
