@@ -85,7 +85,15 @@ The agent creates a `fern` folder, runs `fern check`, then runs `fern generate -
 
   By default, `fern claim` turns the guest organization into your own. Pass `--org <organization>` to move the work into an existing organization you administer. Either way, claiming requires a signed-in user, so an agent can't do it for you.
 
-  After the claim, the CLI points `fern.config.json` at the organization and removes the guest session. Later runs use `fern login` or `FERN_TOKEN` without `--guest`.
+  Like the claim link, `fern claim` moves the docs site and SDK builds into the organization and removes the drop banner and guest expiry. To choose names as you would on the claim page, pass `--docs-url <slug>` for the site's `<slug>.docs.buildwithfern.com` address, or `--sdk-name <name>` for the SDK:
+
+  ```bash
+  fern claim --org <organization> --docs-url <slug>
+  ```
+
+  After the claim, the CLI points `fern.config.json` at the organization. When `docs.yml` has a single instance, it also sets that instance's URL to the claimed site, so the next `fern generate --docs` updates it. Then it removes the guest session. Later runs use `fern login` or `FERN_TOKEN` without `--guest`.
+
+  If moving the site or SDK fails, for example because the docs URL is taken, the claim still stands and the guest session is kept. Run `fern claim` again, with a different name if needed, to retry the move.
 
   </Step>
   <Step title="Connect GitHub">
@@ -145,7 +153,9 @@ A build that never runs doesn't spend a unit. When a session runs out, the CLI f
 | [`fern generate --docs --guest`](/learn/cli-api-reference/cli-reference/docs-commands#guest) | Publishes docs to a drop site on a guest session. |
 | `--no-source` | With `--docs --guest`, publishes without uploading the `fern` folder. |
 | `--new-session` | With `--guest`, starts a new guest session and guest organization. Earlier guest work isn't carried over. |
-| [`fern claim [--org <organization>]`](/learn/cli-api-reference/cli-reference/general-commands#fern-claim) | Claims this repository's guest session. Requires `fern login`. |
+| [`fern claim [--org <organization>]`](/learn/cli-api-reference/cli-reference/general-commands#fern-claim) | Claims this repository's guest session and moves its docs site and SDK builds into the organization. Requires `fern login`. |
+| `--docs-url <slug>` | With `fern claim`, gives the claimed docs site the `<slug>.docs.buildwithfern.com` address. |
+| `--sdk-name <name>` | With `fern claim`, names the claimed SDK in the organization. |
 | [`fern whoami`](/learn/cli-api-reference/cli-reference/general-commands#fern-whoami) | Shows the login, `FERN_TOKEN`, or guest session in use, with the session's ID, organization, and expiry. |
 
 The CLI records the session in `fern/.guest-session`, which it gitignores, and keeps the credential in `~/.fern/guest-sessions/`. Later `--guest` runs in the same repository reuse the session.
