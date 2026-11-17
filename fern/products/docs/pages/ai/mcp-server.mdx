@@ -54,7 +54,28 @@ claude mcp add --transport http \
 
 ## Authenticated sites
 
-On sites with [authentication](/learn/docs/authentication/overview) enabled, MCP clients must include a `FERN_TOKEN` header containing a valid JWT. Without it, the server only returns publicly visible content (if any).
+On sites with [authentication](/learn/docs/authentication/overview) enabled, a client that isn't signed in only gets publicly visible content (if any), plus instructions for signing in. A signed-in client gets the same pages its user could open in a browser, based on their [roles](/learn/docs/authentication/features/rbac).
+
+### Sign in from an MCP client
+
+MCP clients that support OAuth sign-in can sign in through your site's own login. Sign-in is available on:
+
+- [SSO](/learn/docs/authentication/setup/sso) sites, with no extra configuration.
+- [Password](/learn/docs/authentication/setup/password-protection), [JWT](/learn/docs/authentication/setup/jwt), and [OAuth](/learn/docs/authentication/setup/oauth) sites, after you set `mcp-auth` to `true` and publish with Fern CLI 5.221.0 or later:
+
+```yaml docs.yml
+page-actions:
+  options:
+    mcp-auth: true
+```
+
+To sign in, the user picks the client's **Sign in** or **Authenticate** option for the server, or connects the client to `your-documentation-site.com/_mcp/server?sign_in=true`. The client opens the site's login page in the browser and then refreshes its access automatically. A sign-in lasts up to 30 days, and never longer than the site's own login session. Role changes take effect the next time the user signs in.
+
+On OAuth sites, users only get roles if your provider's access token includes them in a claim. See [Add a custom claim](/learn/docs/authentication/setup/oauth#add-a-custom-claim).
+
+### Pass a token manually
+
+Clients without OAuth sign-in, and scripts, can include a `FERN_TOKEN` header containing a valid JWT instead.
 
 <Steps>
 <Step title="Get a token">
@@ -100,7 +121,7 @@ For Cursor, VS Code, and other clients, add `FERN_TOKEN: <jwt>` to the `headers`
 </Steps>
 
 <Note>
-  JWTs expire. Re-run the token exchange when the token lapses. There is no automatic refresh mechanism in the MCP transport.
+  JWTs expire. Re-run the token exchange when the token lapses. A manually passed token isn't refreshed automatically.
 </Note>
 
 ## Exclude test and eval traffic from analytics
