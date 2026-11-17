@@ -1,0 +1,90 @@
+---
+title: Dashboard
+description: Run the Fern docs editor inside your self-hosted docs container, with login from your identity provider and changes saved as pull requests.
+---
+
+<Markdown src="/snippets/enterprise-plan.mdx" />
+
+The self-hosted image can serve the [Fern Editor](/learn/docs/writing-content/fern-editor) at `/_dashboard` on your docs domain. The dashboard runs in the same container as your docs and stores nothing of its own:
+
+- Login uses the docs `fern_token` cookie, so users sign in through the same identity provider as your [authenticated docs](/learn/docs/self-hosted/authentication#basic-token-verification).
+- Each editing session is a branch in your docs repository, and saving opens a draft pull request on it.
+- Unsaved edits stay in the user's browser until they commit.
+
+The dashboard is in preview and is off unless you turn it on.
+
+## Prerequisites
+
+- Self-hosted docs using `basic_token_verification` or `oauth2` authentication. Password and SSO logins carry no roles, so they can't open the dashboard.
+- Your docs source in a GitHub.com repository.
+- A GitHub personal access token with read and write access to **Contents** and **Pull requests** on that repository.
+
+## Turn on the dashboard
+
+Set `FERN_DASHBOARD_ENABLED=true` before `RUN fern-generate`:
+
+```dockerfile
+FROM fernenterprise/fern-self-hosted:latest
+
+COPY fern/ /fern/
+
+ENV FERN_AUTH_TYPE="basic_token_verification"
+ENV FERN_AUTH_SECRET="<YOUR SECRET>"
+ENV FERN_AUTH_ISSUER="https://your-issuer.example.com"
+ENV FERN_AUTH_REDIRECT="https://your-login-page.example.com/login"
+
+ENV FERN_DASHBOARD_ENABLED=true
+
+RUN fern-generate
+```
+
+Without the variable, `fern-generate` removes the dashboard and the services it needs from the image, which keeps docs-only images small. The variable has to be set at build time: setting it only when the container starts makes the container exit with an error.
+
+Pass the repository and token when the container starts. Keep the token in a secret, such as a Kubernetes secret, rather than in the Dockerfile:
+
+```bash
+docker run -p 8080:8080 \
+  -e FERN_DASHBOARD_GIT_URL="https://github.com/your-org/your-docs" \
+  -e FERN_DASHBOARD_GITHUB_TOKEN="<YOUR TOKEN>" \
+  your-docs-image
+```
+
+| Variable | When | Description |
+|---|---|---|
+| `FERN_DASHBOARD_ENABLED` | Build and runtime | Set to `true` to keep and start the dashboard. |
+| `FERN_DASHBOARD_GIT_URL` | Runtime | The GitHub repository that holds your `fern/` folder. |
+| `FERN_DASHBOARD_GITHUB_TOKEN` | Runtime | Personal access token for that repository. The dashboard uses it on this repository only. Without it, the editor opens in read-only preview mode. |
+
+## Give users access
+
+The dashboard admits a user whose token's `fern.roles` claim contains `FERN_EDITOR` or `FERN_ADMIN`. Add one of these roles in your login server when it signs the JWT:
+
+```json
+{
+  "fern": { "roles": ["FERN_EDITOR"] },
+  "iss": "https://your-issuer.example.com",
+  "iat": 1735689600,
+  "exp": 1735776000
+}
+```
+
+A user without either role, or without a valid token, is sent to `FERN_AUTH_REDIRECT` and gets no content. The dashboard verifies the token with the same secret and issuer as the docs.
+
+## Edit the docs
+
+Open `https://<your docs domain>/_dashboard/`. The dashboard shows the Editor tab for your site, listing the change requests in progress: the repository's open pull requests on editor branches.
+
+- **New change request** creates a branch and opens the editor on it.
+- **Commit** saves the changes to the branch and opens a draft pull request titled "Docs update".
+- **Open** on a change request reopens it from its branch, in any browser.
+
+Review and merge the pull request on GitHub. The published site changes when you rebuild and deploy the image from the merged source.
+
+## Limitations
+
+- Only GitHub.com with a personal access token is supported. GitHub Apps, GitHub Enterprise Server and GitLab aren't.
+- A branch with no pull request yet doesn't appear in the list.
+- Run one replica of the container: the dashboard keeps its locks and caches in memory.
+- The repository's default branch must be `main`.
+- The site's logo and fonts don't load inside the editor.
+- The dashboard adds about 470 MB to the image.
