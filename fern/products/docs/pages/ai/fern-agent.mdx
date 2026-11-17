@@ -229,6 +229,10 @@ The **Docs sites** field appears when your organization has more than one docs s
 Choose daily or a day of the week, a time of day, and timezone. A schedule fires at most once every 20 hours.
 </Step>
 
+<Step title="Add connections (optional)">
+Under **Connections (optional)**, add the MCP servers each run can read from, such as Pylon for support tickets. Sign-in to each server happens after you save. See [Connections](#connections).
+</Step>
+
 <Step title="Check what a run produces">
 **Save** your new automation. 
 
@@ -242,6 +246,26 @@ Everyone in your organization sees every automation, and only its creator can ch
 
 Run history covers the last 30 days. The **Status** column shows **Running**, **Successful**, or **Failed** for runs with tracked outcomes. The **Pull requests** column links every pull request a run opened, labeled `owner/name#123`, including runs that edit multiple repositories.
 
+
+### Connections
+
+Connections let an automation read from tools outside Fern, such as support tickets in Pylon or issues in Jira and Linear, and use what it finds to update the docs. Each connection is an [MCP server](https://modelcontextprotocol.io/). An automation can have up to five, and each belongs to that automation only.
+
+Add connections when creating the automation, or later from **Connections** in the automation's **Configuration**. Select a tile:
+
+- **Pylon**, **Jira**, or **Linear** adds the provider's MCP server and opens its sign-in page.
+- **Custom server** adds any MCP server that accepts HTTPS. Enter a **Name** and **Server URL**, then choose how runs authenticate:
+  - **Sign in (OAuth)** opens the server's sign-in page after you select **Save connection**. The server must support MCP sign-in with dynamic client registration. Servers that require a pre-registered client ID and secret aren't supported.
+  - **Authorization header** sends an optional value, such as `Bearer <token>`, with every request. The value is stored encrypted and can't be viewed after saving.
+
+Each connection shows its sign-in status. A connection that needs a sign-in shows **Not signed in** and a **Connect** button, and one whose sign-in has expired shows **Sign-in expired** and a **Reconnect** button. When a new automation has more than one sign-in connection, the first sign-in page opens after you save and the rest wait for **Connect** on the automation's page.
+
+Runs use the access of the account that signed in, and only the automation's creator can add, sign in to, rename, or remove its connections. Removing a connection deletes its saved sign-in.
+
+Refer to a connection by name in the prompt, such as "the Pylon connection." Names hold up to 40 characters (letters, numbers, spaces, hyphens, and underscores) and are unique within an automation. Select the pencil icon on a connection to rename it.
+
+Runs only call tools the server marks as read-only, so an automation can read tickets and issues but can't change them. Content from a connected server is screened for prompt injection, and flagged content is withheld from the run. Docs changes still arrive as pull requests for review.
+
 ### Examples
 
 <Prompt title="Fix what readers complained about">
@@ -252,6 +276,12 @@ Review the feedback readers left on our docs pages and fix the pages they said w
 
 <Prompt title="Report on how the docs are doing">
 Report on how our docs are doing: the pages readers spend the most time on, where they drop off, the searches that return nothing, and what changed since last week.
+</Prompt>
+
+<br />
+
+<Prompt title="Close docs gaps from support tickets">
+Use the Pylon connection to read the support tickets closed in the last 7 days. Find questions the docs should have answered, update or add pages to cover them, and open a pull request. List the tickets each change addresses.
 </Prompt>
 
 ## Fern Clerk
