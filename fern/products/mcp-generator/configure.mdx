@@ -1,6 +1,6 @@
 ---
 title: Configure the server
-description: Choose which API operations become MCP tools, group them into toolsets, rename tools, and pass credentials.
+description: Choose which API operations become MCP tools, group them into toolsets, merge and rename tools, add custom tools and hooks, and pass credentials.
 ---
 
 The MCP Generator turns each operation in your OpenAPI spec into one tool. Settings in the `generation` block of the `mcp` target in `sdk-config.yml` decide which tools the server exposes and how agents see them, and OpenAPI extensions on each operation set its tool's name and description. Run `fern generate` after a change to redeploy the server with the same URL.
@@ -48,7 +48,7 @@ actions:
 
 - Tool name, such as `get_pet_by_id`.
 - `operationId`, such as `getPetById`.
-- Tag, written `tag:<tag>`, such as `tag:store`.
+- Tag or service name, written `tag:<name>`, such as `tag:store`. This matches an operation's OpenAPI tag or the service it belongs to.
 - Tool name with `*` wildcards, such as `delete_*`.
 
 An entry that matches no operation fails generation, and the error lists the available tool names.
@@ -110,6 +110,86 @@ The server exposes `manage_order` in place of its three members. An agent calls 
 - Toolsets list a merged tool by its own name, not by its members' names.
 
 Generation fails when a member has no `x-fern-mcp-dispatch-value`, two members share a value, an operation sets a value but belongs to no merged tool, or the merged tool's name matches another tool or `operationId`.
+
+## Add custom tools and hooks
+
+When no operation does what an agent needs, write a **custom tool**: a TypeScript module that defines its own tool and handler. To run the same logic across every tool call, write **hooks**. Both are TypeScript files under `fern/custom/`, registered in the `mcp` target's `generation` block, and bundled into the server at `fern generate`.
+
+Both types import from [`@fern-api/mcp-tooling`](https://www.npmjs.com/package/@fern-api/mcp-tooling), so they type-check before you generate. The generated server takes no runtime dependency on the package.
+
+### Custom tools
+
+`fern sdk add-tool <name>` writes a stub to `fern/custom/tools/<name>.ts` and registers it under `customTools`:
+
+```yaml title="sdk-config.yml"
+targets:
+  - language: mcp
+    generation:
+      customTools:
+        adopt_pet:
+          path: custom/tools/adopt_pet.ts
+```
+
+The module exports a `definition` (the tool an agent sees in `tools/list`) and a `handler` that runs when the tool is called:
+
+```ts title="fern/custom/tools/adopt_pet.ts"
+import type { CallToolResult, RequestContext, ToolArgs, ToolDefinition } from "@fern-api/mcp-tooling";
+
+export const definition: ToolDefinition = {
+  name: "adopt_pet",
+  description: "Adopt an available pet and return the confirmation.",
+  inputSchema: {
+    type: "object",
+    properties: { petId: { type: "string" } },
+    required: ["petId"],
+    additionalProperties: false,
+  },
+};
+
+export const handler = async (args: ToolArgs, context: RequestContext): Promise<CallToolResult> => {
+  const response = await context.fetch(`${context.baseUrl}/pet/${args.petId}/adopt`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+  });
+  if (!response.ok) {
+    return { isError: true, content: [{ type: "text", text: `HTTP ${response.status}` }] };
+  }
+  return { content: [{ type: "text", text: await response.text() }] };
+};
+```
+
+A custom tool's name must be unique across every generated, merged, and custom tool. Custom tools appear next to the generated ones, including in the default toolset even when a `tools` or `mergedTools` filter is set, so a filter never hides them.
+
+### Hooks
+
+`fern sdk add-hook` writes `fern/custom/hooks.ts` and registers it under `hooks`:
+
+```yaml title="sdk-config.yml"
+targets:
+  - language: mcp
+    generation:
+      hooks:
+        path: custom/hooks.ts
+```
+
+The module exports four functions, each wrapping a point in the request lifecycle:
+
+| Hook | Runs | Use for |
+|------|------|---------|
+| `beforeRequest(request, auth?)` | before each upstream call | add headers, route by tenant, rewrite the URL |
+| `afterResponse(request, response)` | after each response | metrics, latency, reshaping |
+| `onError(request, error)` | on a transport error or non-2xx | audit and alerting (observe only) |
+| `transformResult(toolName, result)` | before a result returns to the agent | redact, annotate, reshape |
+
+`beforeRequest`, `afterResponse`, and `onError` wrap the generated tools automatically, and wrap a custom tool only when its handler calls `context.fetch`. `transformResult` wraps generated and merged tool results but not custom-tool results, because a custom handler returns its own result directly: redact or reshape custom-tool output inside the handler, not in `transformResult`.
+
+### Call your API from a custom tool
+
+`context.fetch` is a drop-in replacement for the global `fetch` that routes the call through the server's request hooks and credential handling. It sends your API's credentials only to the configured `baseUrl` origin, does not follow redirects (a 3xx returns as-is, so credentials cannot leak to a redirect target), and times out after 30 seconds. Prefer it over the global `fetch`, which bypasses the hooks, the credentials, and the timeout.
+
+`context.fetch` does not set a content type. On a `POST`, `PUT`, or `PATCH` with a JSON body, set `content-type: application/json`, or the body goes out as `text/plain` and many APIs answer `415`.
+
+Custom tools and hooks are delivered to the build only through the hosted route, so they require `fern generate` against Fern's build service, not a local-only build.
 
 ## Name the server
 
