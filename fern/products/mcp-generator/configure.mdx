@@ -69,6 +69,48 @@ A toolset is a subset of the server's tools with its own URL. An agent connected
 
 Fern creates a toolset for each tag and each service that has at least two tools, named in kebab case. For Petstore, that gives `pet`, `store`, and `user`. `toolsets` adds your own, or replaces a generated toolset with the same name. Each one takes the same `include` and `exclude` entries as `tools`, and draws only from the tools that `tools` and `excludeAvailability` keep. Toolset names use lowercase letters, digits, and hyphens, and can't be `default`.
 
+## Merge related tools
+
+`mergedTools` combines several operations into one tool, which keeps an agent's tool list short when your API has many similar operations. The agent picks an operation by setting the argument named in `dispatchOn`. Merged tools require Fern CLI 5.222.0 or later.
+
+```yaml title="sdk-config.yml"
+targets:
+  - language: mcp
+    generation:
+      mergedTools:
+        manage_order:
+          dispatchOn: action
+          description: Place, look up, or cancel a store order.
+          include: [place_order, get_order_by_id, delete_order]
+```
+
+Each member operation sets the value that routes to it with `x-fern-mcp-dispatch-value`:
+
+```yaml title="overlay.yml"
+overlay: 1.0.0
+info:
+  title: MCP dispatch values
+  version: 1.0.0
+actions:
+  - target: "$.paths['/store/order'].post"
+    update:
+      x-fern-mcp-dispatch-value: place
+  - target: "$.paths['/store/order/{orderId}'].get"
+    update:
+      x-fern-mcp-dispatch-value: get
+  - target: "$.paths['/store/order/{orderId}'].delete"
+    update:
+      x-fern-mcp-dispatch-value: delete
+```
+
+The server exposes `manage_order` in place of its three members. An agent calls it with `action` set to `place`, `get`, or `delete`, plus that operation's arguments. Without `description`, the tool's description lists the dispatch argument and its values.
+
+- `include` and `exclude` take the same entries as `tools`, and draw only from the tools that `tools` and `excludeAvailability` keep.
+- `dispatchOn` must be 1 to 64 letters, digits, `_`, `.`, or `-`. The merged tool's name follows the same rules as `x-fern-mcp-name`.
+- Toolsets list a merged tool by its own name, not by its members' names.
+
+Generation fails when a member has no `x-fern-mcp-dispatch-value`, two members share a value, an operation sets a value but belongs to no merged tool, or the merged tool's name matches another tool or `operationId`.
+
 ## Name the server
 
 `serverName` and `serverDescription` set the server's name and description. Without them, the name comes from `sdkName` in `sdk-config.yml`, with `sdk` replaced by `mcp` (`acme-sdk` becomes `acme-mcp`), and the description from `info.description` in your spec.
