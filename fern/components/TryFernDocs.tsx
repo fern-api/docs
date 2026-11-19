@@ -12,8 +12,6 @@ const MAX_UPLOAD_BYTES = 2 * 1024 * 1024;
 const JOB_STORAGE_KEY = "try-fern-docs-job";
 const SAMPLE_SPEC_NAME = "Plant Store sample API";
 const SPEC_ACCEPT = ".json,.yaml,.yml,application/json,application/yaml,text/yaml";
-const MARKDOWN_FALLBACK =
-  "_The web version of this page has an interactive card here that publishes a docs site and generates a TypeScript SDK from your OpenAPI spec or the Plant Store sample API._";
 
 type Product = "docs" | "sdk";
 type Mode = "sample" | "upload";
@@ -607,8 +605,4 @@ export function TryFernDocs() {
       </div>
     </div>
   );
-}
-
-export function toMarkdown(): string {
-  return MARKDOWN_FALLBACK;
 }
