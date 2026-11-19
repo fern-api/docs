@@ -609,4 +609,6 @@ export function TryFernDocs() {
   );
 }
 
-TryFernDocs.toMarkdown = (): string => MARKDOWN_FALLBACK;
+export function toMarkdown(): string {
+  return MARKDOWN_FALLBACK;
+}
