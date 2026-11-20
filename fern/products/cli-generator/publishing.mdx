@@ -38,8 +38,8 @@ The `repository` owner is independent of your Fern organization (the `--organiza
 
 | Mode | Behavior |
 | --- | --- |
-| `release` | Commits to the default branch and tags a release. The CI workflow builds binaries and publishes automatically. |
-| `pull-request` | Opens a PR with generated source for review. Merge the PR and create a GitHub release to trigger publishing. |
+| `release` | Commits to the default branch and tags a release. The release workflow builds binaries and publishes automatically. |
+| `pull-request` | Opens a PR with generated source for review. Merge the PR and push a version tag to trigger publishing. |
 
 ## Configure authentication
 
@@ -78,7 +78,7 @@ targets:
 <Step title="Create the packages on npm">
 
 <Info>
-  The CI workflow publishes one launcher package and one package per platform. For a package named `@myorg/my-cli`, that's:
+  The release workflow publishes one launcher package and one package per platform. For a package named `@myorg/my-cli`, that's:
 
   | Package | Contents |
   | --- | --- |
@@ -130,7 +130,7 @@ Configure [trusted publishing](https://docs.npmjs.com/trusted-publishers) on npm
 1. Fill in:
    - **Organization or user**: Your GitHub username or organization
    - **Repository**: Your CLI repository name (e.g. `my-cli`)
-   - **Workflow filename**: `ci.yml`
+   - **Workflow filename**: `release.yml`
    - **Environment name**: Leave blank
 1. Under **Allowed actions**, select **Allow `npm publish`**
 
@@ -144,7 +144,7 @@ Generate the CLI to create the GitHub Actions workflow with OIDC configuration:
 fern generate --target cli
 ```
 
-This creates a `.github/workflows/ci.yml` file configured for OIDC npm publishing. In `release` mode, it also tags a release, which triggers the first publish run over the placeholder versions.
+This creates `.github/workflows/release.yml`, which calls `.github/workflows/publish-npm.yml` with OIDC npm publishing. In `release` mode, it also tags a release, which triggers the first publish run over the placeholder versions.
 
 </Step>
 
@@ -295,18 +295,16 @@ The next generation also adds a `preflight-distribution` job that fails within s
 
 How you trigger a publish depends on your `mode`:
 
-- In `release` mode, `fern generate --target cli` commits the updated source and tags a release. The tag triggers the CI workflow (no manual release step).
-- In `pull-request` mode, `fern generate --target cli` opens a PR. Merge it, then create a GitHub release with a version tag (e.g. `v1.0.0`) to trigger publishing.
+- In `release` mode, `fern generate --target cli` commits the updated source and tags a release. The tag triggers the release workflow (no manual release step).
+- In `pull-request` mode, `fern generate --target cli` opens a PR. Merge it, then push a version tag (for example, `v1.0.0`) to trigger publishing.
 
-The CI workflow then builds binaries for all platforms, attaches the archives and the `curl | bash` and PowerShell installers to the GitHub Release, publishes to npm, and updates any configured tap or bucket.
-
-When the CLI repository has the `CODESIGN_CERTIFICATE`, `CODESIGN_CERTIFICATE_PASSWORD`, and `CODESIGN_IDENTITY` Actions secrets (an Apple Developer ID certificate), the workflow also code-signs the macOS binaries, so a macOS keychain "Always Allow" survives upgrades. Without them, the macOS binaries ship unsigned.
+The release workflow then runs CI, builds binaries for all platforms, creates the GitHub Release with the archives and the `curl | bash` and PowerShell installers, publishes to npm, and updates any configured tap or bucket.
 
 On public repositories, each build also signs its archives with GitHub build provenance attestations. Private repositories skip that step by default, since GitHub supports attestations on private repositories only with GitHub Enterprise Cloud; set [`output.distribution.githubAttestations`](/learn/cli-generator/get-started/configuration#outputdistribution) to `true` to attest on Enterprise Cloud or `false` to drop attestations entirely.
 
 ## Build targets
 
-The CI workflow produces binaries for:
+The release workflow produces binaries for:
 
 | Target | OS | Architecture |
 | --- | --- | --- |

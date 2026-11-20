@@ -7,7 +7,7 @@ description: Configure CLI generation in sdk-config.yml with a cli target, CLI g
 
 Configure the CLI generator as a target with `language: cli` in `sdk-config.yml`. A single SDK Config can describe the CLI alongside SDK targets: `source.specs` lists the OpenAPI specs, `api` holds settings every target shares (such as [auth schemes](/learn/cli-generator/get-started/authentication)), and each target has its own `package`, `generation`, and `output` blocks. CLI-only settings go in the CLI target's `generation` block. An unknown key fails validation instead of being ignored.
 
-```yaml title="sdk-config.yml" {9-19}
+```yaml title="sdk-config.yml" {9-17}
 schemaVersion: sdk-config/v1
 sdkName: My API
 sdkVersion: 1.0.0
@@ -21,8 +21,6 @@ targets:
     generation:
       binaryName: my-cli
       customCommands: true
-      profiles:
-        enabled: true
     output:
       delivery: github
       github:
@@ -37,7 +35,7 @@ Settings shared with SDK targets, such as `source`, `api`, `package`, and `outpu
 Set these under `targets[].generation` on the `cli` target.
 
 <ParamField path="binaryName" type="string" toc={true}>
-Name of the compiled binary. Determines the executable filename, the Cargo `[[bin]]` target name, and the environment-variable prefix used for [TLS, proxy, and logging settings](/learn/cli-generator/get-started/features#tls-proxies-and-ca-bundles).
+Name of the compiled binary. Determines the executable filename, the Cargo `[[bin]]` target name, and the prefix of the CLI's [environment variables](/learn/cli-generator/get-started/features#runtime-settings).
 
 When omitted, the generator derives the name from the API definition's display name (kebab-cased). Multi-spec workspaces must set this field explicitly — there is no sensible auto-derivation when multiple specs are present.
 
@@ -50,11 +48,12 @@ targets:
 
 The binary name `contoso` produces:
 - Executable: `contoso`
-- Env-var prefix: `CONTOSO` (e.g. `CONTOSO_CA_BUNDLE`, `CONTOSO_LOG`)
+- Env-var prefix: `CONTOSO` (for example, `CONTOSO_BASE_URL`, `CONTOSO_TIMEOUT_SECS`)
+- SDK crate: `contoso-sdk`
 </ParamField>
 
 <ParamField path="crateName" type="string" toc={true}>
-Name of the generated Cargo package. Release archives and installers use it. Defaults to `binaryName` when the target delivers to GitHub.
+Name of the CLI's Cargo package. Release archives and installers use it. Defaults to `binaryName`. It can't be `<binaryName>-sdk`, which is the name of the SDK crate beside it in the Cargo workspace.
 
 ```yaml title="sdk-config.yml"
 targets:
@@ -77,11 +76,10 @@ targets:
 </ParamField>
 
 <ParamField path="customCommands" type="boolean" default="true" toc={true}>
-Controls whether the generator produces the custom command infrastructure alongside the CLI binary. When enabled, the output includes:
+Controls whether the generator produces the [custom command](/learn/cli-generator/get-started/custom-commands) scaffolding alongside the CLI. When enabled, the output includes:
 
-- A `<binaryName>-types` library crate (typed serde structs)
-- A `<binaryName>-sdk` library crate (HTTP client accessible via `ctx.client()`)
-- Scaffolding files for user-authored command handlers
+- A `commands/custom` module for hand-written commands and hooks, which regeneration never overwrites
+- An `.agents/skills/custom-commands/SKILL.md` guide that teaches an AI agent to write custom commands for this API
 
 Set to `false` to produce a spec-only CLI with no custom command support.
 
@@ -93,115 +91,7 @@ targets:
 ```
 </ParamField>
 
-<ParamField path="userAgentSuffixFlag" type="string" default="user-agent-suffix" toc={true}>
-Renames the global flag (and its derived environment variable) that a downstream consumer uses to append a product token to the generated CLI's [`User-Agent`](/learn/cli-generator/get-started/features#user-agent). Provide the flag's long name without the leading `--`. It must be a kebab identifier matching `^[a-z][a-z0-9-]*$` and can't collide with a built-in flag name.
-
-Any kebab identifier is accepted except the CLI's built-in flag names (`params`, `output`, `json`, `format`, `dry-run`, `base-url`, `page-all`, `page-limit`, `page-delay`, `no-pager`, `no-extract`, `no-retry`, `no-stream`, `quiet`, `query`, `help`, `debug`, `schema`). The default `user-agent-suffix` exposes `--user-agent-suffix` and `<NAME>_USER_AGENT_SUFFIX`. For example, setting `via` exposes `--via` and `<NAME>_VIA` instead (the environment variable is `<NAME>_` followed by the flag uppercased with hyphens converted to underscores):
-
-```yaml title="sdk-config.yml"
-targets:
-  - language: cli
-    generation:
-      userAgentSuffixFlag: via
-```
-
-A consumer of the generated `contoso` CLI then appends its product token with the renamed flag:
-
-```bash
-contoso plants list --via "partner-app/3.1"
-# sends User-Agent: contoso-cli/1.4.0 partner-app/3.1
-```
-</ParamField>
-
-<ParamField path="splitTypeCrates" type="boolean" default="false" toc={true}>
-Splits the generated types into one crate per API, plus a shared `core` crate for types that more than one API references, nested inside `<binaryName>-types/crates/`. By default, every generated model lands in a single `<binaryName>-types` crate.
-
-Enable it for workspaces with many specs, where that single crate is one `rustc` compilation unit large enough to exhaust the memory of a standard CI runner and get `cargo build` killed. Splitting also shortens builds, because the per-API crates compile in parallel and cache independently. `<binaryName>-types` remains as a facade that re-exports everything, so imports such as `use plant_types::Plant;` keep resolving and [custom command](/learn/cli-generator/get-started/custom-commands) handlers need no changes. The shipped artifact is the same either way: one binary with every spec embedded.
-
-```yaml title="sdk-config.yml"
-targets:
-  - language: cli
-    generation:
-      binaryName: plant
-      splitTypeCrates: true
-```
-</ParamField>
-
-<ParamField path="profiles" type="object" toc={true} required={false}>
-Adds [named profiles](/learn/cli-generator/get-started/authentication#named-profiles) to the generated CLI: a top-level `profiles` subcommand group, a global `--profile` / `-p` flag, and a `<binaryName>_PROFILE` environment variable. A profile stores a tenant's credential, parameter defaults, server URL variables, base URL, retry limit, and default output format once, so users of multi-tenant APIs don't pass an account identifier on every command.
-
-Off by default. A CLI generated without this block is byte-identical to one generated before the option existed, and a `profiles` block with `enabled` unset or `false` is a no-op.
-
-```yaml title="sdk-config.yml"
-targets:
-  - language: cli
-    generation:
-      binaryName: acme
-      profiles:
-        enabled: true
-```
-</ParamField>
-<Indent>
-<ParamField path="profiles.enabled" type="boolean" default="false" required={false}>
-Emits the profiles surface. Enabling it adds a top-level subcommand group and a global flag to an existing CLI, which is a surface change for its users.
-</ParamField>
-
-<ParamField path="profiles.commandName" type="string" default="profiles" required={false}>
-Name of the top-level subcommand group. Must start with a lowercase letter and contain only `[a-z0-9-]`, and can't be one of the built-in groups (`auth`, `completion`, `man`, `errors`, `generate-skills`, `help`). Rename it (for example, to `tenants` or `accounts`) when that reads better for your API. If your spec already declares a `profiles` resource, the built-in subcommands are folded into that group rather than colliding with it, so renaming is optional.
-</ParamField>
-
-<ParamField path="profiles.revokeOperation" type="string" required={false}>
-Dotted command path of an operation that revokes a profile's remote credential, such as `iam.keys.remove`. When set, `profiles remove` gains a `--revoke` flag that calls the operation before deleting the profile locally. The operation is invoked with the profile's stored parameters as its arguments, so any parameter it requires must be set on the profile. When omitted, the flag isn't registered.
-</ParamField>
-
-<ParamField path="profiles.provisionOperation" type="object" required={false}>
-An operation that mints a profile's remote credential (an API key), and how its response maps onto that credential. When set, `profiles create` can call the operation with the credentials already in the caller's environment and store the mapped response fields in the OS keychain without printing the secret. Paired with `revokeOperation`, a profile owns its API key end to end: minted when the profile is created, revoked by `profiles remove --revoke`.
-
-```yaml title="sdk-config.yml"
-targets:
-  - language: cli
-    generation:
-      binaryName: acme
-      profiles:
-        enabled: true
-        revokeOperation: iam.keys.remove
-        provisionOperation:
-          operation: iam.keys.create
-          credential:
-            username: sid
-            password: secret
-          revokeParameters:
-            Sid: sid
-```
-</ParamField>
-<Indent>
-<ParamField path="profiles.provisionOperation.operation" type="string" required={true}>
-Dotted command path of the operation that creates the credential, in the form `<resource>.<method>` (for example, `iam.keys.create`). Like `revokeOperation`, it's invoked with the profile's stored parameters as its arguments.
-</ParamField>
-
-<ParamField path="profiles.provisionOperation.credential" type="map<string, string>" required={true}>
-Maps each credential field to the top-level response field that supplies it. The keys are the halves the auth scheme stores: `username` and `password` for basic auth, `client_id` and `client_secret` for OAuth2 client credentials, and `token` for a single-value scheme. At least one field must be mapped, and keys and values may contain only `[A-Za-z0-9_.-]`.
-</ParamField>
-
-<ParamField path="profiles.provisionOperation.revokeParameters" type="map<string, string>" required={false}>
-Maps each parameter the `revokeOperation` takes to the response field it's read from, such as `Sid: sid` to record the new key's ID. The values are stored on the profile as `credential_parameters` and used only by `profiles remove --revoke`, never as request defaults. They're kept in plaintext profile metadata and shown by `profiles show`, so map identifiers here, never secrets. Without `revokeParameters`, the profile has no record of which key it owns, and `--revoke` can only pass the profile's own parameters.
-</ParamField>
-
-<ParamField path="oauthTokenEndpoints" type="map<string, object>" toc={true}>
-Custom request and response property names for an OAuth scheme's token and refresh endpoints, keyed by the ID of an `oauth2` scheme in `api.auth.schemes` that has a `client-credentials` flow. Use it when the token endpoint doesn't use the standard OAuth property names. See [OAuth flows](/learn/cli-generator/get-started/authentication#oauth-flows).
-
-```yaml title="sdk-config.yml"
-targets:
-  - language: cli
-    generation:
-      oauthTokenEndpoints:
-        oauth:
-          token:
-            requestProperties:
-              clientId: username
-              clientSecret: password
-```
-</ParamField>
+The SDK Config schema also accepts `profiles`, `userAgentSuffixFlag`, `splitTypeCrates`, `oauthTokenEndpoints`, `paginationParameters`, and `skills` on a `cli` target, but the CLI generator doesn't use them yet.
 
 ## Package metadata
 
