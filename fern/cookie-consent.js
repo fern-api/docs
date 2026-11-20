@@ -117,6 +117,14 @@
       return;
     }
     clearCookies(consent);
+    if (active.marketing && consent.analytics && !active.analytics) {
+      // GTM is already running with `analytics_storage` denied.
+      window.dataLayer.push(
+        (function () {
+          return arguments;
+        })("consent", "update", { analytics_storage: "granted" })
+      );
+    }
     if (consent.analytics && !active.analytics) {
       active.analytics = true;
       window.fernAnalyticsConsent = true;
