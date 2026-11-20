@@ -178,18 +178,18 @@ The module exports four functions, each wrapping a point in the request lifecycl
 |------|------|---------|
 | `beforeRequest(request, auth?)` | before each upstream call | add headers, route by tenant, rewrite the URL |
 | `afterResponse(request, response)` | after each response | metrics, latency, reshaping |
-| `onError(request, error)` | on a transport error or non-2xx | audit and alerting (observe only) |
+| `onError(request, error)` | on a transport error, or a non-2xx response to a generated tool | audit and alerting (observe only) |
 | `transformResult(toolName, result)` | before a result returns to the agent | redact, annotate, reshape |
 
-`beforeRequest`, `afterResponse`, and `onError` wrap the generated tools automatically, and wrap a custom tool when its handler calls `context.fetch`.
+`beforeRequest`, `afterResponse`, and `onError` wrap the generated tools automatically, and wrap a custom tool when its handler calls `context.fetch`. `transformResult` runs on every tool's result, custom tools included.
 
 ### Call your API from a custom tool
 
-`context.fetch` is a drop-in replacement for the global `fetch` that routes the call through the server's request hooks and credential handling. It sends your API's credentials only to the configured `baseUrl` origin, does not follow redirects (a 3xx returns as-is, so credentials cannot leak to a redirect target), and times out after 30 seconds. Prefer it over the global `fetch`, which bypasses the hooks, the credentials, and the timeout.
+`context.fetch` is a drop-in replacement for the global `fetch` that routes the call through the server's request hooks and credential handling. It sends your API's credentials only to the configured `baseUrl` origin, doesn't follow redirects (a 3xx returns as-is, so credentials can't leak to a redirect target), and times out after 30 seconds. Prefer it over the global `fetch`, which bypasses the hooks, the credentials, and the timeout.
 
-`context.fetch` does not set a content type. On a `POST`, `PUT`, or `PATCH` with a JSON body, set `content-type: application/json`, or the body goes out as `text/plain` and many APIs answer `415`.
+`context.fetch` doesn't set a content type. A non-2xx response returns to your handler without calling `onError`. On a `POST`, `PUT`, or `PATCH` with a JSON body, set `content-type: application/json`, or the body goes out as `text/plain` and many APIs answer `415`.
 
-Custom tools and hooks are delivered to the build only through the hosted route, so they require `fern generate` against Fern's build service, not a local-only build.
+`fern generate` uploads the custom tool and hook modules to Fern's build service, which bundles them into the server for both hosted and downloaded servers.
 
 ## Name the server
 
