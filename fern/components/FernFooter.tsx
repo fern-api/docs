@@ -474,6 +474,7 @@ export default function FernFooter() {
                 <a href="https://brandfetch.com/buildwithfern.com" className="fern-cf-link">Brand Kit</a>
                 <a href="https://buildwithfern.com/privacy-policy" className="fern-cf-link">Privacy Policy</a>
                 <a href="https://buildwithfern.com/terms-of-service" className="fern-cf-link">Terms of Service</a>
+                <a href="#cookie-settings" data-fern-cookie-settings="" className="fern-cf-link">Cookie Settings</a>
               </div>
             </div>
 
