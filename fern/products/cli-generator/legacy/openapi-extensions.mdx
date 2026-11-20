@@ -1,0 +1,261 @@
+---
+title: OpenAPI extensions
+description: Learn which Fern OpenAPI extensions influence the generated CLI and how they map to commands, flags, and help text.
+---
+
+<Markdown src="/products/cli-generator/legacy/snippets/legacy-notice.mdx" current="/learn/cli-generator/get-started/openapi-extensions" />
+
+
+The CLI generator reads several [Fern OpenAPI extensions](/learn/api-definitions/openapi/extensions/overview) to shape the generated CLI. You can add these extensions directly in your spec or apply them through [overlays](/learn/cli-generator/legacy/get-started/customization#overrides-and-overlays).
+
+## Command structure
+
+### `x-fern-sdk-group-name`
+
+Determines the subcommand group hierarchy. Each list element becomes a nested subcommand, with names converted from camelCase to kebab-case.
+
+```yaml title="openapi.yml" {4-6}
+paths:
+  /scheduled-events/{uuid}/invitees:
+    get:
+      x-fern-sdk-group-name:
+        - scheduledEvents
+        - invitees
+      x-fern-sdk-method-name: list-event-invitees
+```
+
+Produces: `cli scheduled-events invitees list-event-invitees`
+
+### `x-fern-sdk-method-name`
+
+Sets the leaf command name (used as-is).
+
+```yaml title="openapi.yml" {4}
+paths:
+  /users/me:
+    get:
+      x-fern-sdk-method-name: get-current-user
+```
+
+Produces: `cli get-current-user` (or nested under a group if `x-fern-sdk-group-name` is also set).
+
+<Note>
+If neither extension is present, the CLI falls back to the `operationId`.
+</Note>
+
+See [SDK method names](/learn/api-definitions/openapi/extensions/method-names) for more details.
+
+## Command group help
+
+A command group's help text comes from the root-level `tags[]` entry attributed to it: the first sentence of the tag description becomes the short line in the parent command's table, and the full description becomes the group's `--help` body.
+
+```yaml title="openapi.yml" {2-3}
+tags:
+  - name: plants
+    description: Browse and water the plants in your greenhouse. Water schedules are timezone-aware.
+paths:
+  /plants/{plantId}:
+    get:
+      tags:
+        - plants
+```
+
+Produces `plants  Browse and water the plants in your greenhouse.` in the top-level command table.
+
+A tag is attributed to a group when its name matches the group name, or when it's exclusive to the group and covers at least half of the group's operations. Colon-scoped tag names (`access:all`) and tags shared across groups are ignored, leaving the fallback `Operations on '<name>'`.
+
+### `x-fern-groups`
+
+Overrides the derived help for a group. `summary` sets the short line, which is capped at 80 characters; `description` sets the long help and also supplies the short line when `summary` is absent or only restates the command name (`Plants` for `plants`).
+
+```yaml title="openapi.yml" {2-4}
+x-fern-groups:
+  plants:
+    summary: Manage your greenhouse
+    description: Browse, water, and repot plants. Watering respects each plant's schedule.
+```
+
+## Filtering
+
+### `x-fern-ignore`
+
+Excludes operations or parameters from the generated CLI. An ignored operation produces no command; an ignored parameter produces no flag.
+
+```yaml title="openapi.yml" {4}
+paths:
+  /internal/debug:
+    get:
+      x-fern-ignore: true
+```
+
+At the parameter level:
+
+```yaml title="openapi.yml" {7}
+paths:
+  /users:
+    get:
+      parameters:
+        - name: internalParam
+          in: query
+          x-fern-ignore: true
+          schema:
+            type: string
+```
+
+See [Ignoring elements](/learn/api-definitions/openapi/extensions/ignoring-elements) for more details.
+
+## Availability badges
+
+### `x-fern-availability`
+
+Adds a status badge next to the command in `--help` output.
+
+| Value | Badge |
+| --- | --- |
+| `alpha` | `[Alpha]` |
+| `beta` | `[Beta]` |
+| `preview` | `[Preview]` |
+| `generally-available` or `ga` | `[GA]` |
+| `deprecated` | `[Deprecated]` |
+| `legacy` | `[Legacy]` |
+
+```yaml title="openapi.yml" {4}
+paths:
+  /v2/reports:
+    get:
+      x-fern-availability: beta
+```
+
+OpenAPI's standard `deprecated: true` is also honored and maps to `[Deprecated]` when `x-fern-availability` isn't set.
+
+See [Availability](/learn/api-definitions/openapi/extensions/availability) for more details.
+
+## Parameter naming
+
+### `x-fern-parameter-name`
+
+Overrides the CLI flag name derived from a parameter. By default, parameter names are converted to kebab-case for use as flags.
+
+```yaml title="openapi.yml" {9}
+paths:
+  /users:
+    get:
+      parameters:
+        - name: X-API-Version
+          in: header
+          schema:
+            type: string
+          x-fern-parameter-name: api-version
+```
+
+Produces `--api-version` instead of `--x-api-version`.
+
+See [Customize parameter names](/learn/api-definitions/openapi/extensions/parameter-names) for more details.
+
+## Global parameters
+
+### `x-fern-global-parameters`
+
+Registers a value that's configured once and injected into every applicable command, rather than passed on each invocation. Each declared parameter becomes a top-level `--<flag-name>` flag with its environment-variable fallback and client-side default, injected at the declared location (`body`, `query`, `header`, or `path`).
+
+```yaml title="openapi.yml"
+x-fern-global-parameters:
+  - name: currency
+    in: body
+    target: config.currency
+    env: ACME_CURRENCY
+    default: USD
+    apply: auto
+```
+
+The value resolves from the first available source: the CLI flag, then the environment variable, then the default. A per-operation parameter with the same target overrides the global.
+
+```bash
+# CLI flag takes priority
+acme products search --currency EUR
+
+# Otherwise falls back to the environment variable
+export ACME_CURRENCY=EUR
+acme products search
+
+# Otherwise sends the default (USD)
+acme products search
+```
+
+An `apply: auto` parameter applies to every command whose request contains the target; an `apply: explicit` parameter applies only to operations that opt in with `x-fern-global-parameter`.
+
+Headers declared API-wide with [`x-fern-global-headers`](/learn/api-definitions/openapi/extensions/global-headers) are sent on every request the same way, and an `x-fern-global-parameters` entry targeting the same header overrides them.
+
+See [Global parameters](/learn/api-definitions/openapi/extensions/global-parameters) for the full field reference and resolution order.
+
+## Pagination
+
+### `x-fern-pagination`
+
+Enables auto-pagination for an endpoint. The `--page-all`, `--page-limit`, `--page-delay`, and `--no-pager` flags are registered only on commands whose operation carries this extension.
+
+```yaml title="openapi.yml" {5-8}
+paths:
+  /plants:
+    get:
+      operationId: list_plants
+      x-fern-pagination:
+        cursor: $request.cursor
+        next_cursor: $response.next
+        results: $response.results
+```
+
+See [Pagination](/learn/api-definitions/openapi/extensions/pagination) for all supported pagination schemes (offset, cursor, URI, and path).
+
+## Table output
+
+### `x-fern-cli-table`
+
+Sets the columns that `--format table` shows for one command. Without it, table output has one column per field, with nested objects flattened to `parent.child` names, which gets wide for rich list responses.
+
+```yaml title="openapi.yml" {5-14}
+paths:
+  /datasets:
+    get:
+      operationId: list_datasets
+      x-fern-cli-table:
+        columns:
+          - { header: NAME, path: name }
+          - { header: V, path: version, align: right }
+          - { header: TYPE, path: type }
+          - { header: STAGE, path: stage }
+          - { header: ROWS, path: stats.rows, align: right }
+          - { header: CREATED, path: createdAt, format: date }
+          - { header: DESCRIPTION, path: description, maxWidth: 40, default: false }
+```
+
+```text
+NAME          V  TYPE  STAGE     ROWS  CREATED
+───────────  ──  ────  ────────  ────  ──────────
+aa_lcr       10  sft   approved  3870  2026-06-30
+aa_lcr_128k   1  sft   draft     3872  2026-06-17
+```
+
+Each column takes these fields:
+
+| Field | Description |
+| --- | --- |
+| `header` | Required. Column heading. |
+| `path` | Required. Dot path to the field in each row, for example `stats.rows`. Paths are relative to the rows left after `x-fern-sdk-return-value` extraction; list envelopes such as `{ "datasets": [...] }` are unwrapped automatically. A key that contains dots (`"stats.rows"`) is matched before the path is split. |
+| `align` | `left` (default) or `right`. |
+| `maxWidth` | Longer values are cut off with `…`. Defaults to 60 characters. |
+| `format` | `date` shortens timestamps such as `2026-06-30T12:00:00Z` to `2026-06-30`. |
+| `default` | `false` hides the column unless the user adds it with `--columns`. Defaults to `true`. |
+
+Commands with the extension get a `--columns` flag for picking columns without writing a `--query` expression. The flag is named `--table-columns` when the operation already has a `columns` parameter. Columns are matched by header or path, case-insensitively, and the flag's help text lists them. A value is either a list of columns or a set of `+`/`-` changes to the default columns, not a mix of both.
+
+```bash
+contoso datasets list --columns name,stage,rows     # only these columns, in this order
+contoso datasets list --columns +description,-v     # add to or remove from the default set
+contoso datasets list --columns name,datasetId      # an undeclared field path also works
+contoso datasets list --columns all                 # one column per field, as without the extension
+```
+
+`--columns` selects table output when `--format` isn't set, and can't be combined with `--query` or a non-table `--format`. The extension only changes `--format table`: an explicit `--query` replaces the declared columns, and JSON, YAML, CSV, JSON Lines (JSONL), and raw output keep the full response. With `--page-all`, the header prints once for all pages and later pages reuse the first page's column widths. A single-record response prints one `HEADER  value` line per column.
+
+If the extension is malformed (for example, a column without a `path`, an unknown field, or no column shown by default), it's ignored with a warning and the command uses the generic table.

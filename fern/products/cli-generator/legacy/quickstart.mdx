@@ -1,0 +1,109 @@
+---
+title: Quickstart
+description: Generate a working CLI binary from an OpenAPI spec in five steps.
+---
+
+<Markdown src="/products/cli-generator/legacy/snippets/legacy-notice.mdx" current="/learn/cli-generator/get-started/quickstart" />
+
+
+This guide walks through generating a CLI from an OpenAPI spec and running it via Fern's cloud generation. By the end you will have a compiled binary that [maps every API endpoint to a subcommand](/learn/cli-generator/legacy/get-started/openapi-extensions#command-structure), with [authentication](/learn/cli-generator/legacy/get-started/authentication), [output formatting](/learn/cli-generator/legacy/get-started/features#output-formatting), and [pagination](/learn/cli-generator/legacy/get-started/features#pagination) wired up from your spec.
+
+<Prompt
+  title="Generate a CLI"
+  actions={["cursor", "claude", "chatgpt"]}
+>
+Generate a CLI from an OpenAPI specification with Fern. Follow the [CLI Generator quickstart](https://buildwithfern.com/learn/cli-generator/legacy/get-started/quickstart.md) step by step.
+</Prompt>
+
+<Tip>
+  To generate entirely on your own machine without sending your spec to Fern, [run generation locally](/learn/cli-generator/legacy/get-started/local-generation) with `--local`.
+</Tip>
+
+## Prerequisites
+
+- [Fern CLI](https://www.npmjs.com/package/fern-api) v5.37.9 or later (`npm install -g fern-api`)
+- [Rust toolchain](https://rustup.rs/) (stable)
+- An OpenAPI 3.x spec with at least one endpoint (the CLI generator reads OpenAPI specs only)
+
+## Setup
+
+<Steps>
+
+<Step title="Initialize a Fern project">
+
+```bash
+mkdir my-api-config && cd my-api-config
+fern init --organization my-org
+```
+
+This creates a `fern/` directory containing the default configuration files.
+</Step>
+
+<Step title="Add your OpenAPI spec">
+
+Place your spec at `fern/openapi.yml` (or any path you reference in the next step). The spec must include at least one path, and any `securitySchemes` declared under `components` become the credentials the CLI [reads at runtime](/learn/cli-generator/legacy/get-started/authentication).
+</Step>
+
+<Step title="Configure the generator">
+
+Replace the contents of `fern/generators.yml`:
+
+```yaml title="fern/generators.yml"
+api:
+  specs:
+    - openapi: openapi.yml
+default-group: cli
+groups:
+  cli:
+    generators:
+      - name: fern-cli-generator
+        version: <Markdown src="/snippets/version-number-cli-generator.mdx"/>
+        output:
+          location: local-file-system
+          path: ../my-cli
+        config:
+          binaryName: my-cli
+```
+
+The `path` is relative to the `fern/` directory, so this writes the generated Rust project to a sibling `my-cli/` directory. To ship the CLI to npm, GitHub Releases, Homebrew, or Scoop instead of building it locally, configure a [publishing target](/learn/cli-generator/legacy/get-started/publishing).
+</Step>
+
+<Step title="Generate the CLI">
+
+```bash
+fern generate --group cli
+```
+
+Fern reads the OpenAPI spec, runs the CLI generator, and writes a complete Rust project to the output path. 
+</Step>
+
+<Step title="Build and run">
+
+```bash
+cd ../my-cli
+cargo build
+./target/debug/my-cli --help
+```
+
+The `--help` output shows the full command tree: top-level commands derived from OpenAPI tags with [help text](/learn/cli-generator/legacy/get-started/openapi-extensions#command-group-help) from their tag descriptions, subcommands from individual operations, and built-in utilities like `completion` and `man`.
+</Step>
+
+<Step title="Customize the output">
+
+- Rename commands, hide endpoints, or patch metadata without forking your spec by layering [overrides and overlays](/learn/cli-generator/legacy/get-started/customization#overrides-and-overlays) onto `generators.yml`.
+- Ship one binary that drives multiple APIs by listing them under `api.specs` with [multi-spec merging](/learn/cli-generator/legacy/get-started/customization#multi-spec-merging).
+- Add subcommands that don't map to an endpoint — login flows, config helpers, local utilities — with [custom commands](/learn/cli-generator/legacy/get-started/custom-commands).
+</Step>
+
+</Steps>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Publish your CLI" icon="regular rocket" href="/learn/cli-generator/legacy/get-started/publishing">
+    Ship to npm, GitHub Releases, Homebrew, and Scoop with automated cross-platform builds and CI.
+  </Card>
+  <Card title="Self-hosted generation" icon="regular laptop" href="/learn/cli-generator/legacy/get-started/local-generation">
+    Generate on your own machine with Docker, keeping your spec off Fern's infrastructure.
+  </Card>
+</CardGroup>
