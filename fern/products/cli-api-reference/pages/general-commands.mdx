@@ -9,7 +9,9 @@ These commands apply to every Fern project, whether it publishes [docs](/learn/c
 
 | Command | Description |
 |---------|-------------|
-| [`fern init`](#fern-init) | Create new Fern project from an OpenAPI spec, a gRPC proto, or scratch |
+| [`fern init`](#fern-init) | Start the setup wizard, or create a new Fern project from an OpenAPI spec, a gRPC proto, or scratch |
+| [`fern detect`](#fern-detect) | Show the API specs, frameworks, docs tools, and coding agents Fern finds in a repo |
+| [`fern agent setup`](#fern-agent-setup) | Add Fern's skills for your coding agents |
 | [`fern check`](#fern-check) | Validate API definition & configuration |
 | [`fern upgrade`](#fern-upgrade) | Update Fern CLI & generators to latest versions |
 | [`fern downgrade`](#fern-downgrade) | Move the Fern CLI version in `fern.config.json` back to an older version |
@@ -21,6 +23,8 @@ These commands apply to every Fern project, whether it publishes [docs](/learn/c
 | [`fern export`](#fern-export) | Export an OpenAPI spec for your API |
 | [`fern api update`](#fern-api-update) | Manually update your OpenAPI spec |
 | [`fern api enrich`](#fern-api-enrich) | Merge `x-fern-examples` from an overrides file into native OpenAPI examples |
+| [`fern org check`](#fern-org-check) | Check whether an organization name is yours, free, or taken |
+| [`fern org create`](#fern-org-create) | Create a Fern organization |
 | [`fern org get`](#fern-org-get) | View your organization's CLI version policy |
 | [`fern org set cli-version`](#fern-org-set-cli-version) | Set a minimum, maximum, or exact CLI version for your organization |
 | [`fern org unset cli-version`](#fern-org-unset-cli-version) | Clear your organization's CLI version policy |
@@ -33,13 +37,26 @@ These commands apply to every Fern project, whether it publishes [docs](/learn/c
 <AccordionGroup>
   <Accordion title="fern init">
 
-    Use `fern init` to initialize a new Fern workspace in the current folder. By default, you'll see the IMDb API example.
+    Use `fern init` to initialize a new Fern workspace in the current folder.
 
     <CodeBlock title="terminal">
     ```bash
-    fern init [--docs] [--openapi <path/url>] [--grpc] [--proto <path>]
+    fern init [--docs [--template <layout>]] [--openapi <path/url>] [--grpc] [--proto <path>] [--guest]
     ```
     </CodeBlock>
+
+    ### Setup wizard
+
+    Run `fern init` with no flags in a terminal to start the setup wizard (Fern CLI 5.226.0 or later). The wizard scans the repo (the same scan as [`fern detect`](#fern-detect)), asks whether to set up SDKs, Docs, a CLI, or a combination, then runs these steps, asking before each one:
+
+    1. **Set up Fern**: Checks your organization name and creates the organization if the name is free. Then creates the `fern/` folder from your API spec and a docs site from Fern's docs starter, with your company's logo, favicon, and accent color. The wizard shows the brand it found and asks before using it.
+    2. **Set up your coding agent**: Adds the Fern and `fern-docs` skills, and optionally connects [Fern's MCP server](/learn/docs/ai-features/fern-mcp-servers).
+    3. **Preview and publish your docs**: Creates a preview link, then asks whether to publish.
+    4. **Generate your SDKs**: Generates the SDK targets, and the CLI if you picked it, that the wizard added to `sdk-config.yml` (or `generators.yml` in older projects).
+
+    When you aren't logged in, the first step asks whether to log in, continue without an account (see [`--guest`](#guest)), or skip. Each step is also available as a standalone command: [`fern detect`](#fern-detect), [`fern org check`](#fern-org-check), [`fern org create`](#fern-org-create), [`fern docs brand`](/learn/cli-api-reference/cli-reference/docs-commands#fern-docs-brand), [`fern docs url check`](/learn/cli-api-reference/cli-reference/docs-commands#fern-docs-url-check), and [`fern agent setup`](#fern-agent-setup).
+
+    The wizard always runs the installed CLI, even in projects whose `fern.config.json` pins an older version, and pins new projects to the latest CLI release. With any flag other than `--guest`, or outside a terminal (CI, scripts, coding agents), `fern init` skips the wizard and creates the project directly. By default, you'll see the IMDb API example.
 
     When initializing with OpenAPI, your project structure will look like this:
 
@@ -106,6 +123,26 @@ These commands apply to every Fern project, whether it publishes [docs](/learn/c
 
     To publish the API docs, run [`fern generate --docs`](/learn/cli-api-reference/cli-reference/docs-commands#fern-generate---docs).
 
+    ### template
+
+    Use `--template` with `--docs` to start from Fern's docs starter, the template the [Fern Dashboard](https://dashboard.buildwithfern.com/) onboarding uses. Pick a layout: `stacked`, `side-by-side`, or `minimal`. Requires Fern CLI 5.226.0 or later.
+
+    ```bash
+    fern init --docs --template side-by-side
+    ```
+
+    The CLI downloads the starter on first use and caches it in `~/.fern/docs-starter`. If the download fails, it creates the basic `--docs` site instead. Run [`fern docs brand`](/learn/cli-api-reference/cli-reference/docs-commands#fern-docs-brand) afterward to apply your company's logo and colors.
+
+    ### guest
+
+    Use `--guest` to run the [setup wizard](#setup-wizard) without a Fern account. The wizard publishes your docs to a temporary site and generates your SDKs with [`fern generate --guest`](/learn/cli-api-reference/cli-reference/sdk-commands#guest), then prints the link that claims both into your organization and the session's expiry.
+
+    ```bash
+    fern init --guest
+    ```
+
+    `--guest` works only on its own, in a terminal. In scripts and coding agents, run `fern init --organization <name>` and then `fern generate --guest`.
+
     ### mintlify
 
     By adding `--mintlify PATH_TO_MINT_CONFIG`, the CLI will automatically convert your Mintlify docs folder into a Fern docs site, based on the `mint.json` file.
@@ -148,6 +185,65 @@ These commands apply to every Fern project, whether it publishes [docs](/learn/c
     <Tip>
     For more information on getting started, check out our [Quickstart Guide](/learn/docs/getting-started/quickstart)
     </Tip>
+  </Accordion>
+
+  <Accordion title="fern detect">
+
+    Use `fern detect` to see what Fern finds in the current folder: API specs, frameworks, docs tools, coding agents, the package manager, an existing Fern project, and the installed Fern CLI version. The [setup wizard](#setup-wizard) runs the same scan to plan its steps. Requires Fern CLI 5.226.0 or later.
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern detect [--json]
+    ```
+    </CodeBlock>
+
+    ```plaintext
+    Directory: ~/plant-store
+    API specs: openapi/plants.yml (openapi 3.1.0)
+    Frameworks: FastAPI
+    Docs: none
+    Coding agents: claude-code, cursor
+    Package manager: npm
+    Fern project: not initialized
+    Fern CLI: 5.226.0
+    ```
+
+    ### json
+
+    Use `--json` to print the full scan result as JSON.
+
+  </Accordion>
+
+  <Accordion title="fern agent setup">
+
+    Use `fern agent setup` (Fern CLI 5.226.0 or later) to give the repo's coding agents Fern's instructions. It adds the Fern skill (`fern/SKILL.md`) to each detected agent's project skills folder, and leaves existing copies alone:
+
+    | Agent | Folder |
+    |-------|--------|
+    | Claude Code | `.claude/skills/` |
+    | Cursor, Codex, GitHub Copilot | `.agents/skills/` |
+    | Windsurf | `.windsurf/skills/` |
+
+    When no agent is detected, it adds the skill for Claude Code, Cursor, and Codex. If the repo has a docs site (`fern/docs.yml`), it also installs the [`fern-docs` skill](/learn/docs/ai-features/agent-skills).
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern agent setup [--mcp] [--skip-skill]
+    ```
+    </CodeBlock>
+
+    ### mcp
+
+    Use `--mcp` to also connect [Fern's MCP server](/learn/docs/ai-features/fern-mcp-servers) to your coding agents, as [`fern mcp install`](/learn/cli-api-reference/cli-reference/docs-commands#fern-mcp-install) does. This logs you in to Fern if you aren't already.
+
+    ```bash
+    fern agent setup --mcp
+    ```
+
+    ### skip-skill
+
+    Use `--skip-skill` to skip the `fern-docs` skill and add only the Fern skill.
+
   </Accordion>
 
   <Accordion title="fern export">
@@ -534,6 +630,46 @@ These commands apply to every Fern project, whether it publishes [docs](/learn/c
     - `headers` → `parameters[].example` (where `in: header`)
     - `request` → `requestBody.content.*.example`
     - `response.body` → `responses.<status>.content.*.example`
+
+  </Accordion>
+
+  <Accordion title="fern org check">
+
+    Use `fern org check` to see whether an organization name belongs to you, is free, or belongs to another team. When another team owns it, the CLI suggests free alternatives. Organization names use lowercase letters, numbers, and hyphens. Requires Fern CLI 5.226.0 or later and [`fern login`](#fern-login).
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern org check <name> [--json]
+    ```
+    </CodeBlock>
+
+    ```bash
+    fern org check plant-store
+    ```
+
+    ### json
+
+    Use `--json` to output `{ "organization": ..., "status": ..., "suggestions": [...] }`. `status` is `mine`, `available`, `taken`, or `unknown` (the check couldn't run).
+
+  </Accordion>
+
+  <Accordion title="fern org create">
+
+    Use `fern org create` to create a Fern organization, with you as its first member. If you already belong to the organization, the command says so and changes nothing. If another team owns the name, it fails and suggests free names. Requires Fern CLI 5.226.0 or later and [`fern login`](#fern-login).
+
+    <CodeBlock title="terminal">
+    ```bash
+    fern org create <name> [--json]
+    ```
+    </CodeBlock>
+
+    ```bash
+    fern org create plant-store
+    ```
+
+    ### json
+
+    Use `--json` to output `{ "organization": ..., "created": true }`. `created` is `false` when you already belong to the organization.
 
   </Accordion>
 
