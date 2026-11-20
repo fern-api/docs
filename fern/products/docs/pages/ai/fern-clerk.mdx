@@ -1,0 +1,106 @@
+---
+title: Fern Clerk
+description: >-
+  Fern Clerk writes a first version of your docs from a repository, then reviews your pull requests and opens docs pull requests to keep the docs in sync with your code.
+availability: beta
+---
+
+Fern Clerk is an AI agent that writes and maintains documentation from your code. It writes a first version of your docs from a repository, then keeps them in sync as your code changes.
+
+| If you | Fern Clerk will |
+|--------|-----------------|
+| Are setting up a new docs site | [Write the docs from your repository](#during-docs-site-setup) as part of setup, and show them on your site before you connect a docs repository |
+| Have code but no docs | [Write a first version of your docs](#from-the-automations-page) from a repository |
+| Have a docs site | [Keep your docs in sync](#keep-docs-in-sync-with-your-code) by reviewing your pull requests and proposing docs changes |
+
+Writing and syncing work together. After Fern Clerk writes a first version, it keeps that version current. Outside setup, Fern Clerk delivers every change as a pull request, so nothing changes your docs until you merge.
+
+## Write docs from your code
+
+Fern Clerk reads a repository, plans a docs site, writes the pages, and checks that the site builds. It writes an API reference from the API specs it finds in the repository, and guides from the code. You can start it while you set up a docs site, or later from the **Automations** page.
+
+### During docs site setup
+
+The first step of creating a docs site in the [Fern Dashboard](https://dashboard.buildwithfern.com/) is **Generate docs from your code**. Select **Skip** to set up the site without it.
+
+<Steps>
+<Step title="Connect GitHub">
+Select **Connect GitHub** and sign in. Fern uses your account to read your product's repository.
+</Step>
+
+<Step title="Install the Fern GitHub App">
+Pick the account or organization that owns your product's repository, choose **All repositories** or only your product's, and select **Install**. If an organization owner has to approve the installation, the step updates when they do.
+</Step>
+
+<Step title="Choose the repository">
+Select the product repository Fern Clerk should document. Setup then continues as usual with your site's details and design.
+</Step>
+</Steps>
+
+Fern publishes your site first. Fern Clerk then writes the API reference and guides and publishes them onto the Fern-hosted site, so you see the result on your live docs site without a pull request. The site's deployment log shows each step.
+
+You don't need a docs repository for this. Setup doesn't ask where the docs are stored, and the docs live on the Fern-hosted site until you connect a repository to it.
+
+When you're ready to edit the docs in Git, [connect a repository to the docs site](/learn/dashboard/configuration/github-repo). From then on, Fern Clerk starts [keeping the docs in sync](#keep-docs-in-sync-with-your-code) with your code, using recommended settings. You can change them on the automation's **Settings** tab. Reviews run with your access, so [authorize Fern Clerk](#authorize-fern-clerk) before it reviews anything.
+
+### From the Automations page
+
+If you skipped the setup step, or your organization already has a docs site, write a first version from the **Automations** page.
+
+<Steps>
+<Step title="Pick the repository">
+Select **Set up Fern Clerk**, then **Generate docs from your code**. Choose the repository to document, then where the docs pull request opens:
+
+| Option | What happens |
+|--------|--------------|
+| **In the same repository** | The docs go in the repository's `fern/` folder. Changes under `fern/` aren't reviewed as code changes, so docs pull requests don't trigger more docs pull requests. |
+| **In a separate repository** | Enter the repository as `owner/name`. It must have the same owner as the repository you're documenting and no Fern docs yet. If the Fern GitHub App can't see it, install the app on it before you generate. |
+
+Fern checks that your GitHub account can read the repository you're documenting and write to the one the docs go in.
+</Step>
+
+<Step title="Add your brand and style (optional)">
+Enter your website to have Fern pull colors and a logo from it. Add tone and style guidance, such as voice, audience, and terminology. Fern follows it while writing and saves it as `fern/AGENTS.md` in the docs repository, so later changes use the same voice.
+</Step>
+
+<Step title="Review the pull request">
+The pull request describes the site's plan and what the run left out. Claims Fern couldn't trace to your code are marked `(needs confirmation)` on the page, and the pull request lists how many. Check those before you merge.
+</Step>
+
+<Step title="Merge to publish">
+The pull request adds up to three workflow files (check, preview, and publish), skipping any the repository already has, and a `FERN_TOKEN` secret if it doesn't have one. Merging it publishes the site.
+
+Adding the secret requires you to [authorize Fern Clerk](#authorize-fern-clerk). Without it, the pull request leaves out the workflows and says docs CI was skipped. Authorize, then run it again.
+</Step>
+</Steps>
+
+Each repository can have one run in progress at a time. A repository can start 3 runs a day and an organization 10. If a run fails with a retryable error, select **Retry** on the run.
+
+## Keep docs in sync with your code
+
+Fern Clerk reviews each pull request in the repositories you connect, decides whether the docs need to change, and opens a docs pull request when they do. It opens that pull request in the repository your docs site publishes from.
+
+You control:
+
+- **When a pull request is reviewed**: after it merges, or while it's still open. See [Review trigger](/learn/docs/ai-features/fern-agent#review-trigger).
+- **What happens when docs need to change**: open a pull request, or only record what would change and post nothing to GitHub. See [Observe only](/learn/docs/ai-features/fern-agent#observe-only).
+- **How changes are grouped**: a docs pull request after each merge, or one daily or weekly digest. See [Grouping](/learn/docs/ai-features/fern-agent#grouping).
+- **Which paths to ignore**: source paths whose changes never need docs. See [Ignored paths](/learn/docs/ai-features/fern-agent#ignored-paths).
+
+Each reviewed pull request shows its decision and the docs pull request it produced. Mark a decision right or wrong with the thumbs up and thumbs down buttons. To see how it judges your changes before the next merge, select **Review recent merges** on the automation's page. It reviews your last 10 merged pull requests and posts nothing to GitHub.
+
+Setup steps and settings are in the [Fern Clerk section of Fern Agent](/learn/docs/ai-features/fern-agent#fern-clerk).
+
+### Authorize Fern Clerk
+
+Reviews run in the background with nobody watching, so Fern Clerk acts as the person who set the automation up and sees and changes only what that person can. Until that person authorizes it, the automation shows **Needs authorization** and reviews nothing.
+
+To authorize, select **Authorize** at the top of the automation's page, or in the last step of setup. Fern opens a new tab where you sign in and approve letting Fern Clerk act as you. When the tab says the automation is authorized, close it. One authorization covers all your automations in the organization, and only the person who set an automation up can authorize it.
+
+If the authorization stops working, the automation shows **Reconnect needed** and pauses until you grant it again.
+
+## Permissions and data
+
+Fern Clerk needs the Fern GitHub App installed on the repositories it reads and on the repository your docs publish from. If the authorization of the person who set up an automation stops working, it pauses.
+
+Fern Clerk redacts secrets from pull request content before reviewing it, skips credential files, and scans its docs edits for secrets before committing them.
