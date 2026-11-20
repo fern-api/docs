@@ -1,16 +1,15 @@
 ---
 title: Manage in the dashboard
 description: Find, connect, and manage your hosted MCP servers in the Fern dashboard.
-availability: beta
 ---
 
-The [Fern CLI](/learn/mcp-generator/get-started/quickstart) generates and deploys your MCP servers from your API spec. The dashboard is where you find them, connect agents, and manage them once they're live.
+The [Fern CLI](/learn/mcp-generator/get-started/quickstart) generates and deploys your MCP servers from your API spec. The dashboard is where you find them, connect agents, manage them once they're live, and track tool-call usage.
 
 <Steps>
 
 <Step title="Find your server">
 
-Go to `https://dashboard.buildwithfern.com/<your-org>/mcp`, or choose **MCP Servers** in the left menu. During the beta, the menu entry isn't shown for every organization, but the URL works for all.
+Go to `https://dashboard.buildwithfern.com/<your-org>/mcp`, or choose **MCP Servers** in the left menu. The menu entry isn't shown for every organization yet, but the URL works for all.
 
 {/* <!-- vale FernStyles.We = NO --> */}
 
@@ -30,15 +29,45 @@ Select **Connect**. Choose the credential your API needs, then choose the tab fo
 If an agent can't reach the server, check that your network allows `*.fernmcp.dev`. Ask your IT team to add it to the allowlist if it's blocked.
 </Step>
 
+<Step title="Use a custom domain">
+
+A custom domain serves the server at the root of a hostname you own, such as `https://mcp.example.com`. Toolsets are at `https://mcp.example.com/<toolset>`. The `fernmcp.dev` URL keeps working.
+
+1. On the server's overview, select **Add custom domain** below the **Connection URL**.
+2. Enter the hostname and select **Continue**.
+3. Under **Configure DNS**, choose your DNS provider's tab (**Route 53**, **Cloudflare**, **GoDaddy**, **Namecheap**, or **Other**) and add the records it lists at your provider:
+   - A `CNAME` record from your hostname to `connect.fernmcp.dev`.
+   - A `TXT` record at `_cf-custom-hostname.<hostname>` that proves you own the domain.
+   - A `TXT` record at `_acme-challenge.<hostname>` for the TLS certificate. It shows as **Preparing** for a few minutes before its value appears.
+
+   On the **Route 53** tab, enter your hosted zone ID to get an `aws route53` command that adds the records.
+
+DNS changes can take a few minutes. The dialog checks again on its own, or select **Check status**. When the domain is ready, the dialog says it's verified and serving the MCP server, and the overview lists it under the **Connection URL**. To change or remove it, select **Manage custom domain**.
+
+On a server with [OAuth sign-in](/learn/mcp-generator/get-started/authentication), tokens must also name the custom domain in `aud` once it's active, written `https://<hostname>/` with a trailing slash. The **Authentication** tab lists it under **Token audience**.
+
+Adding or removing a custom domain requires organization admin access.
+</Step>
+
 <Step title="Review and manage the server">
 
 - **Tools** lists every tool generated from your spec.
 - **Analytics** shows how often agents call the server. It stays empty until the first calls arrive.
+- **Authentication** sets how callers sign in, what your API receives, and which clients and networks can connect. [Authentication](/learn/mcp-generator/get-started/authentication) covers each setting.
 - **Settings** has the server controls:
-  - **Pause server** takes the endpoint offline without deleting anything. While paused, every agent request gets an error. **Resume server** puts the server back on the deployment it had.
+  - **Pause server** takes the endpoint offline without deleting anything. While paused, every agent request gets an error. **Resume server** puts it back on its current deployment, so a deploy or rollback made while paused is what comes back.
   - **Delete server** removes the server permanently. The endpoint stops serving immediately, the URL returns 404, and the server's deployment history is removed.
 
   Only organization admins can pause, resume, or delete a server.
+</Step>
+
+<Step title="Track tool-call usage">
+
+Hosted MCP servers are priced by tool calls. Each organization has a monthly tool-call allowance, shared across all its hosted servers, that depends on your [plan](https://buildwithfern.com/pricing?tab=mcp).
+
+Only `tools/call` requests count, including each one inside a batch. Connecting, listing tools, and pings are free, and calls that name a tool the server doesn't have, calls with invalid arguments, and platform errors aren't counted. The count resets at midnight Coordinated Universal Time (UTC) on the 1st of each month.
+
+The **MCP Servers** page and your organization's billing settings show **Tool calls this month**, your limit, when it resets, and each server's share. At 80% of the limit, the MCP pages show a warning with a **Request more tool calls** button. At the limit, tool calls pause until the 1st of the next month. Your servers stay online and connected agents keep working, but each tool call returns a message that the limit was reached. To raise the limit, select **Request more tool calls** or [book a demo](https://buildwithfern.com/book-demo).
 </Step>
 
 </Steps>

@@ -1,0 +1,289 @@
+---
+title: Authentication
+description: Require OAuth sign-in on a hosted MCP server, choose what your API receives, and restrict which clients and networks can connect.
+---
+
+A hosted MCP server authenticates callers in one of two modes, set per server on its **Authentication** tab in the dashboard:
+
+- **API credentials in headers** (default): the agent sends your API's credential as a request header on every call, and the server forwards it to your API. [Pass credentials](/learn/mcp-generator/get-started/configure#pass-credentials) covers this mode.
+- **OAuth sign-in**: the server is an OAuth protected resource, as the [MCP authorization specification](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization) describes. An MCP client such as Claude Code adds only the server URL, signs the user in with your authorization server in the browser, and sends the resulting access token. The server checks the token on every request and never forwards it to your API.
+
+This page covers OAuth sign-in. Every setting on it takes effect without running `fern generate` again.
+
+## How sign-in works
+
+1. The client calls the server without a token. The server answers `401` with `WWW-Authenticate: Bearer resource_metadata="<server URL origin>/.well-known/oauth-protected-resource<path>"`.
+2. The client reads that metadata. It names the server URL as `resource` and your issuer as the only entry in `authorization_servers`.
+3. The client registers with your authorization server through Dynamic Client Registration (DCR), a Client ID Metadata Document (CIMD), or a client ID you configured. It then signs the user in with the authorization code flow and Proof Key for Code Exchange (PKCE).
+4. The client sends `Authorization: Bearer <access token>` on every request. The server accepts the token only when these hold:
+   - It's a JWT signed with `RS256`, `PS256` or `ES256` by a key from the issuer's JSON Web Key Set (JWKS).
+   - `iss` equals the issuer URL on the **Authentication** tab, character for character.
+   - `aud` names one of the server's URLs (see [Token audience](#token-audience)).
+   - `exp` hasn't passed and `nbf`, if present, has, with 60 seconds of clock skew allowed. A token without `exp` is refused.
+   - It carries every scope listed under **Required scopes**.
+5. Tools call your API with no credential, or with a separate token from [token exchange](#what-your-api-receives).
+
+## Turn on OAuth sign-in
+
+<Steps>
+
+<Step title="Set up your authorization server">
+
+Register an API (or resource server) for the MCP server at your identity provider before turning sign-in on. [Configure your authorization server](#configure-your-authorization-server) lists what each provider needs.
+</Step>
+
+<Step title="Choose OAuth sign-in">
+
+Open the server in the dashboard and select the **Authentication** tab. Under **Authentication**, choose **OAuth sign-in** and fill in:
+
+{/* JWKS URL is the field label on the dashboard. */}
+{/* <!-- vale Microsoft.Uppercase = NO --> */}
+
+| Field | Value |
+|---|---|
+| **Issuer URL** | Your authorization server's issuer, an `https://` URL. It must equal the `iss` claim in its tokens: Auth0 issuers end with `/`, Keycloak issuers don't. |
+| **Required scopes (optional)** | Scopes every token must carry, such as `mcp:tools`. A token without one gets `403` with `error="insufficient_scope"`. |
+| **JWKS URL (optional)** | The issuer's key set URL. Leave empty to discover it from the issuer's metadata. |
+
+{/* <!-- vale Microsoft.Uppercase = YES --> */}
+
+**Token audience** lists the URLs your authorization server must put in each token's `aud` claim. Copy them from there.
+</Step>
+
+<Step title="Save">
+
+Select **Save**. From then on, a request without a valid token gets `401`, and the server's connect page says sign-in is required.
+
+Changing how callers sign in requires organization admin access.
+</Step>
+
+</Steps>
+
+## Configure your authorization server
+
+### Token audience
+
+Each token's `aud` claim must name one of the server's URLs:
+
+- The Fern URL, such as `https://acme.fernmcp.dev/petstore`.
+- The custom domain once it's active, written with a trailing slash: `https://mcp.example.com/`. A custom domain serves at the root of the hostname, and MCP clients send a root URL as the `resource` parameter with its trailing slash. Providers that match the audience exactly, such as Auth0, need the identifier in that form.
+- A toolset adds its path to each URL: `https://acme.fernmcp.dev/petstore/<toolset>`, `https://mcp.example.com/<toolset>`. A token for one toolset isn't accepted on another.
+
+The server ignores a trailing slash when it compares `aud`, and a token for any of the server's URLs works on every one of them (same toolset). A token issued for a different server is refused, even when both servers use the same issuer.
+
+### Client registration
+
+The client has to be known to your authorization server before it can sign a user in. Each client supports one or more ways to register:
+
+| Method | How it works | Configure |
+|---|---|---|
+| Dynamic client registration (DCR) | The client registers itself at the provider's `registration_endpoint` the first time it connects. Claude Code uses this when no client ID is configured. | Turn DCR on at the provider. The provider's metadata must advertise `registration_endpoint`. |
+| Pre-registered client | You create the client at the provider and enter its client ID in the MCP client. Postman works this way. | Create a public (or confidential) client with the MCP client's callback URL. |
+| Client ID metadata document (CIMD) | The client ID is a URL to a metadata document the client hosts. | The provider must support CIMD. |
+
+If the provider supports none of these for a client, the client reports an error such as `Incompatible auth server: does not support dynamic client registration`.
+
+<Tabs>
+
+<Tab title="Auth0">
+
+1. Go to **Applications** > **APIs** > **Create API**. Set **Identifier** to the server URL from **Token audience**. Create one API per URL that clients connect to, since Auth0 issues one audience per API. Identifiers can't be changed later, so check the trailing slash on a custom domain before creating it.
+2. On the API's **Permissions** tab, add the scopes you listed under **Required scopes**, such as `mcp:tools`.
+3. In the API's **Settings**, turn on **Allow Offline Access**. Clients such as Claude Code request `offline_access` to refresh tokens without signing the user in again.
+4. For clients that register themselves, go to **Settings** > **Advanced** and turn on **Dynamic Client Registration**. Then open your login connection under **Authentication** (**Database** or **Social**) and turn on **Promote Connection to Domain Level**: Auth0 treats self-registered clients as third-party applications, and they can only use domain-level connections.
+5. On the API's application access list, grant each client user-delegated access to the scopes. Self-registered clients appear there as **Third Party** applications.
+6. On the **Authentication** tab in the dashboard, set **Issuer URL** to `https://<tenant>.<region>.auth0.com/`, with the trailing slash.
+
+Auth0 answers a misconfigured authorization request with a generic "Oops!, something went wrong" page. **Monitoring** > **Logs** shows the reason. The causes seen most often are a `resource` with no matching API identifier (check the trailing slash), a connection that isn't promoted to domain level, and a client without access to the API.
+</Tab>
+
+<Tab title="Keycloak">
+
+These steps were checked with Keycloak 26.2. The issuer is `https://<keycloak host>/realms/<realm>`, with no trailing slash.
+
+1. **Client scopes** > **Create**: name it `mcp:tools`, type **Optional**, **Include in token scope** on.
+2. Keycloak doesn't read the `resource` parameter, so add the audience with a mapper. On the `mcp:tools` client scope, go to **Mappers** > **Add mapper** > **By configuration** > **Audience**, set **Included Custom Audience** to the server URL, and turn on **Add to access token**. Add one mapper per URL in **Token audience**.
+3. For a pre-registered client: **Clients** > **Create**, OpenID Connect, public client, **Standard flow** on, PKCE method `S256`, and the MCP client's callback URL under **Valid redirect URIs**. Add `mcp:tools` to its client scopes.
+4. For clients that register themselves: under **Clients** > **Client registration** > **Anonymous access policies** > **Trusted Hosts**, turn off **Host sending client registration request must match**, keep **Client URIs must match** on, and list the redirect hosts you accept (such as `127.0.0.1` and `localhost`). Then make `mcp:tools` a realm **Default** client scope, so registered clients receive it and its audience mapper. Keycloak asks the user for consent the first time.
+
+A self-registered client gets a random client ID, which matters for [client access](#allow-or-block-mcp-clients).
+</Tab>
+
+<Tab title="Other providers">
+
+Any OAuth 2.1 or OpenID Connect provider works when it:
+
+- Publishes metadata at `/.well-known/oauth-authorization-server` or `/.well-known/openid-configuration` under the issuer, with `jwks_uri`.
+- Issues JWT access tokens signed with `RS256`, `PS256` or `ES256`, with `iss`, `aud` and `exp`.
+- Puts the server URL in `aud`, from the `resource` parameter or from configuration.
+- Supports the authorization code flow with PKCE `S256`, and a registration method your clients use.
+</Tab>
+
+</Tabs>
+
+## What your API receives
+
+Under **API access**, choose what tools send to your API:
+
+- **No credential**: tools call your API without credentials. Use this for a public API, or one that trusts the network the server calls from.
+- **Token exchange at the issuer**: for each signed-in user, the server exchanges the user's token at your authorization server, following the [OAuth 2.0 token exchange standard](https://datatracker.ietf.org/doc/html/rfc8693), for a token meant for your API, and calls the API with that one. Your API sees the same user, never the caller's original token.
+
+Token exchange takes these fields:
+
+| Field | Value |
+|---|---|
+| **Client ID** | The client at your issuer that's allowed to exchange tokens. It authenticates with `client_secret_basic`. |
+| **Audience (optional)** | The API the exchanged token is for, sent as `audience`. |
+| **Scope (optional)** | Scopes to request for the exchanged token. |
+| **Token endpoint (optional)** | Found from the issuer's metadata when empty. |
+| **Client secret** | Enter it and select **Set**. It's stored encrypted, used only by the server, and never shown again. Select **Replace** to rotate it. |
+
+Each exchanged token is reused for the same user's token until it expires, and never past the user's token. If the exchange fails, the tool call returns an error and your API isn't called.
+
+With Keycloak, turn on **Standard Token Exchange** on the exchanging client, and add a second audience mapper so the user's token also lists the exchanging client in `aud`. Without it, the exchange fails with `access_denied`.
+
+## Limit tools by role
+
+**Tool roles (optional)** takes a JSON object keyed by tool name. A user needs at least one of the listed roles:
+
+```json
+{
+  "delete_pet": ["admin"],
+  "get_record": {
+    "argument": "resource_type",
+    "roles": { "invoice": ["finance"] },
+    "default": ["viewer"]
+  }
+}
+```
+
+- A tool with a list is hidden from `tools/list` for users without one of its roles, and the server refuses a call to it with JSON-RPC error `-32001` before your API is called.
+- A tool with an `argument` rule picks the roles from that argument's value, falling back to `default`. It stays listed, and each call is checked against the value it passes. A value with no entry and no `default` is refused.
+- A tool that isn't in the object needs no role.
+
+Roles come from the token. By default the server reads Keycloak's `realm_access.roles` and every `resource_access.<client>.roles`, then `roles`. Set **Roles claim (optional)** to read another claim, by name or dot path such as `realm_access.roles`.
+
+## Allow or block MCP clients
+
+**Client access** limits which OAuth clients can connect:
+
+- **Allow only these clients**: every other client is refused.
+- **Block these clients**: the listed clients are refused, and every other client connects.
+
+List one client ID per line, 1 to 100 of them. The server reads the client from the token's `azp` claim, falling back to `client_id`. A refused client gets `403` with `{"error":"access_denied","error_description":"This MCP client is not allowed on this server."}` and no sign-in prompt. With an allow-list, a token that names no client is refused.
+
+The MCP `clientInfo` name and the User-Agent can be faked, so they're never used. A client that registers itself through DCR gets a new random ID at each registration, so name it only after pre-registering it at your provider. A CIMD client's ID is a stable URL, such as `https://vscode.dev/oauth/client-metadata.json`.
+
+## Limit network access
+
+The **Network access** card limits which IP addresses can reach the server, in both authentication modes. List IPv4 or IPv6 addresses or CIDR ranges, one per line, up to 100. A bare address becomes `/32` or `/128`, and an empty list leaves the server open to every network. Changes apply within about 60 seconds.
+
+A caller outside the list gets `403` with `{"error":"forbidden","error_description":"Your IP address is not allowed to reach this server."}` on MCP calls, on the OAuth metadata and on the connect page, before the server runs.
+
+The address checked is the one Cloudflare sees. Web clients such as Claude.ai and ChatGPT call from their provider's network rather than the user's machine (Claude.ai uses `160.79.104.0/21`), so list those ranges for them to work. A virtual private network changes the address too: requests then come from the network's exit address, which can differ from the one an IP lookup site shows in the browser.
+
+An allow-list narrows who can try to connect. OAuth sign-in or API credentials still decide who gets in.
+
+## Connect a client
+
+<Tabs>
+
+<Tab title="Claude Code">
+
+```bash
+claude mcp add --transport http petstore https://acme.fernmcp.dev/petstore
+```
+
+Run `/mcp`, select the server, and choose **Authenticate**. The browser opens your provider's sign-in page. Once signed in, **View tools** lists the tools.
+
+Claude Code registers itself through DCR, with a loopback callback at `http://localhost:<port>/callback`. To use a pre-registered client instead, pass its ID and a fixed callback port, and add `http://localhost:<port>/callback` to the client's redirect URIs:
+
+```bash
+claude mcp add --transport http --client-id <client-id> --callback-port 8765 petstore https://acme.fernmcp.dev/petstore
+```
+</Tab>
+
+<Tab title="Postman">
+
+Use the Postman desktop app. Create an MCP request with the server URL, then under **Authorization** choose OAuth 2.0 with a pre-registered client:
+
+- **Auth URL** and **Access Token URL**: your provider's `authorization_endpoint` and `token_endpoint`.
+- **Callback URL**: `https://oauth.pstmn.io/v1/browser-callback`. Add it to the client's redirect URIs.
+- **Client ID**: the client you created. Request the scopes under **Required scopes**, and set the audience or resource to the server URL when your provider needs it.
+
+The Postman web app's sign-in window can lose the authorization code, so the token request fails with `Missing required parameter: code`.
+</Tab>
+
+</Tabs>
+
+Other MCP clients follow the same flow. They differ in how they register (DCR, CIMD or a pre-registered client) and in their callback URLs, which must be allowed at your provider.
+
+## Self-hosted servers
+
+The generated HTTP server and Cloudflare Worker read the same settings from environment variables. stdio ignores them. The generated `README.md` in the zip lists the basic ones.
+
+| Variable | Value |
+|---|---|
+| `MCP_AUTH_MODE` | `oauth` turns sign-in on. The default, `headers`, reads API credentials from request headers. |
+| `MCP_AUTH_ISSUER` | The issuer URL. |
+| `MCP_PUBLIC_URL` | One or more space-separated URLs that clients connect to, such as `https://mcp.example.com/mcp`. Commas work as separators too. Tokens must name one of them in `aud`. |
+| `MCP_AUTH_SCOPES` | Optional. Space-separated scopes that every token must carry. Commas work as separators too. |
+| `MCP_AUTH_JWKS_URI` | Optional. Discovered from the issuer when unset. |
+| `MCP_AUTH_UPSTREAM` | Optional. `none` (default) or `token-exchange`. |
+| `MCP_AUTH_EXCHANGE_CLIENT_ID` | Required for token exchange. |
+| `MCP_AUTH_EXCHANGE_CLIENT_SECRET` | Required for token exchange. Keep it in a secret store. |
+| `MCP_AUTH_EXCHANGE_AUDIENCE`, `MCP_AUTH_EXCHANGE_SCOPE` | Optional. The exchanged token's audience and scope. |
+| `MCP_AUTH_EXCHANGE_TOKEN_ENDPOINT` | Optional. An `https://` URL; discovered from the issuer when unset. |
+| `MCP_AUTH_TOOL_ROLES` | Optional. The [tool roles](#limit-tools-by-role) JSON. |
+| `MCP_AUTH_ROLES_CLAIM` | Optional. The claim name or dot path that holds roles. |
+| `MCP_AUTH_CLIENT_ALLOW`, `MCP_AUTH_CLIENT_BLOCK` | Optional. A JSON list of client IDs. Set at most one. |
+
+A missing or invalid value stops the server with a message that names the variable, such as `MCP_AUTH_MODE is "oauth" but MCP_PUBLIC_URL is not set.` The IP allow-list is a Fern hosting feature with no environment variable.
+
+## Troubleshooting
+
+| Symptom | Cause |
+|---|---|
+| `401` with `The token was not issued for this server.` | `aud` doesn't name the server URL in use. Compare it with **Token audience**, including the toolset path. |
+| `401` with `The token was issued by a different authorization server.` | `iss` differs from **Issuer URL**: a trailing slash, `http` vs `https`, or another realm or tenant. |
+| `401` with `The token is not a JWT.` | The provider issued an opaque token. With Auth0, the request needs an `audience` or `resource` that matches an API identifier. |
+| `401` with `The token has expired.` | The client didn't refresh the token. Allow offline access at the provider. |
+| `403` with `insufficient_scope` | The token lacks a scope listed under **Required scopes**. |
+| `403` with `This MCP client is not allowed on this server.` | [Client access](#allow-or-block-mcp-clients) refuses the token's `azp` or `client_id`. |
+| `403` with `Your IP address is not allowed to reach this server.` | The caller's address is outside [Network access](#limit-network-access). |
+| Client: `Incompatible auth server: does not support dynamic client registration` | The provider advertises no `registration_endpoint`. Turn DCR on, or configure a client ID in the client. |
+| Client: `Server OAuth metadata invalid` | The issuer's metadata is missing required fields such as `authorization_endpoint`. Check **Issuer URL**. |
+| Auth0: "Oops!, something went wrong" on `/authorize` | See **Monitoring** > **Logs**. Usually the `resource` matches no API identifier, the connection isn't promoted to domain level, or the client has no access to the API. |
+| Tool error: `Tool <name> needs one of the roles: <roles>.` (`-32001`) | The user's token lacks the roles in **Tool roles**, or **Roles claim** points at the wrong claim. |
+| Tool error: `Tool <name> is not allowed for <argument> <value>.` (`-32001`) | The argument rule has no entry for that value and no `default`. |
+| Tool error: `The authorization server refused the token exchange (HTTP 401, invalid_client).` | Wrong client ID or secret for token exchange. |
+| Tool error: `The authorization server refused the token exchange (HTTP 400, access_denied).` | With Keycloak, the user's token doesn't list the exchanging client in `aud`, or **Standard Token Exchange** is off. |
+| Tool error: `The token exchange client secret (MCP_AUTH_EXCHANGE_CLIENT_SECRET) is not set` | Set the **Client secret** on the **Authentication** tab. |
+
+<llms-only>
+
+## Check a server from the command line
+
+These commands verify a hosted server's OAuth setup without a client. Replace the URL with the server's.
+
+```bash
+# Expect 401 and a WWW-Authenticate header with resource_metadata
+curl -si -X POST https://acme.fernmcp.dev/petstore \
+  -H 'content-type: application/json' \
+  -H 'accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | grep -i -E '^HTTP|www-authenticate'
+
+# Expect resource = the server URL and one authorization server
+curl -s https://acme.fernmcp.dev/.well-known/oauth-protected-resource/petstore
+
+# On a custom domain the metadata path has no server path
+curl -s https://mcp.example.com/.well-known/oauth-protected-resource
+
+# Expect issuer to equal the Issuer URL on the Authentication tab, and a jwks_uri.
+# A registration_endpoint means clients can register themselves.
+curl -s https://<issuer>/.well-known/openid-configuration
+```
+
+To check a token, decode its payload and compare `iss`, `aud`, `exp` and `scope` with the rules in "How sign-in works".
+
+</llms-only>
