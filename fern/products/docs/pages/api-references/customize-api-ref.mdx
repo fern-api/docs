@@ -1,6 +1,6 @@
 ---
 title: Customize API Reference layout
-description: Customize your API Reference layout with Fern. Configure options, order sections and endpoints, flatten navigation, hide endpoints, display errors, and add custom content.
+description: Customize your API Reference layout with Fern. Configure options, order sections and endpoints, flatten navigation, hide endpoints, display errors, show required scopes, and add custom content.
 ---
 
 
@@ -423,6 +423,27 @@ Clicking on an error expands it to show the error name, code, and object returne
 ![Endpoint errors when expanded](https://fern-image-hosting.s3.amazonaws.com/fern/errors-expanded.png)
 </Frame>
 
+### Showing required scopes
+
+Set `show-scopes` to `true` to list the scopes each endpoint requires in its Authentication section. Fern reads the scopes from the endpoint's [`security` requirements](/learn/api-definitions/openapi/authentication#multiple-auth-schemes) in your OpenAPI spec and shows them under the scheme that needs them, for example `Required scopes: plants:read` under the OAuth scheme. Schemes with no scopes, and endpoints with no `security` requirements, are unchanged. This option requires Fern CLI version 5.224.0 or later.
+
+```yaml title="docs.yml"
+navigation:
+  - api: API Reference
+    show-scopes: true
+```
+
+With this `security` requirement, the endpoint's Authentication section lists `plants:write` and `garden:admin` under `oauth`, and nothing extra under `apiKey`:
+
+```yaml title="openapi.yml"
+paths:
+  /plants:
+    post:
+      security:
+        - oauth: [plants:write, garden:admin]
+        - apiKey: []
+```
+
 ## Configuration options reference
 
 The following properties can be set on the `- api` entry in your `docs.yml` navigation.
@@ -469,6 +490,11 @@ The following properties can be set on the `- api` entry in your `docs.yml` navi
 
 <ParamField path="paginated" toc={true} type="boolean">
   When `true`, splits the API Reference into [one page per endpoint](#paginating-endpoints) instead of a single long-scrolling page (the default). Controls page layout only; unrelated to [endpoint pagination](/learn/api-definitions/openapi/extensions/pagination).
+
+</ParamField>
+
+<ParamField path="show-scopes" toc={true} type="boolean">
+  When `true`, lists the [scopes each endpoint requires](#showing-required-scopes) under each scheme in the endpoint's Authentication section, based on the endpoint's `security` requirements. Defaults to `false`.
 
 </ParamField>
 
