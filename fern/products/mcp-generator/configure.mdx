@@ -1,6 +1,6 @@
 ---
 title: Configure the server
-description: Choose which API operations become MCP tools, group them into toolsets, merge and rename tools, add custom tools and hooks, and pass credentials.
+description: Choose which API operations become MCP tools, group them into toolsets, merge and rename tools, add custom tools and hooks, set the server instructions, restrict outbound requests, and pass credentials.
 ---
 
 The MCP Generator turns each operation in your OpenAPI spec into one tool. Settings in the `generation` block of the `mcp` target in `sdk-config.yml` decide which tools the server exposes and how agents see them, and OpenAPI extensions on each operation set its tool's name and description. Run `fern generate` after a change to redeploy the server with the same URL.
@@ -189,11 +189,30 @@ The module exports four functions, each wrapping a point in the request lifecycl
 
 `context.fetch` doesn't set a content type. A non-2xx response returns to your handler without calling `onError`. On a `POST`, `PUT`, or `PATCH` with a JSON body, set `content-type: application/json`, or the body goes out as `text/plain` and many APIs answer `415`.
 
+A custom tool's handler can call any public host by default; an [egress allow-list](#restrict-outbound-requests) limits it to hosts you declare.
+
 `fern generate` uploads the custom tool and hook modules to Fern's build service, which bundles them into the server for both hosted and downloaded servers.
 
 ## Name the server
 
 `serverName` and `serverDescription` set the server's name and description. Without them, the name comes from `sdkName` in `sdk-config.yml`, with `sdk` replaced by `mcp` (`acme-sdk` becomes `acme-mcp`), and the description from `info.description` in your spec.
+
+## Set the server instructions
+
+The server returns a block of instructions on `initialize` that tells an agent how to use it. Fern generates this block from your spec: the server's name and description, the authentication scheme and header to send, and the `openapi://` resource and schema URIs an agent reads to browse docs and fetch full input schemas. `instructions` and `appendInstructions` set or extend that text.
+
+```yaml title="sdk-config.yml"
+targets:
+  - language: mcp
+    generation:
+      appendInstructions: |
+        Confirm a pet is available with get_pet_by_id before calling adopt_pet.
+        Prefer place_order over cancelling and re-creating an order.
+```
+
+`appendInstructions` adds your text after the generated block, keeping the generated wiring in place. `instructions` replaces the generated block outright. Setting both replaces the block, then appends. With neither set, the server returns the generated instructions unchanged.
+
+Replacing the block drops the generated `openapi://` URIs and `_meta` keys an agent needs to browse docs and fetch schemas, so prefer `appendInstructions` unless you restate that wiring yourself. Both fields go to the MCP client verbatim on every conversation, where they count against the context window, so keep them short.
 
 ## Pass credentials
 
@@ -204,6 +223,24 @@ Credentials come from the security schemes in your spec. Agents send them as req
 - An OAuth scheme, including client credentials, reads an access token from the `Authorization` header. The server doesn't get tokens itself, so the agent supplies a valid token. To have MCP clients sign users in with your authorization server instead, turn on [OAuth sign-in](/learn/mcp-generator/get-started/authentication).
 
 Parameters that carry a credential aren't tool inputs. When a call is missing a credential, the error names the headers to send. The dashboard's **Connect** button builds each agent's command with the right headers.
+
+## Restrict outbound requests
+
+A generated tool only ever calls your API, but a custom tool's handler can `fetch` any public host. `egress` restricts where the server sends outbound requests, including the calls custom tools make through `context.fetch`.
+
+```yaml title="sdk-config.yml"
+targets:
+  - language: mcp
+    generation:
+      egress:
+        policy: allowlist
+        allowedUpstreams:
+          - api.stripe.com
+```
+
+Under `policy: allowlist`, the server allows a request only to your API's origin, an OAuth issuer, or a host listed in `allowedUpstreams`, and refuses any other host. Declaring `allowedUpstreams` turns on `allowlist` on its own, so set `policy` alone to lock the server to its API origin with no extra hosts. Omitting the `egress` block, or setting `policy: open`, leaves egress unrestricted.
+
+Entries in `allowedUpstreams` are bare hostnames, without a scheme, path, port, or wildcard. The allow-list checks the resolved host of every outbound request, and a redirect to a host that isn't allowed is refused too. Blocking of private and internal addresses, and sending your API's credentials only to its own origin, both apply whatever the policy.
 
 ## Limits
 
