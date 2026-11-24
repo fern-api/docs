@@ -10,20 +10,25 @@ The `x-fern-pagination` extension configures auto-pagination for list endpoints 
 To configure pagination:
 
 1. Annotate the desired paginated endpoint with the `x-fern-pagination` extension
-2. Specify the pagination scheme (`offset`, `cursor`, `next_uri`, or `next_path`)
+2. Specify the pagination scheme (`offset`, `cursor`, `next_uri`, or `next_path`). For `offset`, also set `step` to the page-size request parameter. SDK Config generators skip auto-pagination for offset pagination without `step`, and for `next_uri` and `next_path`.
 3. Specify where your `results` are located using dot-access notation
 
 <CodeBlocks>
-```yaml title="Offset pagination" {5-7}
+```yaml title="Offset pagination" {5-8}
 paths:
   /plants:
     get:
       operationId: list_plants
       x-fern-pagination:
         offset: $request.page_number
+        step: $request.page_size
         results: $response.results
       parameters:
         - name: page_number
+          in: query
+          schema:
+            type: integer
+        - name: page_size
           in: query
           schema:
             type: integer
