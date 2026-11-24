@@ -199,7 +199,7 @@ A custom tool's handler can call any public host by default; an [egress allow-li
 
 ## Set the server instructions
 
-The server returns a block of instructions on `initialize` that tells an agent how to use it. Fern generates this block from your spec: the server's name and description, the authentication scheme and header to send, and the `openapi://` resource and schema URIs an agent reads to browse docs and fetch full input schemas. `instructions` and `appendInstructions` set or extend that text.
+On `initialize`, the server returns a block of **instructions** that tells an agent how to work with it. Fern generates this block from your spec, with no configuration: the server's name and description, the authentication scheme and the header to send, the `openapi://` resource and schema URIs an agent reads to browse docs and fetch full input schemas, and a note that arguments must match each tool's input schema. `appendInstructions` adds your own guidance after that block, and `instructions` replaces it.
 
 ```yaml title="sdk-config.yml"
 targets:
@@ -210,9 +210,9 @@ targets:
         Prefer place_order over cancelling and re-creating an order.
 ```
 
-`appendInstructions` adds your text after the generated block, keeping the generated wiring in place. `instructions` replaces the generated block outright. Setting both replaces the block, then appends. With neither set, the server returns the generated instructions unchanged.
+Prefer `appendInstructions`. It keeps the generated wiring, the `openapi://` URIs and `_meta` keys an agent needs to browse docs and fetch schemas, and adds your domain guidance on top. `instructions` replaces that wiring, so a bare replacement can break an agent's doc and schema browsing unless you restate what you still need. Setting both replaces the block first, then appends. With neither set, the server returns the generated instructions unchanged.
 
-Replacing the block drops the generated `openapi://` URIs and `_meta` keys an agent needs to browse docs and fetch schemas, so prefer `appendInstructions` unless you restate that wiring yourself. Both fields go to the MCP client verbatim on every conversation, where they count against the context window, so keep them short.
+Keep this text short. The MCP client sends the instructions to the model on every turn of every conversation, so they cost context tokens on each call. The generated block is budgeted to stay compact; your `appendInstructions` and `instructions` text is sent verbatim with no size cap, so long instructions add token cost to every request for as long as they're set.
 
 ## Pass credentials
 
@@ -238,9 +238,14 @@ targets:
           - api.stripe.com
 ```
 
-Under `policy: allowlist`, the server allows a request only to your API's origin, an OAuth issuer, or a host listed in `allowedUpstreams`, and refuses any other host. Declaring `allowedUpstreams` turns on `allowlist` on its own, so set `policy` alone to lock the server to its API origin with no extra hosts. Omitting the `egress` block, or setting `policy: open`, leaves egress unrestricted.
+`policy` is either `open` or `allowlist`:
 
-Entries in `allowedUpstreams` are bare hostnames, without a scheme, path, port, or wildcard. The allow-list checks the resolved host of every outbound request, and a redirect to a host that isn't allowed is refused too. Blocking of private and internal addresses, and sending your API's credentials only to its own origin, both apply whatever the policy.
+- **`open`** places no allow-list on destinations. It's the default, and leaving out the `egress` block entirely is the same as `open`, so existing servers keep reaching any public host until you opt in.
+- **`allowlist`** refuses every outbound host except your API's origin, your OAuth issuer, and the hosts in `allowedUpstreams`. Declaring any `allowedUpstreams` turns on `allowlist` on its own, so write `policy: allowlist` by itself only to lock a server down to its API with no extra hosts (an empty allow-list).
+
+`allowedUpstreams` entries are bare hostnames, with no scheme, path, port, or wildcard, matched exactly: `api.stripe.com` does not cover `sub.api.stripe.com`. Under `allowlist` the check runs on every hop, so a redirect to a host that isn't allowed is refused too.
+
+The allow-list layers on protections that apply under every policy, including `open`: the server always blocks requests to private and internal addresses, and sends your API's credentials only to your API's origin. A private or internal address is refused even if you list it in `allowedUpstreams`.
 
 ## Limits
 
