@@ -203,6 +203,20 @@ Credentials come from the security schemes in your spec. Agents send them as req
 - An HTTP bearer scheme reads `Authorization: Bearer <token>`, and an HTTP basic scheme reads `Authorization: Basic <base64 of username:password>`.
 - An OAuth scheme, including client credentials, reads an access token from the `Authorization` header. The server doesn't get tokens itself, so the agent supplies a valid token. To have MCP clients sign users in with your authorization server instead, turn on [OAuth sign-in](/learn/mcp-generator/get-started/authentication).
 
+When a security requirement in the spec lists several schemes together, a call needs every one of them, and the server's instructions say so.
+
+To accept a subset of the spec's schemes, list them under `api.auth.schemes` in `sdk-config.yml`, with each `id` matching a scheme name in the spec. The server then advertises and reads only those credentials, and never sends another scheme's credential to your API. A scheme listed together with a listed one in a spec requirement stays, because your API needs both:
+
+```yaml title="sdk-config.yml"
+api:
+  auth:
+    schemes:
+      - id: ApiKeyAuth
+        type: api-key
+        location: header
+        name: X-Api-Key
+```
+
 Parameters that carry a credential aren't tool inputs. When a call is missing a credential, the error names the headers to send. The dashboard's **Connect** button builds each agent's command with the right headers.
 
 ## Limits
